@@ -649,7 +649,8 @@ enum MonitorFanPercent {
         let safeMinimum = max(0, minimumRPM)
         let safeMaximum = max(safeMinimum, maximumRPM)
         let fraction = min(100, max(0, percent)) / 100
-        return safeMinimum + (safeMaximum - safeMinimum) * fraction
+        // 百分比按最高转速计算；低于最低转速时保留安全下限。
+        return max(safeMinimum, safeMaximum * fraction)
     }
 }
 

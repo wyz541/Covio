@@ -808,15 +808,30 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertFalse(configuration.hasTemperatureRules(for: .gpu))
     }
 
-    func testTemperatureRulePercentMapsToEachFanRange() {
+    func testTemperatureRulePercentMapsToFanMaximum() {
         XCTAssertEqual(
             MonitorFanPercent.rpm(percent: 30, minimumRPM: 1499, maximumRPM: 5348),
-            2653.7,
+            1604.4,
             accuracy: 0.001
         )
         XCTAssertEqual(
             MonitorFanPercent.rpm(percent: 50, minimumRPM: 1499, maximumRPM: 5776),
-            3637.5,
+            2888,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            MonitorFanPercent.rpm(percent: 60, minimumRPM: 1499, maximumRPM: 5348),
+            3208.8,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            MonitorFanPercent.rpm(percent: 20, minimumRPM: 1499, maximumRPM: 5348),
+            1499,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            MonitorFanPercent.rpm(percent: 100, minimumRPM: 1499, maximumRPM: 5348),
+            5348,
             accuracy: 0.001
         )
     }
@@ -935,17 +950,17 @@ final class MonitorFanTests: XCTestCase {
 
         let fan0Forty = MonitorFanRpmScale.summary(for: fan0, percent: 40)
         XCTAssertEqual(fan0Forty.minimumRPM, 1_499)
-        XCTAssertEqual(fan0Forty.targetRPM, 3_038.6, accuracy: 0.001)
+        XCTAssertEqual(fan0Forty.targetRPM, 2_139.2, accuracy: 0.001)
         XCTAssertEqual(fan0Forty.maximumRPM, 5_348)
 
         let fan1Forty = MonitorFanRpmScale.summary(for: fan1, percent: 40)
         XCTAssertEqual(fan1Forty.minimumRPM, 1_499)
-        XCTAssertEqual(fan1Forty.targetRPM, 3_209.8, accuracy: 0.001)
+        XCTAssertEqual(fan1Forty.targetRPM, 2_310.4, accuracy: 0.001)
         XCTAssertEqual(fan1Forty.maximumRPM, 5_776)
 
         let fan1Sixty = MonitorFanRpmScale.summary(for: fan1, percent: 60)
         XCTAssertEqual(fan1Sixty.minimumRPM, 1_499)
-        XCTAssertEqual(fan1Sixty.targetRPM, 4_065.2, accuracy: 0.001)
+        XCTAssertEqual(fan1Sixty.targetRPM, 3_465.6, accuracy: 0.001)
         XCTAssertEqual(fan1Sixty.maximumRPM, 5_776)
     }
 

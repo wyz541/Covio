@@ -155,8 +155,8 @@ final class FanControlRuntimeTests: XCTestCase {
         ))
 
         XCTAssertEqual(reply?.ok, true)
-        XCTAssertEqual(writer.targets[0], 2_600)
-        XCTAssertEqual(writer.targets[1], 3_120)
+        XCTAssertEqual(writer.targets[0], 2_000)
+        XCTAssertEqual(writer.targets[1], 2_400)
         let sourceText = try XCTUnwrap(status(runtime)["sourceTemperatures"])
         let sourceValues = try JSONDecoder().decode(
             [String: Double].self,
@@ -207,7 +207,7 @@ final class FanControlRuntimeTests: XCTestCase {
             payload: configuration.helperPayload()
         ))
 
-        XCTAssertEqual(writer.targets[0], 2_200)
+        XCTAssertEqual(writer.targets[0], 1_500)
         XCTAssertEqual(status(runtime)["active"], "true")
     }
 
