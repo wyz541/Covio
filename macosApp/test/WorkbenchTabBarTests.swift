@@ -10,6 +10,11 @@ import kmpDomain
 /// 这里守的是「页签上的字与把手、编辑提示条上的计数、动作词和搜索清空的落点」。
 @MainActor
 final class WorkbenchTabBarTests: XCTestCase {
+    private static let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+
     private func panes() -> [PaneItem] {
         let model = WorkbenchModel()
         return model.panes(language: CopyLocale.language)
@@ -38,6 +43,18 @@ final class WorkbenchTabBarTests: XCTestCase {
             HubMetrics.tabStripWidth,
             "默认页签不应该触发横向滚动"
         )
+    }
+
+    /// 导航按钮必须使用原生 Liquid Glass。纯色 Capsule 是 #324 已否决的旧实现。
+    func testNavigationButtonsUseNativeLiquidGlassAndMatchedGeometry() throws {
+        let url = Self.repositoryRoot
+            .appendingPathComponent("macosApp/src/Hub/Workbench/WorkbenchTabBar.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+
+        XCTAssertTrue(source.contains(".glassEffect(navigationGlass"))
+        XCTAssertTrue(source.contains(".glassEffectID("))
+        XCTAssertTrue(source.contains(".glassEffectTransition(.matchedGeometry)"))
+        XCTAssertFalse(source.contains("Capsule(style: .continuous).fill(MacTheme.accent"))
     }
 
     /// 右端动作的有无不能挪动左侧元素。
