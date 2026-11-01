@@ -151,36 +151,18 @@ final class WorkbenchModelTests: XCTestCase {
         XCTAssertEqual(model.destination, .pane(id: PaneKind.files.defaultId))
     }
 
-    // MARK: - 页标题行
+    // MARK: - 页签栏
 
-    /// 首页没有页标题行。打样的首页直接从网格开始。
-    func testTheHomePageHasNoHeading() {
-        XCTAssertNil(model().heading(for: .home, language: CopyLocale.language))
-    }
-
-    /// 每个工作区都有标题与说明。
-    func testEveryPaneHasAHeading() {
+    /// 每个工作区在页签栏里都有名称。内容区不重复页标题。
+    func testEveryPaneHasANavigationTitle() {
         let model = model()
+        XCTAssertEqual(
+            model.panes(language: CopyLocale.language).count,
+            model.config.visiblePanes.count
+        )
         for pane in model.panes(language: CopyLocale.language) {
-            let heading = model.heading(for: .pane(id: pane.id), language: CopyLocale.language)
-            XCTAssertNotNil(heading, "\(pane.id) 没有页标题")
-            XCTAssertFalse(heading?.title.isEmpty ?? true, "\(pane.id) 的标题为空")
-            XCTAssertFalse(heading?.summary.isEmpty ?? true, "\(pane.id) 的说明为空")
+            XCTAssertFalse(pane.title.isEmpty, "\(pane.id) 的页签名称为空")
         }
-    }
-
-    /// 页标题与页签必须使用同一个语言。
-    func testHeadingsUseTheRequestedLanguage() {
-        let model = model()
-        let destination = HubDestination.pane(id: PaneKind.now.defaultId)
-
-        let english = model.heading(for: destination, language: .english)
-        let chinese = model.heading(for: destination, language: .simplifiedChinese)
-
-        XCTAssertEqual(english?.title, HubTab.now.title.text(for: .english))
-        XCTAssertEqual(english?.summary, HubTab.now.summary.text(for: .english))
-        XCTAssertEqual(chinese?.title, HubTab.now.title.text(for: .simplifiedChinese))
-        XCTAssertEqual(chinese?.summary, HubTab.now.summary.text(for: .simplifiedChinese))
     }
 
     // MARK: - 编辑首页

@@ -6,6 +6,7 @@ import kmpDomain
 /// Hub 面板的几何。
 ///
 /// 面板由悬浮顶栏与内容列组成。内容列延伸到顶栏背后，并自带内边距。
+/// 页签提供页面标识；内容列只给需要页面动作的工作区保留操作行。
 /// 这里的每一条都在核对「加法有没有漏项」，因为漏项的后果是内容被裁掉，
 /// 而裁掉的部分在测试里看不出来。
 @MainActor
@@ -83,24 +84,31 @@ final class HubMetricsTests: XCTestCase {
         }
     }
 
-    /// 首页没有页标题行。打样的首页直接从网格开始。
-    func testTheHomePageHasNoHeadingRow() {
+    /// 首页没有页操作行，直接从网格开始。
+    func testTheHomePageHasNoActionRow() {
         for rows in [0, 1, 4] {
             let page = HubPage.home(rows: rows)
             XCTAssertEqual(HubMetrics.pageContentHeight(for: page), HubMetrics.bodyHeight(for: page))
         }
     }
 
-    /// 除剪切板外，有页标题行的页比主体多一行标题加一段间距。
-    /// 剪切板页的标题与顶部选中页签重复，所以只保留主体高度。
-    func testAPanePageAddsTheHeadingRowExceptForClipboard() {
+    /// 只有带页面动作的工作区多出操作行与间距。
+    func testOnlyPanesWithActionsReserveAnActionRow() {
         for tab in HubTab.allCases {
-            let page = HubPage.pane(tab)
-            let expected = tab == .clipboard
-                ? HubMetrics.bodyHeight(for: page)
-                : HubMetrics.pageHeadingHeight + HubMetrics.pageHeadingGap + HubMetrics.bodyHeight(for: page)
-            XCTAssertEqual(HubMetrics.pageContentHeight(for: page), expected)
+            let actionRow = tab.hasInlineActions
+                ? HubMetrics.pageActionHeight + HubMetrics.pageActionGap
+                : 0
+            XCTAssertEqual(
+                HubMetrics.pageContentHeight(for: .pane(tab)),
+                actionRow + HubMetrics.bodyHeight(for: .pane(tab))
+            )
         }
+
+        XCTAssertTrue(HubTab.agent.hasInlineActions)
+        XCTAssertFalse(HubTab.clipboard.hasInlineActions)
+        XCTAssertFalse(HubTab.files.hasInlineActions)
+        XCTAssertFalse(HubTab.devices.hasInlineActions)
+        XCTAssertFalse(HubTab.settings.hasInlineActions)
     }
 
     /// 每个页面的内容高度都比 0 大。零高度说明某一段漏算了。

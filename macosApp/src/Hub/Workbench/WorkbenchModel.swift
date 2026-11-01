@@ -82,17 +82,6 @@ final class WorkbenchModel {
         return HubTab(rawValue: pane.kind.key) ?? .board
     }
 
-    /// 页标题行里的标题与说明。首页没有标题行，所以返回 nil。
-    func heading(
-        for destination: HubDestination,
-        language: AppLanguage
-    ) -> (title: String, summary: String)? {
-        guard let id = destination.paneID, let pane = config.pane(id: id) else { return nil }
-        let tab = HubTab(rawValue: pane.kind.key) ?? .board
-        let title = pane.title.isEmpty ? tab.title.text(for: language) : pane.title
-        return (title, tab.summary.text(for: language))
-    }
-
     /// 顶栏右端的动作。首页提供编辑动作，其余工作区不重复提供设置入口。
     var pageAction: LocalizedCopy? {
         if isEditing { return ContractCopy.copyHubActionDone }

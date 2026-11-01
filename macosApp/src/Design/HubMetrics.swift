@@ -141,6 +141,12 @@ enum HubMetrics {
     /// 页标题与主体之间的间距。
     static let pageHeadingGap: CGFloat = 10
 
+    /// 工作区页操作行的行高。与页标题行使用同一尺寸。
+    static let pageActionHeight: CGFloat = 24
+
+    /// 工作区页操作行与主体之间的间距。
+    static let pageActionGap: CGFloat = 10
+
     /// 搜索结果一条的高度。
     ///
     /// 结果列表现在排在内容列里，内边距由内容列给，所以直接用设置行的行高，
@@ -264,18 +270,16 @@ enum HubMetrics {
         }
     }
 
-    /// 内容列里页标题行加主体的高度。
+    /// 内容列里页操作行加主体的高度。
     ///
-    /// 首页没有页标题行：打样的首页直接从网格开始。
+    /// 页签已经显示页面身份。只有带页面动作的工作区保留操作行。
     static func pageContentHeight(for page: HubPage) -> CGFloat {
         switch page {
         case .home:
-            bodyHeight(for: page)
-        case .pane(.clipboard):
-            // 顶部页签已经标出页面身份，不再重复标题行。
-            bodyHeight(for: page)
-        case .pane:
-            pageHeadingHeight + pageHeadingGap + bodyHeight(for: page)
+            return bodyHeight(for: page)
+        case .pane(let tab):
+            let actionRow = tab.hasInlineActions ? pageActionHeight + pageActionGap : 0
+            return actionRow + bodyHeight(for: page)
         }
     }
 

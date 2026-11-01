@@ -50,26 +50,20 @@ struct MonitorPreviewRoot: View {
 
     var body: some View {
         let totalWidth = width ?? HubMetrics.panelWidth
-        let totalHeight = height ?? HubMetrics.monitorBodyHeight + 92
-        let bodyHeight = max(HubMetrics.monitorBodyHeight, totalHeight - 92)
-        VStack(alignment: .leading, spacing: HubMetrics.pageHeadingGap) {
-            PaneHeading(
-                title: ContractCopy.copyHubTabDevices.text(for: language),
-                summary: ContractCopy.copyHubTabDevicesSummary.text(for: language)
-            )
-            MonitorTabView(
-                language: language,
-                powerModel: powerModel,
-                initialSnapshot: snapshot,
-                initialHistory: history,
-                initialPowerHistory: powerHistory,
-                runsSampling: runsSampling,
-                powerPopoverInitiallyPresented: powerPopoverInitiallyPresented,
-                powerPopoverInitialTab: powerPopoverInitialTab,
-                displayPopoverInitiallyPresented: displayPopoverInitiallyPresented
-            )
-            .frame(height: bodyHeight)
-        }
+        let totalHeight = height ?? HubMetrics.monitorBodyHeight + HubMetrics.panelPadding * 2
+        let bodyHeight = max(HubMetrics.monitorBodyHeight, totalHeight - HubMetrics.panelPadding * 2)
+        MonitorTabView(
+            language: language,
+            powerModel: powerModel,
+            initialSnapshot: snapshot,
+            initialHistory: history,
+            initialPowerHistory: powerHistory,
+            runsSampling: runsSampling,
+            powerPopoverInitiallyPresented: powerPopoverInitiallyPresented,
+            powerPopoverInitialTab: powerPopoverInitialTab,
+            displayPopoverInitiallyPresented: displayPopoverInitiallyPresented
+        )
+        .frame(height: bodyHeight)
         .padding(HubMetrics.panelPadding)
         .frame(width: totalWidth, height: totalHeight, alignment: .topLeading)
         .background(MacTheme.canvas)
@@ -804,7 +798,7 @@ final class MonitorPreviewWindowController: NSWindowController {
             ? 1_040
             : showsPowerPopover
                 ? MonitorPowerDetailLayoutPolicy.fullHeight + 100
-                : HubMetrics.monitorBodyHeight + 92
+                : HubMetrics.monitorBodyHeight + HubMetrics.panelPadding * 2
         let window = NSWindow(
             contentRect: NSRect(
                 x: 0,

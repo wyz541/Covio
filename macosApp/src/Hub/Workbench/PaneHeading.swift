@@ -40,3 +40,18 @@ extension PaneHeading where Action == EmptyView {
         self.init(title: title, summary: summary) { EmptyView() }
     }
 }
+
+/// 工作区页操作行。页签栏已经显示当前页面的名称与说明，内容区不重复标题。
+/// 只有 Agent 这类需要页面动作的工作区使用这一行。
+struct PaneActionRow<Action: View>: View {
+    @ViewBuilder var action: Action
+
+    var body: some View {
+        HStack(alignment: .center, spacing: MacTheme.space3) {
+            Spacer(minLength: 0)
+            action
+        }
+        .frame(width: HubMetrics.contentColumnWidth, height: HubMetrics.pageActionHeight, alignment: .trailing)
+        .accessibilityElement(children: .contain)
+    }
+}
