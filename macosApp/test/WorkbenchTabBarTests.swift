@@ -54,6 +54,8 @@ final class WorkbenchTabBarTests: XCTestCase {
         XCTAssertTrue(source.contains(".glassEffect(navigationGlass"))
         XCTAssertTrue(source.contains(".glassEffectID("))
         XCTAssertTrue(source.contains(".glassEffectTransition(.matchedGeometry)"))
+        XCTAssertTrue(source.contains("navigationTint(for:"))
+        XCTAssertTrue(source.contains("navigationHighlight(for:"))
         XCTAssertFalse(source.contains("Capsule(style: .continuous).fill(MacTheme.accent"))
     }
 
