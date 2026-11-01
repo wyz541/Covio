@@ -4,10 +4,10 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `1.4` |
-| 状态 | 已实现；等待真机视觉验收 |
-| 日期 | `2026-10-29` |
-| Issue | #441 |
+| 文档版本 | `1.5` |
+| 状态 | 已实现；#523 真机视觉验收通过 |
+| 日期 | `2026-11-01` |
+| Issue | #441、#523 |
 | 上游决策 | ADR-0024 |
 
 ## 目标
@@ -25,6 +25,16 @@ Power card 继续管理电池、适配器、热状态、低电量模式、安全
 | 第一段 | 屏幕状态、亮度、显示功耗 |
 | 第二段 | 外接屏数量、分辨率、刷新率 |
 | 第三段 | “详情与设置”入口和 popover |
+
+### 卡片视觉
+
+屏幕卡片与其它 Monitor 卡片共用 `MonitorCardShell`。
+第一段左侧使用亮度环。
+第一段右侧显示屏幕状态和显示功耗。
+摘要区复用 `MonitorDetailRows`。
+卡片内部不使用带边框的亮度预览。
+卡片内部不使用胶囊形指标块。
+卡片内部不增加第二层内容卡。
 
 ## 数据口径
 
@@ -68,7 +78,7 @@ popover 不重复屏幕状态、亮度、显示功耗、外接屏数量、分辨
 - `Settings > Lid` 不再保留重复开关。
 - 选中电池路径时，卡片显示耗电警告。
 
-### 材质
+### Popover 材质
 
 - popover 外壳使用系统原生 regular Liquid Glass。
 - 内容卡使用标准 thin material，不使用 Liquid Glass。
@@ -133,6 +143,20 @@ Covio 不依赖 `caffeinate`、Sunshine 或其它外部工具保持显示器唤�
 | 零亮度失败 | 恢复原亮度，回退公开关屏，显示错误 |
 
 ## 视觉验收
+
+### #523 当前视觉
+
+屏幕卡片现在复用 Monitor 卡片的主数值环和摘要行。
+
+| 亮色 | 深色 |
+| --- | --- |
+| ![Screen card light after](previews/523-monitor-screen-card-light-after-1.png) | ![Screen card dark after](previews/523-monitor-screen-card-dark-after-1.png) |
+
+英文：
+
+![Screen card English after](previews/523-monitor-screen-card-english-after-1.png)
+
+### #441 历史证据
 
 亮色：
 

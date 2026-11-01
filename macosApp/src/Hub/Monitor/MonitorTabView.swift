@@ -1555,7 +1555,7 @@ private struct MonitorPowerDetailRow: View {
 
 // MARK: - 仪表卡片
 
-private struct MonitorDetail: Identifiable {
+struct MonitorDetail: Identifiable {
     let label: String
     let value: String
     var id: String { "\(label):\(value)" }
@@ -1566,7 +1566,7 @@ private struct MonitorDetail: Identifiable {
     }
 }
 
-private struct MonitorDetailRows: View {
+struct MonitorDetailRows: View {
     let details: [MonitorDetail]
 
     var body: some View {
@@ -1767,28 +1767,33 @@ struct MonitorCardShell<Content: View>: View {
 
 // MARK: - 图形件
 
-private struct MonitorRing: View {
-    let fraction: Double
+struct MonitorRing: View {
+    let fraction: Double?
     let accent: Color
     let value: String
 
-    private var clamped: Double { min(1, max(0, fraction)) }
+    private var clampedFraction: Double? {
+        guard let fraction, fraction.isFinite else { return nil }
+        return min(1, max(0, fraction))
+    }
 
     var body: some View {
         ZStack {
             Circle()
                 .stroke(MacTheme.divider.opacity(0.8), lineWidth: 7)
-            Circle()
-                .trim(from: 0, to: max(0.002, clamped))
-                .stroke(
-                    AngularGradient(
-                        colors: [accent.opacity(0.45), accent, accent.opacity(0.72)],
-                        center: .center
-                    ),
-                    style: StrokeStyle(lineWidth: 7, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.28), value: clamped)
+            if let clampedFraction {
+                Circle()
+                    .trim(from: 0, to: max(0.002, clampedFraction))
+                    .stroke(
+                        AngularGradient(
+                            colors: [accent.opacity(0.45), accent, accent.opacity(0.72)],
+                            center: .center
+                        ),
+                        style: StrokeStyle(lineWidth: 7, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.28), value: clampedFraction)
+            }
             Text(value)
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .foregroundStyle(MacTheme.textPrimary)
