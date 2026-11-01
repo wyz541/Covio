@@ -39,6 +39,7 @@ jobs:
           python3 -I scripts/release_manifest.py check
           python3 -I scripts/test_release_manifest.py
           python3 -I scripts/test_release_pipeline.py
+          python3 -I scripts/test_release_notes.py
       # 合同常量是生成文件。改了合同忘了重跑生成器时这一步失败。
       - name: Design contract constants are current
         run: python3 -I scripts/generate-contract-constants.py --check

@@ -121,6 +121,56 @@ COVIO_NOTARY_PROFILE
 公开分发不在 ADR-0020 范围内。
 未来公开分发需要新的 ADR、Apple Developer Program、Developer ID 和 notarization。
 
+## 快捷命令
+
+`scripts/covio` 把下面的脚本按发布顺序串起来。
+`scripts/covio` 不复制校验逻辑。
+
+```text
+release status    只读：origin/main 的身份、tag、CI 与 Release 状态
+release prepare   新 worktree → bump → 说明草稿 → draft PR
+   ↓ 维护者重写说明，合并 PR
+release draft     origin/main 的 detached worktree → create-release.sh
+   ↓ 维护者安装 Draft 中的 PKG 并验收
+release publish   确认 → publish-release.sh
+release clean     删除已发布 tag 的 release worktree
+```
+
+各命令的前置检查：
+
+| 命令 | 拒绝执行的条件 |
+| --- | --- |
+| `release prepare` | 上一个 tag 还没有发布 |
+| `release prepare` | 分支或 worktree 已存在 |
+| `release draft` | tag 已有 Release |
+| `release draft` | `RELEASE_NOTES.md` 标题不是本 build，或仍有 `TODO(release)` |
+| `release draft` | origin/main 的 CI 未全部通过（`--skip-ci-check` 跳过） |
+| `release publish` | tag 不是 Draft，或维护者未输入 `y`（`--yes` 跳过） |
+| `release clean` | worktree 有未提交改动、提交不在 main 上，或 Release 未发布 |
+
+`release prepare` 用 `scripts/release_notes.py` 生成说明草稿。
+草稿列出上一个 tag 之后合并的 PR 标题，并写入 `TODO(release)` 标记。
+维护者按用户可见的变化重写草稿，然后删除标记。
+`release_notes.py` 同时更新 README 的下载链接与历史版本列表。
+
+`release draft` 只从 origin/main 构建。
+因此 Release 的 commit 就是 bump PR 合并后的 main，不是本地分支。
+
+### 本机安装
+
+```sh
+scripts/covio local          # Release 配置，替换 /Applications/Covio.app
+scripts/covio local --pkg    # 打包并用事务 PKG 安装
+```
+
+`local` 允许未提交的改动，用于开发迭代。
+`local` 替换 app 后检查 helper 身份。身份不一致时，`local` 重装 helper。
+`local` 最后重写 `installed-release.json`。因此下一次 PKG 升级的前置检查能通过。
+`local --pkg` 要求工作树干净，与 Release 的安装路径相同。
+
+**警告：** `local` 与 `local --pkg` 需要管理员授权，并会退出正在运行的 Covio。
+安装期间风扇、充电上限和合盖控制会短暂失效。
+
 ## 失败行为
 
 | 阶段 | 失败结果 |
@@ -171,5 +221,7 @@ COVIO_NOTARY_PROFILE
 
 ```sh
 python3 -I scripts/test_release_pipeline.py
+python3 -I scripts/test_release_notes.py
+shellcheck scripts/covio
 bash scripts/test-all.sh
 ```

@@ -1,0 +1,529 @@
+#!/bin/bash
+set -euo pipefail
+
+# Covio 的本机安装与内测发布入口。
+#
+# 本命令只编排现有脚本，不复制校验逻辑：
+#   构建      scripts/build-macos-swift.sh、scripts/package-macos-swift.sh
+#   身份      scripts/release_manifest.py
+#   说明      scripts/release_notes.py
+#   Release   scripts/create-release.sh、scripts/publish-release.sh
+#
+# 用法见 `scripts/covio help`。设计见 docs/design/release-pipeline.md 的「快捷命令」。
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+APP_NAME="Covio"
+INSTALLED_APP="/Applications/$APP_NAME.app"
+HELPER_BINARY="/Library/Application Support/Covio/bin/CovioHelper"
+REMOTE="${COVIO_REMOTE:-origin}"
+MAIN_BRANCH="${COVIO_MAIN_BRANCH:-main}"
+MAIN_REF="$REMOTE/$MAIN_BRANCH"
+
+# release worktree 与仓库并列放在 _worktrees/<仓库目录名>/ 下。
+COMMON_DIR="$(cd "$ROOT" && cd "$(git rev-parse --git-common-dir)" && pwd)"
+PRIMARY_CHECKOUT="$(dirname "$COMMON_DIR")"
+WORKTREE_ROOT="${COVIO_WORKTREE_ROOT:-$(dirname "$PRIMARY_CHECKOUT")/_worktrees/$(basename "$PRIMARY_CHECKOUT")}"
+
+say() { printf '==> %s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/covio <command> [options]
+
+Local install:
+  local [--pkg] [--no-launch]
+      Build the Release configuration and install it to /Applications/Covio.app.
+      --pkg        Package and install through the transactional PKG instead.
+      --no-launch  Do not start Covio after the install.
+
+Internal release (run in this order):
+  release status
+      Show the release identity on origin/main, its tag, CI and Release state.
+  release prepare [--version X.Y.Z] [--issue N]
+      Bump the build in a new worktree, draft the notes and open a draft PR.
+  release draft [--with-offline] [--dry-run] [--skip-ci-check]
+      Build origin/main in a detached worktree and upload a Draft Release.
+  release publish [tag] [--yes]
+      Re-verify the Draft assets and publish the Draft Release.
+  release clean [--dry-run]
+      Remove clean release worktrees whose Release is published.
+EOF
+}
+
+require_gh() {
+  command -v gh >/dev/null 2>&1 || die "install the GitHub CLI first: brew install gh"
+  gh auth status >/dev/null 2>&1 || die "authenticate first: gh auth login"
+}
+
+repository() {
+  printf '%s\n' "${RELEASE_REPO:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
+}
+
+fetch_main() {
+  git -C "$ROOT" fetch --quiet --tags "$REMOTE" "$MAIN_BRANCH"
+}
+
+# 读出 origin/main 上的发布身份。只读 Git 对象，不依赖当前工作树。
+main_manifest_value() {
+  git -C "$ROOT" show "$MAIN_REF:release/release-manifest.json" \
+    | python3 -I -c 'import json, sys; print(json.load(sys.stdin)[sys.argv[1]])' "$1"
+}
+
+main_tag() {
+  local manifest
+  manifest="$(mktemp "${TMPDIR:-/tmp}/covio-manifest.XXXXXX")"
+  git -C "$ROOT" show "$MAIN_REF:release/release-manifest.json" > "$manifest"
+  python3 -I "$ROOT/scripts/release_pipeline.py" tag --source-manifest "$manifest"
+  rm -f "$manifest"
+}
+
+# 输出 draft、published 或 missing。
+release_state() {
+  local tag="$1" repo="$2" draft
+  if ! draft="$(gh release view "$tag" --repo "$repo" --json isDraft --jq .isDraft 2>/dev/null)"; then
+    printf 'missing\n'
+  elif [[ "$draft" == "true" ]]; then
+    printf 'draft\n'
+  else
+    printf 'published\n'
+  fi
+}
+
+# 输出 success、pending、failure 或 none。
+ci_state() {
+  local commit="$1" repo="$2"
+  # shellcheck disable=SC2016  # jq 表达式，不是 shell 展开。
+  gh api "repos/$repo/commits/$commit/check-runs" --jq '
+    [.check_runs[]] as $runs
+    | if ($runs | length) == 0 then "none"
+      elif any($runs[]; .status != "completed") then "pending"
+      elif all($runs[]; .conclusion == "success" or .conclusion == "skipped" or .conclusion == "neutral") then "success"
+      else "failure" end'
+}
+
+running_covio_paths() {
+  pgrep -fl "\.app/Contents/MacOS/$APP_NAME\$" 2>/dev/null | sed 's/^[0-9]* //' || true
+}
+
+quit_installed_app() {
+  if ! pgrep -f -x "$INSTALLED_APP/Contents/MacOS/$APP_NAME" >/dev/null 2>&1; then
+    return 0
+  fi
+  say "Quitting the running Covio"
+  osascript -e 'tell application id "com.wyz.covio" to quit' >/dev/null 2>&1 || true
+  local _
+  for _ in $(seq 1 40); do
+    pgrep -f -x "$INSTALLED_APP/Contents/MacOS/$APP_NAME" >/dev/null 2>&1 || return 0
+    sleep 0.25
+  done
+  die "Covio did not quit. Quit it from the menu bar and run the command again."
+}
+
+check_other_instances() {
+  local path
+  while IFS= read -r path; do
+    [[ -z "$path" || "$path" == "$INSTALLED_APP/Contents/MacOS/$APP_NAME" ]] && continue
+    die "another Covio is running from $path. Quit it first; only one instance can hold the lock."
+  done < <(running_covio_paths)
+}
+
+identity_field() {
+  python3 -I -c 'import json, sys; print(json.loads(sys.argv[1]).get(sys.argv[2], ""))' "$1" "$2"
+}
+
+launch_installed_app() {
+  say "Starting $INSTALLED_APP"
+  open "$INSTALLED_APP"
+}
+
+# ---------------------------------------------------------------------------
+# local
+
+cmd_local() {
+  local use_pkg=0 launch=1
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --pkg) use_pkg=1 ;;
+      --no-launch) launch=0 ;;
+      *) usage >&2; exit 2 ;;
+    esac
+    shift
+  done
+  [[ "$(uname -s)" == "Darwin" ]] || die "local install requires macOS"
+  check_other_instances
+
+  if [[ "$use_pkg" -eq 1 ]]; then
+    local_pkg
+  else
+    local_app
+  fi
+
+  if [[ "$launch" -eq 1 ]]; then
+    launch_installed_app
+  fi
+}
+
+# 走与 Release 相同的事务 PKG。app、helper 与安装记录成对提交。
+local_pkg() {
+  local version pkg
+  say "Packaging the transactional PKG"
+  bash "$ROOT/scripts/package-macos-swift.sh"
+  version="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
+  pkg="$ROOT/dist/$APP_NAME-$version.pkg"
+  [[ -f "$pkg" ]] || die "missing package: $pkg"
+  say "Installing $pkg (administrator password required)"
+  sudo /usr/sbin/installer -pkg "$pkg" -target /
+}
+
+# 开发迭代路径：允许未提交的改动，不打包。
+# 替换 app 后，helper 身份不一致时重装 helper，再重写安装记录。
+# 安装记录与 app 一致时，下一次 PKG 升级的前置检查才能通过。
+local_app() {
+  local built="$ROOT/build/xcode-dd/Build/Products/Release/$APP_NAME.app"
+  local staged="/Applications/.$APP_NAME.app.installing"
+  local backup="/Applications/.$APP_NAME.app.previous"
+
+  if [[ -n "$(git -C "$ROOT" status --porcelain --untracked-files=normal)" ]]; then
+    warn "the working tree has uncommitted changes; the build still records commit $(git -C "$ROOT" rev-parse --short HEAD)"
+  fi
+
+  say "Building the Release configuration"
+  CONFIGURATION=Release bash "$ROOT/scripts/build-macos-swift.sh"
+  [[ -d "$built" ]] || die "missing build: $built"
+
+  say "Installing $INSTALLED_APP (administrator password required)"
+  sudo -v
+  quit_installed_app
+  sudo rm -rf "$staged" "$backup"
+  sudo /usr/bin/ditto "$built" "$staged"
+  sudo /usr/sbin/chown -R root:wheel "$staged"
+  sudo /usr/bin/codesign --verify --deep --strict "$staged"
+  if [[ -d "$INSTALLED_APP" ]]; then
+    sudo mv "$INSTALLED_APP" "$backup"
+  fi
+  if ! sudo mv "$staged" "$INSTALLED_APP"; then
+    [[ -d "$backup" ]] && sudo mv "$backup" "$INSTALLED_APP"
+    die "cannot move the new app into place; the previous app is restored"
+  fi
+  sudo rm -rf "$backup"
+
+  local app_identity helper_identity=""
+  app_identity="$("$INSTALLED_APP/Contents/MacOS/$APP_NAME" --print-release-identity)"
+  if [[ -x "$HELPER_BINARY" ]]; then
+    helper_identity="$("$HELPER_BINARY" --print-release-identity 2>/dev/null || true)"
+  fi
+  if [[ -n "$helper_identity" &&
+        "$(identity_field "$app_identity" releaseId)" == "$(identity_field "$helper_identity" releaseId)" &&
+        "$(identity_field "$app_identity" helperSHA256)" == "$(identity_field "$helper_identity" helperSHA256)" ]]; then
+    say "The installed helper already matches the app"
+  else
+    say "Installing the helper (a system dialog asks for the administrator password)"
+    "$INSTALLED_APP/Contents/MacOS/$APP_NAME" --install-helper \
+      || die "helper install failed; run: COVIO_APP=$INSTALLED_APP bash scripts/verify-helper-cutover.sh all"
+  fi
+
+  say "Recording the installed release"
+  sudo /bin/bash -c '
+    set -euo pipefail
+    source "$1"
+    covio_tx_configure
+    covio_tx_load_info_identity "$2" LOCAL
+    covio_tx_validate_prefix LOCAL
+    covio_tx_write_installed_record LOCAL
+  ' covio-local "$ROOT/installer/transaction.sh" "$INSTALLED_APP" \
+    || die "cannot write installed-release.json; the next PKG upgrade will stop before changing the app"
+
+  COVIO_APP="$INSTALLED_APP" bash "$ROOT/scripts/verify-helper-cutover.sh" verify
+  say "Installed $(identity_field "$app_identity" releaseId)"
+}
+
+# ---------------------------------------------------------------------------
+# release
+
+cmd_release() {
+  local sub="${1:-}"
+  [[ $# -gt 0 ]] && shift
+  case "$sub" in
+    status) release_status "$@" ;;
+    prepare) release_prepare "$@" ;;
+    draft) release_draft "$@" ;;
+    publish) release_publish "$@" ;;
+    clean) release_clean "$@" ;;
+    *) usage >&2; exit 2 ;;
+  esac
+}
+
+release_status() {
+  [[ $# -eq 0 ]] || { usage >&2; exit 2; }
+  require_gh
+  fetch_main
+  local repo commit tag version build
+  repo="$(repository)"
+  commit="$(git -C "$ROOT" rev-parse "$MAIN_REF")"
+  tag="$(main_tag)"
+  version="$(main_manifest_value productVersion)"
+  build="$(main_manifest_value buildNumber)"
+  printf 'origin/main   %s\n' "${commit:0:12}"
+  printf 'identity      %s build %s (%s)\n' "$version" "$build" "$(main_manifest_value channel)"
+  printf 'tag           %s\n' "$tag"
+  printf 'release       %s\n' "$(release_state "$tag" "$repo")"
+  printf 'CI            %s\n' "$(ci_state "$commit" "$repo")"
+  printf 'open PRs      '
+  gh pr list --repo "$repo" --state open --search "head:release/" \
+    --json number,headRefName,isDraft \
+    --jq 'if length == 0 then "none" else map("#\(.number) \(.headRefName)\(if .isDraft then " (draft)" else "" end)") | join(", ") end'
+  if [[ -x "$INSTALLED_APP/Contents/MacOS/$APP_NAME" ]]; then
+    printf 'installed     %s\n' "$(/usr/libexec/PlistBuddy -c 'Print :CovioReleaseId' "$INSTALLED_APP/Contents/Info.plist" 2>/dev/null || printf unknown)"
+  fi
+}
+
+release_prepare() {
+  local new_version="" issue=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --version) new_version="${2:?--version needs a value}"; shift ;;
+      --issue) issue="${2:?--issue needs a value}"; shift ;;
+      *) usage >&2; exit 2 ;;
+    esac
+    shift
+  done
+  require_gh
+  fetch_main
+  local repo previous_tag
+  repo="$(repository)"
+  previous_tag="$(main_tag)"
+  # 上一个 build 未发布时再 bump，会让两个 build 号之间没有对应的 Release。
+  if [[ "$(release_state "$previous_tag" "$repo")" != "published" ]]; then
+    die "$previous_tag is not published. Run 'scripts/covio release draft' and 'publish' first."
+  fi
+
+  local version build next_build current_tag branch worktree
+  version="$(main_manifest_value productVersion)"
+  build="$(main_manifest_value buildNumber)"
+  if [[ -n "$new_version" ]]; then
+    version="$new_version"
+  fi
+  next_build=$((build + 1))
+  current_tag="v$version-internal.$next_build"
+  branch="release/$version-internal.$next_build"
+  worktree="$WORKTREE_ROOT/release-$version-internal.$next_build"
+
+  git -C "$ROOT" show-ref --quiet "refs/heads/$branch" && die "branch $branch already exists"
+  [[ -e "$worktree" ]] && die "worktree path already exists: $worktree"
+
+  say "Creating $worktree on $branch"
+  mkdir -p "$WORKTREE_ROOT"
+  git -C "$ROOT" worktree add --quiet -b "$branch" "$worktree" "$MAIN_REF"
+
+  local bump_args=(bump)
+  [[ -n "$new_version" ]] && bump_args+=(--version "$new_version")
+  python3 -I "$worktree/scripts/release_manifest.py" "${bump_args[@]}"
+  python3 -I "$worktree/scripts/release_notes.py" draft \
+    --root "$worktree" \
+    --previous-tag "$previous_tag" \
+    --current-tag "$current_tag"
+
+  local refs=""
+  [[ -n "$issue" ]] && refs=$'\n\n'"Refs #$issue"
+  git -C "$worktree" add \
+    release/release-manifest.json \
+    kmpDomain/src/com/wyz/covio/core/GeneratedReleaseIdentity.kt \
+    macosApp/ReleaseIdentity.generated.xcconfig \
+    macosApp/src/Design/GeneratedReleaseIdentity.swift \
+    RELEASE_NOTES.md \
+    README.md
+  # agent 运行时设置 COVIO_COMMIT_TRAILER，写入 AGENTS.md 要求的 Co-Authored-By 行。
+  local message=("-m" "Prepare Covio $version build $next_build$refs")
+  [[ -n "${COVIO_COMMIT_TRAILER:-}" ]] && message+=("-m" "$COVIO_COMMIT_TRAILER")
+  git -C "$worktree" commit --quiet "${message[@]}"
+  git -C "$worktree" push --quiet --set-upstream "$REMOTE" "$branch"
+
+  local body
+  body="$(cat <<EOF
+## What changed
+
+- Bump the release identity to Covio \`$version\`, internal build \`$next_build\`.
+- Draft the release notes from the pull requests merged since \`$previous_tag\`.
+- Update the README download links for build $next_build.
+
+## Why
+
+Prepare the internal release \`$current_tag\`.${issue:+
+
+Related issue: #$issue.}
+
+## Visual verification
+
+Not applicable. This PR does not change UI code.
+
+## Proof
+
+- \`python3 scripts/release_manifest.py check\`:
+- \`python3 scripts/release_notes.py check --notes RELEASE_NOTES.md --current-tag $current_tag\`:
+- CI:
+
+## Risk
+
+The release artifact is built from the merge commit by \`scripts/covio release draft\`.
+EOF
+)"
+  gh pr create --repo "$repo" --draft --base "$MAIN_BRANCH" --head "$branch" \
+    --title "Prepare Covio $version build $next_build" --body "$body"
+
+  cat <<EOF
+
+Next:
+  1. Rewrite the TODO(release) sections in $worktree/RELEASE_NOTES.md.
+  2. Commit and push the notes, then run: gh pr ready $branch
+  3. Merge the PR after CI passes.
+  4. Run: scripts/covio release draft
+EOF
+}
+
+release_draft() {
+  local skip_ci=0 create_args=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --with-offline|--dry-run) create_args+=("$1") ;;
+      --skip-ci-check) skip_ci=1 ;;
+      *) usage >&2; exit 2 ;;
+    esac
+    shift
+  done
+  require_gh
+  fetch_main
+  local repo commit tag state notes
+  repo="$(repository)"
+  commit="$(git -C "$ROOT" rev-parse "$MAIN_REF")"
+  tag="$(main_tag)"
+  state="$(release_state "$tag" "$repo")"
+  [[ "$state" == "missing" ]] || die "$tag already exists as a $state Release"
+
+  notes="$(mktemp "${TMPDIR:-/tmp}/covio-notes.XXXXXX")"
+  git -C "$ROOT" show "$MAIN_REF:RELEASE_NOTES.md" > "$notes"
+  python3 -I "$ROOT/scripts/release_notes.py" check --notes "$notes" --current-tag "$tag" \
+    || { rm -f "$notes"; die "RELEASE_NOTES.md on $MAIN_REF is not ready for $tag"; }
+  rm -f "$notes"
+
+  # 只从 CI 全部通过的提交构建 Release。
+  if [[ "$skip_ci" -eq 0 ]]; then
+    local ci
+    ci="$(ci_state "$commit" "$repo")"
+    [[ "$ci" == "success" ]] || die "CI on ${commit:0:12} is $ci. Wait for it, or pass --skip-ci-check."
+  fi
+
+  local worktree="$WORKTREE_ROOT/release-${tag#v}"
+  if [[ -e "$worktree" ]]; then
+    [[ "$(git -C "$worktree" rev-parse HEAD)" == "$commit" ]] \
+      || die "$worktree exists at another commit. Remove it first."
+    say "Reusing $worktree"
+  else
+    say "Creating detached worktree $worktree at ${commit:0:12}"
+    mkdir -p "$WORKTREE_ROOT"
+    git -C "$ROOT" worktree add --quiet --detach "$worktree" "$commit"
+  fi
+
+  bash "$worktree/scripts/setup-local-signing.sh"
+  RELEASE_REPO="$repo" bash "$worktree/scripts/create-release.sh" ${create_args[@]+"${create_args[@]}"}
+  if [[ " ${create_args[*]+${create_args[*]}} " != *" --dry-run "* ]]; then
+    printf '\nDraft: %s\n' "$(gh release view "$tag" --repo "$repo" --json url --jq .url)"
+    printf 'Install and check the PKG, then run: scripts/covio release publish %s\n' "$tag"
+  fi
+}
+
+release_publish() {
+  local tag="" assume_yes=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --yes) assume_yes=1 ;;
+      -*) usage >&2; exit 2 ;;
+      *) [[ -z "$tag" ]] || { usage >&2; exit 2; }; tag="$1" ;;
+    esac
+    shift
+  done
+  require_gh
+  fetch_main
+  local repo
+  repo="$(repository)"
+  [[ -n "$tag" ]] || tag="$(main_tag)"
+  [[ "$(release_state "$tag" "$repo")" == "draft" ]] || die "$tag is not a Draft Release"
+  if [[ "$assume_yes" -eq 0 ]]; then
+    printf 'Publish %s in %s? Testers can download it after this step. [y/N] ' "$tag" "$repo"
+    local answer
+    read -r answer
+    [[ "$answer" == "y" || "$answer" == "Y" ]] || die "cancelled"
+  fi
+  RELEASE_REPO="$repo" bash "$ROOT/scripts/publish-release.sh" "$tag"
+}
+
+release_clean() {
+  local dry_run=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run) dry_run=1 ;;
+      *) usage >&2; exit 2 ;;
+    esac
+    shift
+  done
+  require_gh
+  fetch_main
+  local repo path="" head="" branch=""
+  repo="$(repository)"
+  while IFS= read -r line; do
+    case "$line" in
+      "worktree "*) path="${line#worktree }"; head=""; branch="" ;;
+      "HEAD "*) head="${line#HEAD }" ;;
+      "branch "*) branch="${line#branch refs/heads/}" ;;
+      "")
+        clean_release_worktree "$repo" "$path" "$head" "$branch" "$dry_run"
+        path=""
+        ;;
+    esac
+  done < <(git -C "$ROOT" worktree list --porcelain; printf '\n')
+}
+
+# 只删除同时满足三个条件的 worktree：位于 release 目录，提交已进 main，Release 已发布。
+clean_release_worktree() {
+  local repo="$1" path="$2" head="$3" branch="$4" dry_run="$5"
+  [[ -n "$path" && "$path" == "$WORKTREE_ROOT/release-"* ]] || return 0
+  local name tag state
+  name="$(basename "$path")"
+  if [[ ! -f "$path/release/release-manifest.json" ]]; then
+    printf 'skip   %s (no release manifest)\n' "$name"
+    return 0
+  fi
+  if ! git -C "$ROOT" merge-base --is-ancestor "$head" "$MAIN_REF"; then
+    printf 'skip   %s (commit is not on %s)\n' "$name" "$MAIN_REF"
+    return 0
+  fi
+  if [[ -n "$(git -C "$path" status --porcelain --untracked-files=normal)" ]]; then
+    printf 'skip   %s (uncommitted changes)\n' "$name"
+    return 0
+  fi
+  tag="$(python3 -I "$ROOT/scripts/release_pipeline.py" tag --source-manifest "$path/release/release-manifest.json")"
+  state="$(release_state "$tag" "$repo")"
+  if [[ "$state" != "published" ]]; then
+    printf 'skip   %s (%s is %s)\n' "$name" "$tag" "$state"
+    return 0
+  fi
+  if [[ "$dry_run" -eq 1 ]]; then
+    printf 'remove %s (%s published)%s\n' "$name" "$tag" "${branch:+, branch $branch}"
+    return 0
+  fi
+  git -C "$ROOT" worktree remove "$path"
+  if [[ "$branch" == release/* ]]; then
+    git -C "$ROOT" branch --quiet -D "$branch"
+  fi
+  printf 'removed %s (%s published)%s\n' "$name" "$tag" "${branch:+, branch $branch}"
+}
+
+# ---------------------------------------------------------------------------
+
+case "${1:-}" in
+  local) shift; cmd_local "$@" ;;
+  release) shift; cmd_release "$@" ;;
+  help|-h|--help|"") usage ;;
+  *) usage >&2; exit 2 ;;
+esac

@@ -69,6 +69,17 @@ COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
   bash scripts/package-macos-offline-swift.sh
 ```
 
+The shortcut `scripts/covio` runs the steps below in release order.
+See `docs/design/release-pipeline.md`, section 快捷命令.
+
+```sh
+scripts/covio release status
+scripts/covio release prepare
+scripts/covio release draft
+scripts/covio release publish
+scripts/covio local
+```
+
 Build and create a Draft Release:
 
 ```sh
