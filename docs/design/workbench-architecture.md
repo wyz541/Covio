@@ -174,14 +174,14 @@ Covio 不修改系统截图设置。
 | 锚点 | 指针所在屏幕的顶部中央 |
 | 宽度 | 最小 720 点，最大为屏幕宽度减 80 点。板宽 960 点。 |
 | 高度 | 内容自适应，最大为屏幕高度减 120 点。 |
-| 背景 | 内容层铺满面板。导航层叠在内容层上方。视觉关系参考 macOS 26 Tahoe 的 Apple Maps。 |
+| 背景 | 内容层铺满面板。顶栏不绘制独立底材，导航控件直接叠在同一个内容层上。视觉关系参考 macOS 26 Tahoe 的 Apple Maps。 |
 | 首屏内容留白 | 11 点。留白位于导航层底部与首屏内容之间，不是可见板间距。 |
 | 顶栏与菜单栏之间的缝 | 11 点。 |
-| 顶栏 | 圆角 23 点，胶囊形。高 46 点，宽 960 点。顶栏叠在内容层上方。 |
+| 顶栏 | 高 46 点，宽 960 点。顶栏不绘制自身底材，也没有独立圆角、边框或投影。 |
 | 内容区 | 宽 960 点，高度覆盖整个面板。内容延伸到顶栏背后，底板圆角 23 点。 |
 | 底板材质 | Liquid Glass 的 `.regular` 变体，不加着色。`GlassSurfaceMode.plateMode = .glass`，`plateTintOpacity = 0`。`.system` 与 `.hudWindow` 保留为调试对照。 |
 | 卡片材质 | 叠在底板上，底材 `Glass.clear`。填充取色值乘 `MacTheme.tintedCardOpacity`，当前取 `0.1`。 |
-| 顶栏材质 | 无边框超薄材质。`GlassSurfaceMode.topBarMode = .ultraThin`。 |
+| 顶栏材质 | 无独立材质。搜索框、悬停态和聚焦态控件保留自己的局部玻璃或填充。 |
 | 顶栏按钮 | 首页和页签只显示文字。页签固定 72 × 30，文字超长时截断，字重固定。未选中时透明。选中、悬停或键盘聚焦时显示淡强调色胶囊填充。选中胶囊不创建嵌套 Liquid Glass，也不参与外层 `GlassEffectContainer` 合并；切换只原位淡入淡出。默认六项直接显示，超过可用宽度时横向滚动。键盘焦点叠加高对比焦点环。|
 | 顶栏搜索 | 单层原生 regular Liquid Glass 胶囊。包含搜索图标、输入框和系统清空动作。搜索框宽度固定，获得键盘焦点时显示高对比焦点环。|
 | 顶栏动作位 | 宽度固定。首页显示“编辑”或“完成”。其他工作区留空，不重复显示“设置”。|
@@ -217,7 +217,7 @@ Covio 不修改系统截图设置。
 
 2026-10-17 的版本曾改用系统语义材质 `.hudWindow`。该材质仍是调试对照，原因是 AppKit 将具体外观材质标为废弃，并按界面元素提供语义材质。2026-10-23 起，按产品要求把默认底板升级为 Liquid Glass。新的默认值使用 `.glass`，不添加着色。历史测量保留，用于解释视觉差异和后续回归。
 
-Liquid Glass 会带回镜面亮边。当前版本接受这条亮边，并把它作为底板材质的一部分。底板独立成背景层，内容和顶栏放在 `GlassEffectContainer` 内叠在上面。这样大底板不会与顶栏材质合并，也不会干扰顶栏文字。内容层仍铺满面板，顶栏以超薄材质叠在内容上方。
+Liquid Glass 会带回镜面亮边。当前版本接受这条亮边，并把它作为底板材质的一部分。底板独立成背景层，内容与导航控件放在 `GlassEffectContainer` 内叠在上面。大底板不会与局部玻璃控件合并，也不会干扰导航文字。顶栏不再绘制第二层底材，导航控件直接共享内容层的同一 surface。
 
 **底板的填充取不到控制中心的水平。** 底材的输出是 `α·模糊(桌面) + (1−α)·F`。`α` 是透光比例，`F` 是填充色。把上表换成这两个量：
 
@@ -247,7 +247,7 @@ Liquid Glass 会带回镜面亮边。当前版本接受这条亮边，并把它�
 
 面板跟随系统外观，见 `HubAppearance`。面板原先固定深色，理由是「控制中心在浅色与深色系统外观下都是深色」。真机复核（2026-10-17）推翻了这条：系统在浅色外观时，同时截下的控制中心是浅底板加深色文字，`Wi-Fi`、`蓝牙`、`显示器` 都是深色字。固定深色会让工作台在浅色系统下变成深底板加白字，与控制中心正好相反。跟随系统以后，合同的两套文字令牌都生效：浅色下 `text-primary` 是 `#1D1D1F`、`text-secondary` 是 `#6E6E73`，深色下是 `#F5F5F7` 与 `#AEAEB2`。
 
-调试构建可以用 `COVIO_PLATE_MODE`、`COVIO_TOPBAR_MODE`、`COVIO_PLATE_TINT`、`COVIO_PLATE_MATERIAL`、`COVIO_GLASS_SURFACE`、`COVIO_CARD_TINT`、`COVIO_APPEARANCE` 七个环境变量换底材、材质、着色与外观对照，取值见 `macosApp/src/Design/GlassSurface.swift` 与 `MacTheme.swift`。
+调试构建可以用 `COVIO_PLATE_MODE`、`COVIO_PLATE_TINT`、`COVIO_PLATE_MATERIAL`、`COVIO_GLASS_SURFACE`、`COVIO_CARD_TINT`、`COVIO_APPEARANCE` 六个环境变量换底材、材质、着色与外观对照，取值见 `macosApp/src/Design/GlassSurface.swift` 与 `MacTheme.swift`。
 
 **已知差距一**：文字不随底板亮度翻面。底板压在深色窗口上时会跟着变暗，此时合同的深色文字令牌 `#F5F5F7` 才读得出来；浅色令牌在暗底板上读不出来。系统没给第三方「这块板现在读起来是深还是浅」的公开信号：实测两块同样材质的 `NSVisualEffectView`，一块压白底一块压黑底，`interiorBackgroundStyle` 都返回 `0`，`labelColor` 都渲染成同一个颜色。读桌面像素要走 Screen Recording 权限。所以文字只跟系统外观走，不跟底板亮度走。
 

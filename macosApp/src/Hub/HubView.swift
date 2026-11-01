@@ -8,7 +8,8 @@ import kmpDomain
 /// 所以视觉上是一条从顶部垂下来的窗帘。
 ///
 /// 顶栏是悬浮在内容上的功能层。内容延伸到顶栏背后，并从顶栏下方开始首屏排版。
-/// 顶栏使用超薄材质，不带边框与投影。视觉关系参考 macOS 26 Tahoe 的 Apple Maps。
+/// 顶栏不绘制独立底材，导航控件直接叠在内容层的同一 surface 上。
+/// 视觉关系参考 macOS 26 Tahoe 的 Apple Maps。
 /// 顶栏与菜单栏之间留一条 11 点的缝，收起时不会先露出空板。
 ///
 /// 内容板自带 24 点内边距，里面是「页标题行 + 主体」。
@@ -97,14 +98,14 @@ struct HubView: View {
 
     // MARK: - 功能层
 
-    /// 内容层与悬浮的导航层。
+    /// 内容层与悬浮的导航控件。
     ///
-    /// 内容区先铺满整个面板。顶栏最后叠在内容之上，所以内容在视觉与布局上都
-    /// 延伸到导航层背后。Apple Maps 的侧边栏使用同一层级关系。
+    /// 内容区先铺满整个面板。顶栏控件最后叠在内容之上，所以内容在视觉与布局上
+    /// 都延伸到导航层背后。顶栏控件不创建第二层面板底材。
     private var navigationLayers: some View {
         ZStack(alignment: .top) {
             // 底板独立成背景层。它不能进入下面的 GlassEffectContainer，
-            // 否则大底板会与顶栏材质合并，顶栏文字会被干扰。
+            // 否则大底板会与导航控件的局部玻璃合并，干扰控件文字。
             plateLayer
             GlassEffectContainer(spacing: 0) {
                 ZStack(alignment: .top) {
@@ -147,11 +148,6 @@ struct HubView: View {
             onReorder: { workbench.movePane(from: $0, to: $1) },
             onPageAction: { workbench.performPageAction() },
             onHover: reportHover
-        )
-        .glassSurface(
-            cornerRadius: HubMetrics.tabBarPlateRadius,
-            tint: GlassSurfaceMode.plateTint,
-            mode: GlassSurfaceMode.topBarMode
         )
     }
 

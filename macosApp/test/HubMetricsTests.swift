@@ -73,11 +73,6 @@ final class HubMetricsTests: XCTestCase {
         }
     }
 
-    /// 顶栏是胶囊：圆角等于高度的一半。
-    func testTheTopBarPlateIsACapsule() {
-        XCTAssertEqual(HubMetrics.tabBarPlateRadius, HubMetrics.tabBarHeight / 2)
-    }
-
     /// 编辑模式在内容列顶部多一条提示条，提示条下面留一段间距。
     func testEditingAddsTheBannerAndItsGap() {
         for page in Self.allPages {

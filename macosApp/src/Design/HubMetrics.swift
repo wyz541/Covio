@@ -51,9 +51,6 @@ enum HubMetrics {
     /// 一条空缝，再露出顶栏。
     static let plateTopInset: CGFloat = 11
 
-    /// 顶栏的圆角 23 点。小模块用胶囊，圆角 = 高度 ÷ 2 = 46 ÷ 2。
-    static let tabBarPlateRadius: CGFloat = tabBarHeight / 2
-
     /// 内容区底板的圆角 23 点。
     ///
     /// 控制中心的面板是一块圆角矩形，实测圆角约 22 点，面板高约 558 点。
