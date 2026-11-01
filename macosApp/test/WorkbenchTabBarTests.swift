@@ -54,8 +54,10 @@ final class WorkbenchTabBarTests: XCTestCase {
         XCTAssertTrue(source.contains(".glassEffect(navigationGlass"))
         XCTAssertTrue(source.contains(".glassEffectID("))
         XCTAssertTrue(source.contains(".glassEffectTransition(.matchedGeometry)"))
-        XCTAssertTrue(source.contains("navigationTint(for:"))
-        XCTAssertTrue(source.contains("navigationHighlight(for:"))
+        XCTAssertTrue(source.contains(".regular.tint(MacTheme.accent).interactive()"))
+        XCTAssertTrue(source.contains("withAnimation(selectionAnimation)"))
+        XCTAssertFalse(source.contains("navigationTint(for:"))
+        XCTAssertFalse(source.contains("navigationHighlight(for:"))
         XCTAssertFalse(source.contains("Capsule(style: .continuous).fill(MacTheme.accent"))
     }
 

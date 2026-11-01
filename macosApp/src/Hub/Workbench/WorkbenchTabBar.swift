@@ -100,20 +100,19 @@ struct WorkbenchTabBar: View {
     /// 固定在左端，不参与排序，也不随页签滚动。
     private var homeEntry: some View {
         let isSelected = destination == .home
-        return Button(action: onHome) {
+        return Button {
+            withAnimation(selectionAnimation) {
+                onHome()
+            }
+        } label: {
             homeLabel
                 .contentShape(Rectangle())
-                .background {
-                    Capsule(style: .continuous)
-                        .fill(navigationTint(for: .home, isSelected: isSelected))
-                }
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .home)
         .glassEffect(navigationGlass(for: .home, isSelected: isSelected), in: .capsule)
         .glassEffectID(isSelected ? Self.selectionGlassID : nil, in: selectionNamespace)
         .glassEffectTransition(.matchedGeometry)
-        .overlay { navigationHighlight(for: .home, isSelected: isSelected) }
         .overlay { navigationFocusRing(for: .home) }
         .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(ContractCopy.copyHubActionHome.text(for: language))
@@ -211,21 +210,18 @@ struct WorkbenchTabBar: View {
         let isSelected = destination == .pane(id: pane.id)
         return Button {
             guard !isEditing else { return }
-            onSelect(pane.id)
+            withAnimation(selectionAnimation) {
+                onSelect(pane.id)
+            }
         } label: {
             tabLabel(pane, isSelected: isSelected)
                 .contentShape(Rectangle())
-                .background {
-                    Capsule(style: .continuous)
-                        .fill(navigationTint(for: .pane(pane.id), isSelected: isSelected))
-                }
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .pane(pane.id))
         .glassEffect(navigationGlass(for: .pane(pane.id), isSelected: isSelected), in: .capsule)
         .glassEffectID(isSelected ? Self.selectionGlassID : nil, in: selectionNamespace)
         .glassEffectTransition(.matchedGeometry)
-        .overlay { navigationHighlight(for: .pane(pane.id), isSelected: isSelected) }
         .overlay { navigationFocusRing(for: .pane(pane.id)) }
         .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(pane.title)
@@ -274,70 +270,12 @@ struct WorkbenchTabBar: View {
     /// 导航高亮使用原生 regular Liquid Glass。未选中且未交互时保持透明。
     private func navigationGlass(for target: NavigationGlassTarget, isSelected: Bool) -> Glass {
         if isSelected {
-            return .regular.tint(MacTheme.accent.opacity(0.12)).interactive()
+            return .regular.tint(MacTheme.accent).interactive()
         }
         if hoveredTarget == target || focusedTarget == target {
-            return .regular.tint(MacTheme.accent.opacity(0.06)).interactive()
+            return .regular.tint(MacTheme.accent.opacity(0.35)).interactive()
         }
         return .identity
-    }
-
-    private func navigationTint(for target: NavigationGlassTarget, isSelected: Bool) -> Color {
-        if isSelected {
-            return MacTheme.accent.opacity(0.22)
-        }
-        if hoveredTarget == target || focusedTarget == target {
-            return MacTheme.accent.opacity(0.10)
-        }
-        return .clear
-    }
-
-    /// 原生玻璃上再叠一层很薄的镜面高光，让选中胶囊有清楚的液体边缘。
-    private func navigationHighlight(for target: NavigationGlassTarget, isSelected: Bool) -> some View {
-        let isActive = isSelected || hoveredTarget == target || focusedTarget == target
-        return Capsule(style: .continuous)
-            .fill(
-                LinearGradient(
-                    stops: [
-                        .init(color: .white.opacity(isSelected ? 0.28 : 0.18), location: 0),
-                        .init(color: .white.opacity(0.06), location: 0.42),
-                        .init(color: .clear, location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .overlay {
-                Capsule(style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            stops: [
-                                .init(color: .white.opacity(isSelected ? 0.82 : 0.56), location: 0),
-                                .init(color: .white.opacity(0.08), location: 0.50),
-                                .init(color: .white.opacity(isSelected ? 0.28 : 0.16), location: 1),
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 0.75
-                    )
-            }
-            .overlay(alignment: .topLeading) {
-                Ellipse()
-                    .fill(.white.opacity(isSelected ? 0.52 : 0.32))
-                    .frame(width: 28, height: 8)
-                    .blur(radius: 4)
-                    .offset(x: 9, y: 2)
-            }
-            .clipShape(Capsule(style: .continuous))
-            .shadow(
-                color: MacTheme.accent.opacity(isSelected ? 0.20 : 0.10),
-                radius: isSelected ? 7 : 4,
-                x: 0,
-                y: 2
-            )
-            .opacity(isActive ? 1 : 0)
-            .allowsHitTesting(false)
     }
 
     @ViewBuilder
@@ -395,15 +333,10 @@ struct WorkbenchTabBar: View {
         Button(action: onPageAction) {
             pageActionLabel(action)
                 .contentShape(Rectangle())
-                .background {
-                    Capsule(style: .continuous)
-                        .fill(navigationTint(for: .pageAction, isSelected: false))
-                }
         }
         .buttonStyle(.plain)
         .focused($focusedTarget, equals: .pageAction)
         .glassEffect(navigationGlass(for: .pageAction, isSelected: false), in: .capsule)
-        .overlay { navigationHighlight(for: .pageAction, isSelected: false) }
         .overlay { navigationFocusRing(for: .pageAction) }
         .accessibilityLabel(action.text(for: language))
         .onHover { hoveredTarget = $0 ? .pageAction : nil }

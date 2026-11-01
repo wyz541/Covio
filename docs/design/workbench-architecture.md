@@ -182,7 +182,7 @@ Covio 不修改系统截图设置。
 | 底板材质 | Liquid Glass 的 `.regular` 变体，不加着色。`GlassSurfaceMode.plateMode = .glass`，`plateTintOpacity = 0`。`.system` 与 `.hudWindow` 保留为调试对照。 |
 | 卡片材质 | 叠在底板上，底材 `Glass.clear`。填充取色值乘 `MacTheme.tintedCardOpacity`，当前取 `0.1`。 |
 | 顶栏材质 | 无独立材质。搜索框、悬停态和聚焦态控件保留自己的局部玻璃或填充。 |
-| 顶栏按钮 | 首页和页签只显示文字。页签固定 72 × 30，文字超长时截断，字重固定。未选中时透明。选中、悬停或键盘聚焦时显示原生 regular Liquid Glass 胶囊。选中态叠加淡强调色底、细镜面高光和轻强调色阴影，避免退化成纯色胶囊；悬停和焦点态使用更弱的同类材质。选中玻璃通过 `glassEffectID` 与 matchedGeometry transition 在按钮间形变。默认六项直接显示，超过可用宽度时横向滚动。键盘焦点叠加高对比焦点环。|
+| 顶栏按钮 | 首页和页签只显示文字。页签固定 72 × 30，文字超长时截断，字重固定。未选中时透明。选中、悬停或键盘聚焦时只使用原生 Liquid Glass，不叠加自定义底色、描边或阴影。选中态使用 `regular.tint(accent)`，悬停和焦点态使用较弱 tint。玻璃通过 `glassEffectID` 与 matchedGeometry transition 在按钮间形变。默认六项直接显示，超过可用宽度时横向滚动。键盘焦点叠加高对比焦点环。|
 | 顶栏搜索 | 单层原生 regular Liquid Glass 胶囊。包含搜索图标、输入框和系统清空动作。搜索框宽度固定，获得键盘焦点时显示高对比焦点环。|
 | 顶栏动作位 | 宽度固定。首页显示“编辑”或“完成”。其他工作区留空，不重复显示“设置”。|
 | 边框 | 内容底板保留 Liquid Glass 自带的镜面亮边。顶栏没有边框。卡片保留自己的亮边。 |
