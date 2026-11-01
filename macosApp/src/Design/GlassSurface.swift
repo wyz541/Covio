@@ -7,11 +7,11 @@ import SwiftUI
 /// Liquid Glass 负责面板级模糊与自带的镜面亮边。
 /// 卡片继续使用 `.clear`，只加薄高光，不重复底板模糊。
 ///
-/// 面板仍有三层：
+/// 面板有两层：
 ///
 /// 1. 一块铺满面板的**内容层**，使用 Liquid Glass。
-/// 2. 卡片叠在内容层上，使用 `.clear`。
-/// 3. 导航层叠在内容层上方，使用超薄材质。
+/// 2. 卡片与导航控件叠在内容层上。卡片使用 `.clear`；
+///    导航控件只在需要时显示局部玻璃或填充。
 ///
 /// `.system` 保留为调试对照。它使用 `NSVisualEffectView` 的语义材质，
 /// 不再作为默认底板。
@@ -107,14 +107,6 @@ enum GlassSurfaceMode: String, CaseIterable, Sendable {
     /// 调试构建可以用 `COVIO_PLATE_MODE` 覆盖，用来复核别的底材。
     @MainActor static var plateMode: GlassSurfaceMode = plateDefaultMode
 
-    /// 顶栏功能层用的底材。默认 `.ultraThin`，参考 macOS 26 Tahoe 的 Apple Maps。
-    ///
-    /// 顶栏叠在内容层上方，所以超薄材质会模糊背后的内容。顶栏不带边框与投影，
-    /// 层次由材质边界与内容移动给。系统开启降低透明度时，材质自动变得更实。
-    ///
-    /// 调试构建可以用 `COVIO_TOPBAR_MODE` 覆盖。
-    @MainActor static var topBarMode: GlassSurfaceMode = .ultraThin
-
     /// 底板用的着色。不透明度是 0 时返回 nil，玻璃走原样。
     @MainActor static var plateTint: Color? {
         plateTintOpacity > 0 ? .black.opacity(plateTintOpacity) : nil
@@ -135,10 +127,6 @@ enum GlassSurfaceMode: String, CaseIterable, Sendable {
         if let raw = env["COVIO_PLATE_MODE"], let mode = GlassSurfaceMode(rawValue: raw) {
             plateMode = mode
             NSLog("Covio 底板底材被环境变量改成 \(mode.rawValue)。")
-        }
-        if let raw = env["COVIO_TOPBAR_MODE"], let mode = GlassSurfaceMode(rawValue: raw) {
-            topBarMode = mode
-            NSLog("Covio 顶栏板底材被环境变量改成 \(mode.rawValue)。")
         }
         if let raw = env["COVIO_PLATE_MATERIAL"], let material = GlassSurfaceMode.material(named: raw) {
             plateMaterial = material

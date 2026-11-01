@@ -290,8 +290,8 @@ enum ContractMotion {
     static let tokenMotionScreenshotCapture = ContractMotionToken(key: "token/motion/screenshot-capture", seconds: 0.65, minSeconds: 0.65, maxSeconds: 0.65, reducedSeconds: nil, curve: "保留现有捕获动画")
     /// `token/motion/screenshot-copy` — 截图复制。1200 毫秒提示，保留现有摆动反馈。
     static let tokenMotionScreenshotCopy = ContractMotionToken(key: "token/motion/screenshot-copy", seconds: 1.2, minSeconds: 1.2, maxSeconds: 1.2, reducedSeconds: nil, curve: "保留现有摆动反馈")
-    /// `token/motion/tab-switch` — 页签切换。160 毫秒，选中胶囊原位淡入，导航栏不位移。
-    static let tokenMotionTabSwitch = ContractMotionToken(key: "token/motion/tab-switch", seconds: 0.16, minSeconds: 0.16, maxSeconds: 0.16, reducedSeconds: nil, curve: "原位淡入淡出")
+    /// `token/motion/tab-switch` — 页签切换。160 毫秒，选中玻璃在按钮间形变，导航栏不位移。
+    static let tokenMotionTabSwitch = ContractMotionToken(key: "token/motion/tab-switch", seconds: 0.16, minSeconds: 0.16, maxSeconds: 0.16, reducedSeconds: nil, curve: "按钮间形变")
     /// `token/motion/transfer-complete` — 传输完成。240 毫秒，进度变为完成状态。
     static let tokenMotionTransferComplete = ContractMotionToken(key: "token/motion/transfer-complete", seconds: 0.24, minSeconds: 0.24, maxSeconds: 0.24, reducedSeconds: nil, curve: "进度变为完成状态")
     /// `token/motion/transfer-start` — 传输开始。180 毫秒，卡片抬起并显示进度。
