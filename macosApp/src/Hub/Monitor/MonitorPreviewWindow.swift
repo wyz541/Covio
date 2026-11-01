@@ -637,32 +637,45 @@ struct MonitorFanPreviewRoot: View {
 
 @MainActor
 struct MonitorFanCardPreviewRoot: View {
+    private static var scenario: String {
+        ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_CARD_RENDER_SCENARIO"] ?? "owned"
+    }
+
+    private static var controlsFans: Bool {
+        scenario != "system-control" && scenario != "applying"
+    }
+
+    private static var language: AppLanguage {
+        let code = ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_CARD_LANGUAGE"]?.lowercased()
+        return code == "english" ? .english : .simplifiedChinese
+    }
+
     @StateObject private var model = MonitorFanControlModel(
         previewConfiguration: MonitorFanConfiguration(
-            enabled: true,
+            enabled: Self.controlsFans,
             mode: .curve,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
             manualRPM: ["0": 2_588, "1": 2_709]
         ),
-        availability: .ready,
-        helperStatus: FanControlHelperStatus(
-            active: true,
-            mode: "automatic",
-            controlTemperature: 65.9,
-            leaseRemainingSeconds: 20,
-            error: nil
-        )
+        availability: Self.scenario == "applying" ? .checking : .ready,
+        helperStatus: Self.scenario == "applying"
+            ? nil
+            : FanControlHelperStatus(
+                active: Self.controlsFans,
+                mode: Self.controlsFans ? "curve" : "system",
+                controlTemperature: 65.9,
+                leaseRemainingSeconds: 20,
+                error: nil
+            )
     )
 
     var body: some View {
         MonitorFanCard(
             reading: MonitorFanPreviewFixtures.reading,
-            cpuHistory: [0.12, 0.18, 0.34, 0.42, 0.26, 0.31, 0.39, 0.44],
             temperatureHistory: [61.2, 62.8, 64.1, 63.6, 64.8, 65.9],
-            rpmHistory: [1_920, 2_040, 2_260, 2_380, 2_560, 2_789],
-            language: .simplifiedChinese,
+            language: Self.language,
             model: model
         )
         .frame(width: 296, height: HubMetrics.monitorCardHeight)
@@ -767,8 +780,10 @@ enum MonitorFanDetailRenderer {
     }
 
     private static var dark: Bool {
-        ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+        ProcessInfo.processInfo.environment["COVIO_FORCE_APPEARANCE"]?
             .lowercased() == "dark"
+            || ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+                .lowercased() == "dark"
     }
 }
 
@@ -786,8 +801,10 @@ enum MonitorFanCardRenderer {
     }
 
     private static var dark: Bool {
-        ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+        ProcessInfo.processInfo.environment["COVIO_FORCE_APPEARANCE"]?
             .lowercased() == "dark"
+            || ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
+                .lowercased() == "dark"
     }
 }
 

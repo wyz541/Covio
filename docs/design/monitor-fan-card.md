@@ -8,7 +8,7 @@
 
 风扇卡片有四个目标。
 
-1. 用户不用打开其他应用就能看到控制温度和风扇转速。
+1. 用户不用打开其他应用就能看到风扇使用率、控制温度和风扇转速。
 2. 用户能使用系统自动、曲线和手动转速。
 3. 用户能选择参与控制温度的 SMC 传感器。
 4. Covio 退出、崩溃或丢失 helper 租约后，系统风扇控制自动恢复。
@@ -17,6 +17,7 @@
 
 | 亮色 | 深色 |
 | --- | --- |
+| ![风扇卡片亮色](previews/528-fan-card-light-after-1.png) | ![风扇卡片深色](previews/528-fan-card-dark-after-1.png) |
 | ![风扇卡片亮色](previews/313-monitor-fan-card-light-1.png) | ![风扇卡片深色](previews/313-monitor-fan-card-dark-1.png) |
 | ![风扇 popover 亮色](previews/313-monitor-fan-popover-light-1.png) | ![风扇 popover 深色](previews/313-monitor-fan-popover-dark-1.png) |
 | ![多点曲线亮色](previews/333-fan-multipoint-curve-light-after-2.png) | ![多点曲线深色](previews/333-fan-multipoint-curve-dark-after-2.png) |
@@ -30,13 +31,28 @@
 | ![插电与电池曲线亮色](previews/334-fan-power-curves-light-after-2.png) | ![插电与电池曲线深色](previews/334-fan-power-curves-dark-after-2.png) |
 | ![传感器名称筛选亮色](previews/338-fan-sensors-light-after-4.png) | ![传感器名称筛选深色](previews/338-fan-sensors-dark-after-4.png) |
 
+状态灯有三种视觉状态。三种状态不使用可见文字。
+
+| Covio 已接管 | 正在接管 | 系统控制 |
+| --- | --- | --- |
+| ![Covio 已接管](previews/528-fan-card-light-after-1.png) | ![正在接管](previews/528-fan-card-applying-light-after-1.png) | ![系统控制](previews/528-fan-card-system-control-light-after-1.png) |
+
 ## 3. 三段式结构
 
 | 段 | 折叠态 | 展开态 |
 | --- | --- | --- |
-| 主数值 | 控制温度、CPU 占用、控制状态 | 保留 |
-| 趋势 | 温度、CPU 和风扇 RPM 的历史线 | 保留 |
+| 主数值 | 风扇使用率环和控制状态灯 | 保留 |
+| 趋势 | 控制目标温度的历史线 | 保留 |
+| 详情 | 每台风扇的使用率、当前 RPM 和目标 RPM | 保留 |
 | 详情入口 | 显示「风扇控制」和 chevron | 打开固定尺寸 popover |
+
+风扇使用率取每台风扇 `当前 RPM ÷ 最高 RPM` 的最大值。
+计算结果限制在 `0%` 到 `100%`。
+标题区状态灯不显示可见文字。
+绿色实心点表示 Covio 已接管。
+琥珀色虚线环表示正在接管。
+中性色空心圆表示系统控制。
+状态灯保留 VoiceOver 标签和值。
 
 popover 不改变卡片高度，也不移动网格。
 popover 打开期间，工作台保持展开。最后一个 popover 关闭后，工作台恢复普通的指针移出收起规则。
@@ -51,7 +67,7 @@ popover 打开期间，工作台保持展开。最后一个 popover 关闭后，
 | 风扇目标转速 | `F%dTg` | 最多每 2 秒 |
 | 风扇最小和最大转速 | `F%dMn`、`F%dMx` | 最多每 2 秒 |
 | 控制温度 | 已启用温度来源的最热读数；没有来源时使用已选传感器最大值 | 跟随采样 |
-| CPU 占用 | `host_processor_info` | 接入 Monitor 页采样周期 |
+| 风扇使用率 | 每台风扇当前转速除以最高转速，取最大值 | 跟随采样 |
 
 SMC 键只在读取器初始化时枚举一次。
 后续采样使用缓存键表，不反复扫描全部 SMC 键。
@@ -279,7 +295,8 @@ Intel 使用 `F%dTg`，并用 `FS! ` 位掩码切换模式。
 ## 8. 无障碍
 
 - 卡片详情入口使用按钮语义。
-- 状态同时显示颜色、圆点和文字。
+- 卡片状态灯同时使用颜色和不同圆点形态。
+- 读屏为状态灯提供状态文字。
 - 所有开关有可见标签和读屏标签。
 - 可点击控件命中区不小于 24 点。
 - popover 的焦点顺序与视觉顺序一致。
@@ -296,6 +313,7 @@ Intel 使用 `F%dTg`，并用 `FS! ` 位掩码切换模式。
 ## 10. 依据
 
 - 需求来源：[#313](https://github.com/wyz541/kmp-Covio/issues/313)
+- 卡片对齐与状态灯：[#528](https://github.com/wyz541/kmp-Covio/issues/528)
 - SMC 设备的底层读写：MacFanControl `d26184f`，MIT 许可
 - 风扇模式、目标转速、恢复和睡眠逻辑：Stats `7d3f70d`，MIT 许可
 - 自动模式与同步控制：Stats `7d3f70d`，MIT 许可
