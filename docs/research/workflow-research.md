@@ -4,19 +4,20 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `1.2` |
+| 文档版本 | `1.3` |
 | 状态 | 初稿，可评审 |
-| 日期 | `2026-10-29` |
+| 日期 | `2026-11-01` |
 | 适用对象 | 维护人、负责人 |
 | 作用 | 支撑 [流程文件](../process/workflow.md) 的机制选择 |
 | 问题类别 | 轻量团队的 issue 驱动流程设计 |
 
-本文件回答四个问题。
+本文件回答五个问题。
 
-1. 调研（spike）应当有什么结构。
-2. 决策对象在工具里没有原生承载时，怎么回链。
-3. 开放式想法如何从 Discussion 转入可追踪的 Issue 层级。
-4. PR 证据与 Feature 级验收如何分属不同对象。
+1. Issue 与 Discussion 应如何分工。
+2. 调研（spike）应当有什么结构。
+3. 决策对象在工具里没有原生承载时，怎么回链。
+4. 开放式想法如何从 Discussion 转入可追踪的 Issue 层级。
+5. PR 证据与 Feature 级验收如何分属不同对象。
 
 流程文件的正文是规范。本文件只记录规范的依据和缺口。
 
@@ -30,9 +31,10 @@
 | C-4 | 实施追踪有成熟做法：给已接受的决策建 tracking issue，或让决策编号等于 tracking issue 编号。 | 中高 |
 | C-5 | 本流程只能用 GitHub 原生能力。能力边界见第 2.4 节。 | 高 |
 | C-6 | 个人账号没有 issue types 与 issue fields。对象只能靠标签区分，字段只能靠 Project 字段承载。 | 高 |
-| C-7 | Discussion 适合开放探索。问题、负责人、时间盒和预期产出收敛后，应转入 Issue。 | 中高 |
+| C-7 | Discussion 适合开放探索。形成可执行事项时再转入 Issue；纯问答和共识可以留在 Discussion。 | 中高 |
 | C-8 | Discussion 不能成为原生 parent。Parent Feature 必须用 Issue 承载 Research、Task 与 Verify 的层级。 | 高 |
 | C-9 | PR 证据与 Feature 级验收是两种对象。跨 Task 的验收应使用与 Task 同级的 Verify sub-issue。 | 高 |
+| C-10 | Issue 适合具体任务、Bug 和计划改进。Discussion 适合开放交流、社区问答和没有明确负责人的讨论。明确事项不应被要求先进入 Discussion。 | 高 |
 
 ## 2. 依据
 
@@ -92,20 +94,25 @@ GitHub、Linear、Jira 三者的数据模型里都没有「决策」这个对象
 
 **一条被证伪的中间结论：** 建 `Research` 类型时，`POST /user/issue-types` 返回成功，仓库的 `GET /repos/{owner}/{repo}/issue-types` 也列出了它。当时据此以为类型通路可用。随后发现类型建得出来但设不到 issue 上，命令行与 REST 都不行。类型对象是组织级的，个人账号即使建得出来也用不上。这条记录保留，作为「能读到不等于能用」的例子。该类型未随本流程保留。
 
-### 2.5 Discussion 的转入条件（C-7、C-8）
+### 2.5 Issue 与 Discussion 的分工（C-7、C-8、C-10）
 
-Discussion 用于问题、做法或产出尚未收敛的探索。Discussion 不进入 Project，也没有 issue assignee 和原生 sub-issue 关系。因此 Discussion 不能承担交付跟踪。
+[GitHub 官方文档](https://docs.github.com/en/get-started/using-github/communicating-on-github)把 Issue 定义为项目具体事项的跟踪工具。典型对象包括 Bug、计划改进、任务和对仓库文件的提问。Issue 通常有明确负责人，并进入项目的缺陷跟踪流程。
 
-转入 Issue 前，需要同时满足四个条件。
+同一份 GitHub 文档把 [Discussion](https://docs.github.com/en/discussions/collaborating-with-your-community-using-discussions/about-discussions)定义为论坛式交流工具。典型对象包括开放式想法、社区问答、公告、信息分享和需要协作的讨论。Discussion 通常没有明确负责人，也不一定产出可执行任务。
 
-1. 可以用一句话写出一个待答问题或交付目标。
-2. 可以写清预期产出。
-3. 有人担任负责人。
-4. Research 可以放入不超过 3 个工作日的 timebox；或者 Task 可以在一个会话内完成。
+因此，入口先判断目标、范围、负责人和完成条件，再判断对象类型。
 
-仍有一个明确未知项时，先创建 Parent Feature，再把 Research 挂成原生 sub-issue。答案已经明确时，创建 standalone task issue，或者创建 Parent Feature 后再拆 Task。
+| 事项状态 | 入口 |
+| --- | --- |
+| 可复现的 Bug | Bug issue |
+| 一个会话能完成，验收明确 | Standalone Task issue |
+| 需要多个 PR 或先改设计，交付目标明确 | Parent Feature，再拆 Task sub-issue |
+| 问题明确，但方法、成本、风险或可行性未知 | Parent Feature，再挂 Research sub-issue |
+| 方向、范围、优先级或共识未定 | Discussion |
 
-GitHub 的原生 parent 只能是 Issue。Discussion 只能作为来源节点，通过 `discussion: <URL>` 回链。Parent Feature 在调研前创建，只表示工作容器，不表示已经承诺实施。
+Discussion 形成可执行事项时，创建对应 Issue，并在原帖写链接。Discussion 也可以只形成问答或共识，不产出任务。
+
+Issue 的评论可以继续讨论具体细节。明确事项直接进入 Issue，不要求先建 Discussion。GitHub 的原生 parent 只能是 Issue。存在 Discussion 来源时，Parent Feature 用 `discussion: <URL>` 回链。Parent Feature 在调研前创建，只表示工作容器，不表示已经承诺实施。
 
 截至 2026-10-29，仓库已启用 Discussions，但 Discussion 总数为 0。实际采用情况需要继续观察。
 
@@ -128,7 +135,7 @@ PR 的 `Visual verification` 和 `Proof` 只覆盖当前 PR。它们不能表达
 
 | 等级 | 来源 | 用途 | 置信度 |
 | --- | --- | --- | --- |
-| A | GitHub 官方文档的表单 schema 与 issue forms 语法页 | 表单能力与字段约束 | 高 |
+| A | GitHub 官方文档的 Issues、Discussions 与 issue forms 页面 | 对象分工、表单能力与字段约束 | 高 |
 | B | 本仓库的 `gh api` 调用结果 | 本账号的能力边界 | 高，范围限于本账号 |
 | E | Reddit 与 Hacker News 的相关讨论 | spike 与 issue 粒度的做法 | 低 |
 
@@ -142,6 +149,7 @@ PR 的 `Visual verification` 和 `Proof` 只覆盖当前 PR。它们不能表达
 4. 标签是弱约束。issue 建好后忘了加标签，工具不会拦。缓解办法是每周检查时按标签过一遍。
 5. 个人账号是否将来会提供 issue types 与 issue fields，未知。若提供，本流程可以用类型替代部分标签。
 6. Discussion 当前没有实际内容。团队是否会使用 Discussion 进行开放探索，尚未验证。
+7. 当前流程尚未统计 Issue 与 Discussion 的实际分流情况。运行一段时间后，用对象数量和转 Issue 比例复核规则。
 
 ## 5. 反证与限制
 
@@ -162,3 +170,5 @@ PR 的 `Visual verification` 和 `Proof` 只覆盖当前 PR。它们不能表达
 - [流程文件](../process/workflow.md)
 - [ADR 模板](../adr/adr-template.md)
 - [Agent 契约](../../AGENTS.md)
+- [GitHub：选择讨论工具](https://docs.github.com/en/get-started/using-github/communicating-on-github)
+- [GitHub：About discussions](https://docs.github.com/en/discussions/collaborating-with-your-community-using-discussions/about-discussions)

@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/wyz541/kmp-Covio/discussions
+    about: 用于开放问题、社区输入或尚未形成可执行事项的讨论。

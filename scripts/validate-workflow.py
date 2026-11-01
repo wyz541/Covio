@@ -3,6 +3,7 @@
 
 规则来源：ADR-0023 与 ADR-0024。
 Issue 阶段只写目标和表现预期。UI 代码变更的真机截图写入 PR。
+明确 Bug 与小任务直接进入 Issue。Discussion 不是必经入口。
 Parent Feature 使用同级 Research、Task 与 Verify sub-issue。
 """
 
@@ -14,6 +15,8 @@ ISSUE_TEMPLATES = tuple(sorted((ROOT / ".github" / "ISSUE_TEMPLATE").glob("*.yml
 PR_TEMPLATE = ROOT / ".github" / "pull_request_template.md"
 FEATURE_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "feature.yml"
 TASK_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "task.yml"
+BUG_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "bug.yml"
+RESEARCH_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "research.yml"
 VERIFY_TEMPLATE = ROOT / ".github" / "ISSUE_TEMPLATE" / "verify.yml"
 WORKFLOW = ROOT / "docs" / "process" / "workflow.md"
 AGENTS = ROOT / "AGENTS.md"
@@ -64,9 +67,12 @@ def main() -> int:
             "UI 代码变更的 `Visual verification` 只写在 PR",
             "PR 正文嵌入同一文件的固定 commit GitHub 图片地址",
             "UI 代码 PR 缺少截图或图片链接失效时，不得转入 ready 或合并",
-            "Research、Task 与 Verify 都是 Parent Feature 的 sub-issue",
+            "Parent Feature 内的 Research、Task 与 Verify 都是 sub-issue",
             "Verify 与 Task 同级",
             "Verify 不要求分支和 PR",
+            "Discussion 是可选来源，不是必经入口",
+            "Bug 和明确的小任务不要求先建 Discussion",
+            "问题明确但方法未知时，直接创建 Research sub-issue",
         ),
     )
     require_text(
@@ -74,9 +80,33 @@ def main() -> int:
         (
             "Research、Task 与 Verify 都是 Parent Feature 的 sub-issue",
             "Verify 与 Task 同级",
+            "不要求先建 Discussion",
         ),
     )
-    require_text(TASK_TEMPLATE, ("另建 Verify sub-issue",))
+    require_text(
+        TASK_TEMPLATE,
+        (
+            "另建 Verify sub-issue",
+            "不要求先建 Discussion 或 Parent Feature",
+        ),
+    )
+    require_text(
+        RESEARCH_TEMPLATE,
+        (
+            'labels: ["research"]',
+            "不要求先建 Discussion",
+            "有 Discussion 来源时贴链接",
+        ),
+    )
+    require_text(
+        BUG_TEMPLATE,
+        (
+            'labels: ["bug"]',
+            "不要求先建 Discussion",
+            "label: 复现步骤",
+            "label: 验收标准",
+        ),
+    )
     require_text(
         VERIFY_TEMPLATE,
         (
@@ -104,7 +134,7 @@ def main() -> int:
         print(f"{len(errors)} 条问题。", file=sys.stderr)
         return 1
 
-    print("工作流校验通过：Research、Task、Verify 层级正确，PR 写 Visual verification。")
+    print("工作流校验通过：入口分流、Research/Task/Verify 层级与 PR 视觉证据正确。")
     return 0
 
 
