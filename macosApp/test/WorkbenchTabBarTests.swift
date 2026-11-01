@@ -51,14 +51,34 @@ final class WorkbenchTabBarTests: XCTestCase {
             .appendingPathComponent("macosApp/src/Hub/Workbench/WorkbenchTabBar.swift")
         let source = try String(contentsOf: url, encoding: .utf8)
 
-        XCTAssertTrue(source.contains(".glassEffect(navigationGlass"))
+        XCTAssertTrue(source.contains(".glassEffect(glass, in: .capsule)"))
         XCTAssertTrue(source.contains(".glassEffectID("))
         XCTAssertTrue(source.contains(".glassEffectTransition(.matchedGeometry)"))
         XCTAssertTrue(source.contains(".regular.tint(MacTheme.accent).interactive()"))
         XCTAssertTrue(source.contains("withAnimation(selectionAnimation)"))
+        XCTAssertTrue(source.contains(".snappy(duration: HubMotion.tabSwitch, extraBounce: 0.12)"))
+        XCTAssertTrue(source.contains(".scaleEffect("))
         XCTAssertFalse(source.contains("navigationTint(for:"))
         XCTAssertFalse(source.contains("navigationHighlight(for:"))
         XCTAssertFalse(source.contains("Capsule(style: .continuous).fill(MacTheme.accent"))
+    }
+
+    func testNavigationPressFeedbackCompressesOnlyWhilePressed() {
+        XCTAssertEqual(
+            WorkbenchNavigationPressFeedback.scale(isPressed: false, reduceMotion: false),
+            CGSize(width: 1, height: 1)
+        )
+        XCTAssertEqual(
+            WorkbenchNavigationPressFeedback.scale(isPressed: true, reduceMotion: false),
+            CGSize(width: 0.97, height: 0.94)
+        )
+    }
+
+    func testNavigationPressFeedbackHonorsReduceMotion() {
+        XCTAssertEqual(
+            WorkbenchNavigationPressFeedback.scale(isPressed: true, reduceMotion: true),
+            CGSize(width: 1, height: 1)
+        )
     }
 
     /// 右端动作的有无不能挪动左侧元素。
