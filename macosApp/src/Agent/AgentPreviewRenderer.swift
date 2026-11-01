@@ -8,16 +8,13 @@ private struct AgentPreviewRoot: View {
     @State private var agent = AgentChatRuntime.preview()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: HubMetrics.pageHeadingGap) {
-            PaneHeading(
-                title: ContractCopy.copyHubTabAgent.text(for: language),
-                summary: ContractCopy.copyHubTabAgentSummary.text(for: language)
+        AgentTabView(agent: agent, language: language)
+            .padding(HubMetrics.panelPadding)
+            .frame(
+                width: HubMetrics.panelWidth,
+                height: HubMetrics.agentBodyHeight + HubMetrics.panelPadding * 2
             )
-            AgentTabView(agent: agent, language: language)
-        }
-        .padding(HubMetrics.panelPadding)
-        .frame(width: HubMetrics.panelWidth, height: HubMetrics.agentBodyHeight + 92)
-        .background(MacTheme.canvas)
+            .background(MacTheme.canvas)
     }
 }
 
@@ -32,7 +29,7 @@ enum AgentPreviewRenderer {
             .lowercased() == "dark" ? .dark : .light
         let size = NSSize(
             width: HubMetrics.panelWidth,
-            height: HubMetrics.agentBodyHeight + 92
+            height: HubMetrics.agentBodyHeight + HubMetrics.panelPadding * 2
         )
         let hosting = NSHostingView(
             rootView: AgentPreviewRoot().environment(\.colorScheme, colorScheme)

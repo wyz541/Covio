@@ -3,7 +3,7 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-10-30",
+    "updatedAt": "2026-11-01",
     "authority": "docs/covio-design-contract.json",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -97,7 +97,7 @@
       },
       {
         "area": "Hub navigation rail",
-        "difference": "Figma component set 121:12394 is a horizontal six-item tab bar at 960 x 52. An earlier macOS build put those six tabs in a vertical floating rail at 200 x 370 with the page title in a separate top capsule. The retired Compose web preview (#107) restored the horizontal bar at the time, and the macOS host follows it: tab bar 960 x 46 at the top of the panel, page heading in its own row under it. The six items, their order, and their copy are unchanged.",
+        "difference": "Figma component set 121:12394 is a horizontal six-item tab bar at 960 x 52. The macOS host uses a 960 x 46 tab bar at the top of the panel. The selected tab supplies the page title and description, so the content area does not repeat them. The six items, their order, and their copy are unchanged.",
         "status": "resolved-by-native-host"
       },
       {
@@ -107,7 +107,7 @@
       },
       {
         "area": "Hub page title",
-        "difference": "Figma component set for the page title is 420 x 70 with the description stacked under the title. The macOS host puts the title and the description on one row under the tab bar, so the height is 24 and the description truncates first. The two strings and their copy keys are unchanged.",
+        "difference": "The Figma page-title component contains a title and description. The workbench uses the navigation tab as page identity and does not repeat the heading in the content area. Standalone preview surfaces still use the 24-point heading row.",
         "status": "accepted-native-layout-change"
       },
       {
@@ -1630,7 +1630,7 @@
     "component/page-title": {
       "name": "Covio/Page Title",
       "figmaComponentSetId": "",
-      "purpose": "Page heading row for a Hub pane: title and one-line supporting description on one row.",
+      "purpose": "Standalone page heading for surfaces outside a navigable Hub pane.",
       "variants": [
         "DEFAULT",
         "HOVER",

@@ -12,8 +12,8 @@ import kmpDomain
 /// 视觉关系参考 macOS 26 Tahoe 的 Apple Maps。
 /// 顶栏与菜单栏之间留一条 11 点的缝，收起时不会先露出空板。
 ///
-/// 内容板自带 24 点内边距，里面是「页标题行 + 主体」。
-/// 首页没有页标题行，直接从组件网格开始。
+/// 内容板自带 24 点内边距。页签栏提供页面标识，内容区直接从页面主体开始。
+/// 需要页面动作的工作区保留一条操作行。
 ///
 /// 这个视图不持有控制器，只接收值。这样它可以被预览与测试。
 struct HubView: View {
@@ -215,10 +215,9 @@ struct HubView: View {
         switch workbench.destination {
         case .home:
             homeContent
-        case .pane(let id):
+        case .pane:
             HubTabContent(
                 tab: workbench.tab(for: workbench.destination),
-                paneID: id,
                 workbench: workbench,
                 chrome: chrome,
                 hubState: hubState,
@@ -291,7 +290,6 @@ struct EmptyHomeView: View {
 /// 运行时缺失时（预览、测试）一律显示占位。
 struct HubTabContent: View {
     let tab: HubTab
-    let paneID: String
     let workbench: WorkbenchModel
     @Bindable var chrome: HubChromeModel
     let hubState: HubState
@@ -302,11 +300,10 @@ struct HubTabContent: View {
     let searchText: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: HubMetrics.pageGap) {
-            if tab != .clipboard,
-               let heading = workbench.heading(for: .pane(id: paneID), language: language) {
-                PaneHeading(title: heading.title, summary: heading.summary) {
-                    headingActions
+        VStack(alignment: .leading, spacing: HubMetrics.pageActionGap) {
+            if tab.hasInlineActions {
+                PaneActionRow {
+                    pageActions
                 }
             }
 
@@ -319,9 +316,9 @@ struct HubTabContent: View {
         }
     }
 
-    /// 页标题行右端的动作。原来在顶部胶囊里，胶囊没了就搬到这里。
+    /// 工作区页操作行里的动作。
     @ViewBuilder
-    private var headingActions: some View {
+    private var pageActions: some View {
         if let runtime {
             switch tab {
             case .agent:

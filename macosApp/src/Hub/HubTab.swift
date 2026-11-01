@@ -46,7 +46,7 @@ enum HubTab: String, CaseIterable, Sendable {
         }
     }
 
-    /// 页标题行里的说明。
+    /// 页签的无障碍提示。标题提供页面名称，提示补充页面内容。
     var summary: LocalizedCopy {
         switch self {
         case .now: ContractCopy.copyHubTabNowSummary
@@ -56,6 +56,14 @@ enum HubTab: String, CaseIterable, Sendable {
         case .devices: ContractCopy.copyHubTabDevicesSummary
         case .settings: ContractCopy.copyHubTabSettingsSummary
         case .board: ContractCopy.copyHubTabBoardSummary
+        }
+    }
+
+    /// 工作区是否需要内容区顶部的操作行。
+    var hasInlineActions: Bool {
+        switch self {
+        case .agent: true
+        case .now, .clipboard, .files, .devices, .settings, .board: false
         }
     }
 
