@@ -11,10 +11,11 @@ set -euo pipefail
 #
 # 用法见 `scripts/covio help`。设计见 docs/design/release-pipeline.md 的「快捷命令」。
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="Covio"
 INSTALLED_APP="/Applications/$APP_NAME.app"
-HELPER_BINARY="/Library/Application Support/Covio/bin/CovioHelper"
+OSASCRIPT_BINARY="${COVIO_OSASCRIPT_BINARY:-/usr/bin/osascript}"
+INSTALLER_BINARY="${COVIO_INSTALLER_BINARY:-/usr/sbin/installer}"
 REMOTE="${COVIO_REMOTE:-origin}"
 MAIN_BRANCH="${COVIO_MAIN_BRANCH:-main}"
 MAIN_REF="$REMOTE/$MAIN_BRANCH"
@@ -25,7 +26,6 @@ PRIMARY_CHECKOUT="$(dirname "$COMMON_DIR")"
 WORKTREE_ROOT="${COVIO_WORKTREE_ROOT:-$(dirname "$PRIMARY_CHECKOUT")/_worktrees/$(basename "$PRIMARY_CHECKOUT")}"
 
 say() { printf '==> %s\n' "$*"; }
-warn() { printf 'warning: %s\n' "$*" >&2; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 usage() {
@@ -34,8 +34,9 @@ Usage: scripts/covio <command> [options]
 
 Local install:
   local [--pkg] [--no-launch]
-      Build the Release configuration and install it to /Applications/Covio.app.
-      --pkg        Package and install through the transactional PKG instead.
+      Build and install through the transactional PKG.
+      The worktree must be clean because the app and helper form one release.
+      --pkg        Compatibility alias; local always uses the transactional PKG.
       --no-launch  Do not start Covio after the install.
 
 Internal release (run in this order):
@@ -107,20 +108,6 @@ running_covio_paths() {
   pgrep -fl "\.app/Contents/MacOS/$APP_NAME\$" 2>/dev/null | sed 's/^[0-9]* //' || true
 }
 
-quit_installed_app() {
-  if ! pgrep -f -x "$INSTALLED_APP/Contents/MacOS/$APP_NAME" >/dev/null 2>&1; then
-    return 0
-  fi
-  say "Quitting the running Covio"
-  osascript -e 'tell application id "com.wyz.covio" to quit' >/dev/null 2>&1 || true
-  local _
-  for _ in $(seq 1 40); do
-    pgrep -f -x "$INSTALLED_APP/Contents/MacOS/$APP_NAME" >/dev/null 2>&1 || return 0
-    sleep 0.25
-  done
-  die "Covio did not quit. Quit it from the menu bar and run the command again."
-}
-
 check_other_instances() {
   local path
   while IFS= read -r path; do
@@ -129,23 +116,66 @@ check_other_instances() {
   done < <(running_covio_paths)
 }
 
-identity_field() {
-  python3 -I -c 'import json, sys; print(json.loads(sys.argv[1]).get(sys.argv[2], ""))' "$1" "$2"
-}
-
 launch_installed_app() {
   say "Starting $INSTALLED_APP"
   open "$INSTALLED_APP"
+}
+
+# Run one root-owned install step after exactly one macOS authorization dialog.
+# The command is written to a user-only temporary file. The Installer process
+# receives the same single authorization; its preinstall and postinstall scripts
+# then run as root without another prompt.
+run_with_administrator() {
+  local script_path="$1"
+  local output status
+  [[ -f "$script_path" ]] || die "missing administrator script: $script_path"
+  if output="$("$OSASCRIPT_BINARY" - "$script_path" <<'APPLESCRIPT'
+on run argv
+    set commandPath to item 1 of argv
+    do shell script "/bin/bash " & quoted form of commandPath with administrator privileges
+end run
+APPLESCRIPT
+  )"; then
+    if [[ -n "$output" ]]; then
+      printf '%s\n' "$output"
+    fi
+    return 0
+  else
+    status=$?
+    if [[ -n "$output" ]]; then
+      printf '%s\n' "$output" >&2
+    fi
+    return "$status"
+  fi
+}
+
+run_installer_with_administrator() {
+  local pkg="$1"
+  local script_path status
+  script_path="$(mktemp "${TMPDIR:-/tmp}/covio-installer.XXXXXX")"
+  chmod 0700 "$script_path"
+  cat > "$script_path" <<EOF
+#!/bin/bash
+set -euo pipefail
+$(printf '%q' "$INSTALLER_BINARY") -pkg $(printf '%q' "$pkg") -target /
+EOF
+  if run_with_administrator "$script_path"; then
+    status=0
+  else
+    status=$?
+  fi
+  rm -f "$script_path"
+  return "$status"
 }
 
 # ---------------------------------------------------------------------------
 # local
 
 cmd_local() {
-  local use_pkg=0 launch=1
+  local launch=1
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --pkg) use_pkg=1 ;;
+      --pkg) ;;
       --no-launch) launch=0 ;;
       *) usage >&2; exit 2 ;;
     esac
@@ -154,11 +184,7 @@ cmd_local() {
   [[ "$(uname -s)" == "Darwin" ]] || die "local install requires macOS"
   check_other_instances
 
-  if [[ "$use_pkg" -eq 1 ]]; then
-    local_pkg
-  else
-    local_app
-  fi
+  local_pkg
 
   if [[ "$launch" -eq 1 ]]; then
     launch_installed_app
@@ -173,70 +199,8 @@ local_pkg() {
   version="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
   pkg="$ROOT/dist/$APP_NAME-$version.pkg"
   [[ -f "$pkg" ]] || die "missing package: $pkg"
-  say "Installing $pkg (administrator password required)"
-  sudo /usr/sbin/installer -pkg "$pkg" -target /
-}
-
-# 开发迭代路径：允许未提交的改动，不打包。
-# 替换 app 后，helper 身份不一致时重装 helper，再重写安装记录。
-# 安装记录与 app 一致时，下一次 PKG 升级的前置检查才能通过。
-local_app() {
-  local built="$ROOT/build/xcode-dd/Build/Products/Release/$APP_NAME.app"
-  local staged="/Applications/.$APP_NAME.app.installing"
-  local backup="/Applications/.$APP_NAME.app.previous"
-
-  if [[ -n "$(git -C "$ROOT" status --porcelain --untracked-files=normal)" ]]; then
-    warn "the working tree has uncommitted changes; the build still records commit $(git -C "$ROOT" rev-parse --short HEAD)"
-  fi
-
-  say "Building the Release configuration"
-  CONFIGURATION=Release bash "$ROOT/scripts/build-macos-swift.sh"
-  [[ -d "$built" ]] || die "missing build: $built"
-
-  say "Installing $INSTALLED_APP (administrator password required)"
-  sudo -v
-  quit_installed_app
-  sudo rm -rf "$staged" "$backup"
-  sudo /usr/bin/ditto "$built" "$staged"
-  sudo /usr/sbin/chown -R root:wheel "$staged"
-  sudo /usr/bin/codesign --verify --deep --strict "$staged"
-  if [[ -d "$INSTALLED_APP" ]]; then
-    sudo mv "$INSTALLED_APP" "$backup"
-  fi
-  if ! sudo mv "$staged" "$INSTALLED_APP"; then
-    [[ -d "$backup" ]] && sudo mv "$backup" "$INSTALLED_APP"
-    die "cannot move the new app into place; the previous app is restored"
-  fi
-  sudo rm -rf "$backup"
-
-  local app_identity helper_identity=""
-  app_identity="$("$INSTALLED_APP/Contents/MacOS/$APP_NAME" --print-release-identity)"
-  if [[ -x "$HELPER_BINARY" ]]; then
-    helper_identity="$("$HELPER_BINARY" --print-release-identity 2>/dev/null || true)"
-  fi
-  if [[ -n "$helper_identity" &&
-        "$(identity_field "$app_identity" releaseId)" == "$(identity_field "$helper_identity" releaseId)" &&
-        "$(identity_field "$app_identity" helperSHA256)" == "$(identity_field "$helper_identity" helperSHA256)" ]]; then
-    say "The installed helper already matches the app"
-  else
-    say "Installing the helper (a system dialog asks for the administrator password)"
-    "$INSTALLED_APP/Contents/MacOS/$APP_NAME" --install-helper \
-      || die "helper install failed; run: COVIO_APP=$INSTALLED_APP bash scripts/verify-helper-cutover.sh all"
-  fi
-
-  say "Recording the installed release"
-  sudo /bin/bash -c '
-    set -euo pipefail
-    source "$1"
-    covio_tx_configure
-    covio_tx_load_info_identity "$2" LOCAL
-    covio_tx_validate_prefix LOCAL
-    covio_tx_write_installed_record LOCAL
-  ' covio-local "$ROOT/installer/transaction.sh" "$INSTALLED_APP" \
-    || die "cannot write installed-release.json; the next PKG upgrade will stop before changing the app"
-
-  COVIO_APP="$INSTALLED_APP" bash "$ROOT/scripts/verify-helper-cutover.sh" verify
-  say "Installed $(identity_field "$app_identity" releaseId)"
+  say "Installing $pkg (macOS asks for administrator authorization once)"
+  run_installer_with_administrator "$pkg"
 }
 
 # ---------------------------------------------------------------------------
@@ -521,9 +485,11 @@ clean_release_worktree() {
 
 # ---------------------------------------------------------------------------
 
-case "${1:-}" in
-  local) shift; cmd_local "$@" ;;
-  release) shift; cmd_release "$@" ;;
-  help|-h|--help|"") usage ;;
-  *) usage >&2; exit 2 ;;
-esac
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  case "${1:-}" in
+    local) shift; cmd_local "$@" ;;
+    release) shift; cmd_release "$@" ;;
+    help|-h|--help|"") usage ;;
+    *) usage >&2; exit 2 ;;
+  esac
+fi

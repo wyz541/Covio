@@ -159,16 +159,21 @@ release clean     删除已发布 tag 的 release worktree
 ### 本机安装
 
 ```sh
-scripts/covio local          # Release 配置，替换 /Applications/Covio.app
-scripts/covio local --pkg    # 打包并用事务 PKG 安装
+scripts/covio local          # 构建事务 PKG 并安装
+scripts/covio local --pkg    # 兼容别名，路径相同
 ```
 
-`local` 允许未提交的改动，用于开发迭代。
-`local` 替换 app 后检查 helper 身份。身份不一致时，`local` 重装 helper。
-`local` 最后重写 `installed-release.json`。因此下一次 PKG 升级的前置检查能通过。
-`local --pkg` 要求工作树干净，与 Release 的安装路径相同。
+`local` 只使用事务 PKG。
+因此本机安装与 Release 安装共用同一条校验、提交和回滚路径。
+工作树必须干净；需要运行未提交代码时，直接从 Xcode 启动 `Covio`。
 
-**警告：** `local` 与 `local --pkg` 需要管理员授权，并会退出正在运行的 Covio。
+构建、签名和打包在当前用户下完成。
+安装时只执行一次 `osascript ... with administrator privileges`。
+PKG 的 `preinstall` 与 `postinstall` 随后以 root 运行，不再请求管理员授权。
+安装成功后，PKG 写入最新的 `install-report.json`。
+失败事务保留在 `Installer/transactions` 下。`install-report.json` 记录最近一次结果。
+
+**警告：** `local` 会退出正在运行的 Covio，并请求一次管理员授权。
 安装期间风扇、充电上限和合盖控制会短暂失效。
 
 ## 失败行为
@@ -222,6 +227,7 @@ scripts/covio local --pkg    # 打包并用事务 PKG 安装
 ```sh
 python3 -I scripts/test_release_pipeline.py
 python3 -I scripts/test_release_notes.py
+python3 -I scripts/test_covio.py
 shellcheck scripts/covio
 bash scripts/test-all.sh
 ```
