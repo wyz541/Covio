@@ -27,6 +27,7 @@ python3 -I "$ROOT/scripts/test_release_manifest.py"
 python3 -I "$ROOT/scripts/test_release_pipeline.py"
 python3 -I "$ROOT/scripts/test_release_notes.py"
 python3 -I "$ROOT/scripts/test_verify_macos_signing.py"
+python3 -I "$ROOT/scripts/test_covio.py"
 
 step "Kotlin 共享层"
 bash "$ROOT/scripts/provision-amper-github-downloads.sh"
