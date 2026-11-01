@@ -87,3 +87,16 @@ Parent Feature 的 child 类型增加 Verify。
 7. 跨多个 Task 或 PR、需要真机、需要发布前复验或需要长期证据时，才创建 Verify issue。
 
 补充不改变原决策。它只补齐 Parent Feature 下的验证对象。
+
+## 补充（2026-11-01）
+
+明确 Issue 与 Discussion 的入口分工。
+
+1. Discussion 是可选入口，不是所有事项的起点。
+2. 目标、范围、负责人和完成条件明确的 Bug 或小任务，直接建 Issue。
+3. 明确的大功能直接建 Parent Feature。没有 Discussion 来源时不写 `discussion:` 回链。
+4. 问题明确但方法未知时，直接建 Parent Feature，再挂 Research sub-issue。Discussion 不是前置条件。
+5. Discussion 只用于方向、范围、优先级或共识未定，以及需要社区问答、公告或知识沉淀的事项。
+6. Discussion 可以形成结论后保持开放。只有出现可执行事项时，才创建 Issue；Discussion 不要求产出任务。
+
+本补充不改变 Discussion、Parent Feature、Research、Task 与 Verify 的层级关系。

@@ -6,6 +6,7 @@ body:
     attributes:
       value: |
         本表单创建 Parent Feature。Parent Feature 是工作容器，不表示已经承诺实施。
+        目标、范围与完成条件明确时，直接使用本表单。不要求先建 Discussion。
         Parent Feature 可以在调研结论产生前创建。Research、Task 与 Verify 都是 Parent Feature 的 sub-issue。
         Verify 与 Task 同级。Verify 不是 Task 的 child。
         需要先调研、需要 2 个以上 PR、预计超过 5 个工作日，或需要先改设计时，使用本表单。
@@ -25,13 +26,13 @@ body:
   - type: input
     id: discussion
     attributes:
-      label: Discussion 来源
+      label: Discussion 来源（可选）
       description: |
-        有来源时填写 `discussion: <URL>`。
-        没有来源时填写 `discussion: none`。
+        仅当事项确实经过 Discussion 时填写 `discussion: <URL>`。
+        直接创建 Parent Feature 时留空。
       placeholder: "discussion: https://github.com/wyz541/kmp-Covio/discussions/1"
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: expectation

@@ -17,13 +17,14 @@ Covio 是 macOS 菜单栏应用。界面是 SwiftUI 宿主，放在 `macosApp/`�
 ## 2. 流程
 
 ```text
-Discussion（开放探索）
-  └─ 收敛后 → Parent Feature（Issue）
-                 ├─ Research sub-issue
-                 ├─ Task sub-issue → PR
-                 └─ Verify sub-issue → 验收证据
+明确 Bug 或小任务 → Issue → PR
 
-答案明确的小功能 → task issue → PR
+明确大功能 → Parent Feature（Issue）
+               ├─ Research sub-issue
+               ├─ Task sub-issue → PR
+               └─ Verify sub-issue → 验收证据
+
+开放问题或共识未定 → Discussion → 可选转入 Issue
 ```
 
 1. 调研报告放 `docs/research/<主题>/`。格式见 `docs/research/AUTHORING.md`。
@@ -32,22 +33,22 @@ Discussion（开放探索）
 
 ## 3. Parent Feature 与小功能
 
-需要跟踪的调研或大功能建一个 Parent Feature，用 GitHub 原生 sub-issue 关联 Research、Task 与 Verify。
+明确的大功能或调研建一个 Parent Feature，用 GitHub 原生 sub-issue 关联 Research、Task 与 Verify。
 进度由 GitHub 自动汇总。不要另外维护进度表。
-小功能建一个 issue，直接做。
+明确的小功能直接建 task issue，明确 Bug 直接建 bug issue。
 
 一个 task sub-issue 的粒度是一个会话能做完，对应一条分支和一个 PR。
 Research 是 sub-issue，但产出是结论，不要求分支和 PR。
 Verify 与 Task 同级，是 Parent Feature 的 sub-issue。Verify 的产出是验收证据，不要求分支和 PR。
-Research、Task 和 Verify 分别使用 `research`、`task`、`verify` 标签。
+Research、Task、Verify 和 Bug 分别使用 `research`、`task`、`verify`、`bug` 标签。
 
 ## 4. 工作流
 
 流程定义在 `docs/process/workflow.md`。本文件管执行。每次会话按下面的规则做。
 
 1. 开场先归位。判断本次任务在 S1 到 S7 中的哪一步，按该步的条目与完成标准推进。
-2. 开放探索留在 Discussion。问题、负责人、时间盒和预期产出未收敛时，不转 Issue。
-3. Discussion 不能作为原生 parent。收敛后先建 Parent Feature，再把 Research 作为原生 sub-issue 挂到父级。
+2. 先判断入口。目标、范围、负责人和完成条件明确时，直接建 Issue。只有方向、范围、优先级或共识未定时，才使用 Discussion。
+3. Discussion 是可选来源，不是必经入口，也不能作为原生 parent。Discussion 形成可执行事项时创建对应 Issue，并写回链接。
 4. 做法有未知项时开 Research sub-issue。一个 Research 只回答一个问题。时间盒不超 3 个工作日。
 5. 调研结论写在 issue 正文，不写评论。正文含结论、依据和后续动作。结论未写回正文前不关 issue。
 6. 长期决策进 S4。写新 ADR 走 PR，合并前 Status 改成 `accepted`。
@@ -55,7 +56,7 @@ Research、Task 和 Verify 分别使用 `research`、`task`、`verify` 标签。
 8. 跨多个 Task 或 PR 的真机、端到端或发布前验收建 Verify sub-issue。Verify 与 Task 同级，并用 `blocked by` 指向被验收的 Task。
 9. UI issue 的正文必须写 `表现预期`，不要求 After 截图。单个 PR 必须使用 `Visual verification`，亮色和深色各放一组 `Before`/`After` 表。跨 PR 的最终 UI 验收写在 Verify issue，并链接 PR 证据。
 10. 引用另一个对象时走 S6。值未定时写 `pending`，5 个工作日内回填。
-11. 对象用标签区分。Parent Feature 用 `feature`，调研 sub-issue 用 `research`，小功能与 Task sub-issue 用 `task`，验收 sub-issue 用 `verify`。
+11. 对象用标签区分。Parent Feature 用 `feature`，调研 sub-issue 用 `research`，小功能与 Task sub-issue 用 `task`，验收 sub-issue 用 `verify`，Bug 用 `bug`。
 12. 个人账号没有 issue types 与 issue fields。不要用 `--type`，也不要找 issue fields。
    字段用 Project 8 的字段，名字见 `docs/process/project-fields.md`。
    Start date 与 Target date 只在 Project 里维护，不写进 issue 正文。
