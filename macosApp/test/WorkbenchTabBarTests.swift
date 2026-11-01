@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import XCTest
 import kmpDomain
@@ -37,6 +38,57 @@ final class WorkbenchTabBarTests: XCTestCase {
             HubMetrics.tabStripWidth,
             "默认页签不应该触发横向滚动"
         )
+    }
+
+    /// 右端动作的有无不能挪动左侧元素。
+    ///
+    /// 首页右端有「编辑」，工作区右端没有动作。空动作位曾经是一块吃满剩余宽度的
+    /// `Color.clear`：工作区的内容贴左，首页的内容整行居中，切换页签时整条顶栏横移。
+    /// 见 #514。三种情况用同一个目的地渲染，选中背景因此不影响比较。
+    func testThePageActionDoesNotShiftTheLeadingContent() throws {
+        let withoutAction = try leadingInkColumn(pageAction: nil)
+        let withEdit = try leadingInkColumn(pageAction: ContractCopy.copyHubActionEdit)
+        let withDone = try leadingInkColumn(
+            pageAction: ContractCopy.copyHubActionDone,
+            isEditing: true
+        )
+
+        XCTAssertEqual(withEdit, withoutAction, "有「编辑」按钮时，左侧元素横移了")
+        XCTAssertEqual(withDone, withoutAction, "编辑模式的「完成」按钮让左侧元素横移了")
+    }
+
+    /// 按 1 倍比例渲染一条顶栏，返回最左一列有墨迹的像素横坐标。
+    private func leadingInkColumn(
+        pageAction: LocalizedCopy?,
+        isEditing: Bool = false
+    ) throws -> Int {
+        let panes = panes()
+        let bar = WorkbenchTabBar(
+            panes: panes,
+            destination: .pane(id: try XCTUnwrap(panes.first).id),
+            isEditing: isEditing,
+            searchPlaceholder: ContractCopy.copyNavSearchPlaceholder,
+            searchText: .constant(""),
+            language: .english,
+            pageAction: pageAction,
+            reduceMotion: true,
+            onHome: {},
+            onSelect: { _ in },
+            onReorder: { _, _ in },
+            onPageAction: {},
+            onHover: { _, _ in }
+        )
+        let renderer = ImageRenderer(content: bar)
+        renderer.scale = 1
+        let bitmap = NSBitmapImageRep(cgImage: try XCTUnwrap(renderer.cgImage, "顶栏没有渲染出图像"))
+        for x in 0..<bitmap.pixelsWide {
+            for y in 0..<bitmap.pixelsHigh
+            where (bitmap.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.5 {
+                return x
+            }
+        }
+        XCTFail("顶栏渲染出来是空白的")
+        return -1
     }
 
     /// 页签数量不超过模型的上限。

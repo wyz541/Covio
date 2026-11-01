@@ -79,6 +79,8 @@ struct WorkbenchTabBar: View {
             homeEntry
             searchField
             tabStrip
+            // 页签不够宽时，空位留在页签与动作位之间。左侧元素的位置因此不随页面变。
+            Spacer(minLength: 0)
             pageActionSlot
         }
         .padding(.horizontal, HubMetrics.tabBarHPadding)
@@ -311,17 +313,18 @@ struct WorkbenchTabBar: View {
 
     // MARK: - 当前页的动作
 
-    /// 动作位始终占同样的宽度。动作消失时页签不会跟着改宽度。
+    /// 动作位至少占按钮的最小宽度，并贴住右端。
+    ///
+    /// 空位用定宽的 `Color.clear`。`Color.clear` 本身会吃满剩余宽度：
+    /// 首页有按钮时整行居中，工作区没有按钮时整行贴左，切换页签时顶栏就整体横移。
     @ViewBuilder
     private var pageActionSlot: some View {
-        Group {
-            if let pageAction {
-                pageActionButton(pageAction)
-            } else {
-                Color.clear
-            }
+        if let pageAction {
+            pageActionButton(pageAction)
+        } else {
+            Color.clear
+                .frame(width: HubMetrics.actionButtonMinWidth, height: HubMetrics.tabHeight)
         }
-        .frame(minWidth: HubMetrics.actionButtonMinWidth, minHeight: HubMetrics.tabHeight)
     }
 
     private func pageActionButton(_ action: LocalizedCopy) -> some View {

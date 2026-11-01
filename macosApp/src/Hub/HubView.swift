@@ -53,6 +53,9 @@ struct HubView: View {
             height: geometry.expandedRect(contentHeight: panelHeight).height,
             alignment: .top
         )
+        // 切换页面时，新高度先到 SwiftUI，窗口下一轮才改尺寸。
+        // 这一帧里根视图比宿主高。不贴顶的话，宿主会把它居中，顶栏上下跳一下。
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(curtainAnimation, value: isExpanded)
         .onChange(of: workbench.destination) { _, _ in
             chrome.clearSearch()
