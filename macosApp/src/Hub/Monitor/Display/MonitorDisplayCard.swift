@@ -28,31 +28,38 @@ struct MonitorDisplayCard: View {
             ) {
                 VStack(alignment: .leading, spacing: MacTheme.space2) {
                     HStack(spacing: MacTheme.space3) {
-                        screenPreview
-                        VStack(alignment: .leading, spacing: MacTheme.space2) {
+                        MonitorRing(
+                            fraction: brightnessFraction,
+                            accent: accent,
+                            value: brightnessText
+                        )
+                        VStack(alignment: .leading, spacing: MacTheme.space1) {
+                            Text(ContractCopy.copyMonitorDisplayBrightness.text(for: language))
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(MacTheme.textSecondary)
                             Text(stateText)
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(MacTheme.textPrimary)
-                            HStack(spacing: MacTheme.space2) {
-                                metricPill(
-                                    title: ContractCopy.copyMonitorDisplayBrightness.text(for: language),
-                                    value: brightnessText
-                                )
-                                metricPill(
-                                    title: ContractCopy.copyMonitorDisplayPower.text(for: language),
-                                    value: powerText
-                                )
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text(ContractCopy.copyMonitorDisplayPower.text(for: language))
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(MacTheme.textSecondary)
+                                Text(powerText)
+                                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(MacTheme.textPrimary)
+                                    .monospacedDigit()
                             }
-                            Text(display.powerWatts == nil
-                                ? ContractCopy.copyMonitorDisplayPowerUnavailable.text(for: language)
-                                : MonitorPowerFormat.watts(display.powerWatts))
-                                .font(.system(size: 9))
-                                .foregroundStyle(MacTheme.textSecondary)
-                                .lineLimit(2)
+                            if let powerUnavailableText {
+                                Text(powerUnavailableText)
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(MacTheme.textSecondary)
+                                    .lineLimit(2)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
                     Spacer(minLength: 0)
-                    detailRows
+                    MonitorDetailRows(details: detailRows)
                     actionRow
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -113,65 +120,21 @@ struct MonitorDisplayCard: View {
         MacTheme.color(ContractColors.tokenColorBrand)
     }
 
-    private var screenPreview: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(accent.opacity(0.14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(accent.opacity(0.38), lineWidth: 1)
-                )
-            VStack(spacing: 4) {
-                Image(systemName: display.state == .asleep ? "moon.fill" : "sun.max.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                Text(brightnessText)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-            }
-            .foregroundStyle(accent)
-        }
-        .frame(width: 78, height: 56)
-        .accessibilityHidden(true)
-    }
-
-    private func metricPill(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(title)
-                .font(.system(size: 8))
-                .foregroundStyle(MacTheme.textSecondary)
-            Text(value)
-                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(MacTheme.textPrimary)
-                .monospacedDigit()
-        }
-        .padding(.horizontal, MacTheme.space2)
-        .padding(.vertical, 4)
-        .background(MacTheme.surface.opacity(0.54), in: Capsule())
-    }
-
-    private var detailRows: some View {
-        VStack(spacing: 4) {
-            detailRow(
+    private var detailRows: [MonitorDetail] {
+        [
+            MonitorDetail(
                 ContractCopy.copyPowerStatusExternalDisplay.text(for: language),
                 externalDisplayText
-            )
-            detailRow(ContractCopy.copyMonitorDisplayResolution.text(for: language), resolutionText)
-            detailRow(
+            ),
+            MonitorDetail(
+                ContractCopy.copyMonitorDisplayResolution.text(for: language),
+                resolutionText
+            ),
+            MonitorDetail(
                 ContractCopy.copyMonitorDisplayRefreshRate.text(for: language),
                 refreshRateText
-            )
-        }
-        .font(.system(size: 9, weight: .medium))
-    }
-
-    private func detailRow(_ title: String, _ value: String) -> some View {
-        HStack(spacing: MacTheme.space2) {
-            Text(title).foregroundStyle(MacTheme.textSecondary)
-            Spacer(minLength: MacTheme.space1)
-            Text(value)
-                .foregroundStyle(MacTheme.textPrimary)
-                .lineLimit(1)
-        }
+            ),
+        ]
     }
 
     private var actionRow: some View {
@@ -203,8 +166,21 @@ struct MonitorDisplayCard: View {
             ?? ContractCopy.copyMonitorUnavailable.text(for: language)
     }
 
+    private var brightnessFraction: Double? {
+        guard let brightness = display.brightnessPercent, brightness.isFinite else {
+            return nil
+        }
+        return min(1, max(0, brightness / 100))
+    }
+
     private var powerText: String {
         MonitorPowerFormat.watts(display.powerWatts)
+    }
+
+    private var powerUnavailableText: String? {
+        display.powerWatts == nil
+            ? ContractCopy.copyMonitorDisplayPowerUnavailable.text(for: language)
+            : nil
     }
 
     private var externalDisplayText: String {
