@@ -2,9 +2,7 @@ import SwiftUI
 
 struct MonitorFanCard: View {
     let reading: MonitorFanReading
-    let cpuHistory: [Double]
     let temperatureHistory: [Double]
-    let rpmHistory: [Double]
     let language: AppLanguage
     @ObservedObject var model: MonitorFanControlModel
     var popoverCoordinator: HubPopoverCoordinator? = nil
@@ -16,20 +14,54 @@ struct MonitorFanCard: View {
         model.configuration.controlTemperature(in: reading)
     }
 
-    private var selectedSensorCount: Int {
-        let known = Set(reading.temperatures.map(\.key))
-        let selected = model.configuration.selectedSensorKeys.filter(known.contains)
-        return selected.isEmpty ? reading.temperatures.count : selected.count
+    private var usageFraction: Double? {
+        reading.maximumUsageFraction
     }
 
-    private var statusText: String {
+    private var usageText: String {
+        usageFraction.map(MonitorFormat.percent) ?? "—"
+    }
+
+    private var controlStatus: FanCardControlStatus {
         if model.busy || model.availability == .checking {
-            return ContractCopy.copyMonitorFanApplying.text(for: language)
+            return .applying
         }
         if model.helperStatus?.active == true || model.configuration.enabled {
-            return ContractCopy.copyMonitorFanOwned.text(for: language)
+            return .owned
         }
-        return ContractCopy.copyMonitorFanSystemControl.text(for: language)
+        return .systemControl
+    }
+
+    private var statusIndicator: MonitorCardStatusIndicator {
+        MonitorCardStatusIndicator(
+            accessibilityLabel: ContractCopy.copyMonitorFanA11yStatus.text(for: language),
+            accessibilityValue: controlStatus.copy.text(for: language),
+            color: controlStatus.color,
+            symbolName: controlStatus.symbolName
+        )
+    }
+
+    private var controlSummaryText: String {
+        MonitorFanControlCopy.summary(
+            configuration: model.configuration,
+            reading: reading,
+            language: language
+        )
+    }
+
+    private var fanDetails: [MonitorDetail] {
+        reading.units.prefix(3).map { fan in
+            let percent = fan.usageFraction.map(MonitorFormat.percent) ?? "—"
+            let value = "\(percent) · \(MonitorFanFormat.rpm(fan.rpm)) / "
+                + MonitorFanFormat.targetRPM(fan.targetRPM)
+            return MonitorDetail(
+                String(
+                    format: ContractCopy.copyMonitorFanUnit.text(for: language),
+                    fan.index + 1
+                ),
+                value
+            )
+        }
     }
 
     var body: some View {
@@ -38,41 +70,25 @@ struct MonitorFanCard: View {
             accent: MonitorCardKind.fan.accent,
             language: language,
             combinesAccessibility: false,
-            statusText: statusText
+            statusIndicator: statusIndicator
         ) {
-            VStack(alignment: .leading, spacing: 5) {
-                primaryRow
-                MonitorFanTripleChart(
-                    temperatures: temperatureHistory,
-                    cpu: cpuHistory,
-                    rpm: rpmHistory,
-                    emptyText: ContractCopy.copyMonitorPowerHistoryAccumulating.text(for: language)
-                )
-                .frame(height: 58)
-                chartLegend
-                fanRows
-                Spacer(minLength: 0)
-                Button {
-                    setPopoverPresented(!popoverPresented)
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(MonitorCardKind.fan.accent)
-                        Text(ContractCopy.copyMonitorFanDetails.text(for: language))
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(MacTheme.textPrimary)
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(MonitorCardKind.fan.accent)
-                            .rotationEffect(popoverPresented ? .degrees(90) : .zero)
+            VStack(alignment: .leading, spacing: MacTheme.space2) {
+                HStack(spacing: MacTheme.space3) {
+                    VStack(spacing: MacTheme.space1) {
+                        MonitorRing(
+                            fraction: usageFraction,
+                            accent: MonitorCardKind.fan.accent,
+                            value: usageText
+                        )
+                        Text(ContractCopy.copyMonitorUsage.text(for: language))
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(MacTheme.textSecondary)
                     }
-                    .contentShape(Rectangle())
-                    .frame(minHeight: 24)
+                    temperatureTrend
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(ContractCopy.copyMonitorFanA11yOpen.text(for: language))
+                Spacer(minLength: 0)
+                MonitorDetailRows(details: fanDetails)
+                actionRow
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -116,133 +132,137 @@ struct MonitorFanCard: View {
         popoverCoordinator?.setPresented(presented, id: popoverID)
     }
 
-    private var primaryRow: some View {
-        HStack(alignment: .top, spacing: MacTheme.space2) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(MonitorFanFormat.temperature(controlTemperature))
-                    .font(.system(size: 27, weight: .semibold, design: .rounded))
-                    .foregroundStyle(MacTheme.textPrimary)
-                    .monospacedDigit()
-                Text(String(
-                    format: ContractCopy.copyMonitorFanControlSummary.text(for: language),
-                    selectedSensorCount
-                ))
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(MacTheme.textSecondary)
-                .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: 3) {
-                Text("CPU")
-                    .font(.system(size: 8, weight: .bold))
-                    .tracking(0.5)
+    private var temperatureTrend: some View {
+        VStack(alignment: .leading, spacing: MacTheme.space1) {
+            HStack(alignment: .firstTextBaseline, spacing: MacTheme.space1) {
+                Text(ContractCopy.copyMonitorFanControlTemperature.text(for: language))
+                    .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(MacTheme.textSecondary)
-                Text(MonitorFormat.percent(cpuHistory.last ?? 0))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                Spacer(minLength: 0)
+                Text(MonitorFanFormat.temperature(controlTemperature))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(MacTheme.textPrimary)
                     .monospacedDigit()
             }
-        }
-    }
-
-    private var chartLegend: some View {
-        HStack(spacing: MacTheme.space2) {
-            legend(color: MacTheme.errorText, text: ContractCopy.copyMonitorFanTemperature.text(for: language))
-            legend(color: MacTheme.accent, text: "CPU")
-            legend(color: MacTheme.successText, text: "RPM")
-            Spacer(minLength: 0)
-            Text(ContractCopy.copyMonitorFanLegendWindow.text(for: language))
+            Text(controlSummaryText)
                 .font(.system(size: 7, weight: .medium))
                 .foregroundStyle(MacTheme.textSecondary)
-        }
-    }
-
-    private func legend(color: Color, text: String) -> some View {
-        HStack(spacing: 3) {
-            Capsule()
-                .fill(color)
-                .frame(width: 8, height: 2)
-            Text(text)
-                .font(.system(size: 7, weight: .semibold))
-                .foregroundStyle(MacTheme.textSecondary)
                 .lineLimit(1)
-        }
-    }
-
-    private var fanRows: some View {
-        VStack(spacing: 2) {
-            ForEach(reading.units.prefix(2)) { fan in
-                HStack(spacing: MacTheme.space1) {
-                    Text(String(
-                        format: ContractCopy.copyMonitorFanUnit.text(for: language),
-                        fan.index + 1
-                    ))
-                    .foregroundStyle(MacTheme.textSecondary)
-                    Spacer(minLength: 0)
-                    Text(MonitorFanFormat.rpm(fan.rpm))
-                        .foregroundStyle(MacTheme.textPrimary)
-                        .monospacedDigit()
-                    if fan.targetRPM > 0 {
-                        Text("/ \(MonitorFanFormat.targetRPM(fan.targetRPM))")
-                            .foregroundStyle(MacTheme.textSecondary)
-                            .monospacedDigit()
-                    }
-                }
-                .font(.system(size: 8, weight: .medium))
-            }
-        }
-    }
-
-
-}
-
-private struct MonitorFanTripleChart: View {
-    let temperatures: [Double]
-    let cpu: [Double]
-    let rpm: [Double]
-    let emptyText: String
-
-    var body: some View {
-        GeometryReader { proxy in
-            let sampleCount = max(temperatures.count, max(cpu.count, rpm.count))
+                .minimumScaleFactor(0.72)
             ZStack {
-                linePath(values: temperatures, in: proxy.size, color: MacTheme.errorText)
-                linePath(values: cpu.map { $0 * 100 }, in: proxy.size, color: MacTheme.accent)
-                linePath(values: rpm, in: proxy.size, color: MacTheme.successText)
-                if sampleCount < 2 {
-                    Text(emptyText)
+                if temperatureHistory.filter(\.isFinite).count >= 2 {
+                    MonitorSparkline(
+                        values: temperatureHistory,
+                        accent: MacTheme.errorText,
+                        normalizesToRange: true
+                    )
+                } else {
+                    Text(ContractCopy.copyMonitorPowerHistoryAccumulating.text(for: language))
                         .font(.system(size: 8, weight: .medium))
                         .foregroundStyle(MacTheme.textSecondary)
                 }
             }
+            .frame(height: 38)
         }
-        .accessibilityHidden(true)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    @ViewBuilder
-    private func linePath(values: [Double], in size: CGSize, color: Color) -> some View {
-        Path { path in
-            let finite = values.filter(\.isFinite)
-            guard finite.count >= 2 else { return }
-            let minimum = finite.min() ?? 0
-            let maximum = finite.max() ?? minimum + 1
-            let span = max(0.001, maximum - minimum)
-            let denominator = max(1, values.count - 1)
-            var hasCurrentPoint = false
-            for (index, value) in values.enumerated() where value.isFinite {
-                let x = size.width * CGFloat(index) / CGFloat(denominator)
-                let normalized = (value - minimum) / span
-                let y = size.height - CGFloat(normalized) * max(0, size.height - 3) - 1.5
-                let point = CGPoint(x: x, y: y)
-                if hasCurrentPoint {
-                    path.addLine(to: point)
-                } else {
-                    path.move(to: point)
-                    hasCurrentPoint = true
-                }
+    private var actionRow: some View {
+        Button {
+            setPopoverPresented(!popoverPresented)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(MonitorCardKind.fan.accent)
+                Text(ContractCopy.copyMonitorFanDetails.text(for: language))
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(MonitorCardKind.fan.accent)
+                    .rotationEffect(popoverPresented ? .degrees(90) : .zero)
             }
+            .contentShape(Rectangle())
+            .frame(minHeight: 24)
         }
-        .stroke(color, style: StrokeStyle(lineWidth: 1.35, lineCap: .round, lineJoin: .round))
+        .buttonStyle(.plain)
+        .accessibilityLabel(ContractCopy.copyMonitorFanA11yOpen.text(for: language))
+    }
+
+}
+
+private enum FanCardControlStatus {
+    case applying
+    case owned
+    case systemControl
+
+    var copy: LocalizedCopy {
+        switch self {
+        case .applying: ContractCopy.copyMonitorFanApplying
+        case .owned: ContractCopy.copyMonitorFanOwned
+        case .systemControl: ContractCopy.copyMonitorFanSystemControl
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .applying: MacTheme.warningText
+        case .owned: MacTheme.successText
+        case .systemControl: MacTheme.textSecondary
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .applying: "circle.dashed"
+        case .owned: "circle.fill"
+        case .systemControl: "circle"
+        }
+    }
+}
+
+private enum MonitorFanControlCopy {
+    static func summary(
+        configuration: MonitorFanConfiguration,
+        reading: MonitorFanReading,
+        language: AppLanguage
+    ) -> String {
+        let sources = configuration.enabledTemperatureSources
+        if sources.count == 1, let source = sources.first {
+            return String(
+                format: ContractCopy.copyMonitorFanControlSource.text(for: language),
+                sourceTitle(source, language: language)
+            )
+        }
+        if sources.count > 1 {
+            return String(
+                format: ContractCopy.copyMonitorFanSourceSummary.text(for: language),
+                sources.count
+            )
+        }
+        let knownKeys = Set(reading.temperatures.map(\.key))
+        let selected = configuration.selectedSensorKeys.filter(knownKeys.contains)
+        let count = selected.isEmpty ? reading.temperatures.count : selected.count
+        return String(
+            format: ContractCopy.copyMonitorFanControlSummary.text(for: language),
+            count
+        )
+    }
+
+    private static func sourceTitle(
+        _ source: MonitorFanTemperatureSource,
+        language: AppLanguage
+    ) -> String {
+        switch source {
+        case .cpu:
+            ContractCopy.copyMonitorFanSourceCpu.text(for: language)
+        case .gpu:
+            ContractCopy.copyMonitorFanSourceGpu.text(for: language)
+        case .battery:
+            ContractCopy.copyMonitorFanSourceBattery.text(for: language)
+        }
     }
 }
 
@@ -687,36 +707,11 @@ struct MonitorFanPopover: View {
     }
 
     private var controlSummaryText: String {
-        let sources = model.configuration.enabledTemperatureSources
-        if sources.count == 1, let source = sources.first {
-            return String(
-                format: ContractCopy.copyMonitorFanControlSource.text(for: language),
-                temperatureSourceTitle(source)
-            )
-        }
-        if sources.count > 1 {
-            return String(
-                format: ContractCopy.copyMonitorFanSourceSummary.text(for: language),
-                sources.count
-            )
-        }
-        return String(
-            format: ContractCopy.copyMonitorFanControlSummary.text(for: language),
-            model.configuration.selectedSensorKeys.isEmpty
-                ? reading.temperatures.count
-                : model.configuration.selectedSensorKeys.count
+        MonitorFanControlCopy.summary(
+            configuration: model.configuration,
+            reading: reading,
+            language: language
         )
-    }
-
-    private func temperatureSourceTitle(_ source: MonitorFanTemperatureSource) -> String {
-        switch source {
-        case .cpu:
-            ContractCopy.copyMonitorFanSourceCpu.text(for: language)
-        case .gpu:
-            ContractCopy.copyMonitorFanSourceGpu.text(for: language)
-        case .battery:
-            ContractCopy.copyMonitorFanSourceBattery.text(for: language)
-        }
     }
 
     private var manualControls: some View {

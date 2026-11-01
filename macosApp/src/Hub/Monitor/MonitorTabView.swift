@@ -294,9 +294,7 @@ struct MonitorTabView: View {
         if let fan = snapshot.fan, !fan.units.isEmpty {
             MonitorFanCard(
                 reading: fan,
-                cpuHistory: history.cpu,
                 temperatureHistory: history.fanTemperature,
-                rpmHistory: history.fanRPM,
                 language: language,
                 model: fanControlModel,
                 popoverCoordinator: popoverCoordinator
@@ -1586,6 +1584,13 @@ struct MonitorDetailRows: View {
     }
 }
 
+struct MonitorCardStatusIndicator {
+    let accessibilityLabel: String
+    let accessibilityValue: String
+    let color: Color
+    let symbolName: String
+}
+
 private struct MonitorGaugeCard: View {
     let kind: MonitorCardKind
     let fraction: Double
@@ -1712,7 +1717,7 @@ struct MonitorCardShell<Content: View>: View {
     let accent: Color
     let language: AppLanguage
     var combinesAccessibility = true
-    var statusText: String?
+    var statusIndicator: MonitorCardStatusIndicator?
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -1726,14 +1731,20 @@ struct MonitorCardShell<Content: View>: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(MacTheme.textPrimary)
                 Spacer(minLength: MacTheme.space1)
-                if let statusText {
-                    Text(statusText.uppercased())
-                        .font(.system(size: 8, weight: .bold))
-                        .tracking(0.7)
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(accent.opacity(0.12), in: Capsule())
+                if let statusIndicator {
+                    Image(systemName: statusIndicator.symbolName)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(statusIndicator.color)
+                        .frame(width: 12, height: 12)
+                        .background(statusIndicator.color.opacity(0.12), in: Circle())
+                        .overlay {
+                            Circle()
+                                .stroke(statusIndicator.color.opacity(0.28), lineWidth: 0.5)
+                        }
+                        .help(statusIndicator.accessibilityValue)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(statusIndicator.accessibilityLabel)
+                        .accessibilityValue(statusIndicator.accessibilityValue)
                 }
             }
 
@@ -1804,9 +1815,10 @@ struct MonitorRing: View {
     }
 }
 
-private struct MonitorSparkline: View {
+struct MonitorSparkline: View {
     let values: [Double]
     let accent: Color
+    var normalizesToRange = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -1835,11 +1847,15 @@ private struct MonitorSparkline: View {
     }
 
     private func normalizedPoints(in size: CGSize) -> [CGPoint] {
-        let capacity = max(2, values.count)
-        let maximum = max(values.max() ?? 0, 0.000_001)
-        return values.enumerated().map { index, value in
+        let finiteValues = values.filter(\.isFinite)
+        let capacity = max(2, finiteValues.count)
+        let minimum = normalizesToRange ? finiteValues.min() ?? 0 : 0
+        let maximum = finiteValues.max() ?? minimum + 0.000_001
+        let range = max(0.000_001, maximum - minimum)
+        return finiteValues.enumerated().map { index, value in
             let x = size.width * CGFloat(index) / CGFloat(max(1, capacity - 1))
-            let y = size.height - (size.height - 3) * CGFloat(min(1, max(0, value / maximum)))
+            let normalized = (value - minimum) / range
+            let y = size.height - (size.height - 3) * CGFloat(min(1, max(0, normalized)))
             return CGPoint(x: x, y: max(1.5, y))
         }
     }

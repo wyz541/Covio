@@ -558,6 +558,47 @@ final class MonitorFanTests: XCTestCase {
         )
     }
 
+    func testFanUsageUsesMaximumRPMAndClampsTheResult() {
+        let reading = MonitorFanReading(
+            temperatures: [],
+            units: [
+                .init(
+                    index: 0,
+                    rpm: 2_200,
+                    minimumRPM: 1_200,
+                    maximumRPM: 5_000,
+                    targetRPM: 2_100,
+                    mode: 1
+                ),
+                .init(
+                    index: 1,
+                    rpm: 6_000,
+                    minimumRPM: 1_200,
+                    maximumRPM: 5_500,
+                    targetRPM: 2_500,
+                    mode: 1
+                ),
+            ]
+        )
+
+        XCTAssertEqual(reading.units[0].usageFraction ?? -1, 0.44, accuracy: 0.000_001)
+        XCTAssertEqual(reading.units[1].usageFraction, 1)
+        XCTAssertEqual(reading.maximumUsageFraction, 1)
+    }
+
+    func testFanUsageRejectsAnInvalidMaximumRPM() {
+        let unit = MonitorFanReading.Unit(
+            index: 0,
+            rpm: 2_200,
+            minimumRPM: 1_200,
+            maximumRPM: 0,
+            targetRPM: 2_100,
+            mode: 1
+        )
+
+        XCTAssertNil(unit.usageFraction)
+    }
+
     func testMonitorHistoryTracksTheFanSeries() {
         let reading = MonitorFanReading(
             temperatures: [.init(key: "TCMz", celsius: 72)],

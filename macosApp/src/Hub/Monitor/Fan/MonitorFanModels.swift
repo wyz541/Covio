@@ -17,6 +17,14 @@ struct MonitorFanReading: Equatable, Sendable {
         let mode: Int
 
         var id: Int { index }
+
+        /// 当前转速占该风扇最高转速的比例。
+        var usageFraction: Double? {
+            guard rpm.isFinite, maximumRPM.isFinite, maximumRPM > 0 else {
+                return nil
+            }
+            return min(1, max(0, rpm / maximumRPM))
+        }
     }
 
     let temperatures: [Temperature]
@@ -24,6 +32,11 @@ struct MonitorFanReading: Equatable, Sendable {
 
     var maximumTemperature: Double? {
         temperatures.map(\.celsius).max()
+    }
+
+    /// 卡片主值使用最忙风扇的使用率。
+    var maximumUsageFraction: Double? {
+        units.compactMap(\.usageFraction).max()
     }
 
     func controlTemperature(selectedKeys: Set<String>) -> Double? {
