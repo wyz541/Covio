@@ -335,6 +335,18 @@ enum ContractCopy {
     static let copyGeneralSleepModeFastest = LocalizedCopy(key: "copy/general/sleep-mode/fastest", en: "0 · Fastest", zhHans: "0 · 最快")
     /// `copy/general/sleep-mode/lowest-power`
     static let copyGeneralSleepModeLowestPower = LocalizedCopy(key: "copy/general/sleep-mode/lowest-power", en: "25 · Lowest power", zhHans: "25 · 最省电")
+    /// `copy/general/version/build`
+    static let copyGeneralVersionBuild = LocalizedCopy(key: "copy/general/version/build", en: "Build", zhHans: "构建编号")
+    /// `copy/general/version/channel`
+    static let copyGeneralVersionChannel = LocalizedCopy(key: "copy/general/version/channel", en: "Channel", zhHans: "渠道")
+    /// `copy/general/version/client`
+    static let copyGeneralVersionClient = LocalizedCopy(key: "copy/general/version/client", en: "Client", zhHans: "客户端版本")
+    /// `copy/general/version/git`
+    static let copyGeneralVersionGit = LocalizedCopy(key: "copy/general/version/git", en: "Git", zhHans: "Git 提交")
+    /// `copy/general/version/helper`
+    static let copyGeneralVersionHelper = LocalizedCopy(key: "copy/general/version/helper", en: "Helper", zhHans: "Helper 协议")
+    /// `copy/general/version/title`
+    static let copyGeneralVersionTitle = LocalizedCopy(key: "copy/general/version/title", en: "Version", zhHans: "版本")
     /// `copy/helper/service/enabled`
     static let copyHelperServiceEnabled = LocalizedCopy(key: "copy/helper/service/enabled", en: "Managed by macOS", zhHans: "由 macOS 管理")
     /// `copy/helper/service/error`
@@ -1861,6 +1873,12 @@ enum ContractCopy {
         copyGeneralSleepModeDefault,
         copyGeneralSleepModeFastest,
         copyGeneralSleepModeLowestPower,
+        copyGeneralVersionBuild,
+        copyGeneralVersionChannel,
+        copyGeneralVersionClient,
+        copyGeneralVersionGit,
+        copyGeneralVersionHelper,
+        copyGeneralVersionTitle,
         copyHelperServiceEnabled,
         copyHelperServiceError,
         copyHelperServiceLegacy,

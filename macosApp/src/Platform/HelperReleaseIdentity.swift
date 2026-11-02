@@ -49,6 +49,7 @@ enum HelperReleaseIdentitySource {
         return HelperReleaseHandshake.shared.parse(
             result: [
                 "releaseId": releaseId ?? "",
+                "clientVersion": GeneratedReleaseIdentity.clientVersion,
                 "productVersion": GeneratedReleaseIdentity.productVersion,
                 "buildNumber": String(GeneratedReleaseIdentity.buildNumber),
                 "gitCommit": gitCommit ?? "",

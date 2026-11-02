@@ -32,6 +32,7 @@ enum SettingsRowID {
     static let generalLogin = "general.login"
     static let generalNotifications = "general.notifications"
     static let generalUpdates = "general.updates"
+    static let generalVersion = "general.version"
     static let generalLogs = "general.logs"
     static let generalReset = "general.reset"
 }
@@ -197,6 +198,16 @@ enum SettingsCatalog {
             title: ContractCopy.copyGeneralCheckUpdates,
             summary: nil,
             keywords: ["update", "version", "release", "更新", "版本", "升级"]
+        ),
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.generalVersion,
+            section: .general,
+            title: ContractCopy.copyGeneralVersionTitle,
+            summary: nil,
+            keywords: [
+                "version", "build", "channel", "git", "commit", "release",
+                "版本", "构建", "渠道", "提交", "协议", "发布",
+            ]
         ),
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalLogs,

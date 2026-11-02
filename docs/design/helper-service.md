@@ -9,7 +9,7 @@
 | 状态 | 已实现；真机安装、升级和回滚矩阵待 #358 |
 | 日期 | `2026-10-25` |
 | Issue | #390 |
-| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md) |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0026](../adr/adr-0026-four-part-client-version.md) |
 
 ## 目标
 
@@ -66,6 +66,7 @@ helper 对每个 XPC 客户端检查代码签名要求。
 app 比较以下值：
 
 - `releaseId`。
+- `clientVersion`。
 - `productVersion`。
 - `buildNumber`。
 - `gitCommit`。

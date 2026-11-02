@@ -25,9 +25,10 @@ final class HelperStatusTests: XCTestCase {
         helperHash: String? = nil
     ) -> HelperReleaseIdentity {
         HelperReleaseIdentity(
-            releaseId: "0.5.2+1+\(commit)",
-            productVersion: "0.5.2",
-            buildNumber: "1",
+            releaseId: "0.0.1.6-g\(commit)",
+            clientVersion: "0.0.1.6",
+            productVersion: "0.6.0",
+            buildNumber: "16",
             gitCommit: commit,
             protocolVersion: protocolVersion,
             helperSHA256: helperHash ?? self.helperHash,
@@ -76,7 +77,7 @@ final class HelperStatusTests: XCTestCase {
     func testExactIdentityMeansMatch() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: expectedIdentity.productVersion,
+            version: expectedIdentity.clientVersion,
             protocolVersion: expectedIdentity.protocolVersion,
             identity: expectedIdentity
         )
@@ -84,7 +85,7 @@ final class HelperStatusTests: XCTestCase {
 
         XCTAssertEqual(ops().status(), .match)
         XCTAssertTrue(ops().isInstalled())
-        XCTAssertEqual(ops().helperVersion(), expectedIdentity.productVersion)
+        XCTAssertEqual(ops().helperVersion(), expectedIdentity.clientVersion)
     }
 
     /// helper 能应答但协议不同 → OUTDATED。
@@ -92,7 +93,7 @@ final class HelperStatusTests: XCTestCase {
         let helperIdentity = identity(protocolVersion: "7")
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: helperIdentity.productVersion,
+            version: helperIdentity.clientVersion,
             protocolVersion: helperIdentity.protocolVersion,
             identity: helperIdentity
         )
@@ -100,7 +101,7 @@ final class HelperStatusTests: XCTestCase {
 
         XCTAssertEqual(ops().status(), .outdated)
         XCTAssertTrue(ops().isInstalled(), "socket 在，所以 helper 存在")
-        XCTAssertEqual(ops().helperVersion(), helperIdentity.productVersion)
+        XCTAssertEqual(ops().helperVersion(), helperIdentity.clientVersion)
     }
 
     /// 旧 helper 即使版本和协议相同，只要缺少完整身份就是 OUTDATED。
@@ -130,7 +131,7 @@ final class HelperStatusTests: XCTestCase {
         let helperIdentity = identity(helperHash: String(repeating: "c", count: 64))
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: helperIdentity.productVersion,
+            version: helperIdentity.clientVersion,
             protocolVersion: helperIdentity.protocolVersion,
             identity: helperIdentity
         )
@@ -143,7 +144,7 @@ final class HelperStatusTests: XCTestCase {
     func testUntrustedSignatureMeansUntrusted() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: expectedIdentity.productVersion,
+            version: expectedIdentity.clientVersion,
             protocolVersion: expectedIdentity.protocolVersion,
             identity: expectedIdentity
         )
@@ -156,7 +157,7 @@ final class HelperStatusTests: XCTestCase {
     func testMissingExpectedIdentityMeansUntrusted() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: expectedIdentity.productVersion,
+            version: expectedIdentity.clientVersion,
             protocolVersion: expectedIdentity.protocolVersion,
             identity: expectedIdentity
         )
@@ -169,10 +170,10 @@ final class HelperStatusTests: XCTestCase {
     func testPartialIdentityMeansUntrusted() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: expectedIdentity.productVersion,
+            version: expectedIdentity.clientVersion,
             protocolVersion: expectedIdentity.protocolVersion,
             identityResult: [
-                "version": expectedIdentity.productVersion,
+                "version": expectedIdentity.clientVersion,
                 "productVersion": expectedIdentity.productVersion,
                 "protocolVersion": expectedIdentity.protocolVersion,
                 "releaseId": expectedIdentity.releaseId,
@@ -188,7 +189,7 @@ final class HelperStatusTests: XCTestCase {
         let helperIdentity = identity(helperHash: String(repeating: "c", count: 64))
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: helperIdentity.productVersion,
+            version: helperIdentity.clientVersion,
             protocolVersion: helperIdentity.protocolVersion,
             identity: helperIdentity
         )
@@ -207,7 +208,7 @@ final class HelperStatusTests: XCTestCase {
         let mismatched = identity(helperHash: String(repeating: "c", count: 64))
         let first = try FakeHelper(
             socketPath: socketPath,
-            version: mismatched.productVersion,
+            version: mismatched.clientVersion,
             protocolVersion: mismatched.protocolVersion,
             identity: mismatched
         )
@@ -217,7 +218,7 @@ final class HelperStatusTests: XCTestCase {
 
         let repaired = try FakeHelper(
             socketPath: socketPath,
-            version: expectedIdentity.productVersion,
+            version: expectedIdentity.clientVersion,
             protocolVersion: expectedIdentity.protocolVersion,
             identity: expectedIdentity
         )
@@ -229,7 +230,7 @@ final class HelperStatusTests: XCTestCase {
     func testRepairCanReleaseAnActiveLeaseAfterIdentityChanges() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: expectedIdentity.productVersion,
+            version: expectedIdentity.clientVersion,
             protocolVersion: expectedIdentity.protocolVersion,
             identity: expectedIdentity
         )
@@ -248,7 +249,7 @@ final class HelperStatusTests: XCTestCase {
     func testLidLeaseRequiresAnActiveOkReply() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: expectedIdentity.productVersion,
+            version: expectedIdentity.clientVersion,
             protocolVersion: expectedIdentity.protocolVersion,
             identity: expectedIdentity
         )
@@ -459,8 +460,9 @@ private final class FakeHelper {
 
     private static func identityResult(_ identity: HelperReleaseIdentity) -> [String: String] {
         [
-            "version": identity.productVersion,
+            "version": identity.clientVersion,
             "releaseId": identity.releaseId,
+            "clientVersion": identity.clientVersion,
             "productVersion": identity.productVersion,
             "buildNumber": identity.buildNumber,
             "gitCommit": identity.gitCommit,

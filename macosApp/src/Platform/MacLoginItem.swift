@@ -210,12 +210,11 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
             options: [.caseInsensitive]
         )
         let range = NSRange(body.startIndex..<body.endIndex, in: body)
-        var best: (version: SemanticVersion, url: String)?
+        var best: (version: ClientVersion, url: String)?
         for match in pattern?.matches(in: body, options: [], range: range) ?? [] {
             guard let pathRange = Range(match.range(at: 1), in: body),
                   let tagRange = Range(match.range(at: 2), in: body),
-                  let version = SemanticVersion.companion.parse(value: String(body[tagRange])),
-                  version.prerelease.isEmpty
+                  let version = ClientVersion.companion.parse(value: String(body[tagRange]))
             else { continue }
             let path = String(body[pathRange])
             let url = path.hasPrefix("http") ? path : "https://github.com\(path)"

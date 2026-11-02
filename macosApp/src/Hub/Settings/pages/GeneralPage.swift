@@ -84,6 +84,9 @@ struct GeneralPage: View {
             }
             .settingsRowAnchor(SettingsRowID.generalUpdates)
 
+            ReleaseIdentityCard(runtime: runtime)
+                .settingsRowAnchor(SettingsRowID.generalVersion)
+
             MacCard {
                 HStack(spacing: MacTheme.space2) {
                     MacButton(title: ContractCopy.copyHubLogView.text(for: runtime.language)) { runtime.viewLog() }

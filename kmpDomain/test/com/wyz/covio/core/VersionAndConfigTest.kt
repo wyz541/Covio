@@ -3,6 +3,7 @@ package com.wyz.covio.core
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import okio.Path.Companion.toPath
 
@@ -257,10 +258,27 @@ class VersionAndConfigTest {
         val config = AppConfig(lastUpdateCheckEpochSeconds = 1_000, updateCheckIntervalHours = 24)
         assertFalse(UpdatePolicy.shouldCheck(config, 1_000 + 23 * 3_600))
         assertTrue(UpdatePolicy.shouldCheck(config, 1_000 + 24 * 3_600))
-        val prerelease = UpdateInfo("2.0.0-beta.1", "beta", "https://example.com")
-        val stable = UpdateInfo("2.0.0", "stable", "https://example.com")
-        assertEquals(null, UpdatePolicy.selectUpdate(prerelease, "1.0.0"))
-        assertEquals(stable, UpdatePolicy.selectUpdate(stable, "1.0.0"))
+        val prerelease = UpdateInfo("0.0.2.0-internal", "beta", "https://example.com")
+        val stable = UpdateInfo("0.0.2.0", "stable", "https://example.com")
+        assertEquals(null, UpdatePolicy.selectUpdate(prerelease, "0.0.1.5"))
+        assertEquals(stable, UpdatePolicy.selectUpdate(stable, "0.0.1.5"))
+    }
+
+    @Test
+    fun `client versions use four decimal place digits`() {
+        assertEquals(ClientVersion(0, 0, 1, 5), ClientVersion.parse("v0.0.1.5"))
+        assertEquals(ClientVersion(0, 1, 0, 0), ClientVersion.parse("0.1.0.0"))
+        assertTrue(isNewerClientVersion("0.1.0.0", "0.0.9.9"))
+        assertFalse(isNewerClientVersion("0.0.1.5", "0.0.1.5"))
+        assertNull(ClientVersion.parse("0.0.1.6-internal"))
+        assertNull(ClientVersion.parse("0.0.1.6-g0123456789abcdef"))
+        assertNull(ClientVersion.parse("0.0.1.6+15"))
+        assertEquals("0.0.0.1", ClientVersion.fromBuild(1)?.toString())
+        assertEquals("0.0.1.6", ClientVersion.fromBuild(16)?.toString())
+        assertEquals("0.1.0.0", ClientVersion.fromBuild(100)?.toString())
+        assertEquals("9.9.9.9", ClientVersion.fromBuild(9999)?.toString())
+        assertNull(ClientVersion.fromBuild(0))
+        assertNull(ClientVersion.fromBuild(10000))
     }
 
     /// M2 的完成判据之一：`config.json` 与 0.4.2 双向兼容。

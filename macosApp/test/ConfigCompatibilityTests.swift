@@ -381,6 +381,12 @@ final class HelperContractMirrorTests: XCTestCase {
         let bundle = Bundle.main
         let short = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         let build = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
+        let clientVersion = try XCTUnwrap(
+            bundle.object(forInfoDictionaryKey: "CovioClientVersion") as? String
+        )
+        let productVersion = try XCTUnwrap(
+            bundle.object(forInfoDictionaryKey: "CovioProductVersion") as? String
+        )
         let channel = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CovioReleaseChannel") as? String)
         let commit = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CovioGitCommit") as? String)
         let releaseID = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "CovioReleaseId") as? String)
@@ -394,10 +400,13 @@ final class HelperContractMirrorTests: XCTestCase {
             bundle.object(forInfoDictionaryKey: "CovioHelperInstallMode") as? String
         )
 
-        XCTAssertEqual(GeneratedReleaseIdentity.productVersion, GeneratedReleaseIdentityKt.APP_VERSION)
+        XCTAssertEqual(GeneratedReleaseIdentity.clientVersion, GeneratedReleaseIdentityKt.APP_VERSION)
+        XCTAssertEqual(GeneratedReleaseIdentity.productVersion, GeneratedReleaseIdentityKt.APP_PRODUCT_VERSION)
         XCTAssertEqual(GeneratedReleaseIdentity.buildNumber, Int(GeneratedReleaseIdentityKt.APP_BUILD_NUMBER))
         XCTAssertEqual(GeneratedReleaseIdentity.channel, GeneratedReleaseIdentityKt.APP_RELEASE_CHANNEL)
-        XCTAssertEqual(short, GeneratedReleaseIdentity.productVersion)
+        XCTAssertEqual(short, GeneratedReleaseIdentity.clientVersion)
+        XCTAssertEqual(clientVersion, GeneratedReleaseIdentity.clientVersion)
+        XCTAssertEqual(productVersion, GeneratedReleaseIdentity.productVersion)
         XCTAssertEqual(build, String(GeneratedReleaseIdentity.buildNumber))
         XCTAssertEqual(channel, GeneratedReleaseIdentity.channel)
         XCTAssertEqual(protocolVersion, String(GeneratedReleaseIdentity.helperProtocolVersion))
@@ -405,7 +414,7 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertEqual(transactionVersion, "1")
         XCTAssertEqual(helperInstallMode, "legacy")
         XCTAssertFalse(commit.isEmpty)
-        XCTAssertEqual(releaseID, "\(short)+\(build)+\(commit)")
+        XCTAssertEqual(releaseID, "\(short)-g\(commit)")
     }
 
     /// Legacy plist 必须指向固定 helper 并声明同一个 XPC 服务。

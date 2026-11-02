@@ -8,7 +8,7 @@
 | 状态 | 已实现；当前只创建 internal/local Draft |
 | 日期 | `2026-10-25` |
 | Issue | #356 |
-| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md) |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0026](../adr/adr-0026-four-part-client-version.md) |
 
 ## 目标
 
@@ -16,15 +16,36 @@
 只有全部验证通过后，维护者才能显式发布。
 任一步失败时，Draft 保持未发布状态。
 
+
+## 版本身份
+
+| 字段 | 示例 | 用途 |
+| --- | --- | --- |
+| `clientVersion` | `0.0.1.6` | 用户可见版本，更新检查和安装包文件名 |
+| `productVersion` | `0.6.0` | 产品版本元数据 |
+| `buildNumber` | `16` | 单调递增升级顺序 |
+| `gitCommit` | 完整 40 位 SHA | 源码定位，不参与排序 |
+| `channel` | `internal` 或 `public` | 发布渠道 |
+| `helperProtocolVersion` | `10` | app 与 helper 的协议版本 |
+
+`buildNumber` 补足四位十进制，再拆成 `千.百.十.个`。
+示例：build `15` 生成 `0.0.1.5`，build `16` 生成 `0.0.1.6`，build `100` 生成 `0.1.0.0`。
+`buildNumber` 超过 `9999` 时，脚本失败关闭。
+
+`releaseId` 使用 `<clientVersion>-g<fullGitSHA>`。
+app 的 `CFBundleShortVersionString` 使用 `clientVersion`。
+app 的 `CFBundleVersion` 使用 `buildNumber`。
+`clientVersion`、`productVersion`、`buildNumber`、渠道、Git 和 helper 协议必须分别保存。
+
 ## 资产
 
 一次发布包含：
 
 ```text
-Covio-<version>.app.zip
-Covio-<version>.dmg
-Covio-<version>.pkg
-Covio-Offline-<version>.dmg  # 可选
+Covio-<clientVersion>.app.zip
+Covio-<clientVersion>.dmg
+Covio-<clientVersion>.pkg
+Covio-Offline-<clientVersion>.dmg  # 可选
 release-manifest.json
 checksums.txt
 release-evidence.json
@@ -35,7 +56,7 @@ release-operation.json
 `release-evidence.json` 记录全部资产摘要、releaseId、commit、协议和验证结果。
 `release-notes.generated.md` 从同一份证据生成。
 `checksums.txt` 包含 app zip、默认 DMG、PKG 和 artifact manifest。
-发布离线包时，`checksums.txt` 还包含 `Covio-Offline-<version>.dmg`。
+发布离线包时，`checksums.txt` 还包含 `Covio-Offline-<clientVersion>.dmg`。
 `release-manifest.json` 记录默认包、可选离线包和模型 revision。
 `Covio.app` 的 Resources 携带 bundle identity manifest，不包含安装包摘要。
 PKG 把 app 写入暂存区，再通过原子 bundle 交换完成 app 与 helper 的成对安装。
@@ -56,7 +77,7 @@ COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
 ```
 
 该命令默认构建制品并创建 Draft。
-内部 tag 使用 `v<version>-internal.<build>`。
+内部 tag 使用 `v<clientVersion>-internal`。
 内部 Draft 同时标记为 pre-release。
 
 复用刚构建的制品：
@@ -74,7 +95,7 @@ bash scripts/create-release.sh --dry-run --skip-package
 ## 发布 Draft
 
 ```sh
-bash scripts/publish-release.sh v<tag>
+bash scripts/publish-release.sh v<clientVersion>
 ```
 
 发布命令重新下载 Draft 资产。
@@ -188,7 +209,7 @@ scripts/covio local --pkg    # 打包并用事务 PKG 安装
 | --- | --- | --- |
 | release manifest 和源清单一致 | 必须 | 必须 |
 | app/helper releaseId 一致 | 必须 | 必须 |
-| app/helper 版本、build、commit、协议一致 | 必须 | 必须 |
+| app/helper 客户端版本、产品版本、build、commit、渠道、协议一致 | 必须 | 必须 |
 | helper SHA-256 一致 | 必须 | 必须 |
 | app/helper 架构为 arm64 | 必须 | 必须 |
 | app zip、DMG、PKG 和 checksums 完整 | 必须 | 必须 |

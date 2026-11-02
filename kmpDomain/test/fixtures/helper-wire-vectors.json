@@ -3,31 +3,31 @@
   "requests": [
     {
       "name": "Swift 客户端带上空 payload 对象",
-      "line": "{\"version\":\"9\",\"requestId\":\"r1\",\"command\":\"version\",\"payload\":{}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r1\",\"command\":\"version\",\"payload\":{}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r1\",\"command\":\"version\"}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r1\",\"command\":\"version\"}"
     },
     {
       "name": "Kotlin 客户端省略空 payload",
-      "line": "{\"version\":\"9\",\"requestId\":\"r2\",\"command\":\"version\"}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r2\",\"command\":\"version\"}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r2\",\"command\":\"version\"}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r2\",\"command\":\"version\"}"
     },
     {
       "name": "读得出版本号",
-      "line": "{\"version\":\"9\",\"requestId\":\"r3\",\"command\":\"version\",\"payload\":{\"anything\":\"x\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r3\",\"command\":\"version\",\"payload\":{\"anything\":\"x\"}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r3\",\"command\":\"version\",\"payload\":{\"anything\":\"x\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r3\",\"command\":\"version\",\"payload\":{\"anything\":\"x\"}}"
     },
     {
       "name": "关掉睡眠",
-      "line": "{\"version\":\"9\",\"requestId\":\"r4\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"true\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r4\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"true\"}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": [
@@ -35,11 +35,11 @@
         "disablesleep",
         "1"
       ],
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r4\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"true\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r4\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"true\"}}"
     },
     {
       "name": "打开睡眠",
-      "line": "{\"version\":\"9\",\"requestId\":\"r5\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"false\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r5\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"false\"}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": [
@@ -47,11 +47,11 @@
         "disablesleep",
         "0"
       ],
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r5\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"false\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r5\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"false\"}}"
     },
     {
       "name": "disabled 只认 true 与 false",
-      "line": "{\"version\":\"9\",\"requestId\":\"r6\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"1\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r6\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"1\"}}",
       "decode": "ok",
       "validate": "Invalid disabled value",
       "pmsetArguments": [
@@ -59,11 +59,11 @@
         "disablesleep",
         "0"
       ],
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r6\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"1\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r6\",\"command\":\"setDisableSleep\",\"payload\":{\"disabled\":\"1\"}}"
     },
     {
       "name": "disabled 整个键不在",
-      "line": "{\"version\":\"9\",\"requestId\":\"r7\",\"command\":\"setDisableSleep\",\"payload\":{}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r7\",\"command\":\"setDisableSleep\",\"payload\":{}}",
       "decode": "ok",
       "validate": "Missing disabled value",
       "pmsetArguments": [
@@ -71,11 +71,11 @@
         "disablesleep",
         "0"
       ],
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r7\",\"command\":\"setDisableSleep\"}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r7\",\"command\":\"setDisableSleep\"}"
     },
     {
       "name": "设置 25 号休眠模式",
-      "line": "{\"version\":\"9\",\"requestId\":\"r8\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"25\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r8\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"25\"}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": [
@@ -83,11 +83,11 @@
         "hibernatemode",
         "25"
       ],
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r8\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"25\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r8\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"25\"}}"
     },
     {
       "name": "产品不支持的休眠模式",
-      "line": "{\"version\":\"9\",\"requestId\":\"r9\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"2\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r9\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"2\"}}",
       "decode": "ok",
       "validate": "Invalid hibernate mode",
       "pmsetArguments": [
@@ -95,35 +95,35 @@
         "hibernatemode",
         "2"
       ],
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r9\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"2\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r9\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"2\"}}"
     },
     {
       "name": "休眠模式不是数字",
-      "line": "{\"version\":\"9\",\"requestId\":\"r10\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"abc\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r10\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"abc\"}}",
       "decode": "ok",
       "validate": "Missing hibernate mode",
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r10\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"abc\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r10\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":\"abc\"}}"
     },
     {
       "name": "请求号是空串",
-      "line": "{\"version\":\"9\",\"requestId\":\"\",\"command\":\"version\"}",
+      "line": "{\"version\":\"10\",\"requestId\":\"\",\"command\":\"version\"}",
       "decode": "ok",
       "validate": "Missing requestId",
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"\",\"command\":\"version\"}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"\",\"command\":\"version\"}"
     },
     {
       "name": "请求号只有空白",
-      "line": "{\"version\":\"9\",\"requestId\":\"  \\t \",\"command\":\"version\"}",
+      "line": "{\"version\":\"10\",\"requestId\":\"  \\t \",\"command\":\"version\"}",
       "decode": "ok",
       "validate": "Missing requestId",
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"  \\t \",\"command\":\"version\"}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"  \\t \",\"command\":\"version\"}"
     },
     {
       "name": "请求号整个键不在：解码就失败",
-      "line": "{\"version\":\"9\",\"command\":\"version\"}",
+      "line": "{\"version\":\"10\",\"command\":\"version\"}",
       "decode": "null",
       "validate": null,
       "pmsetArguments": null,
@@ -139,19 +139,19 @@
     },
     {
       "name": "白名单外的命令",
-      "line": "{\"version\":\"9\",\"requestId\":\"r15\",\"command\":\"runShell\",\"payload\":{\"text\":\"hello\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r15\",\"command\":\"runShell\",\"payload\":{\"text\":\"hello\"}}",
       "decode": "ok",
       "validate": "Command is not allowed",
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r15\",\"command\":\"runShell\",\"payload\":{\"text\":\"hello\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r15\",\"command\":\"runShell\",\"payload\":{\"text\":\"hello\"}}"
     },
     {
       "name": "不认识的字段被忽略",
-      "line": "{\"version\":\"9\",\"requestId\":\"r16\",\"command\":\"version\",\"extra\":42}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r16\",\"command\":\"version\",\"extra\":42}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r16\",\"command\":\"version\"}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r16\",\"command\":\"version\"}"
     },
     {
       "name": "不是 JSON",
@@ -163,7 +163,7 @@
     },
     {
       "name": "payload 是数组",
-      "line": "{\"version\":\"9\",\"requestId\":\"r18\",\"command\":\"version\",\"payload\":[]}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r18\",\"command\":\"version\",\"payload\":[]}",
       "decode": "null",
       "validate": null,
       "pmsetArguments": null,
@@ -171,7 +171,7 @@
     },
     {
       "name": "payload 的值不是字符串",
-      "line": "{\"version\":\"9\",\"requestId\":\"r19\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":25}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r19\",\"command\":\"setHibernateMode\",\"payload\":{\"mode\":25}}",
       "decode": "null",
       "validate": null,
       "pmsetArguments": null,
@@ -179,51 +179,51 @@
     },
     {
       "name": "helper v2 acquire lid lease",
-      "line": "{\"version\":\"9\",\"requestId\":\"r20\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"0\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r20\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"0\"}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r20\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"0\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r20\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"0\"}}"
     },
     {
       "name": "helper v2 renew lid lease",
-      "line": "{\"version\":\"9\",\"requestId\":\"r21\",\"command\":\"lidLeaseRenew\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"1\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r21\",\"command\":\"lidLeaseRenew\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"1\"}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r21\",\"command\":\"lidLeaseRenew\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"1\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r21\",\"command\":\"lidLeaseRenew\",\"payload\":{\"leaseId\":\"lease-a\",\"externalDisplayCount\":\"1\"}}"
     },
     {
       "name": "lease id cannot be blank",
-      "line": "{\"version\":\"9\",\"requestId\":\"r22\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\" \",\"externalDisplayCount\":\"0\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r22\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\" \",\"externalDisplayCount\":\"0\"}}",
       "decode": "ok",
       "validate": "Invalid leaseId",
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r22\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\" \",\"externalDisplayCount\":\"0\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r22\",\"command\":\"lidLeaseAcquire\",\"payload\":{\"leaseId\":\" \",\"externalDisplayCount\":\"0\"}}"
     },
     {
       "name": "lease release needs only lease id",
-      "line": "{\"version\":\"9\",\"requestId\":\"r23\",\"command\":\"lidLeaseRelease\",\"payload\":{\"leaseId\":\"lease-a\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r23\",\"command\":\"lidLeaseRelease\",\"payload\":{\"leaseId\":\"lease-a\"}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r23\",\"command\":\"lidLeaseRelease\",\"payload\":{\"leaseId\":\"lease-a\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r23\",\"command\":\"lidLeaseRelease\",\"payload\":{\"leaseId\":\"lease-a\"}}"
     },
     {
       "name": "lease status has no payload",
-      "line": "{\"version\":\"9\",\"requestId\":\"r24\",\"command\":\"lidLeaseStatus\"}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r24\",\"command\":\"lidLeaseStatus\"}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r24\",\"command\":\"lidLeaseStatus\"}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r24\",\"command\":\"lidLeaseStatus\"}"
     },
     {
       "name": "charge limit configure with active discharge",
-      "line": "{\"version\":\"9\",\"requestId\":\"r25\",\"command\":\"chargeLimitConfigure\",\"payload\":{\"percent\":\"70\",\"activeDischarge\":\"true\"}}",
+      "line": "{\"version\":\"10\",\"requestId\":\"r25\",\"command\":\"chargeLimitConfigure\",\"payload\":{\"percent\":\"70\",\"activeDischarge\":\"true\"}}",
       "decode": "ok",
       "validate": null,
       "pmsetArguments": null,
-      "reencoded": "{\"version\":\"9\",\"requestId\":\"r25\",\"command\":\"chargeLimitConfigure\",\"payload\":{\"percent\":\"70\",\"activeDischarge\":\"true\"}}"
+      "reencoded": "{\"version\":\"10\",\"requestId\":\"r25\",\"command\":\"chargeLimitConfigure\",\"payload\":{\"percent\":\"70\",\"activeDischarge\":\"true\"}}"
     }
   ],
   "replies": [
@@ -288,7 +288,7 @@
       "call": "success",
       "requestId": "r",
       "result": null,
-      "expected": "{\"version\":\"9\",\"requestId\":\"r\",\"ok\":true}"
+      "expected": "{\"version\":\"10\",\"requestId\":\"r\",\"ok\":true}"
     },
     {
       "name": "成功回复写出非空 result",
@@ -297,14 +297,14 @@
       "result": {
         "a": "b"
       },
-      "expected": "{\"version\":\"9\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"a\":\"b\"}}"
+      "expected": "{\"version\":\"10\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"a\":\"b\"}}"
     },
     {
       "name": "失败回复只写 error",
       "call": "failure",
       "requestId": "r",
       "message": "boom",
-      "expected": "{\"version\":\"9\",\"requestId\":\"r\",\"ok\":false,\"error\":\"boom\"}"
+      "expected": "{\"version\":\"10\",\"requestId\":\"r\",\"ok\":false,\"error\":\"boom\"}"
     },
     {
       "name": "pmset 成功",
@@ -312,7 +312,7 @@
       "requestId": "r",
       "exitCode": 0,
       "output": "",
-      "expected": "{\"version\":\"9\",\"requestId\":\"r\",\"ok\":true}"
+      "expected": "{\"version\":\"10\",\"requestId\":\"r\",\"ok\":true}"
     },
     {
       "name": "pmset 失败：输出当文案，首尾空白去掉",
@@ -320,7 +320,7 @@
       "requestId": "r",
       "exitCode": 1,
       "output": "pmset: bad\n",
-      "expected": "{\"version\":\"9\",\"requestId\":\"r\",\"ok\":false,\"error\":\"pmset: bad\"}"
+      "expected": "{\"version\":\"10\",\"requestId\":\"r\",\"ok\":false,\"error\":\"pmset: bad\"}"
     },
     {
       "name": "pmset 失败：没有输出时用退出码拼一句",
@@ -328,7 +328,7 @@
       "requestId": "r",
       "exitCode": 3,
       "output": "  \n",
-      "expected": "{\"version\":\"9\",\"requestId\":\"r\",\"ok\":false,\"error\":\"pmset exited with 3\"}"
+      "expected": "{\"version\":\"10\",\"requestId\":\"r\",\"ok\":false,\"error\":\"pmset exited with 3\"}"
     }
   ]
 }

@@ -42,6 +42,8 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 
 Covio is under internal test.
 Covio 0.6.0-internal.15 is the current internal build.
+This build uses the legacy `0.6.0 build 15` label.
+The next build uses client version `0.0.1.6`.
 It requires macOS 26 or later on Apple Silicon.
 The default installer does not contain model weights.
 Covio downloads the model after user confirmation.
@@ -84,6 +86,19 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 ```
 
 Checksums are in the release `checksums.txt` asset.
+
+## Version identity
+
+The user-facing client version has four decimal digits: `0.0.1.6`.
+The build number is padded to four digits and split into `thousands.hundreds.tens.ones`.
+Examples: build `15` is `0.0.1.5`, build `16` is `0.0.1.6`, and build `100` is `0.1.0.0`.
+The product version `0.6.0` is separate metadata.
+The channel, Git commit, and helper protocol are also separate fields.
+
+The internal tag is `v<clientVersion>-internal`.
+A stable tag is `v<clientVersion>`.
+The release ID is `<clientVersion>-g<fullGitSHA>`.
+The build number controls upgrade order. The Git commit does not control upgrade order.
 
 ## What changed in build 7
 
@@ -427,26 +442,27 @@ Model weights are not in Git.
 4. Verify the optional offline DMG in a network-denied sandbox:
 
    ```sh
-   bash scripts/verify-file-naming-bundle.sh dist/Covio-Offline-0.6.0.dmg
+   bash scripts/verify-file-naming-bundle.sh dist/Covio-Offline-0.0.1.6.dmg
    ```
 
 The package script writes these files:
 
 - `dist/Covio.app`
-- `dist/Covio-0.6.0.dmg`
-- `dist/Covio-0.6.0.pkg`
-- `dist/Covio-0.6.0.app.zip`
+- `dist/Covio-0.0.1.6.dmg`
+- `dist/Covio-0.0.1.6.pkg`
+- `dist/Covio-0.0.1.6.app.zip`
 - `dist/release-manifest.json`
 
 The offline packaging command adds:
 
 - `dist/Covio-Offline.app`
-- `dist/Covio-Offline-0.6.0.dmg`
+- `dist/Covio-Offline-0.0.1.6.dmg`
 
 The default script verifies the model manifest and rejects model weights in the app.
 The offline script verifies model file sizes, SHA-256 values, license, and NOTICE.
 The offline script embeds the model under `Contents/Resources/Models/Qwen3VL-2B-Instruct-4bit/`.
-The script reads versions from `release/release-manifest.json` and checks that the bundle carries them.
+The script reads client version, product version, build number, channel, Git commit, and helper protocol from `release/release-manifest.json`.
+The bundle must carry the same separate fields.
 The script writes the final release identity, Git commit, helper SHA-256, installer identities, and model identity to `dist/release-manifest.json`.
 The app contains `Contents/MacOS/CovioHelper`. The PKG installs the matching helper and LaunchDaemon at fixed root-owned paths.
 The script checks that the bundle carries `macosApp/src/Covio.icns`.
@@ -481,7 +497,7 @@ COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
 Publish the verified Draft with:
 
 ```sh
-bash scripts/publish-release.sh v<version>-internal.<build>
+bash scripts/publish-release.sh v<clientVersion>-internal
 ```
 
 `.pkg` is the transactional install and upgrade entry.

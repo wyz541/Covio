@@ -9,7 +9,7 @@
 | 状态 | 已实现；#358 真机矩阵通过 |
 | 日期 | `2026-10-25` |
 | Issue | #357、#390 |
-| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md) |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0026](../adr/adr-0026-four-part-client-version.md) |
 
 ## 目标
 
@@ -58,7 +58,7 @@ Installer 不把 staged app 识别为可重定位 bundle。
 
 安装器在以下检查全部通过后才提交：
 
-1. app、内嵌 manifest 和 helper 的 `releaseId`、版本、build、commit、协议和 channel 一致。
+1. app、内嵌 manifest 和 helper 的 `releaseId`、`clientVersion`、`productVersion`、build、commit、协议和 channel 一致。
 2. helper 文件的 SHA-256 与 manifest 一致。
 3. app 和 helper 均为 arm64。
 4. app 与 helper 的代码签名有效。
@@ -95,7 +95,9 @@ Installer 不把 staged app 识别为可重定位 bundle。
 ## 安装记录
 
 `/Library/Application Support/Covio/installed-release.json` 由 root 所有。
-安装成功时，该文件与新 app 的发布清单完全一致。
+安装成功时，该文件写入 schema `2`。
+记录包含 `clientVersion`、`productVersion`、build、Git commit、渠道和 helper 协议。
+安装器继续读取 schema `1` 的旧记录。
 
 `/Library/Application Support/Covio/install-report.json` 写入：
 

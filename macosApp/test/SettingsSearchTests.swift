@@ -65,6 +65,7 @@ final class SettingsCatalogTests: XCTestCase {
             SettingsRowID.generalLogin,
             SettingsRowID.generalNotifications,
             SettingsRowID.generalUpdates,
+            SettingsRowID.generalVersion,
             SettingsRowID.generalLogs,
             SettingsRowID.generalReset,
         ]

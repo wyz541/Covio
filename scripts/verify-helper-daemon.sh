@@ -82,7 +82,8 @@ with info_path.open("rb") as stream:
 
 digest = hashlib.sha256(helper.read_bytes()).hexdigest()
 expected = {
-    "productVersion": info["CFBundleShortVersionString"],
+    "clientVersion": info["CovioClientVersion"],
+    "productVersion": info["CovioProductVersion"],
     "buildNumber": info["CFBundleVersion"],
     "gitCommit": info["CovioGitCommit"],
     "releaseId": info["CovioReleaseId"],
@@ -103,7 +104,8 @@ if require_manifest or manifest_path.is_file():
         raise SystemExit("bundled release manifest schemaVersion must be 1")
     manifest_expected = {
         "releaseId": info["CovioReleaseId"],
-        "productVersion": info["CFBundleShortVersionString"],
+        "productVersion": info["CovioProductVersion"],
+        "clientVersion": info["CovioClientVersion"],
         "buildNumber": int(info["CFBundleVersion"]),
         "gitCommit": info["CovioGitCommit"],
         "helperProtocolVersion": int(info["CovioHelperProtocolVersion"]),

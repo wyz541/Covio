@@ -79,6 +79,13 @@ main_tag() {
   rm -f "$manifest"
 }
 
+latest_published_tag() {
+  local repo="$1"
+  gh release list --repo "$repo" --limit 100 \
+    --json tagName,isDraft,isPrerelease,publishedAt \
+    --jq '[.[] | select(.isDraft == false and .isPrerelease == true)] | sort_by(.publishedAt) | reverse | .[0].tagName // empty'
+}
+
 # 输出 draft、published 或 missing。
 release_state() {
   local tag="$1" repo="$2" draft
@@ -170,7 +177,7 @@ local_pkg() {
   local version pkg
   say "Packaging the transactional PKG"
   bash "$ROOT/scripts/package-macos-swift.sh"
-  version="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
+  version="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
   pkg="$ROOT/dist/$APP_NAME-$version.pkg"
   [[ -f "$pkg" ]] || die "missing package: $pkg"
   say "Installing $pkg (administrator password required)"
@@ -259,14 +266,16 @@ release_status() {
   [[ $# -eq 0 ]] || { usage >&2; exit 2; }
   require_gh
   fetch_main
-  local repo commit tag version build
+  local repo commit tag client_version product_version build
   repo="$(repository)"
   commit="$(git -C "$ROOT" rev-parse "$MAIN_REF")"
   tag="$(main_tag)"
-  version="$(main_manifest_value productVersion)"
+  client_version="$(main_manifest_value clientVersion)"
+  product_version="$(main_manifest_value productVersion)"
   build="$(main_manifest_value buildNumber)"
   printf 'origin/main   %s\n' "${commit:0:12}"
-  printf 'identity      %s build %s (%s)\n' "$version" "$build" "$(main_manifest_value channel)"
+  printf 'identity      %s product %s build %s (%s)\n' \
+    "$client_version" "$product_version" "$build" "$(main_manifest_value channel)"
   printf 'tag           %s\n' "$tag"
   printf 'release       %s\n' "$(release_state "$tag" "$repo")"
   printf 'CI            %s\n' "$(ci_state "$commit" "$repo")"
@@ -293,22 +302,27 @@ release_prepare() {
   fetch_main
   local repo previous_tag
   repo="$(repository)"
-  previous_tag="$(main_tag)"
+  previous_tag="$(latest_published_tag "$repo")"
+  [[ -n "$previous_tag" ]] || die "no published Release is available as the previous tag"
   # 上一个 build 未发布时再 bump，会让两个 build 号之间没有对应的 Release。
   if [[ "$(release_state "$previous_tag" "$repo")" != "published" ]]; then
     die "$previous_tag is not published. Run 'scripts/covio release draft' and 'publish' first."
   fi
 
-  local version build next_build current_tag branch worktree
-  version="$(main_manifest_value productVersion)"
+  local product_version client_version build next_build current_tag branch worktree
+  product_version="$(main_manifest_value productVersion)"
   build="$(main_manifest_value buildNumber)"
   if [[ -n "$new_version" ]]; then
-    version="$new_version"
+    product_version="$new_version"
+    if [[ ! "$product_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+      die "--version must be a semantic product version"
+    fi
   fi
   next_build=$((build + 1))
-  current_tag="v$version-internal.$next_build"
-  branch="release/$version-internal.$next_build"
-  worktree="$WORKTREE_ROOT/release-$version-internal.$next_build"
+  client_version="$(python3 -I "$ROOT/scripts/release_manifest.py" client-version --build "$next_build")"
+  current_tag="v$client_version-internal"
+  branch="release/$client_version-internal"
+  worktree="$WORKTREE_ROOT/release-$client_version-internal"
 
   git -C "$ROOT" show-ref --quiet "refs/heads/$branch" && die "branch $branch already exists"
   [[ -e "$worktree" ]] && die "worktree path already exists: $worktree"
@@ -335,7 +349,7 @@ release_prepare() {
     RELEASE_NOTES.md \
     README.md
   # agent 运行时设置 COVIO_COMMIT_TRAILER，写入 AGENTS.md 要求的 Co-Authored-By 行。
-  local message=("-m" "Prepare Covio $version build $next_build$refs")
+  local message=("-m" "Prepare Covio $client_version$refs")
   [[ -n "${COVIO_COMMIT_TRAILER:-}" ]] && message+=("-m" "$COVIO_COMMIT_TRAILER")
   git -C "$worktree" commit --quiet "${message[@]}"
   git -C "$worktree" push --quiet --set-upstream "$REMOTE" "$branch"
@@ -344,9 +358,10 @@ release_prepare() {
   body="$(cat <<EOF
 ## What changed
 
-- Bump the release identity to Covio \`$version\`, internal build \`$next_build\`.
+- Bump the release identity to client version \`$client_version\`.
+- Keep product version \`$product_version\` and build number \`$next_build\` as separate fields.
 - Draft the release notes from the pull requests merged since \`$previous_tag\`.
-- Update the README download links for build $next_build.
+- Update the README download links for client version \`$client_version\`.
 
 ## Why
 
@@ -370,7 +385,7 @@ The release artifact is built from the merge commit by \`scripts/covio release d
 EOF
 )"
   gh pr create --repo "$repo" --draft --base "$MAIN_BRANCH" --head "$branch" \
-    --title "Prepare Covio $version build $next_build" --body "$body"
+    --title "Prepare Covio $client_version" --body "$body"
 
   cat <<EOF
 

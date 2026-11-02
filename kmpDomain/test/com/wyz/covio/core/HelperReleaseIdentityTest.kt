@@ -20,7 +20,8 @@ class HelperReleaseIdentityTest {
     fun `version reply carries both legacy fields and the complete identity`() {
         val reply = HelperWire.versionReply("r", expected)
 
-        assertEquals(expected.productVersion, reply.result?.get("version"))
+        assertEquals(expected.clientVersion, reply.result?.get("version"))
+        assertEquals(expected.clientVersion, reply.result?.get("clientVersion"))
         assertEquals(expected.productVersion, reply.result?.get("productVersion"))
         assertEquals(expected, HelperReleaseHandshake.parse(reply.result.orEmpty()))
     }
@@ -54,12 +55,14 @@ class HelperReleaseIdentityTest {
     @Test
     fun `older helper or protocol is outdated`() {
         val olderVersion = expected.copy(
-            releaseId = "0.5.1+1+$commit",
-            productVersion = "0.5.1",
+            clientVersion = "0.0.1.4",
+            releaseId = "0.0.1.4-g$commit",
+            buildNumber = "14",
         )
         val olderBuild = expected.copy(
-            releaseId = "0.5.2+0+$commit",
-            buildNumber = "0",
+            clientVersion = "0.0.1.4",
+            releaseId = "0.0.1.4-g$commit",
+            buildNumber = "14",
         )
         val differentProtocol = expected.copy(protocolVersion = "7")
 
@@ -78,9 +81,19 @@ class HelperReleaseIdentityTest {
     }
 
     @Test
+    fun `client version must match build number`() {
+        assertNull(HelperReleaseHandshake.parse(wire(expected).toMutableMap().apply {
+            this["clientVersion"] = "9.9.9.9"
+        }))
+        assertNull(HelperReleaseHandshake.parse(wire(expected).toMutableMap().apply {
+            this["version"] = "9.9.9.9"
+        }))
+    }
+
+    @Test
     fun `same version with different commit or helper digest mismatches`() {
         val differentCommit = expected.copy(
-            releaseId = "0.5.2+1+${"c".repeat(40)}",
+            releaseId = "0.0.1.5-g${"c".repeat(40)}",
             gitCommit = "c".repeat(40),
         )
         val differentHash = expected.copy(helperSHA256 = "d".repeat(64))
@@ -117,18 +130,20 @@ class HelperReleaseIdentityTest {
     }
 
     private fun identity() = HelperReleaseIdentity(
-        releaseId = "0.5.2+1+$commit",
-        productVersion = "0.5.2",
-        buildNumber = "1",
+        releaseId = "0.0.1.5-g$commit",
+        clientVersion = "0.0.1.5",
+        productVersion = "0.6.0",
+        buildNumber = "15",
         gitCommit = commit,
-        protocolVersion = "8",
+        protocolVersion = "10",
         helperSHA256 = hash,
         channel = "internal",
     )
 
     private fun wire(identity: HelperReleaseIdentity): Map<String, String> = mapOf(
-        "version" to identity.productVersion,
+        "version" to identity.clientVersion,
         "releaseId" to identity.releaseId,
+        "clientVersion" to identity.clientVersion,
         "productVersion" to identity.productVersion,
         "buildNumber" to identity.buildNumber,
         "gitCommit" to identity.gitCommit,
