@@ -38,6 +38,7 @@ object HelperReleaseHandshake {
     /** 解析 `version` 应答中的完整身份。缺字段或格式错误时返回 null。 */
     fun parse(result: Map<String, String>): HelperReleaseIdentity? {
         val releaseId = result["releaseId"]?.trim().orEmpty()
+        val compatibilityVersion = result["version"]?.trim()
         val clientVersion = result["clientVersion"]?.trim().orEmpty()
         val productVersion = result["productVersion"]?.trim().orEmpty()
         val buildNumber = result["buildNumber"]?.trim().orEmpty()
@@ -49,8 +50,10 @@ object HelperReleaseHandshake {
         val protocol = protocolVersion.toIntOrNull()
 
         if (!CLIENT_VERSION.matches(clientVersion)) return null
+        if (!compatibilityVersion.isNullOrEmpty() && compatibilityVersion != clientVersion) return null
         if (!SEMVER.matches(productVersion)) return null
-        if (build == null || build < 1 || build.toString() != buildNumber) return null
+        if (build == null || build.toString() != buildNumber) return null
+        if (ClientVersion.fromBuild(build)?.toString() != clientVersion) return null
         if (!COMMIT.matches(gitCommit)) return null
         if (protocol == null || protocol < 1 || protocol.toString() != protocolVersion) return null
         if (!SHA256.matches(helperSHA256)) return null

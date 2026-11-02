@@ -87,6 +87,19 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 
 Checksums are in the release `checksums.txt` asset.
 
+## Version identity
+
+The user-facing client version has four decimal digits: `0.0.1.6`.
+The build number is padded to four digits and split into `thousands.hundreds.tens.ones`.
+Examples: build `15` is `0.0.1.5`, build `16` is `0.0.1.6`, and build `100` is `0.1.0.0`.
+The product version `0.6.0` is separate metadata.
+The channel, Git commit, and helper protocol are also separate fields.
+
+The internal tag is `v<clientVersion>-internal`.
+A stable tag is `v<clientVersion>`.
+The release ID is `<clientVersion>-g<fullGitSHA>`.
+The build number controls upgrade order. The Git commit does not control upgrade order.
+
 ## What changed in build 7
 
 - Helper status probes run outside the main thread.

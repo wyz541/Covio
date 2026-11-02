@@ -109,7 +109,8 @@ def client_version_for_build(build_number: int) -> str:
         raise ManifestError("buildNumber must be an integer")
     if build_number < 1 or build_number > MAX_BUILD_NUMBER:
         raise ManifestError(f"buildNumber must be between 1 and {MAX_BUILD_NUMBER}")
-    return ".".join(f"{build_number:04d}")
+    digits = f"{build_number:04d}"
+    return f"{digits[0]}.{digits[1]}.{digits[2]}.{digits[3]}"
 
 
 def validate_spec(raw: dict[str, Any]) -> ReleaseSpec:
@@ -662,6 +663,9 @@ def main(argv: list[str] | None = None, root: pathlib.Path = ROOT) -> int:
         choices=("productVersion", "clientVersion", "buildNumber", "channel", "helperProtocolVersion"),
     )
 
+    client_version = sub.add_parser("client-version")
+    client_version.add_argument("--build", required=True, type=int)
+
     release = sub.add_parser("release-id")
     release.add_argument("--commit")
 
@@ -720,6 +724,9 @@ def main(argv: list[str] | None = None, root: pathlib.Path = ROOT) -> int:
                 "helperProtocolVersion": spec.helper_protocol_version,
             }
             print(values[args.field])
+            return 0
+        if args.command == "client-version":
+            print(client_version_for_build(args.build))
             return 0
         if args.command == "release-id":
             commit = args.commit or git_commit(root)

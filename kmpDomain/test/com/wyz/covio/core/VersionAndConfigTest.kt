@@ -273,6 +273,12 @@ class VersionAndConfigTest {
         assertNull(ClientVersion.parse("0.0.1.6-internal"))
         assertNull(ClientVersion.parse("0.0.1.6-g0123456789abcdef"))
         assertNull(ClientVersion.parse("0.0.1.6+15"))
+        assertEquals("0.0.0.1", ClientVersion.fromBuild(1)?.toString())
+        assertEquals("0.0.1.6", ClientVersion.fromBuild(16)?.toString())
+        assertEquals("0.1.0.0", ClientVersion.fromBuild(100)?.toString())
+        assertEquals("9.9.9.9", ClientVersion.fromBuild(9999)?.toString())
+        assertNull(ClientVersion.fromBuild(0))
+        assertNull(ClientVersion.fromBuild(10000))
     }
 
     /// M2 的完成判据之一：`config.json` 与 0.4.2 双向兼容。

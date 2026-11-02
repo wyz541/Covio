@@ -81,6 +81,16 @@ class HelperReleaseIdentityTest {
     }
 
     @Test
+    fun `client version must match build number`() {
+        assertNull(HelperReleaseHandshake.parse(wire(expected).toMutableMap().apply {
+            this["clientVersion"] = "9.9.9.9"
+        }))
+        assertNull(HelperReleaseHandshake.parse(wire(expected).toMutableMap().apply {
+            this["version"] = "9.9.9.9"
+        }))
+    }
+
+    @Test
     fun `same version with different commit or helper digest mismatches`() {
         val differentCommit = expected.copy(
             releaseId = "0.0.1.5-g${"c".repeat(40)}",

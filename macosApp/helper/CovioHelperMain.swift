@@ -33,6 +33,7 @@ enum CovioHelperMain {
     ) -> [String: String] {
         [
             "releaseId": identity.releaseId,
+            "clientVersion": identity.clientVersion,
             "productVersion": identity.productVersion,
             "buildNumber": identity.buildNumber,
             "gitCommit": identity.gitCommit,

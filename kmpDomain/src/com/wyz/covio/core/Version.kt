@@ -27,6 +27,17 @@ data class ClientVersion(
                 ones = match.groupValues[4].toIntOrNull() ?: return null,
             )
         }
+
+        fun fromBuild(buildNumber: Long): ClientVersion? {
+            if (buildNumber !in 1L..9999L) return null
+            val digits = buildNumber.toString().padStart(4, '0')
+            return ClientVersion(
+                thousands = digits[0].digitToInt(),
+                hundreds = digits[1].digitToInt(),
+                tens = digits[2].digitToInt(),
+                ones = digits[3].digitToInt(),
+            )
+        }
     }
 }
 
