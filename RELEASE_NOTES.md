@@ -1,4 +1,4 @@
-# Covio 0.6.0（内测 build 14）
+# Covio 0.6.0（内测 build 15）
 
 Covio 0.6.0 是内测版。
 此版本不用于公开分发。
@@ -15,39 +15,24 @@ Covio 0.6.0 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-## 从 build 13 到 build 14 的变化
+## 从 build 14 到 build 15 的变化
 
-### 风扇规则界面
+<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
 
-- 删除每个控制点内重复的五段 RPM 刻度表。
-- 每台风扇只显示一行转速摘要。
-- 左侧显示最低转速。
-- 中间显示当前目标转速。
-- 右侧显示最高转速。
-- 最低和最高转速使用描边胶囊。
-- 当前目标转速使用强调色。
-- 温度改用数字输入框编辑。
-- 每个控制点只保留一条风扇百分比滑杆。
-- 高级风扇面板高度调整为 `800`。
-
-### 保留的规则
-
-- 电池默认规则为 `30°C → 0%`、`32°C → 40%`、`34°C → 60%`。
-- `0%` 映射到最低转速。
-- 风扇 1 的范围为 `1499–5348 RPM`。
-- 风扇 2 的范围为 `1499–5776 RPM`。
-- 百分比输入和存储继续使用 `5%` 步进。
-- 旧版两点电池规则自动迁移到新三点规则。
+- Keep battery temperature slider edits on release（#536）
+- Align the Fan card with Monitor cards（#531）
+- Remove duplicated workbench pane headings（#529）
+- Unify the workbench navigation with native Liquid Glass（#519）
+- Use maximum RPM for fan percentage targets（#527）
+- Align the Screen card with Monitor cards（#525）
+- Route clear work directly to Issues（#521）
+- Keep the hub tab bar still when switching pages（#516）
+- Add a quick local install and release command（#517）
+- Expand fan advanced settings by default（#513）
 
 ## 验证
 
-- Kotlin 共享测试在 JVM 和 macOS Arm64 上通过。
-- macOS XCTest：`989` 项通过，`3` 项跳过，`0` 失败。
-- `bash scripts/test-all.sh` 通过。
-- RPM 摘要测试覆盖两台风扇的最低、目标和最高转速。
-- 温度规则、旧规则迁移和 `5%` 步进测试通过。
-- 本地签名、helper、嵌套动态库和 `kmpDomain.framework` 的严格校验通过。
-- 真机亮色和深色截图覆盖简化后的高级风扇规则界面。
+<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
 
 ## 安装
 
