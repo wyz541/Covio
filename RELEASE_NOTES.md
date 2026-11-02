@@ -24,16 +24,17 @@ Covio 0.0.1.7 是内测版。
 - 事务安装会同时更新 app 和 helper。helper 协议升级到 `10`。
 - 监控页的 Screen 卡片统一管理合盖系统策略、合盖显示模式、合盖时长上限和外接屏暂停。
 - Power 卡片保留开盖状态下的空闲睡眠与安全护栏。
-- 更新检查只接受稳定的四段纯数字版本。
+- 更新检查按四段客户端版本排序。
+- internal build 可以发现新的 internal Release。public build 只接受 stable Release。
 
 ## 验证
 
 - `bash scripts/test-all.sh`：通过。
 - Kotlin、设计合同、发布脚本和 macOS SwiftUI CI：通过。
-- macOS XCTest：1004 个测试通过，3 个跳过。
+- macOS XCTest：1005 个测试通过，3 个跳过。
 - 亮色和深色真机截图：通过。
 - build 15 旧 app、旧 helper 和 schema 1 安装记录迁移：通过。
-- update checker 的四段版本排序和 internal tag 排除：通过。
+- update checker 的四段版本排序、internal Release 发现和 public tag 过滤：通过。
 
 ## 安装
 
