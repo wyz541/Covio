@@ -5,7 +5,7 @@
 - Date：2026-10-28
 - Supersedes：none
 - Implements：#441
-- 相关：#434
+- 相关：#434、#542
 
 ## 背景
 
@@ -90,6 +90,7 @@ Power card 同时承载供电状态、睡眠租约、自动规则、合盖 Helpe
 ## 参考
 
 - [Issue #441](https://github.com/wyz541/kmp-Covio/issues/441)
+- [ADR-0025：由 Screen card 统一管理合盖策略](adr-0025-screen-card-owns-closed-lid-policy.md)
 - [Power card popover #434](https://github.com/wyz541/kmp-Covio/issues/434)
 - [ADR-0011：用持久化意图与租约统一电源 Engine](adr-0011-power-engine-policy.md)
 - [ADR-0022：默认开启实验性合盖黑屏](adr-0022-default-experimental-black-screen.md)

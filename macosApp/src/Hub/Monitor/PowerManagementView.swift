@@ -1,6 +1,10 @@
 import SwiftUI
 import kmpDomain
 
+enum PowerSessionPresentation {
+    static let availableModes: [PowerRuntime.SessionMode] = [.system, .display]
+}
+
 /// `Monitor` 页签 Power card 第三段浮层中的电源管理面。
 ///
 /// 所有值都来自 `AppRuntime.powerRuntime`。布局按 macOS 设置页的阅读顺序组织：
@@ -235,7 +239,7 @@ struct PowerManagementView: View {
                     ContractCopy.copyPowerSessionMode.text(for: language),
                     selection: $sessionMode
                 ) {
-                    ForEach([PowerRuntime.SessionMode.system, .display]) { mode in
+                    ForEach(PowerSessionPresentation.availableModes) { mode in
                         Text(sessionModeTitle(mode)).tag(mode)
                     }
                 }
@@ -332,6 +336,12 @@ struct PowerManagementView: View {
                 )
             )
 
+            Text(ContractCopy.copyPowerClosedLidPointer.text(for: language))
+                .font(.caption)
+                .foregroundStyle(MacTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, MacTheme.space1)
+
             rowDivider()
             DisclosureGroup(isExpanded: $advancedRulesExpanded) {
                 advancedRulesContent
@@ -352,29 +362,6 @@ struct PowerManagementView: View {
     private var advancedRulesContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             ruleGroupTitle(ContractCopy.copyPowerSectionSafety.text(for: language))
-            MacSettingRow(
-                title: ContractCopy.copyPowerRulesTimeCap.text(for: language),
-                description: ContractCopy.copyPowerRulesTimeCapHint.text(for: language)
-            ) {
-                Picker(
-                    ContractCopy.copyPowerRulesTimeCap.text(for: language),
-                    selection: Binding(
-                        get: { Int(model.powerConfig.closedLidTimeCapMinutes) },
-                        set: { model.setPowerClosedLidTimeCapMinutes($0) }
-                    )
-                ) {
-                    ForEach(Self.timeCapOptions, id: \.self) { minutes in
-                        Text(SettingsFormat.duration(seconds: Int64(minutes) * 60, language: language))
-                            .tag(minutes)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .frame(minWidth: 140, alignment: .trailing)
-                .disabled(!model.powerConfig.allowClosedLid)
-            }
-
-            rowDivider()
             MacSettingRow(
                 title: ContractCopy.copyPowerRulesBatteryFloor.text(for: language),
                 description: ContractCopy.copyPowerRulesBatteryFloorHint.text(for: language)
@@ -794,7 +781,7 @@ struct PowerManagementView: View {
         case .lowPowerMode:
             ContractCopy.copyPowerStatusLowPowerMode.text(for: language)
         case .closedLidTimeCap:
-            ContractCopy.copyPowerRulesTimeCap.text(for: language)
+            ContractCopy.copyMonitorDisplayTimeCap.text(for: language)
         case .closedLidDisabled:
             ContractCopy.copyPowerRulesLid.text(for: language)
         case .helperUnavailable:
@@ -890,8 +877,6 @@ struct PowerManagementView: View {
             .overlay(MacTheme.divider)
             .padding(.vertical, MacTheme.space1)
     }
-
-    private static let timeCapOptions = [30, 60, 120, 240, 480, 1_440]
 
     private static let historyTime: DateFormatter = {
         let formatter = DateFormatter()
