@@ -1,6 +1,6 @@
-# Covio 0.6.0（内测 build 15）
+# Covio 0.0.1.7
 
-Covio 0.6.0 是内测版。
+Covio 0.0.1.7 是内测版。
 此版本不用于公开分发。
 
 ## 系统要求
@@ -15,42 +15,35 @@ Covio 0.6.0 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-## 从 build 14 到 build 15 的变化
+## 从 0.6.0 internal build 15 到 0.0.1.7 的变化
 
-### 风扇控制
-
-- 电池温度控制点的百分比滑杆松手后保留新值。
-- 滑杆、数字输入和每台风扇目标 RPM 保持同步。
-- 风扇百分比按每台风扇的最高 RPM 计算。
-- 风扇卡片采用 Monitor 卡片的数值环、趋势和摘要样式。
-- 高级设置默认展开。
-
-### Monitor 与工作台
-
-- 屏幕卡片采用 Monitor 卡片的统一样式。
-- 工作台导航使用原生 Liquid Glass 表面。
-- 导航切换时页签栏不再位移。
-- 删除重复的工作台页标题。
+- 客户端版本改为纯数字四段格式。此版本显示为 `0.0.1.7`。
+- 设置 > 通用 增加版本卡片。版本卡片显示渠道、构建号、Git 短 SHA 和 helper 协议。
+- 产品版本 `0.6.0`、构建号 `17`、渠道、Git commit 和 helper 协议分别保存。
+- 已安装 build 15 可以直接升级到 build 17。
+- 事务安装会同时更新 app 和 helper。helper 协议升级到 `10`。
+- 监控页的 Screen 卡片统一管理合盖系统策略、合盖显示模式、合盖时长上限和外接屏暂停。
+- Power 卡片保留开盖状态下的空闲睡眠与安全护栏。
+- 更新检查按四段客户端版本排序。
+- internal build 可以发现新的 internal Release。public build 只接受 stable Release。
 
 ## 验证
 
-- Kotlin 共享测试在 JVM 和 macOS Arm64 上通过。
-- macOS XCTest：`994` 项通过，`3` 项跳过，`0` 项失败。
-- `bash scripts/test-all.sh` 通过。
-- GitHub Actions：Contract and scripts、Kotlin、macOS SwiftUI 全部通过。
-- 电池温度滑杆在真机亮色和深色界面完成 Before/After 验证。
-- 事务 PKG 在本机安装成功。
-- `/Applications/Covio.app` 与 helper 的 release identity 一致。
-- 本机正式 App 启动成功。
+- `bash scripts/test-all.sh`：通过。
+- Kotlin、设计合同、发布脚本和 macOS SwiftUI CI：通过。
+- macOS XCTest：1005 个测试通过，3 个跳过。
+- 亮色和深色真机截图：通过。
+- build 15 旧 app、旧 helper 和 schema 1 安装记录迁移：通过。
+- update checker 的四段版本排序、internal Release 发现和 public tag 过滤：通过。
 
 ## 安装
 
-1. 打开 `Covio-0.6.0.dmg`。
+1. 打开 `Covio-0.0.1.7.dmg`。
 2. 将 `Covio.app` 拖入 `Applications`。
 3. 打开 `Covio.app`。
 4. 打开 AI 功能并确认模型下载。
 
-事务安装与升级使用 `Covio-0.6.0.pkg`。
+事务安装与升级使用 `Covio-0.0.1.7.pkg`。
 
 **警告：** 此构建使用本地签名。
 macOS Gatekeeper 可能阻止此构建。
