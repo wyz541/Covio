@@ -17,22 +17,31 @@ Covio 0.6.0 是内测版。
 
 ## 从 build 14 到 build 15 的变化
 
-<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+### 风扇控制
 
-- Keep battery temperature slider edits on release（#536）
-- Align the Fan card with Monitor cards（#531）
-- Remove duplicated workbench pane headings（#529）
-- Unify the workbench navigation with native Liquid Glass（#519）
-- Use maximum RPM for fan percentage targets（#527）
-- Align the Screen card with Monitor cards（#525）
-- Route clear work directly to Issues（#521）
-- Keep the hub tab bar still when switching pages（#516）
-- Add a quick local install and release command（#517）
-- Expand fan advanced settings by default（#513）
+- 电池温度控制点的百分比滑杆松手后保留新值。
+- 滑杆、数字输入和每台风扇目标 RPM 保持同步。
+- 风扇百分比按每台风扇的最高 RPM 计算。
+- 风扇卡片采用 Monitor 卡片的数值环、趋势和摘要样式。
+- 高级设置默认展开。
+
+### Monitor 与工作台
+
+- 屏幕卡片采用 Monitor 卡片的统一样式。
+- 工作台导航使用原生 Liquid Glass 表面。
+- 导航切换时页签栏不再位移。
+- 删除重复的工作台页标题。
 
 ## 验证
 
-<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
+- Kotlin 共享测试在 JVM 和 macOS Arm64 上通过。
+- macOS XCTest：`994` 项通过，`3` 项跳过，`0` 项失败。
+- `bash scripts/test-all.sh` 通过。
+- GitHub Actions：Contract and scripts、Kotlin、macOS SwiftUI 全部通过。
+- 电池温度滑杆在真机亮色和深色界面完成 Before/After 验证。
+- 事务 PKG 在本机安装成功。
+- `/Applications/Covio.app` 与 helper 的 release identity 一致。
+- 本机正式 App 启动成功。
 
 ## 安装
 
