@@ -42,7 +42,7 @@ struct TabReorderState {
 
 /// 挂帘顶部的横向页签栏。合同 `component/tab-bar`，`nativeSize` 是 960 × 46。
 ///
-/// 左端固定是首页入口，紧挨着搜索框，中间是工作区页签，右端是当前页的动作。
+/// 左端固定是搜索框，紧挨着首页入口，中间是工作区页签，右端是当前页的动作。
 /// 导航按钮默认透明。选中态使用淡强调色 regular 玻璃。
 /// 指针悬停与键盘焦点使用 regular 玻璃，并叠加高对比焦点环。
 /// 编辑模式里页签前面加拖动把手，横向拖过 84 点换一次位置。
@@ -78,8 +78,8 @@ struct WorkbenchTabBar: View {
     @Namespace private var selectionNamespace
     var body: some View {
         HStack(spacing: HubMetrics.tabBarItemGap) {
-            homeEntry
             searchField
+            homeEntry
             tabStrip
             // 页签不够宽时，空位留在页签与动作位之间。左侧元素的位置因此不随页面变。
             Spacer(minLength: 0)
@@ -97,7 +97,7 @@ struct WorkbenchTabBar: View {
 
     // MARK: - 首页入口
 
-    /// 固定在左端，不参与排序，也不随页签滚动。
+    /// 固定在搜索框右侧，不参与排序，也不随页签滚动。
     private var homeEntry: some View {
         let isSelected = destination == .home
         return Button {
@@ -125,6 +125,7 @@ struct WorkbenchTabBar: View {
 
     // MARK: - 搜索
 
+    /// 固定在左端。搜索优先于首页入口，符合 macOS 工具条的阅读顺序。
     private var searchField: some View {
         HStack(spacing: MacTheme.space2) {
             Image(systemName: "magnifyingglass")

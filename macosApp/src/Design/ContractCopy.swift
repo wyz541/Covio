@@ -1553,6 +1553,8 @@ enum ContractCopy {
     static let copyPowerStatusNoExternalDisplay = LocalizedCopy(key: "copy/power/status/no-external-display", en: "None", zhHans: "无")
     /// `copy/power/status/not-connected`
     static let copyPowerStatusNotConnected = LocalizedCopy(key: "copy/power/status/not-connected", en: "Not connected", zhHans: "未连接")
+    /// `copy/settings/assistant`
+    static let copySettingsAssistant = LocalizedCopy(key: "copy/settings/assistant", en: "Assistant", zhHans: "助手")
     /// `copy/state/cancel`
     static let copyStateCancel = LocalizedCopy(key: "copy/state/cancel", en: "Cancel", zhHans: "取消")
     /// `copy/state/component/toolbar/default/disabled`
@@ -2482,6 +2484,7 @@ enum ContractCopy {
         copyPowerStatusLowPowerMode,
         copyPowerStatusNoExternalDisplay,
         copyPowerStatusNotConnected,
+        copySettingsAssistant,
         copyStateCancel,
         copyStateComponentToolbarDefaultDisabled,
         copyStateComponentToolbarDefaultFocused,

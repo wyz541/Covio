@@ -235,7 +235,7 @@ enum HubMetrics {
     /// 监控页的主体高度：工具栏、三行卡片与三处间距。
     static let monitorBodyHeight: CGFloat = monitorToolbarHeight + MacTheme.space2 + monitorCardHeight * 3 + MacTheme.space3 * 2
 
-    /// 设置页的主体高度。五个分节共用，内容超出时页内滚动。
+    /// 设置页的主体高度。六个分节共用，内容超出时页内滚动。
     static let settingsBodyHeight: CGFloat = 500
 
     /// 剪切板页的主体高度：列表区、提示条与它们之间的间距。

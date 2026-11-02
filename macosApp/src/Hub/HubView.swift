@@ -115,7 +115,25 @@ struct HubView: View {
             }
         }
         .frame(width: HubMetrics.panelWidth, height: plateStackHeight, alignment: .top)
-        // 高亮行从环境里取，五个设置页不必各自拿一遍模型。
+        .overlay(alignment: .bottomTrailing) {
+            if let runtime, let update = runtime.availableUpdate {
+                WorkbenchUpdateBadge(
+                    version: update.version,
+                    language: language,
+                    isChecking: runtime.isCheckingForUpdates
+                ) {
+                    runtime.checkForUpdates(manual: true)
+                }
+                .padding(.trailing, HubMetrics.panelPadding)
+                .padding(.bottom, HubMetrics.panelPadding)
+                .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+        }
+        .animation(
+            reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch),
+            value: runtime?.availableUpdate?.version
+        )
+        // 高亮行从环境里取，六个设置页不必各自拿一遍模型。
         .environment(\.highlightedSettingsRow, chrome.highlightedRowID)
     }
 
@@ -180,7 +198,7 @@ struct HubView: View {
 
                 if isSettingsSearch {
                     SettingsSearchResults(chrome: chrome, language: language) { hit in
-                        workbench.destination = .pane(id: PaneKind.settings.defaultId)
+                        _ = workbench.openSettings()
                         chrome.reveal(hit)
                     }
                 } else {

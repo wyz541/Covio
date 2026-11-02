@@ -13,7 +13,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     /// 运行时。菜单里的命令直接调它，与设置页走同一批方法。
     private let runtime: AppRuntime?
     private let statusItem: NSStatusItem
-    private let menu = NSMenu()
+    private(set) var menu = NSMenu()
 
     init(shell: NotchShellController, runtime: AppRuntime? = nil) {
         self.shell = shell
@@ -113,7 +113,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openSettings() {
-        shell.workbench.destination = .pane(id: PaneKind.settings.defaultId)
+        guard shell.workbench.openSettings() else { return }
         shell.show()
     }
 

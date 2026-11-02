@@ -33,7 +33,7 @@ final class WorkbenchTabBarTests: XCTestCase {
         XCTAssertEqual(Set(titles).count, titles.count, "有两个默认页签用了同一个标题")
     }
 
-    /// 页签宽度固定。默认六个页签必须一次显示完，不能因标题宽度改变选中背景。
+    /// 页签宽度固定。默认四个页签必须一次显示完，不能因标题宽度改变选中背景。
     func testDefaultTabsUseAFixedWidthThatFitsTheBar() {
         let count = panes().count
 
@@ -76,6 +76,40 @@ final class WorkbenchTabBarTests: XCTestCase {
 
         XCTAssertEqual(withEdit, withoutAction, "有「编辑」按钮时，左侧元素横移了")
         XCTAssertEqual(withDone, withoutAction, "编辑模式的「完成」按钮让左侧元素横移了")
+    }
+
+    /// 搜索框在首页入口前面，避免更新入口或页签挤压搜索栏。
+    func testTheSearchFieldComesBeforeHome() throws {
+        let url = Self.repositoryRoot
+            .appendingPathComponent("macosApp/src/Hub/Workbench/WorkbenchTabBar.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+
+        XCTAssertTrue(source.contains("            searchField\n            homeEntry\n"))
+    }
+
+    /// 更新入口在内容层右下角，不进入顶栏导航。
+    func testTheUpdateEntryStaysOutsideTheTabBar() throws {
+        let root = Self.repositoryRoot
+        let tabBar = try String(
+            contentsOf: root.appendingPathComponent("macosApp/src/Hub/Workbench/WorkbenchTabBar.swift"),
+            encoding: .utf8
+        )
+        let hub = try String(
+            contentsOf: root.appendingPathComponent("macosApp/src/Hub/HubView.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertFalse(tabBar.contains("WorkbenchUpdateBadge"))
+        XCTAssertTrue(hub.contains(".overlay(alignment: .bottomTrailing)"))
+        XCTAssertTrue(hub.contains("WorkbenchUpdateBadge("))
+    }
+
+    /// 右下角入口仍需显示本地化标题和版本号。
+    func testTheUpdateBadgeShowsTheVersion() {
+        XCTAssertEqual(
+            WorkbenchUpdateBadge.title(version: "0.0.1.8", language: .simplifiedChinese),
+            "有可用更新 · 0.0.1.8"
+        )
     }
 
     /// 按 1 倍比例渲染一条顶栏，返回最左一列有墨迹的像素横坐标。
@@ -130,7 +164,7 @@ final class WorkbenchTabBarTests: XCTestCase {
         let model = WorkbenchModel()
         let english = model.panes(language: .english)
         let chinese = model.panes(language: .simplifiedChinese)
-        let builtInTabs: [HubTab] = [.now, .agent, .clipboard, .files, .devices, .settings]
+        let builtInTabs: [HubTab] = [.now, .clipboard, .files, .devices]
 
         XCTAssertEqual(english.map(\.title), builtInTabs.map { $0.title.text(for: .english) })
         XCTAssertEqual(chinese.map(\.title), builtInTabs.map { $0.title.text(for: .simplifiedChinese) })

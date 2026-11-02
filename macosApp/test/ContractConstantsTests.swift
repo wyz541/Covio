@@ -343,13 +343,13 @@ final class MacThemeTests: XCTestCase {
     }
 }
 
-/// 设置页的五个分节。
+/// 设置页的六个分节。
 final class SettingsSectionTests: XCTestCase {
     /// 分节数量与顺序来自合同的 `copy/nav/*`。
     func testSectionsMatchTheContractNavOrder() {
         XCTAssertEqual(
             SettingsSection.allCases.map(\.rawValue),
-            ["overview", "battery", "idle", "clipboard", "general"]
+            ["overview", "battery", "idle", "clipboard", "assistant", "general"]
         )
     }
 

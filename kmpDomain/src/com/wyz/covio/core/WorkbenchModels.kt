@@ -53,6 +53,17 @@ enum class PaneKind {
     /** 是不是内置或历史内置工作区。历史截图工作区也归入这一组，防止用户重新添加。 */
     val isBuiltin: Boolean get() = this != BOARD
 
+    /**
+     * 是否出现在工作台顶栏。
+     *
+     * 助手与设置仍保留在旧配置里，避免升级时丢用户数据。
+     * 两者的入口已经移出工作台导航，所以不能画成可切换工作区。
+     */
+    val appearsInWorkbenchNavigation: Boolean get() = when (this) {
+        AGENT, SETTINGS -> false
+        NOW, CLIPBOARD, FILES, SCREENSHOTS, DEVICES, BOARD -> true
+    }
+
     /** 是否属于 schema 2 的默认内置工作区。截图工作区只用于读取旧配置。 */
     val isCurrentBuiltin: Boolean get() = isBuiltin && this != SCREENSHOTS
 
@@ -212,8 +223,9 @@ data class WorkbenchConfig(
     @SerialName("panes") val panes: List<PaneInstance> = defaultPanes(),
     @SerialName("homeWidgets") val homeWidgets: List<WidgetInstance> = defaultWidgets(),
 ) {
-    /** tab bar 只画可见的工作区。 */
-    val visiblePanes: List<PaneInstance> get() = panes.filterNot { it.isHidden }
+    /** tab bar 只画可见的工作区。助手与设置由固定入口打开，不参与页签导航。 */
+    val visiblePanes: List<PaneInstance>
+        get() = panes.filterNot { it.isHidden || !it.kind.appearsInWorkbenchNavigation }
 
     fun pane(id: String): PaneInstance? = panes.firstOrNull { it.id == id }
 

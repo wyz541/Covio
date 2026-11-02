@@ -46,7 +46,7 @@ class WorkbenchStoreTest {
         }
 
     @Test
-    fun `a missing file loads the six current builtin panes in the documented order`() =
+    fun `a missing file loads the documented builtin panes and hides fixed-entry panes`() =
         withTemporaryDirectory("workbench") { directory ->
             val path = directory.resolve("workbench.json")
 
@@ -55,6 +55,10 @@ class WorkbenchStoreTest {
             assertEquals(
                 listOf("now", "agent", "clipboard", "files", "devices", "settings"),
                 config.panes.map { it.id },
+            )
+            assertEquals(
+                listOf("now", "clipboard", "files", "devices"),
+                config.visiblePanes.map { it.id },
             )
             // 首页默认放六块组件，与打样的 `defaultWidgets()` 一致。
             // 空列表会让真机首次启动的首页是空的，与打样对不上。
@@ -147,9 +151,17 @@ class WorkbenchStoreTest {
         assertNotNull(hidden.pane("now"), "隐藏之后条目还在文件里，只是 tab bar 不画")
         assertTrue(hidden.pane("now")!!.isHidden)
         assertEquals(
-            listOf("agent", "clipboard", "files", "devices", "settings"),
+            listOf("clipboard", "files", "devices"),
             hidden.visiblePanes.map { it.id },
         )
+    }
+
+    @Test
+    fun `assistant and settings never appear in workbench navigation`() {
+        val visible = WorkbenchConfig.defaults().visiblePanes.map { it.kind }
+
+        assertFalse(PaneKind.AGENT in visible)
+        assertFalse(PaneKind.SETTINGS in visible)
     }
 
     @Test
