@@ -2,6 +2,62 @@ import AppKit
 import SwiftUI
 import kmpDomain
 
+enum ClosedLidSettingsPresentation {
+    static let timeCapOptions = [30, 60, 120, 240, 480, 1_440]
+
+    static func showsTimeCap(for policy: ClosedLidPowerPolicy) -> Bool {
+        policy.keepsAwake
+    }
+
+    static func guardMessage(
+        for vetoes: [SafetyVeto],
+        policy: ClosedLidPowerPolicy,
+        language: AppLanguage
+    ) -> String? {
+        guard policy.keepsAwake else { return nil }
+        var seen = Set<String>()
+        let reasons = vetoes.compactMap { veto -> String? in
+            guard let text = guardReason(veto, language: language) else { return nil }
+            guard seen.insert(text).inserted else { return nil }
+            return text
+        }
+        guard !reasons.isEmpty else { return nil }
+        return String(
+            format: ContractCopy.copyMonitorDisplayGuardPaused.text(for: language),
+            reasons.joined(separator: " · ")
+        )
+    }
+
+    static func guardReason(_ veto: SafetyVeto, language: AppLanguage) -> String? {
+        switch veto {
+        case .batteryFloor:
+            ContractCopy.copyMonitorDisplayGuardBatteryFloor.text(for: language)
+        case .thermalSerious, .thermalCritical:
+            ContractCopy.copyMonitorDisplayGuardThermal.text(for: language)
+        case .lowPowerMode:
+            ContractCopy.copyMonitorDisplayGuardLowPowerMode.text(for: language)
+        case .closedLidTimeCap:
+            ContractCopy.copyMonitorDisplayGuardTimeCap.text(for: language)
+        case .externalDisplayConnected:
+            ContractCopy.copyMonitorDisplayGuardExternalDisplay.text(for: language)
+        case .externalDisplayUnknown:
+            ContractCopy.copyMonitorDisplayGuardExternalDisplayUnknown.text(for: language)
+        case .batteryStateUnknown:
+            ContractCopy.copyMonitorDisplayGuardBatteryStateUnknown.text(for: language)
+        case .sleepDisabledStateUnknown:
+            ContractCopy.copyMonitorDisplayGuardSleepStateUnknown.text(for: language)
+        case .externalSleepDisabledConflict:
+            ContractCopy.copyMonitorDisplayGuardSleepSettingConflict.text(for: language)
+        case .closedLidDisabled:
+            ContractCopy.copyMonitorDisplayGuardClosedLidDisabled.text(for: language)
+        case .powerDisabled, .explicitlyPaused, .helperUnavailable:
+            nil
+        default:
+            nil
+        }
+    }
+}
+
 /// `Monitor` 网格中的屏幕卡片。
 ///
 /// 卡片显示状态、亮度和显示功耗。
@@ -321,7 +377,7 @@ private struct MonitorDisplayDetailPanel: View {
     private func closedLidCard(model: any PowerManagementModel) -> some View {
         DisplaySettingsCard {
             DisplaySectionHeader(
-                title: ContractCopy.copyPowerSectionClosedLid.text(for: language),
+                title: ContractCopy.copyMonitorDisplayClosedLidTitle.text(for: language),
                 symbol: "laptopcomputer"
             )
 
@@ -341,6 +397,13 @@ private struct MonitorDisplayDetailPanel: View {
             }
             if let error = closedLidRuntimeError(model) {
                 MacAlert(message: error, kind: .error, language: language)
+            }
+            if let message = ClosedLidSettingsPresentation.guardMessage(
+                for: model.decision.safetyVetoes,
+                policy: model.closedLidPowerPolicy,
+                language: language
+            ) {
+                MacAlert(message: message, kind: .warning, language: language)
             }
 
             MacSettingRow(
@@ -375,7 +438,30 @@ private struct MonitorDisplayDetailPanel: View {
                 )
             }
 
-            if model.closedLidPowerPolicy.keepsAwake {
+            if ClosedLidSettingsPresentation.showsTimeCap(for: model.closedLidPowerPolicy) {
+                Divider().overlay(MacTheme.divider)
+
+                MacSettingRow(
+                    title: ContractCopy.copyMonitorDisplayTimeCap.text(for: language),
+                    description: ContractCopy.copyMonitorDisplayTimeCapHint.text(for: language)
+                ) {
+                    Picker(
+                        ContractCopy.copyMonitorDisplayTimeCap.text(for: language),
+                        selection: Binding(
+                            get: { Int(model.powerConfig.closedLidTimeCapMinutes) },
+                            set: { model.setPowerClosedLidTimeCapMinutes($0) }
+                        )
+                    ) {
+                        ForEach(ClosedLidSettingsPresentation.timeCapOptions, id: \.self) { minutes in
+                            Text(SettingsFormat.duration(seconds: Int64(minutes) * 60, language: language))
+                                .tag(minutes)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .frame(minWidth: 140, alignment: .trailing)
+                }
+
                 Divider().overlay(MacTheme.divider)
 
                 MacSettingRow(title: ContractCopy.copyMonitorDisplayMode.text(for: language)) {
