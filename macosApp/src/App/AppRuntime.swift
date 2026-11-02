@@ -29,6 +29,10 @@ final class AppRuntime {
     private(set) var statusMessage: String?
     /// 有耗时操作在跑。界面据此禁用按钮。
     private(set) var busy = false
+    /// 更新检查正在执行。工作台更新入口据此避免重复触发。
+    private(set) var isCheckingForUpdates = false
+    /// 最近一次成功检查发现的新版本。无更新或尚未检查时为 nil。
+    private(set) var availableUpdate: UpdateInfo?
     /// 首次启动的引导是否可见。
     private(set) var welcomeVisible: Bool
 
@@ -404,6 +408,18 @@ final class AppRuntime {
                 self?.applyAgentSettingChange(key: key, value: value) ?? false
             }
         )
+#if DEBUG
+        if let version = ProcessInfo.processInfo.environment["COVIO_UPDATE_PREVIEW_VERSION"],
+           !version.isEmpty
+        {
+            availableUpdate = UpdateInfo(
+                version: version,
+                title: "Covio \(version)",
+                releaseUrl: "https://github.com/wyz541/kmp-Covio/releases",
+                publishedAt: ""
+            )
+        }
+#endif
         if agentExternalServiceEnabled {
             configureAgentExternalService()
         }
@@ -833,7 +849,10 @@ final class AppRuntime {
 
     func setDarkWakeAwareness(_ enabled: Bool) { write { $0.darkWakeAwarenessEnabled = enabled } }
     func setNotifications(_ enabled: Bool) { write { $0.notificationsEnabled = enabled } }
-    func setUpdateChecks(_ enabled: Bool) { write { $0.updateCheckEnabled = enabled } }
+    func setUpdateChecks(_ enabled: Bool) {
+        if !enabled { availableUpdate = nil }
+        write { $0.updateCheckEnabled = enabled }
+    }
     func setSleepMode(_ mode: Int32) { write { $0.hibernateMode = KotlinInt(int: mode) } }
 
     /// 设置语言偏好。跟随系统时写入空字符串，保持与旧版配置兼容。
@@ -1143,12 +1162,32 @@ final class AppRuntime {
     // MARK: - 更新
 
     func checkForUpdates(manual: Bool) {
+#if DEBUG
+        if !manual,
+           ProcessInfo.processInfo.environment["COVIO_UPDATE_PREVIEW_VERSION"] != nil
+        {
+            return
+        }
+#endif
         let now = AppRuntime.nowEpochSeconds()
         if !manual && !UpdatePolicy.shared.shouldCheck(config: config, nowEpochSeconds: now) { return }
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
         Task { @MainActor in
+            defer { isCheckingForUpdates = false }
             let release = await Self.fetchRelease(updateChecker).value
-            let update = UpdatePolicy.shared.selectUpdate(candidate: release, currentVersion: GeneratedReleaseIdentityKt.APP_VERSION)
             write { $0.lastUpdateCheckEpochSeconds = now }
+            guard let release else {
+                if manual {
+                    statusMessage = ContractCopy.copyToastError.text(for: language)
+                }
+                return
+            }
+            let update = UpdatePolicy.shared.selectUpdate(
+                candidate: release,
+                currentVersion: GeneratedReleaseIdentityKt.APP_VERSION
+            )
+            availableUpdate = update
             if let update {
                 notifier.notify(
                     title: ContractCopy.copyDialogUpdateTitle.text(for: language),
@@ -1161,8 +1200,7 @@ final class AppRuntime {
                 }
                 statusMessage = "\(ContractCopy.copyDialogUpdateTitle.text(for: language)): \(update.version)"
             } else if manual {
-                let entry = release == nil ? ContractCopy.copyToastError : ContractCopy.copyHubUpdateUpToDate
-                statusMessage = entry.text(for: language)
+                statusMessage = ContractCopy.copyHubUpdateUpToDate.text(for: language)
             }
         }
     }

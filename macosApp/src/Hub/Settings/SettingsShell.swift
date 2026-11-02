@@ -16,23 +16,47 @@ struct SettingsTabView: View {
     let chrome: HubChromeModel
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                content
-                    .padding(.horizontal, MacTheme.space4)
-                    .padding(.vertical, MacTheme.space3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            // 跳转序号变了才滚，否则同一行连点两次不会重新滚。
-            .onChange(of: chrome.revealCount) {
-                guard let target = chrome.scrollTarget else { return }
-                // 分节刚换过，内容要下一帧才排好，所以这一帧之后才滚。
-                DispatchQueue.main.async {
-                    proxy.scrollTo(target, anchor: .center)
+        VStack(spacing: 0) {
+            sectionPicker
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    content
+                        .padding(.horizontal, MacTheme.space4)
+                        .padding(.vertical, MacTheme.space3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                // 跳转序号变了才滚，否则同一行连点两次不会重新滚。
+                .onChange(of: chrome.revealCount) {
+                    guard let target = chrome.scrollTarget else { return }
+                    // 分节刚换过，内容要下一帧才排好，所以这一帧之后才滚。
+                    DispatchQueue.main.async {
+                        proxy.scrollTo(target, anchor: .center)
+                    }
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// 设置分节导航。工作台页签不再承载子分节，所以导航固定在设置内容顶部。
+    private var sectionPicker: some View {
+        let sections = SettingsSection.allCases
+        let selectedIndex = sections.firstIndex(of: section) ?? 0
+        return HStack(spacing: MacTheme.space3) {
+            Text(ContractCopy.copyHubTabSettings.text(for: runtime.language))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+            MacSegmented(
+                options: sections.map { $0.navTitle.text(for: runtime.language) },
+                selectedIndex: selectedIndex,
+                onSelect: { index in chrome.select(sections[index]) },
+                accessibilityLabel: ContractCopy.copyHubTabSettings.text(for: runtime.language)
+            )
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, MacTheme.space4)
+        .padding(.top, MacTheme.space3)
     }
 
     @ViewBuilder
@@ -42,6 +66,7 @@ struct SettingsTabView: View {
         case .battery: BatteryPage(runtime: runtime)
         case .idle: IdlePage(runtime: runtime)
         case .clipboard: ClipboardPage(runtime: runtime)
+        case .assistant: AssistantPage(runtime: runtime)
         case .general: GeneralPage(runtime: runtime)
         }
     }

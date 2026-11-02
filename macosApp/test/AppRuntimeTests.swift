@@ -17,6 +17,7 @@ final class AppRuntimeTests: XCTestCase {
     private var chargeLimitClient: FakeChargeLimitClient!
     private var loginItem: FakeLoginItem!
     private var notifier: FakeNotifier!
+    private var updateChecker: FakeUpdateChecker!
     private var helperServiceManager: FakeHelperServiceManager!
 
     override func setUpWithError() throws {
@@ -46,6 +47,7 @@ final class AppRuntimeTests: XCTestCase {
         helperInstalled: Bool = false,
         helperStatus: HelperStatus? = nil,
         helperServiceState: HelperServiceState? = nil,
+        updateRelease: UpdateInfo? = nil,
         brightnessBackend: FakeClosedLidBrightnessBackend = FakeClosedLidBrightnessBackend(brightness: 0.6)
     ) -> AppRuntime {
         privileged = FakePrivilegedOps()
@@ -55,6 +57,8 @@ final class AppRuntimeTests: XCTestCase {
         chargeLimitClient = FakeChargeLimitClient()
         loginItem = FakeLoginItem()
         notifier = FakeNotifier()
+        updateChecker = FakeUpdateChecker()
+        updateChecker.release = updateRelease
         helperServiceManager = FakeHelperServiceManager(
             state: helperServiceState ?? (helperInstalled ? .enabled : .legacy)
         )
@@ -94,7 +98,7 @@ final class AppRuntimeTests: XCTestCase {
             chargeLimitClient: chargeLimitClient,
             loginItem: loginItem,
             notifier: notifier,
-            updateChecker: FakeUpdateChecker(),
+            updateChecker: updateChecker,
             powerObservation: powerObservation,
             powerHistoryStore: PowerHistoryStore.companion.create(
                 path: directory.appendingPathComponent("power-history.json").path
@@ -144,6 +148,29 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertFalse(created.config.notificationsEnabled)
         XCTAssertFalse(unknown.ok)
         XCTAssertEqual(unknown.errorCode, .invalidArguments)
+    }
+
+    /// 自动检查发现新版本后，工作台可读取版本号并显示更新入口。
+    func testUpdateCheckPublishesTheAvailableVersion() async throws {
+        let created = makeRuntime(
+            updateRelease: UpdateInfo(
+                version: "9.9.9.9",
+                title: "Covio 9.9.9.9",
+                releaseUrl: "https://example.com/covio",
+                publishedAt: ""
+            )
+        )
+
+        created.checkForUpdates(manual: false)
+
+        for _ in 0..<100 where created.availableUpdate == nil {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertEqual(created.availableUpdate?.version, "9.9.9.9")
+        XCTAssertFalse(created.isCheckingForUpdates)
+
+        created.setUpdateChecks(false)
+        XCTAssertNil(created.availableUpdate, "关闭更新检查后，工作台不再显示旧入口")
     }
 
     /// 挂帘运行时。存储、系统偏好、监视器全指向临时目录或假实现。

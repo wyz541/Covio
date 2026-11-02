@@ -147,7 +147,10 @@ struct HubView: View {
             onSelect: { workbench.select(paneID: $0) },
             onReorder: { workbench.movePane(from: $0, to: $1) },
             onPageAction: { workbench.performPageAction() },
-            onHover: reportHover
+            onHover: reportHover,
+            availableUpdateVersion: runtime?.availableUpdate?.version,
+            isCheckingForUpdates: runtime?.isCheckingForUpdates ?? false,
+            onCheckForUpdates: { runtime?.checkForUpdates(manual: true) }
         )
     }
 
@@ -180,7 +183,7 @@ struct HubView: View {
 
                 if isSettingsSearch {
                     SettingsSearchResults(chrome: chrome, language: language) { hit in
-                        workbench.destination = .pane(id: PaneKind.settings.defaultId)
+                        _ = workbench.openSettings()
                         chrome.reveal(hit)
                     }
                 } else {

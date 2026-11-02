@@ -23,12 +23,15 @@ enum SettingsRowID {
     static let clipboardEnabled = "clipboard.enabled"
     static let clipboardHotKeys = "clipboard.hot-keys"
 
+    // 助手
+    static let assistantChat = "assistant.chat"
+    static let assistantModel = "assistant.local-model"
+    static let assistantExternalAgent = "assistant.external-agent"
+
     // 通用
     static let generalDarkWake = "general.darkwake"
     static let generalSleepMode = "general.sleep-mode"
     static let generalLanguage = "general.language"
-    static let generalLocalModel = "general.local-model"
-    static let generalExternalAgent = "general.external-agent"
     static let generalLogin = "general.login"
     static let generalNotifications = "general.notifications"
     static let generalUpdates = "general.updates"
@@ -59,7 +62,8 @@ struct SettingsCatalogEntry: Sendable, Equatable {
 /// 每加一行设置，这里要加一条，并在页面上加 `.settingsRowAnchor(_:)`。
 /// `SettingsCatalogTests` 会检查锚点不重复、每节都有行。
 enum SettingsCatalog {
-    static let entries: [SettingsCatalogEntry] = overview + battery + idle + clipboard + general
+    static let entries: [SettingsCatalogEntry] =
+        overview + battery + idle + clipboard + assistant + general
 
     private static let overview: [SettingsCatalogEntry] = [
         SettingsCatalogEntry(
@@ -136,6 +140,33 @@ enum SettingsCatalog {
         ),
     ]
 
+    private static let assistant: [SettingsCatalogEntry] = [
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.assistantChat,
+            section: .assistant,
+            title: ContractCopy.copySettingsAssistant,
+            summary: ContractCopy.copyHubTabAgentSummary,
+            keywords: ["agent", "assistant", "chat", "offline", "助手", "对话", "聊天", "离线"]
+        ),
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.assistantModel,
+            section: .assistant,
+            title: ContractCopy.copyGeneralLocalModelTitle,
+            summary: ContractCopy.copyGeneralLocalModelSummary,
+            keywords: [
+                "model", "mlx", "qwen", "download", "import", "license", "revision",
+                "offline", "local", "模型", "下载", "导入", "许可证", "版本", "离线", "本地",
+            ]
+        ),
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.assistantExternalAgent,
+            section: .assistant,
+            title: ContractCopy.copyGeneralExternalAgentTitle,
+            summary: ContractCopy.copyGeneralExternalAgentSummary,
+            keywords: ["agent", "mcp", "loopback", "offline", "token", "外部", "本地", "服务"]
+        ),
+    ]
+
     private static let general: [SettingsCatalogEntry] = [
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalDarkWake,
@@ -160,23 +191,6 @@ enum SettingsCatalog {
                 "language", "locale", "system", "english", "chinese",
                 "语言", "系统语言", "跟随系统", "英文", "中文",
             ]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.generalLocalModel,
-            section: .general,
-            title: ContractCopy.copyGeneralLocalModelTitle,
-            summary: ContractCopy.copyGeneralLocalModelSummary,
-            keywords: [
-                "model", "mlx", "qwen", "download", "import", "license", "revision",
-                "offline", "local", "模型", "下载", "导入", "许可证", "版本", "离线", "本地",
-            ]
-        ),
-        SettingsCatalogEntry(
-            rowID: SettingsRowID.generalExternalAgent,
-            section: .general,
-            title: ContractCopy.copyGeneralExternalAgentTitle,
-            summary: ContractCopy.copyGeneralExternalAgentSummary,
-            keywords: ["agent", "mcp", "loopback", "offline", "token", "外部", "本地", "服务"]
         ),
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalLogin,

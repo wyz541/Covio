@@ -24,7 +24,7 @@ final class SettingsCatalogTests: XCTestCase {
         }
     }
 
-    /// 目录表里的分节覆盖五个分节，且顺序与 `SettingsSection.allCases` 一致。
+    /// 目录表里的分节覆盖六个分节，且顺序与 `SettingsSection.allCases` 一致。
     func testSectionOrderFollowsTheSectionList() {
         var seen: [SettingsSection] = []
         for entry in SettingsCatalog.entries where seen.last != entry.section {
@@ -57,11 +57,12 @@ final class SettingsCatalogTests: XCTestCase {
             SettingsRowID.idleCancel,
             SettingsRowID.clipboardEnabled,
             SettingsRowID.clipboardHotKeys,
+            SettingsRowID.assistantChat,
+            SettingsRowID.assistantModel,
+            SettingsRowID.assistantExternalAgent,
             SettingsRowID.generalDarkWake,
             SettingsRowID.generalSleepMode,
             SettingsRowID.generalLanguage,
-            SettingsRowID.generalLocalModel,
-            SettingsRowID.generalExternalAgent,
             SettingsRowID.generalLogin,
             SettingsRowID.generalNotifications,
             SettingsRowID.generalUpdates,
@@ -93,11 +94,22 @@ final class SettingsSearchIndexTests: XCTestCase {
         XCTAssertTrue(hits.contains { $0.rowID == SettingsRowID.generalSleepMode })
     }
 
-    /// Helper 是全局运行能力，不作为用户可搜索的设置项出现。
-    func testHelperIsNotAUserFacingSetting() {
+    /// Helper 不是用户设置；助手与模型现在是设置项。
+    func testHelperIsNotAUserFacingSettingAndAssistantIs() {
         XCTAssertTrue(SettingsSearchIndex.search("helper", language: .english).isEmpty)
-        XCTAssertTrue(SettingsSearchIndex.search("助手", language: .simplifiedChinese).isEmpty)
         XCTAssertTrue(SettingsSearchIndex.search("privileged", language: .english).isEmpty)
+        XCTAssertTrue(
+            SettingsSearchIndex.search("助手", language: .simplifiedChinese)
+                .contains { $0.rowID == SettingsRowID.assistantChat }
+        )
+    }
+
+    /// 模型与外部服务跳转时进入助手分节。
+    func testAssistantSettingsStayInTheAssistantSection() {
+        for rowID in [SettingsRowID.assistantModel, SettingsRowID.assistantExternalAgent] {
+            let hit = SettingsCatalog.entries.first { $0.rowID == rowID }
+            XCTAssertEqual(hit?.section, .assistant)
+        }
     }
 
     /// 命中关键词。关键词里同时有中文与英文，两种界面语言都能用。

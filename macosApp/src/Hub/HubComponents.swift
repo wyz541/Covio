@@ -124,6 +124,7 @@ struct MacSegmented: View {
     let options: [String]
     let selectedIndex: Int
     let onSelect: (Int) -> Void
+    var accessibilityLabel: String? = nil
 
     var body: some View {
         Picker("", selection: Binding(get: { selectedIndex }, set: { onSelect($0) })) {
@@ -134,6 +135,7 @@ struct MacSegmented: View {
         .labelsHidden()
         .pickerStyle(.segmented)
         .frame(minWidth: MacControlSize.segmentedWidth)
+        .accessibilityLabel(Text(accessibilityLabel ?? options.joined(separator: ", ")))
     }
 }
 

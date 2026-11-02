@@ -4,6 +4,7 @@ import SwiftUI
 /// 通用页。
 ///
 /// 顺序：深色唤醒、休眠模式、语言、登录项与通知、检查更新、日志与重置。
+/// 助手与模型设置属于助手分节，不在这里重复。
 /// 危险动作排在最后，且用 `.plain` 按钮，与常规开关拉开距离。
 struct GeneralPage: View {
     let runtime: AppRuntime
@@ -35,12 +36,6 @@ struct GeneralPage: View {
                 LanguageOptions(runtime: runtime)
             }
             .settingsRowAnchor(SettingsRowID.generalLanguage)
-
-            LocalModelPackagesCard(runtime: runtime)
-                .settingsRowAnchor(SettingsRowID.generalLocalModel)
-
-            AgentExternalServiceCard(runtime: runtime)
-                .settingsRowAnchor(SettingsRowID.generalExternalAgent)
 
             MacCard {
                 MacSettingRow(title: ContractCopy.copyGeneralLaunchAtLogin.text(for: runtime.language)) {

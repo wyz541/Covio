@@ -1724,7 +1724,7 @@
       "sourceAuthority": "macOS 27 (Community)",
       "swiftMapping": {
         "target": "WorkbenchTabBar",
-        "behavior": "导航控件叠在内容上，宽 960 点、高 46 点。顶栏不绘制独立底材，直接共享内容层的同一 surface。内容延伸到导航控件背后，首屏内容从其下方开始。左端固定是 52 × 30 的文字首页入口，紧挨着 190 × 30 的单层 Liquid Glass 搜索框，中间是只显示文字的工作区页签（固定 72 × 30，胶囊圆角，间距 4；文字超长截断；默认六项直接显示，超过可用宽度时横向滚动），右端是固定宽度的动作位。导航按钮未选中时保持透明；选中时只使用带 accent tint 和 interactive 反馈的 regular Liquid Glass，不叠加自定义底色、描边或阴影；悬停或键盘聚焦时使用较弱 tint 的 regular Liquid Glass。选中玻璃使用 glassEffectID 与 matchedGeometry transition 在固定尺寸按钮间形变。切换只改变玻璃位置，不移动或缩放导航按钮。键盘焦点叠加高对比焦点环。页签文字字重固定，避免选中时改变宽度。搜索框使用原生 glassEffect 与系统清空动作。设置只保留工作区页签入口，其他工作区不显示右侧设置动作。编辑模式里页签前面加拖动把手，拖动跨过 76 点换一次位置。"
+        "behavior": "导航控件叠在内容上，宽 960 点、高 46 点。顶栏不绘制独立底材，直接共享内容层的同一 surface。内容延伸到导航控件背后，首屏内容从其下方开始。左端固定是 52 × 30 的文字首页入口，紧挨着 190 × 30 的单层 Liquid Glass 搜索框，中间是只显示文字的可切换工作区页签（固定 72 × 30，胶囊圆角，间距 4；文字超长截断；默认四项直接显示，超过可用宽度时横向滚动），右端是固定宽度的动作位。导航按钮未选中时保持透明；选中时只使用带 accent tint 和 interactive 反馈的 regular Liquid Glass，不叠加自定义底色、描边或阴影；悬停或键盘聚焦时使用较弱 tint 的 regular Liquid Glass。选中玻璃使用 glassEffectID 与 matchedGeometry transition 在固定尺寸按钮间形变。切换只改变玻璃位置，不移动或缩放导航按钮。键盘焦点叠加高对比焦点环。页签文字字重固定，避免选中时改变宽度。搜索框使用原生 glassEffect 与系统清空动作。设置与助手不在工作区页签中出现；设置由菜单栏状态项打开，助手并入设置分节。发现新版本时，右端在动作位前显示带版本号的 Liquid Glass 更新入口；点击入口执行手动检查。编辑模式里页签前面加拖动把手，拖动跨过 76 点换一次位置。"
       }
     },
     "component/bento-grid": {
@@ -6899,6 +6899,10 @@
     "copy/hub/tab/agent/summary": {
       "en": "Chat with the offline local agent and its local services.",
       "zh-Hans": "与离线本地 Agent 对话并使用本地服务。"
+    },
+    "copy/settings/assistant": {
+      "en": "Assistant",
+      "zh-Hans": "助手"
     },
     "copy/monitor/power/state/battery": {
       "en": "On battery",

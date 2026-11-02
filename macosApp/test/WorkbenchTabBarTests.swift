@@ -33,7 +33,7 @@ final class WorkbenchTabBarTests: XCTestCase {
         XCTAssertEqual(Set(titles).count, titles.count, "有两个默认页签用了同一个标题")
     }
 
-    /// 页签宽度固定。默认六个页签必须一次显示完，不能因标题宽度改变选中背景。
+    /// 页签宽度固定。默认四个页签必须一次显示完，不能因标题宽度改变选中背景。
     func testDefaultTabsUseAFixedWidthThatFitsTheBar() {
         let count = panes().count
 
@@ -78,10 +78,27 @@ final class WorkbenchTabBarTests: XCTestCase {
         XCTAssertEqual(withDone, withoutAction, "编辑模式的「完成」按钮让左侧元素横移了")
     }
 
+    /// 更新入口只占右端空间，不能挪动左侧导航。
+    func testTheUpdateBadgeDoesNotShiftTheLeadingContent() throws {
+        let withoutUpdate = try leadingInkColumn(pageAction: nil)
+        let withUpdate = try leadingInkColumn(
+            pageAction: nil,
+            updateVersion: "0.0.1.8"
+        )
+        let withEditAndUpdate = try leadingInkColumn(
+            pageAction: ContractCopy.copyHubActionEdit,
+            updateVersion: "0.0.1.8"
+        )
+
+        XCTAssertEqual(withUpdate, withoutUpdate, "更新入口让左侧元素横移了")
+        XCTAssertEqual(withEditAndUpdate, withoutUpdate, "更新入口与编辑按钮一起出现时，左侧元素横移了")
+    }
+
     /// 按 1 倍比例渲染一条顶栏，返回最左一列有墨迹的像素横坐标。
     private func leadingInkColumn(
         pageAction: LocalizedCopy?,
-        isEditing: Bool = false
+        isEditing: Bool = false,
+        updateVersion: String? = nil
     ) throws -> Int {
         let panes = panes()
         let bar = WorkbenchTabBar(
@@ -97,7 +114,8 @@ final class WorkbenchTabBarTests: XCTestCase {
             onSelect: { _ in },
             onReorder: { _, _ in },
             onPageAction: {},
-            onHover: { _, _ in }
+            onHover: { _, _ in },
+            availableUpdateVersion: updateVersion
         )
         let renderer = ImageRenderer(content: bar)
         renderer.scale = 1
@@ -130,7 +148,7 @@ final class WorkbenchTabBarTests: XCTestCase {
         let model = WorkbenchModel()
         let english = model.panes(language: .english)
         let chinese = model.panes(language: .simplifiedChinese)
-        let builtInTabs: [HubTab] = [.now, .agent, .clipboard, .files, .devices, .settings]
+        let builtInTabs: [HubTab] = [.now, .clipboard, .files, .devices]
 
         XCTAssertEqual(english.map(\.title), builtInTabs.map { $0.title.text(for: .english) })
         XCTAssertEqual(chinese.map(\.title), builtInTabs.map { $0.title.text(for: .simplifiedChinese) })

@@ -31,18 +31,20 @@ final class WorkbenchModelTests: XCTestCase {
         XCTAssertEqual(model().homeWidgets.count, 6)
     }
 
-    /// 默认配置里的内置工作区是六个。`board` 是用户自建的，不在默认里。
-    func testTheDefaultConfigShowsEveryBuiltInPane() {
+    /// 默认配置保留六个内置工作区，但顶栏只显示四个可切换工作区。
+    func testTheDefaultConfigShowsOnlyNavigableBuiltInPanes() {
         let model = model()
         let panes = model.panes(language: CopyLocale.language)
-        XCTAssertEqual(panes.count, 6)
+        XCTAssertEqual(panes.count, 4)
         XCTAssertEqual(
             panes.map(\.tab),
-            [.now, .agent, .clipboard, .files, .devices, .settings]
+            [.now, .clipboard, .files, .devices]
         )
         for pane in panes {
             XCTAssertFalse(pane.title.isEmpty, "\(pane.id) 没有标题")
         }
+        XCTAssertFalse(panes.contains { $0.tab == .agent })
+        XCTAssertFalse(panes.contains { $0.tab == .settings })
     }
 
     /// 首页的行数由装箱算出来，不是写死的。
@@ -86,6 +88,15 @@ final class WorkbenchModelTests: XCTestCase {
         let model = model()
         model.select(paneID: "no-such-pane")
         XCTAssertNotEqual(model.destination, .pane(id: "no-such-pane"))
+    }
+
+    /// 设置是固定入口。它不在页签里，但模型仍能直接打开。
+    func testSettingsOpensWithoutAWorkbenchTab() {
+        let model = model()
+
+        XCTAssertTrue(model.openSettings())
+        XCTAssertEqual(model.destination, .pane(id: PaneKind.settings.defaultId))
+        XCTAssertFalse(model.panes(language: CopyLocale.language).contains { $0.tab == .settings })
     }
 
     /// 旧截图入口进入文件区，并携带一次截图筛选。消费后不重复套用。
