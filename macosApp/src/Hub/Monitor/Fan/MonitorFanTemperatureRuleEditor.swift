@@ -17,6 +17,32 @@ struct MonitorFanTemperatureRuleEditor: View {
         Bool
     ) -> Void
 
+    @State private var draftRules: MonitorFanTemperatureRuleDraft
+    @State private var editingSource: MonitorFanTemperatureSource?
+
+    init(
+        reading: MonitorFanReading,
+        configuration: MonitorFanConfiguration,
+        helperSourceTemperatures: [String: Double],
+        language: AppLanguage,
+        busy: Bool,
+        onToggleSource: @escaping (MonitorFanTemperatureSource, Bool) -> Void,
+        onChangePoints: @escaping (
+            MonitorFanTemperatureSource,
+            [MonitorFanTemperatureRulePoint],
+            Bool
+        ) -> Void
+    ) {
+        self.reading = reading
+        self.configuration = configuration
+        self.helperSourceTemperatures = helperSourceTemperatures
+        self.language = language
+        self.busy = busy
+        self.onToggleSource = onToggleSource
+        self.onChangePoints = onChangePoints
+        _draftRules = State(initialValue: MonitorFanTemperatureRuleDraft(configuration: configuration))
+    }
+
     private var sourceTemperatures: [MonitorFanTemperatureSource: Double] {
         var values = configuration.temperatureSourceReadings(in: reading)
         for source in MonitorFanTemperatureSource.allCases where values[source] == nil {
@@ -45,6 +71,9 @@ struct MonitorFanTemperatureRuleEditor: View {
             if !configuration.enabledTemperatureSources.isEmpty {
                 mergedTargetSummary
             }
+        }
+        .onChange(of: configuration) { _, configuration in
+            draftRules.sync(from: configuration, preserving: editingSource)
         }
     }
 
@@ -141,7 +170,7 @@ struct MonitorFanTemperatureRuleEditor: View {
 
                 TextField(
                     "",
-                    value: temperatureBinding(source: source, index: index, points: points),
+                    value: temperatureBinding(source: source, index: index),
                     format: .number.precision(.fractionLength(0))
                 )
                 .textFieldStyle(.roundedBorder)
@@ -161,7 +190,7 @@ struct MonitorFanTemperatureRuleEditor: View {
 
                 TextField(
                     "",
-                    value: percentBinding(source: source, index: index, points: points),
+                    value: percentTextBinding(source: source, index: index),
                     format: .number.precision(.fractionLength(0))
                 )
                 .textFieldStyle(.roundedBorder)
@@ -193,14 +222,13 @@ struct MonitorFanTemperatureRuleEditor: View {
             }
 
             percentSliderRow(
-                value: percentBinding(source: source, index: index, points: points),
+                value: percentBinding(source: source, index: index),
                 fans: reading.units,
                 accessibilityLabel: "\(sourceTitle(source)) \(controlPointTitle(index)) \(ContractCopy.copyMonitorFanSourceFanPercentLabel.text(for: language))",
                 accessibilityValue: pointAccessibilityValue(point),
                 onEditingChanged: { editing in
-                    if !editing {
-                        onChangePoints(source, configuredPoints(for: source), true)
-                    }
+                    editingSource = editing ? source : nil
+                    if !editing { commit(source) }
                 }
             )
         }
@@ -210,50 +238,6 @@ struct MonitorFanTemperatureRuleEditor: View {
             MacTheme.surface.opacity(0.36),
             in: RoundedRectangle(cornerRadius: 7, style: .continuous)
         )
-    }
-
-    private func temperatureSliderRow(
-        value: Binding<Double>,
-        range: ClosedRange<Double>,
-        accessibilityLabel: String,
-        accessibilityValue: String,
-        onEditingChanged: @escaping (Bool) -> Void
-    ) -> some View {
-        let midpoint = ((range.lowerBound + range.upperBound) / 2).rounded()
-        return HStack(alignment: .top, spacing: 6) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(ContractCopy.copyMonitorFanTemperature.text(for: language))
-                    .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
-                Text(ContractCopy.copyMonitorFanTemperatureTick.text(for: language))
-                    .font(.system(size: 7, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
-            }
-            .frame(width: 58, alignment: .leading)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Slider(
-                    value: value,
-                    in: range,
-                    onEditingChanged: onEditingChanged
-                )
-                .disabled(busy)
-                .accessibilityLabel(accessibilityLabel)
-                .accessibilityValue(accessibilityValue)
-
-                HStack(spacing: 0) {
-                    Text(MonitorFanFormat.celsius(range.lowerBound))
-                    Spacer(minLength: 0)
-                    Text(MonitorFanFormat.celsius(midpoint))
-                    Spacer(minLength: 0)
-                    Text(MonitorFanFormat.celsius(range.upperBound))
-                }
-                .font(.system(size: 7, weight: .medium, design: .rounded))
-                .foregroundStyle(MacTheme.textSecondary)
-                .monospacedDigit()
-                .accessibilityHidden(true)
-            }
-        }
     }
 
     private func percentSliderRow(
@@ -344,7 +328,7 @@ struct MonitorFanTemperatureRuleEditor: View {
 
     private var mergedTargetSummary: some View {
         let temperatures = sourceTemperatures
-        let percent = configuration.mergedTargetPercent(sourceTemperatures: temperatures)
+        let percent = mergedTargetPercent(sourceTemperatures: temperatures)
         return VStack(alignment: .leading, spacing: 5) {
             Divider()
             Text(ContractCopy.copyMonitorFanTarget.text(for: language))
@@ -418,7 +402,7 @@ struct MonitorFanTemperatureRuleEditor: View {
     private func sourceRequestText(_ source: MonitorFanTemperatureSource) -> String {
         guard configuration.hasTemperatureRules(for: source) else { return "" }
         guard let temperature = sourceTemperatures[source],
-              let percent = configuration.targetPercent(for: source, temperature: temperature)
+              let percent = targetPercent(for: source, temperature: temperature)
         else { return "" }
         return String(
             format: ContractCopy.copyMonitorFanSourceRequest.text(for: language),
@@ -442,67 +426,97 @@ struct MonitorFanTemperatureRuleEditor: View {
     private func configuredPoints(
         for source: MonitorFanTemperatureSource
     ) -> [MonitorFanTemperatureRulePoint] {
-        configuration.temperatureRules[source.rawValue]
-            ?? MonitorFanTemperatureRule.defaultPoints(for: source)
+        draftRules.points(for: source)
     }
 
     private func temperatureBinding(
         source: MonitorFanTemperatureSource,
-        index: Int,
-        points: [MonitorFanTemperatureRulePoint]
+        index: Int
     ) -> Binding<Double> {
         Binding(
             get: {
+                let points = draftRules.points(for: source)
                 guard points.indices.contains(index) else { return MonitorFanPolicy.minimumRuleCelsius }
                 return points[index].celsius
             },
             set: { value in
-                updatePoint(source: source, index: index, celsius: value, percent: nil, points: points)
+                draftRules.updatePoint(
+                    source: source,
+                    index: index,
+                    celsius: value,
+                    percent: nil
+                )
+                commit(source)
             }
         )
     }
 
     private func percentBinding(
         source: MonitorFanTemperatureSource,
-        index: Int,
-        points: [MonitorFanTemperatureRulePoint]
+        index: Int
     ) -> Binding<Double> {
         Binding(
             get: {
+                let points = draftRules.points(for: source)
                 guard points.indices.contains(index) else { return 0 }
                 return points[index].fanPercent
             },
             set: { value in
-                updatePoint(source: source, index: index, celsius: nil, percent: value, points: points)
+                editingSource = source
+                draftRules.updatePoint(
+                    source: source,
+                    index: index,
+                    celsius: nil,
+                    percent: value
+                )
             }
         )
     }
 
-    private func temperatureRange(
-        for index: Int,
-        points: [MonitorFanTemperatureRulePoint]
-    ) -> ClosedRange<Double> {
-        MonitorFanTemperatureRule.editableTemperatureRange(index: index, points: points)
+    private func percentTextBinding(
+        source: MonitorFanTemperatureSource,
+        index: Int
+    ) -> Binding<Double> {
+        Binding(
+            get: {
+                let points = draftRules.points(for: source)
+                guard points.indices.contains(index) else { return 0 }
+                return points[index].fanPercent
+            },
+            set: { value in
+                draftRules.updatePoint(
+                    source: source,
+                    index: index,
+                    celsius: nil,
+                    percent: value
+                )
+                commit(source)
+            }
+        )
     }
 
-    private func updatePoint(
-        source: MonitorFanTemperatureSource,
-        index: Int,
-        celsius: Double?,
-        percent: Double?,
-        points: [MonitorFanTemperatureRulePoint]
-    ) {
-        guard points.indices.contains(index) else { return }
-        var updated = points
-        let range = temperatureRange(for: index, points: points)
-        updated[index].celsius = min(
-            range.upperBound,
-            max(range.lowerBound, (celsius ?? points[index].celsius).rounded())
-        )
-        updated[index].fanPercent = MonitorFanTemperatureRule.snappedPercent(
-            percent ?? points[index].fanPercent
-        )
-        onChangePoints(source, updated, false)
+    private func targetPercent(
+        for source: MonitorFanTemperatureSource,
+        temperature: Double
+    ) -> Double? {
+        let points = draftRules.points(for: source)
+        guard points.count >= 2 else { return nil }
+        return MonitorFanTemperatureRule.targetPercent(points: points, temperature: temperature)
+    }
+
+    private func mergedTargetPercent(
+        sourceTemperatures: [MonitorFanTemperatureSource: Double]
+    ) -> Double? {
+        let requests: [Double] = configuration.enabledTemperatureSources.compactMap { source in
+            guard let temperature = sourceTemperatures[source] else { return nil }
+            return targetPercent(for: source, temperature: temperature)
+        }
+        return requests.max()
+    }
+
+    private func commit(_ source: MonitorFanTemperatureSource) {
+        editingSource = nil
+        onChangePoints(source, draftRules.points(for: source), true)
     }
 
     private func addPoint(
@@ -519,7 +533,8 @@ struct MonitorFanTemperatureRuleEditor: View {
                 celsius: last.celsius + MonitorFanPolicy.minimumRuleTemperatureSpan,
                 fanPercent: last.fanPercent
             ))
-            onChangePoints(source, sorted, true)
+            draftRules.setPoints(sorted, for: source)
+            commit(source)
             return
         }
         if let first = sorted.first,
@@ -529,7 +544,8 @@ struct MonitorFanTemperatureRuleEditor: View {
                 celsius: first.celsius - MonitorFanPolicy.minimumRuleTemperatureSpan,
                 fanPercent: first.fanPercent
             ), at: 0)
-            onChangePoints(source, sorted, true)
+            draftRules.setPoints(sorted, for: source)
+            commit(source)
             return
         }
         var insertAt = 1
@@ -553,7 +569,8 @@ struct MonitorFanTemperatureRuleEditor: View {
             ),
             at: insertAt
         )
-        onChangePoints(source, sorted, true)
+        draftRules.setPoints(sorted, for: source)
+        commit(source)
     }
 
     private func deletePoint(
@@ -564,7 +581,8 @@ struct MonitorFanTemperatureRuleEditor: View {
         guard points.count > 2, points.indices.contains(index) else { return }
         var updated = points
         updated.remove(at: index)
-        onChangePoints(source, updated, true)
+        draftRules.setPoints(updated, for: source)
+        commit(source)
     }
 
     private func largestGap(in points: [MonitorFanTemperatureRulePoint]) -> Double {

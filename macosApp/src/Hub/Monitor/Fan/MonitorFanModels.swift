@@ -88,6 +88,59 @@ struct MonitorFanTemperatureRulePoint: Codable, Equatable, Sendable, Identifiabl
     var id: String { "\(celsius)-\(fanPercent)" }
 }
 
+/// 温度规则编辑器的本地草稿。
+///
+/// 滑杆拖动只改草稿，松手后才写回配置。这样配置发布不会中断滑杆手势，
+/// 也不会把拖动中的值替换成上一次持久化结果。
+struct MonitorFanTemperatureRuleDraft: Equatable, Sendable {
+    private var pointsBySource: [MonitorFanTemperatureSource: [MonitorFanTemperatureRulePoint]] = [:]
+
+    init(configuration: MonitorFanConfiguration) {
+        sync(from: configuration)
+    }
+
+    func points(for source: MonitorFanTemperatureSource) -> [MonitorFanTemperatureRulePoint] {
+        pointsBySource[source] ?? MonitorFanTemperatureRule.defaultPoints(for: source)
+    }
+
+    mutating func sync(
+        from configuration: MonitorFanConfiguration,
+        preserving editedSource: MonitorFanTemperatureSource? = nil
+    ) {
+        for source in MonitorFanTemperatureSource.allCases where source != editedSource {
+            pointsBySource[source] = configuration.temperatureRules[source.rawValue]
+                ?? MonitorFanTemperatureRule.defaultPoints(for: source)
+        }
+    }
+
+    mutating func setPoints(
+        _ points: [MonitorFanTemperatureRulePoint],
+        for source: MonitorFanTemperatureSource
+    ) {
+        guard points.count >= 2 else { return }
+        pointsBySource[source] = points
+    }
+
+    mutating func updatePoint(
+        source: MonitorFanTemperatureSource,
+        index: Int,
+        celsius: Double?,
+        percent: Double?
+    ) {
+        var points = points(for: source)
+        guard points.indices.contains(index) else { return }
+        let range = MonitorFanTemperatureRule.editableTemperatureRange(index: index, points: points)
+        points[index].celsius = min(
+            range.upperBound,
+            max(range.lowerBound, (celsius ?? points[index].celsius).rounded())
+        )
+        points[index].fanPercent = MonitorFanTemperatureRule.snappedPercent(
+            percent ?? points[index].fanPercent
+        )
+        pointsBySource[source] = points
+    }
+}
+
 struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var enabled: Bool = false
     var mode: MonitorFanMode = .automatic

@@ -752,6 +752,77 @@ final class MonitorFanTests: XCTestCase {
         XCTAssertEqual(MonitorFanFormat.targetRPM(nil), "—")
     }
 
+    func testTemperatureRuleDraftKeepsSliderChangesLocalUntilCommit() {
+        let configuration = MonitorFanConfiguration(
+            temperatureRules: ["battery": MonitorFanTemperatureRule.defaultPoints(for: .battery)]
+        )
+        var draft = MonitorFanTemperatureRuleDraft(configuration: configuration)
+
+        for percent in [45.0, 75.0, 85.0] {
+            draft.updatePoint(
+                source: .battery,
+                index: 1,
+                celsius: nil,
+                percent: percent
+            )
+        }
+
+        XCTAssertEqual(
+            draft.points(for: .battery).map(\.fanPercent),
+            [0, 85, 60]
+        )
+        XCTAssertEqual(
+            configuration.temperatureRules["battery"]?.map(\.fanPercent),
+            [0, 40, 60]
+        )
+    }
+
+    func testTemperatureRuleDraftPreservesEditedSourceDuringConfigurationSync() {
+        var configuration = MonitorFanConfiguration(
+            temperatureRules: ["battery": MonitorFanTemperatureRule.defaultPoints(for: .battery)]
+        )
+        var draft = MonitorFanTemperatureRuleDraft(configuration: configuration)
+        draft.updatePoint(source: .battery, index: 1, celsius: nil, percent: 70)
+
+        configuration.temperatureRules["cpu"] = MonitorFanTemperatureRule.defaultPoints(for: .cpu)
+        draft.sync(from: configuration, preserving: .battery)
+
+        XCTAssertEqual(draft.points(for: .battery).map(\.fanPercent), [0, 70, 60])
+        XCTAssertEqual(draft.points(for: .cpu).map(\.fanPercent), [30, 60])
+    }
+
+    @MainActor
+    func testBatteryTemperatureSliderDraftPersistsAfterReload() {
+        let suiteName = "MonitorFanTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TB0T", celsius: 33)],
+            units: [
+                .init(index: 0, rpm: 2_000, minimumRPM: 1_200, maximumRPM: 5_800, targetRPM: 2_000, mode: 1),
+            ]
+        )
+        let model = MonitorFanControlModel(defaults: defaults)
+        model.setTemperatureSource(.battery, enabled: true, reading: reading)
+        var draft = MonitorFanTemperatureRuleDraft(configuration: model.configuration)
+
+        for percent in [45.0, 75.0, 85.0] {
+            draft.updatePoint(source: .battery, index: 1, celsius: nil, percent: percent)
+        }
+        model.setTemperatureRulePoints(
+            draft.points(for: .battery),
+            source: .battery,
+            reading: reading,
+            applyImmediately: true
+        )
+
+        let reloaded = MonitorFanControlModel(defaults: defaults)
+        XCTAssertEqual(
+            reloaded.configuration.temperatureRules["battery"]?.map(\.fanPercent),
+            [0, 85, 60]
+        )
+    }
+
     func testTemperatureRulePercentUsesFivePercentSteps() {
         XCTAssertEqual(MonitorFanPolicy.rulePercentStep, 5)
         XCTAssertEqual(MonitorFanTemperatureRule.snappedPercent(33), 35)
