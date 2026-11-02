@@ -21,28 +21,37 @@ final class UpdateCheckerTests: XCTestCase {
     </html>
     """
 
-    func testLatestStableReleaseWins() {
-        let info = GithubUpdateChecker.parseRelease(releasePage)
+    func testInternalBuildPrefersANewerInternalRelease() {
+        let info = GithubUpdateChecker.parseRelease(releasePage, includeInternal: true)
+        XCTAssertEqual(info?.version, "0.0.1.7")
+        XCTAssertEqual(info?.title, "Covio 0.0.1.7")
+        XCTAssertEqual(
+            info?.releaseUrl,
+            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.7-internal"
+        )
+    }
+
+    func testPublicBuildIgnoresInternalReleases() {
+        let info = GithubUpdateChecker.parseRelease(releasePage, includeInternal: false)
         XCTAssertEqual(info?.version, "0.0.1.6")
-        XCTAssertEqual(info?.title, "Covio 0.0.1.6")
         XCTAssertEqual(
             info?.releaseUrl,
             "https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.6"
         )
     }
 
-    /// 内部标签和旧语义版本标签都不进入更新提示。
-    func testInternalTagsAreIgnored() {
+    /// 旧语义版本标签不进入更新提示。
+    func testLegacySemanticTagsAreIgnored() {
         let body = """
         <a href="https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.9">stable</a>
         <a href="/wyz541/kmp-Covio/releases/tag/v0.1.0.0-internal">candidate</a>
         <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15">legacy</a>
         """
-        let info = GithubUpdateChecker.parseRelease(body)
-        XCTAssertEqual(info?.version, "0.0.1.9")
+        let info = GithubUpdateChecker.parseRelease(body, includeInternal: true)
+        XCTAssertEqual(info?.version, "0.1.0.0")
         XCTAssertEqual(
             info?.releaseUrl,
-            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.9"
+            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.1.0.0-internal"
         )
     }
 
@@ -72,12 +81,16 @@ final class UpdateCheckerTests: XCTestCase {
         )
     }
 
-    func testOnlyPrereleasesReturnsNil() {
+    func testOnlyInternalReleasesAreIgnoredByPublicBuilds() {
         let body = """
         <a href="/wyz541/kmp-Covio/releases/tag/v0.0.2.0-internal">internal</a>
         <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15">legacy</a>
         """
-        XCTAssertNil(GithubUpdateChecker.parseRelease(body))
+        XCTAssertNil(GithubUpdateChecker.parseRelease(body, includeInternal: false))
+        XCTAssertEqual(
+            GithubUpdateChecker.parseRelease(body, includeInternal: true)?.version,
+            "0.0.2.0"
+        )
     }
 
     /// 限流时 GitHub 返回 403。这一条不能当成「已是最新」。
@@ -88,7 +101,7 @@ final class UpdateCheckerTests: XCTestCase {
 
     func testSuccessStatusParsesTheBody() {
         let checker = GithubUpdateChecker(session: session(status: 200, body: releasePage))
-        XCTAssertEqual(checker.latestRelease()?.version, "0.0.1.6")
+        XCTAssertEqual(checker.latestRelease()?.version, "0.0.1.7")
     }
 
     /// 一个只应答固定状态码与固定正文的会话。
