@@ -125,7 +125,7 @@ def draft_notes(text: str, previous: InternalTag, current: InternalTag, pulls: l
             "",
         ]
     )
-    text = _replace_section(text, "## 从 build ", changes)
+    text = _replace_section(text, "## 从 ", changes)
     verification = "\n".join(
         [
             "## 验证",
