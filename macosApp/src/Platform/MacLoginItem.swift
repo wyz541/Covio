@@ -141,8 +141,9 @@ final class MacLoginItem: NSObject, LoginItem {
 /// `UpdateChecker` 端口的 macOS 实现。
 ///
 /// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/GithubUpdateChecker.kt`。
-/// 读 GitHub releases 页面的 HTML，找出所有稳定版标签，取最大的一个。
-/// 预发布版忽略。
+/// 读 GitHub releases 页面的 HTML，取客户端版本最大的发布。
+/// internal build 同时识别四段 internal tag 和 stable tag。
+/// public build 只识别 stable tag。旧语义版本 tag 继续忽略。
 ///
 /// 解析器是纯函数，测试直接喂 HTML 字符串。
 final class GithubUpdateChecker: NSObject, UpdateChecker {
@@ -203,8 +204,11 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
         }
     }
 
-    /// 从 HTML 里挑出最新的稳定版。没有匹配时返回 nil。
-    static func parseRelease(_ body: String) -> UpdateInfo? {
+    /// 从 HTML 里挑出最新的可接受发布。没有匹配时返回 nil。
+    static func parseRelease(
+        _ body: String,
+        includeInternal: Bool = GeneratedReleaseIdentity.channel == "internal"
+    ) -> UpdateInfo? {
         let pattern = try? NSRegularExpression(
             pattern: #"href\s*=\s*["']([^"']*?/releases/tag/([^"'/?#]+))["']"#,
             options: [.caseInsensitive]
@@ -214,7 +218,10 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
         for match in pattern?.matches(in: body, options: [], range: range) ?? [] {
             guard let pathRange = Range(match.range(at: 1), in: body),
                   let tagRange = Range(match.range(at: 2), in: body),
-                  let version = ClientVersion.companion.parse(value: String(body[tagRange]))
+                  let version = clientVersion(
+                      forTag: String(body[tagRange]),
+                      includeInternal: includeInternal
+                  )
             else { continue }
             let path = String(body[pathRange])
             let url = path.hasPrefix("http") ? path : "https://github.com\(path)"
@@ -228,5 +235,14 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
             releaseUrl: best.url,
             publishedAt: ""
         )
+    }
+
+    private static func clientVersion(forTag tag: String, includeInternal: Bool) -> ClientVersion? {
+        let suffix = "-internal"
+        if tag.hasSuffix(suffix) {
+            guard includeInternal else { return nil }
+            return ClientVersion.companion.parse(value: String(tag.dropLast(suffix.count)))
+        }
+        return ClientVersion.companion.parse(value: tag)
     }
 }
