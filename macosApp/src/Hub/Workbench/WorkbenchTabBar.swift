@@ -88,7 +88,6 @@ struct WorkbenchTabBar: View {
         .padding(.horizontal, HubMetrics.tabBarHPadding)
         .frame(width: HubMetrics.tabBarWidth, height: HubMetrics.tabBarHeight)
         .controlSize(.small)
-        .animation(selectionAnimation, value: destination)
         .animation(interactionAnimation, value: hoveredTarget)
         .animation(interactionAnimation, value: focusedTarget)
         .accessibilityElement(children: .contain)
@@ -108,13 +107,16 @@ struct WorkbenchTabBar: View {
             homeLabel
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            NavigationGlassButtonStyle(
+                glass: navigationGlass(for: .home, isSelected: isSelected),
+                glassID: isSelected ? Self.selectionGlassID : nil,
+                namespace: selectionNamespace,
+                isFocused: focusedTarget == .home,
+                reduceMotion: reduceMotion
+            )
+        )
         .focused($focusedTarget, equals: .home)
-        .glassEffect(navigationGlass(for: .home, isSelected: isSelected), in: .capsule)
-        .glassEffectID(isSelected ? Self.selectionGlassID : nil, in: selectionNamespace)
-        .glassEffectTransition(.matchedGeometry)
-        .overlay { navigationFocusRing(for: .home) }
-        .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(ContractCopy.copyHubActionHome.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .onHover { inside in
@@ -217,13 +219,16 @@ struct WorkbenchTabBar: View {
             tabLabel(pane, isSelected: isSelected)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            NavigationGlassButtonStyle(
+                glass: navigationGlass(for: .pane(pane.id), isSelected: isSelected),
+                glassID: isSelected ? Self.selectionGlassID : nil,
+                namespace: selectionNamespace,
+                isFocused: focusedTarget == .pane(pane.id),
+                reduceMotion: reduceMotion
+            )
+        )
         .focused($focusedTarget, equals: .pane(pane.id))
-        .glassEffect(navigationGlass(for: .pane(pane.id), isSelected: isSelected), in: .capsule)
-        .glassEffectID(isSelected ? Self.selectionGlassID : nil, in: selectionNamespace)
-        .glassEffectTransition(.matchedGeometry)
-        .overlay { navigationFocusRing(for: .pane(pane.id)) }
-        .animation(selectionAnimation, value: isSelected)
         .accessibilityLabel(pane.title)
         .accessibilityHint(pane.tab.summary.text(for: language))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
@@ -235,7 +240,7 @@ struct WorkbenchTabBar: View {
     }
 
     private var selectionAnimation: Animation? {
-        reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch)
+        reduceMotion ? nil : .snappy(duration: HubMotion.tabSwitch, extraBounce: 0.12)
     }
 
     private var interactionAnimation: Animation? {
@@ -276,15 +281,6 @@ struct WorkbenchTabBar: View {
             return .regular.tint(MacTheme.accent.opacity(0.35)).interactive()
         }
         return .identity
-    }
-
-    @ViewBuilder
-    private func navigationFocusRing(for target: NavigationGlassTarget) -> some View {
-        if focusedTarget == target {
-            Capsule(style: .continuous)
-                .strokeBorder(Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: 2)
-                .allowsHitTesting(false)
-        }
     }
 
     /// 编辑模式里的拖动排序。跨过一条页签的宽度就换一次位置。
@@ -334,10 +330,16 @@ struct WorkbenchTabBar: View {
             pageActionLabel(action)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            NavigationGlassButtonStyle(
+                glass: navigationGlass(for: .pageAction, isSelected: false),
+                glassID: nil,
+                namespace: selectionNamespace,
+                isFocused: focusedTarget == .pageAction,
+                reduceMotion: reduceMotion
+            )
+        )
         .focused($focusedTarget, equals: .pageAction)
-        .glassEffect(navigationGlass(for: .pageAction, isSelected: false), in: .capsule)
-        .overlay { navigationFocusRing(for: .pageAction) }
         .accessibilityLabel(action.text(for: language))
         .onHover { hoveredTarget = $0 ? .pageAction : nil }
     }
@@ -358,4 +360,51 @@ private enum NavigationGlassTarget: Hashable {
     case home
     case pane(String)
     case pageAction
+}
+
+/// 导航按钮按下时的缩放。只影响渲染，不参与布局。
+enum WorkbenchNavigationPressFeedback {
+    static func scale(isPressed: Bool, reduceMotion: Bool) -> CGSize {
+        guard isPressed, !reduceMotion else { return CGSize(width: 1, height: 1) }
+        return CGSize(width: 0.97, height: 0.94)
+    }
+}
+
+/// 导航按钮的原生玻璃与按压反馈。
+///
+/// 玻璃仍由 SwiftUI 绘制。按压只改变渲染时的缩放，不改变按钮占位。
+/// 减弱动态效果时不做缩放，也不让选中玻璃来回弹。
+private struct NavigationGlassButtonStyle: ButtonStyle {
+    let glass: Glass
+    let glassID: String?
+    let namespace: Namespace.ID
+    let isFocused: Bool
+    let reduceMotion: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        let scale = WorkbenchNavigationPressFeedback.scale(
+            isPressed: configuration.isPressed,
+            reduceMotion: reduceMotion
+        )
+        configuration.label
+            .glassEffect(glass, in: .capsule)
+            .glassEffectID(glassID, in: namespace)
+            .glassEffectTransition(.matchedGeometry)
+            .overlay { focusRing }
+            .scaleEffect(x: scale.width, y: scale.height)
+            .animation(pressAnimation, value: configuration.isPressed)
+    }
+
+    @ViewBuilder
+    private var focusRing: some View {
+        if isFocused {
+            Capsule(style: .continuous)
+                .strokeBorder(Color(nsColor: .keyboardFocusIndicatorColor), lineWidth: 2)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private var pressAnimation: Animation? {
+        reduceMotion ? nil : .snappy(duration: HubMotion.tabSwitch, extraBounce: 0.08)
+    }
 }
