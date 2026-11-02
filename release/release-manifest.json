@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "productVersion": "0.6.0",
-  "clientVersion": "0.0.1.6",
-  "buildNumber": 16,
+  "clientVersion": "0.0.1.7",
+  "buildNumber": 17,
   "channel": "internal",
   "helperProtocolVersion": 10
 }
