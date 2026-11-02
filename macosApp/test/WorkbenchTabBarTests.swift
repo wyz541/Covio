@@ -78,27 +78,44 @@ final class WorkbenchTabBarTests: XCTestCase {
         XCTAssertEqual(withDone, withoutAction, "编辑模式的「完成」按钮让左侧元素横移了")
     }
 
-    /// 更新入口只占右端空间，不能挪动左侧导航。
-    func testTheUpdateBadgeDoesNotShiftTheLeadingContent() throws {
-        let withoutUpdate = try leadingInkColumn(pageAction: nil)
-        let withUpdate = try leadingInkColumn(
-            pageAction: nil,
-            updateVersion: "0.0.1.8"
+    /// 搜索框在首页入口前面，避免更新入口或页签挤压搜索栏。
+    func testTheSearchFieldComesBeforeHome() throws {
+        let url = Self.repositoryRoot
+            .appendingPathComponent("macosApp/src/Hub/Workbench/WorkbenchTabBar.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+
+        XCTAssertTrue(source.contains("            searchField\n            homeEntry\n"))
+    }
+
+    /// 更新入口在内容层右下角，不进入顶栏导航。
+    func testTheUpdateEntryStaysOutsideTheTabBar() throws {
+        let root = Self.repositoryRoot
+        let tabBar = try String(
+            contentsOf: root.appendingPathComponent("macosApp/src/Hub/Workbench/WorkbenchTabBar.swift"),
+            encoding: .utf8
         )
-        let withEditAndUpdate = try leadingInkColumn(
-            pageAction: ContractCopy.copyHubActionEdit,
-            updateVersion: "0.0.1.8"
+        let hub = try String(
+            contentsOf: root.appendingPathComponent("macosApp/src/Hub/HubView.swift"),
+            encoding: .utf8
         )
 
-        XCTAssertEqual(withUpdate, withoutUpdate, "更新入口让左侧元素横移了")
-        XCTAssertEqual(withEditAndUpdate, withoutUpdate, "更新入口与编辑按钮一起出现时，左侧元素横移了")
+        XCTAssertFalse(tabBar.contains("WorkbenchUpdateBadge"))
+        XCTAssertTrue(hub.contains(".overlay(alignment: .bottomTrailing)"))
+        XCTAssertTrue(hub.contains("WorkbenchUpdateBadge("))
+    }
+
+    /// 右下角入口仍需显示本地化标题和版本号。
+    func testTheUpdateBadgeShowsTheVersion() {
+        XCTAssertEqual(
+            WorkbenchUpdateBadge.title(version: "0.0.1.8", language: .simplifiedChinese),
+            "有可用更新 · 0.0.1.8"
+        )
     }
 
     /// 按 1 倍比例渲染一条顶栏，返回最左一列有墨迹的像素横坐标。
     private func leadingInkColumn(
         pageAction: LocalizedCopy?,
-        isEditing: Bool = false,
-        updateVersion: String? = nil
+        isEditing: Bool = false
     ) throws -> Int {
         let panes = panes()
         let bar = WorkbenchTabBar(
@@ -114,8 +131,7 @@ final class WorkbenchTabBarTests: XCTestCase {
             onSelect: { _ in },
             onReorder: { _, _ in },
             onPageAction: {},
-            onHover: { _, _ in },
-            availableUpdateVersion: updateVersion
+            onHover: { _, _ in }
         )
         let renderer = ImageRenderer(content: bar)
         renderer.scale = 1

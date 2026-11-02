@@ -42,7 +42,7 @@ struct TabReorderState {
 
 /// 挂帘顶部的横向页签栏。合同 `component/tab-bar`，`nativeSize` 是 960 × 46。
 ///
-/// 左端固定是首页入口，紧挨着搜索框，中间是工作区页签，右端是当前页的动作。
+/// 左端固定是搜索框，紧挨着首页入口，中间是工作区页签，右端是当前页的动作。
 /// 导航按钮默认透明。选中态使用淡强调色 regular 玻璃。
 /// 指针悬停与键盘焦点使用 regular 玻璃，并叠加高对比焦点环。
 /// 编辑模式里页签前面加拖动把手，横向拖过 84 点换一次位置。
@@ -64,12 +64,6 @@ struct WorkbenchTabBar: View {
     /// 顶栏上表示「去哪里」的两处 —— 首页入口与工作区页签 —— 都报。
     /// 搜索框与右端的动作按钮不报：它们表示「做什么」，滑过不该换页。
     let onHover: (HubDestination, Bool) -> Void
-    /// 有可用更新时显示版本号；无更新时右端不占更新入口。
-    var availableUpdateVersion: String? = nil
-    /// 更新检查进行中时禁用重复点击。
-    var isCheckingForUpdates = false
-    /// 点击更新入口。由运行时执行手动检查。
-    var onCheckForUpdates: () -> Void = {}
 
     /// 正在拖的页签 id，与这一次拖动已经挪过的条数。
     @State private var reorderID: String?
@@ -84,14 +78,11 @@ struct WorkbenchTabBar: View {
     @Namespace private var selectionNamespace
     var body: some View {
         HStack(spacing: HubMetrics.tabBarItemGap) {
-            homeEntry
             searchField
+            homeEntry
             tabStrip
             // 页签不够宽时，空位留在页签与动作位之间。左侧元素的位置因此不随页面变。
             Spacer(minLength: 0)
-            if let availableUpdateVersion {
-                updateBadge(availableUpdateVersion)
-            }
             pageActionSlot
         }
         .padding(.horizontal, HubMetrics.tabBarHPadding)
@@ -106,7 +97,7 @@ struct WorkbenchTabBar: View {
 
     // MARK: - 首页入口
 
-    /// 固定在左端，不参与排序，也不随页签滚动。
+    /// 固定在搜索框右侧，不参与排序，也不随页签滚动。
     private var homeEntry: some View {
         let isSelected = destination == .home
         return Button {
@@ -134,6 +125,7 @@ struct WorkbenchTabBar: View {
 
     // MARK: - 搜索
 
+    /// 固定在左端。搜索优先于首页入口，符合 macOS 工具条的阅读顺序。
     private var searchField: some View {
         HStack(spacing: MacTheme.space2) {
             Image(systemName: "magnifyingglass")
@@ -278,10 +270,6 @@ struct WorkbenchTabBar: View {
 
     /// 导航高亮使用原生 regular Liquid Glass。未选中且未交互时保持透明。
     private func navigationGlass(for target: NavigationGlassTarget, isSelected: Bool) -> Glass {
-        if target == .update {
-            let tintOpacity = hoveredTarget == target || focusedTarget == target ? 0.5 : 0.32
-            return .regular.tint(MacTheme.accent.opacity(tintOpacity)).interactive()
-        }
         if isSelected {
             return .regular.tint(MacTheme.accent).interactive()
         }
@@ -355,38 +343,6 @@ struct WorkbenchTabBar: View {
         .onHover { hoveredTarget = $0 ? .pageAction : nil }
     }
 
-    /// 更新入口。只在运行时发现新版本后出现，点击会重新执行手动检查。
-    private func updateBadge(_ version: String) -> some View {
-        let title = "\(ContractCopy.copyDialogUpdateTitle.text(for: language)) \(version)"
-        return Button(action: onCheckForUpdates) {
-            HStack(spacing: MacTheme.space1) {
-                if isCheckingForUpdates {
-                    ProgressView()
-                        .controlSize(.mini)
-                        .frame(width: 11, height: 11)
-                } else {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                Text(title)
-                    .font(.system(size: 11, weight: .medium))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(MacTheme.textPrimary)
-            .padding(.horizontal, HubMetrics.actionHPadding)
-            .frame(minWidth: HubMetrics.actionButtonMinWidth, minHeight: HubMetrics.tabHeight)
-            .contentShape(Capsule(style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .disabled(isCheckingForUpdates)
-        .focused($focusedTarget, equals: .update)
-        .glassEffect(navigationGlass(for: .update, isSelected: false), in: .capsule)
-        .overlay { navigationFocusRing(for: .update) }
-        .accessibilityLabel(title)
-        .accessibilityHint(ContractCopy.copyGeneralCheckUpdates.text(for: language))
-        .onHover { hoveredTarget = $0 ? .update : nil }
-    }
-
     private func pageActionLabel(_ action: LocalizedCopy) -> some View {
         Text(action.text(for: language))
             .font(.system(size: 12))
@@ -403,5 +359,4 @@ private enum NavigationGlassTarget: Hashable {
     case home
     case pane(String)
     case pageAction
-    case update
 }
