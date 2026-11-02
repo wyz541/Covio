@@ -93,6 +93,13 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertEqual(text.count(notes.TODO_MARKER), 2)
         self.assertIn("## 安装\n", text)
 
+    def test_draft_notes_accepts_client_version_heading(self):
+        current_heading = "## 从 0.6.0 internal build 13 到 build 14 的变化"
+        source = NOTES.replace("## 从 build 13 到 build 14 的变化", current_heading)
+        text = notes.draft_notes(source, self.previous, self.current, [])
+        self.assertIn("## 从 0.6.0 internal build 15 到 0.0.1.6 的变化", text)
+        self.assertNotIn(current_heading, text)
+
     def test_draft_notes_renames_version(self):
         current = notes.parse_tag("v0.0.2.0-internal")
         text = notes.draft_notes(NOTES, self.previous, current, [])
