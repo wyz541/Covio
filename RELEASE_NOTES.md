@@ -17,15 +17,23 @@ Covio 0.0.1.7 是内测版。
 
 ## 从 0.6.0 internal build 15 到 0.0.1.7 的变化
 
-<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
-
-- Adopt four-part client versions（#545）
-- Move closed-lid policy into the Screen card（#543）
-- Support solo developers in the issue workflow（#541）
+- 客户端版本改为纯数字四段格式。此版本显示为 `0.0.1.7`。
+- 设置 > 通用 增加版本卡片。版本卡片显示渠道、构建号、Git 短 SHA 和 helper 协议。
+- 产品版本 `0.6.0`、构建号 `17`、渠道、Git commit 和 helper 协议分别保存。
+- 已安装 build 15 可以直接升级到 build 17。
+- 事务安装会同时更新 app 和 helper。helper 协议升级到 `10`。
+- 监控页的 Screen 卡片统一管理合盖系统策略、合盖显示模式、合盖时长上限和外接屏暂停。
+- Power 卡片保留开盖状态下的空闲睡眠与安全护栏。
+- 更新检查只接受稳定的四段纯数字版本。
 
 ## 验证
 
-<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
+- `bash scripts/test-all.sh`：通过。
+- Kotlin、设计合同、发布脚本和 macOS SwiftUI CI：通过。
+- macOS XCTest：1004 个测试通过，3 个跳过。
+- 亮色和深色真机截图：通过。
+- build 15 旧 app、旧 helper 和 schema 1 安装记录迁移：通过。
+- update checker 的四段版本排序和 internal tag 排除：通过。
 
 ## 安装
 
