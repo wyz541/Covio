@@ -98,8 +98,8 @@ def release_asset_names(directory: pathlib.Path, version: str) -> tuple[str, ...
 
 def release_tag(spec: release.ReleaseSpec) -> str:
     if spec.channel == "internal":
-        return f"v{spec.product_version}-internal.{spec.build_number}"
-    return f"v{spec.product_version}"
+        return f"v{spec.client_version}-internal"
+    return f"v{spec.client_version}"
 
 
 def identity_errors(
@@ -120,6 +120,7 @@ def identity_errors(
     expected = {
         "releaseId": expected_release_id,
         "productVersion": source.product_version,
+        "clientVersion": source.client_version,
         "buildNumber": source.build_number,
         "gitCommit": commit,
         "helperProtocolVersion": source.helper_protocol_version,
@@ -129,6 +130,7 @@ def identity_errors(
     artifact_fields = {
         "releaseId": artifact.get("releaseId"),
         "productVersion": artifact.get("productVersion"),
+        "clientVersion": artifact.get("clientVersion"),
         "buildNumber": artifact.get("buildNumber"),
         "gitCommit": artifact.get("gitCommit"),
         "helperProtocolVersion": artifact.get("helperProtocolVersion"),
@@ -140,8 +142,10 @@ def identity_errors(
             errors.append(f"artifact {key} mismatch: {artifact_fields[key]!r} != {value!r}")
 
     app_expected = {
-        "CFBundleShortVersionString": source.product_version,
+        "CFBundleShortVersionString": source.client_version,
         "CFBundleVersion": str(source.build_number),
+        "CovioClientVersion": source.client_version,
+        "CovioProductVersion": source.product_version,
         "CovioReleaseId": expected_release_id,
         "CovioGitCommit": commit,
         "CovioHelperProtocolVersion": str(source.helper_protocol_version),
@@ -154,6 +158,7 @@ def identity_errors(
     helper_expected = {
         "releaseId": expected_release_id,
         "productVersion": source.product_version,
+        "clientVersion": source.client_version,
         "buildNumber": str(source.build_number),
         "gitCommit": commit,
         "protocolVersion": str(source.helper_protocol_version),
@@ -341,7 +346,7 @@ def evidence_for(
 ) -> dict[str, Any]:
     checksum_path = directory / "checksums.txt"
     assets: dict[str, dict[str, Any]] = {}
-    for name in (*release_asset_names(directory, source.product_version), "checksums.txt"):
+    for name in (*release_asset_names(directory, source.client_version), "checksums.txt"):
         path = directory / name
         if not path.is_file():
             raise ReleaseVerificationError(f"missing evidence asset: {name}")
@@ -354,6 +359,7 @@ def evidence_for(
         "channel": source.channel,
         "releaseId": artifact["releaseId"],
         "productVersion": source.product_version,
+        "clientVersion": source.client_version,
         "buildNumber": source.build_number,
         "gitCommit": artifact["gitCommit"],
         "helperProtocolVersion": source.helper_protocol_version,
@@ -477,11 +483,11 @@ def verify_release(
             f"source channel is {source.channel}, requested verification channel is {channel}"
         )
 
-    names = expected_asset_names(source.product_version)
+    names = expected_asset_names(source.client_version)
     for name in names:
         if not (directory / name).is_file():
             raise ReleaseVerificationError(f"missing release asset: {name}")
-    verify_checksums(directory, source.product_version)
+    verify_checksums(directory, source.client_version)
     size_errors = asset_size_errors(directory)
     if size_errors:
         raise ReleaseVerificationError("\n".join(size_errors))
@@ -580,7 +586,7 @@ def verify_release(
         finally:
             _detach_dmg(mount)
 
-        _, offline_name = release.installer_names(artifact, source.product_version)
+        _, offline_name = release.installer_names(artifact, source.client_version)
         if offline_name is not None:
             offline_mount = temp / "offline-dmg"
             try:
@@ -746,6 +752,8 @@ def render_notes(evidence: dict[str, Any], template: str) -> str:
             "## Release evidence",
             "",
             f"- Channel: `{evidence['channel']}`",
+            f"- Client version: `{evidence['clientVersion']}`",
+            f"- Product version: `{evidence['productVersion']}`",
             f"- Release ID: `{evidence['releaseId']}`",
             f"- Build: `{evidence['buildNumber']}`",
             f"- Git commit: `{evidence['gitCommit']}`",
@@ -793,9 +801,9 @@ def promotion_errors(channel: str, release_info: dict[str, Any], evidence: dict[
     if bool(release_info.get("isPrerelease")) != expected_prerelease:
         errors.append("draft prerelease flag does not match release channel")
     assets = evidence.get("assets", {})
-    version = evidence.get("productVersion")
+    version = evidence.get("clientVersion")
     if not isinstance(version, str):
-        errors.append("release evidence has no productVersion")
+        errors.append("release evidence has no clientVersion")
         return errors
     for name in expected_asset_names(version):
         if name not in assets:

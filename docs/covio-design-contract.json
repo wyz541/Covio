@@ -4380,6 +4380,30 @@
       "en": "Notifications",
       "zh-Hans": "通知"
     },
+    "copy/general/version/build": {
+      "en": "Build",
+      "zh-Hans": "构建编号"
+    },
+    "copy/general/version/channel": {
+      "en": "Channel",
+      "zh-Hans": "渠道"
+    },
+    "copy/general/version/client": {
+      "en": "Client",
+      "zh-Hans": "客户端版本"
+    },
+    "copy/general/version/git": {
+      "en": "Git",
+      "zh-Hans": "Git 提交"
+    },
+    "copy/general/version/helper": {
+      "en": "Helper",
+      "zh-Hans": "Helper 协议"
+    },
+    "copy/general/version/title": {
+      "en": "Version",
+      "zh-Hans": "版本"
+    },
     "copy/general/sleep-mode": {
       "en": "Sleep mode",
       "zh-Hans": "睡眠模式"

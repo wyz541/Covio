@@ -116,7 +116,8 @@ object HelperWire {
     fun versionReply(requestId: String, identity: HelperReleaseIdentity): HelperReply = success(
         requestId,
         mapOf(
-            "version" to identity.productVersion,
+            "version" to identity.clientVersion,
+            "clientVersion" to identity.clientVersion,
             "productVersion" to identity.productVersion,
             "buildNumber" to identity.buildNumber,
             "gitCommit" to identity.gitCommit,

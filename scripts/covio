@@ -79,6 +79,13 @@ main_tag() {
   rm -f "$manifest"
 }
 
+latest_published_tag() {
+  local repo="$1"
+  gh release list --repo "$repo" --limit 100 \
+    --json tagName,isDraft,publishedAt \
+    --jq '[.[] | select(.isDraft == false)] | sort_by(.publishedAt) | reverse | .[0].tagName // empty'
+}
+
 # 输出 draft、published 或 missing。
 release_state() {
   local tag="$1" repo="$2" draft
@@ -293,7 +300,8 @@ release_prepare() {
   fetch_main
   local repo previous_tag
   repo="$(repository)"
-  previous_tag="$(main_tag)"
+  previous_tag="$(latest_published_tag "$repo")"
+  [[ -n "$previous_tag" ]] || die "no published Release is available as the previous tag"
   # 上一个 build 未发布时再 bump，会让两个 build 号之间没有对应的 Release。
   if [[ "$(release_state "$previous_tag" "$repo")" != "published" ]]; then
     die "$previous_tag is not published. Run 'scripts/covio release draft' and 'publish' first."

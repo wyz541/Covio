@@ -15,8 +15,8 @@ class SmokeTest {
     @Test
     fun versionIsPresentAndParsable() {
         assertTrue(APP_VERSION.isNotBlank())
-        val parsed = SemanticVersion.parse(APP_VERSION)
+        val parsed = ClientVersion.parse(APP_VERSION)
         assertEquals(APP_VERSION, parsed?.toString())
-        assertTrue(isStableVersion(APP_VERSION), "发布版本不能带预发布后缀：$APP_VERSION")
+        assertTrue(isStableClientVersion(APP_VERSION), "发布版本必须使用四位数字版本：$APP_VERSION")
     }
 }

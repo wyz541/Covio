@@ -26,8 +26,7 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
-BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)"
+VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 TAG="$(python3 -I "$PIPELINE" tag --root "$ROOT")"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
@@ -118,7 +117,7 @@ python3 -I "$PIPELINE" operation \
 TITLE="Covio $VERSION"
 PRERELEASE=false
 if [[ "$CHANNEL" == "internal" ]]; then
-  TITLE="$TITLE (internal build $BUILD_NUMBER)"
+  TITLE="$TITLE (internal)"
   PRERELEASE=true
 fi
 

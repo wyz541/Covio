@@ -24,11 +24,12 @@ if [[ ! -f "$STATIC_FRAMEWORK/kmpDomain" ]]; then
   exit 1
 fi
 
-VERSION="${MARKETING_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)}"
+VERSION="${MARKETING_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)}"
+PRODUCT_VERSION="${COVIO_PRODUCT_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)}"
 BUILD_NUMBER="${CURRENT_PROJECT_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)}"
 CHANNEL="${COVIO_RELEASE_CHANNEL:-$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)}"
 COMMIT="${COVIO_GIT_COMMIT:-$(git -C "$ROOT" rev-parse HEAD)}"
-RELEASE_ID="${COVIO_RELEASE_ID:-$VERSION+$BUILD_NUMBER+$COMMIT}"
+RELEASE_ID="${COVIO_RELEASE_ID:-$VERSION-g$COMMIT}"
 PROTOCOL_VERSION="${COVIO_HELPER_PROTOCOL_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value helperProtocolVersion)}"
 
 mkdir -p "$OUT_DIR" "$INFO_DIR"
@@ -38,6 +39,8 @@ fi
 /usr/bin/ditto "$HELPER_INFO_SOURCE" "$HELPER_INFO"
 "$PLIST_BUDDY" -c "Set :CFBundleShortVersionString $VERSION" "$HELPER_INFO"
 "$PLIST_BUDDY" -c "Set :CFBundleVersion $BUILD_NUMBER" "$HELPER_INFO"
+"$PLIST_BUDDY" -c "Set :CovioClientVersion $VERSION" "$HELPER_INFO"
+"$PLIST_BUDDY" -c "Set :CovioProductVersion $PRODUCT_VERSION" "$HELPER_INFO"
 "$PLIST_BUDDY" -c "Set :CovioReleaseChannel $CHANNEL" "$HELPER_INFO"
 "$PLIST_BUDDY" -c "Set :CovioGitCommit $COMMIT" "$HELPER_INFO"
 "$PLIST_BUDDY" -c "Set :CovioReleaseId $RELEASE_ID" "$HELPER_INFO"

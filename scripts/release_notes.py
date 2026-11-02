@@ -20,7 +20,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TODO_MARKER = "TODO(release)"
 MERGE_SUBJECT = re.compile(r"^Merge pull request #(\d+) from [^/\s]+/(\S+)$")
 SQUASH_SUBJECT = re.compile(r"^(.*\S)\s+\(#(\d+)\)$")
-TAG = re.compile(r"^v(\d+\.\d+\.\d+)-internal\.(\d+)$")
+CURRENT_INTERNAL_TAG = re.compile(r"^v(\d\.\d\.\d\.\d)-internal$")
+LEGACY_INTERNAL_TAG = re.compile(r"^v(\d+\.\d+\.\d+)-internal\.(\d+)$")
 
 
 class NotesError(Exception):
@@ -36,18 +37,29 @@ class PullRequest:
 @dataclasses.dataclass(frozen=True)
 class InternalTag:
     version: str
-    build: int
+    build: int | None
+    tag_name: str
+    legacy: bool
 
     @property
     def name(self) -> str:
-        return f"v{self.version}-internal.{self.build}"
+        return self.tag_name
+
+    @property
+    def label(self) -> str:
+        if self.legacy:
+            return f"{self.version} internal build {self.build}"
+        return self.version
 
 
 def parse_tag(tag: str) -> InternalTag:
-    match = TAG.fullmatch(tag)
-    if not match:
-        raise NotesError(f"not an internal release tag: {tag}")
-    return InternalTag(match.group(1), int(match.group(2)))
+    current = CURRENT_INTERNAL_TAG.fullmatch(tag)
+    if current:
+        return InternalTag(current.group(1), None, tag, False)
+    legacy = LEGACY_INTERNAL_TAG.fullmatch(tag)
+    if legacy:
+        return InternalTag(legacy.group(1), int(legacy.group(2)), tag, True)
+    raise NotesError(f"not an internal release tag: {tag}")
 
 
 def merged_pull_requests(log: str) -> list[PullRequest]:
@@ -93,7 +105,10 @@ def draft_notes(text: str, previous: InternalTag, current: InternalTag, pulls: l
     lines = text.splitlines(keepends=True)
     if not lines or not lines[0].startswith("# "):
         raise NotesError("RELEASE_NOTES.md must start with a level-1 heading")
-    lines[0] = f"# Covio {current.version}（内测 build {current.build}）\n"
+    if current.legacy:
+        lines[0] = f"# Covio {current.version}（内测 build {current.build}）\n"
+    else:
+        lines[0] = f"# Covio {current.version}\n"
     text = "".join(lines)
     if previous.version != current.version:
         text = text.replace(previous.version, current.version)
@@ -101,7 +116,7 @@ def draft_notes(text: str, previous: InternalTag, current: InternalTag, pulls: l
     items = [f"- {pull.title}（#{pull.number}）" for pull in pulls] or ["- 无已合并的 PR。"]
     changes = "\n".join(
         [
-            f"## 从 build {previous.build} 到 build {current.build} 的变化",
+            f"## 从 {previous.label} 到 {current.label} 的变化",
             "",
             f"<!-- {TODO_MARKER}: 按用户可见的变化重写本节，然后删除本注释。 -->",
             "",
@@ -124,12 +139,10 @@ def draft_notes(text: str, previous: InternalTag, current: InternalTag, pulls: l
 
 
 def update_readme(text: str, previous: InternalTag, current: InternalTag) -> str:
-    current_line = re.compile(r"^Covio \S+-internal\.\d+ is the current internal build\.$", re.M)
+    current_line = re.compile(r"^Covio \S+(?:-internal\.\d+)? is the current internal build\.$", re.M)
     if not current_line.search(text):
         raise NotesError("README.md has no 'is the current internal build.' line")
-    text = current_line.sub(
-        f"Covio {current.version}-internal.{current.build} is the current internal build.", text
-    )
+    text = current_line.sub(f"Covio {current.version} is the current internal build.", text)
 
     repository = re.search(r"https://github\.com/([^/\s]+/[^/\s]+)/releases/", text)
     if not repository:
@@ -157,7 +170,7 @@ def update_readme(text: str, previous: InternalTag, current: InternalTag) -> str
         )
     lines.insert(
         following,
-        f"- [Covio {previous.version} internal build {previous.build}]"
+        f"- [Covio {previous.label}]"
         f"({base}/tag/{previous.name}) is the previous internal test.\n",
     )
     return "".join(lines)
@@ -165,7 +178,11 @@ def update_readme(text: str, previous: InternalTag, current: InternalTag) -> str
 
 def check_notes(text: str, current: InternalTag) -> list[str]:
     errors: list[str] = []
-    expected = f"# Covio {current.version}（内测 build {current.build}）"
+    expected = (
+        f"# Covio {current.version}（内测 build {current.build}）"
+        if current.legacy
+        else f"# Covio {current.version}"
+    )
     first = text.splitlines()[0] if text else ""
     if first != expected:
         errors.append(f"RELEASE_NOTES.md heading is {first!r}, expected {expected!r}")

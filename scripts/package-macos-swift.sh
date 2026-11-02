@@ -53,7 +53,8 @@ if [[ ! -f "$ICON" ]]; then
   exit 1
 fi
 python3 -I "$ROOT/scripts/release_manifest.py" check-clean
-VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
+VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
+PRODUCT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)"
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
@@ -62,7 +63,7 @@ INTERNAL_SIGNING_BASELINE="$ROOT/build/internal-signing-$APP_ID.json"
 DMG_PATH="$DIST/$APP_NAME-$VERSION.dmg"
 APP_ZIP="$DIST/$APP_NAME-$VERSION.app.zip"
 PKG_PATH="$DIST/$APP_NAME-$VERSION.pkg"
-TRANSACTION_ID="build-$BUILD_NUMBER-${COMMIT:0:12}"
+TRANSACTION_ID="client-$VERSION-${COMMIT:0:12}"
 STAGED_APP_RELATIVE="Library/Application Support/Covio/Installer/staged/$APP_NAME.app"
 STAGED_APP_PATH="/$STAGED_APP_RELATIVE"
 OFFLINE_DMG="$DIST/$APP_NAME-Offline-$VERSION.dmg"
@@ -155,6 +156,8 @@ xcodebuild \
   ONLY_ACTIVE_ARCH=NO \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+  COVIO_CLIENT_VERSION="$VERSION" \
+  COVIO_PRODUCT_VERSION="$PRODUCT_VERSION" \
   COVIO_GIT_COMMIT="$COMMIT" \
   COVIO_RELEASE_ID="$RELEASE_ID" \
   "${XCODE_SIGN_ARGS[@]}" \
@@ -230,6 +233,8 @@ require_plist() {
 # 版本从 release manifest 走到 MARKETING_VERSION，再经 Info.plist 落进包内。
 require_plist CFBundleShortVersionString "$VERSION"
 require_plist CFBundleVersion "$BUILD_NUMBER"
+require_plist CovioClientVersion "$VERSION"
+require_plist CovioProductVersion "$PRODUCT_VERSION"
 require_plist CovioReleaseChannel "$CHANNEL"
 require_plist CovioGitCommit "$COMMIT"
 require_plist CovioReleaseId "$RELEASE_ID"
@@ -390,7 +395,8 @@ HELPER_SHA256="$(/usr/bin/plutil -extract helperSHA256 raw -o - "$BUNDLED_MANIFE
 cat > "$PKG_SCRIPTS/transaction.env" <<EOF
 TRANSACTION_ID='$TRANSACTION_ID'
 EXPECTED_RELEASE_ID='$RELEASE_ID'
-EXPECTED_PRODUCT_VERSION='$VERSION'
+EXPECTED_CLIENT_VERSION='$VERSION'
+EXPECTED_PRODUCT_VERSION='$PRODUCT_VERSION'
 EXPECTED_BUILD_NUMBER='$BUILD_NUMBER'
 EXPECTED_COMMIT='$COMMIT'
 EXPECTED_PROTOCOL_VERSION='$(python3 -I "$ROOT/scripts/release_manifest.py" value helperProtocolVersion)'
@@ -423,7 +429,7 @@ PKG_COMMAND=(
   --scripts "$PKG_SCRIPTS"
   --install-location "/"
   --identifier "$APP_ID.pkg"
-  --version "$VERSION.$BUILD_NUMBER"
+  --version "$VERSION"
 )
 if [[ ${#PKG_SIGN_ARGS[@]} -gt 0 ]]; then
   PKG_COMMAND+=("${PKG_SIGN_ARGS[@]}")

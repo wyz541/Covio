@@ -165,6 +165,7 @@ enum CovioMain {
     private static func identityObject(_ identity: HelperReleaseIdentity) -> [String: String] {
         [
             "releaseId": identity.releaseId,
+            "clientVersion": identity.clientVersion,
             "productVersion": identity.productVersion,
             "buildNumber": identity.buildNumber,
             "gitCommit": identity.gitCommit,
@@ -342,7 +343,8 @@ enum CovioMain {
         let status = ops.status()
         print("socket=\(HelperProtocol.socketPath)")
         print("exists=\(exists)")
-        print("version=\(identity?.productVersion ?? probe?.result["version"] ?? "nil")")
+        print("version=\(identity?.clientVersion ?? probe?.result["version"] ?? "nil")")
+        print("productVersion=\(identity?.productVersion ?? "nil")")
         print("buildNumber=\(identity?.buildNumber ?? "nil")")
         print("gitCommit=\(identity?.gitCommit ?? "nil")")
         print("releaseId=\(identity?.releaseId ?? "nil")")

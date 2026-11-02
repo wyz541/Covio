@@ -30,7 +30,7 @@ fi
 python3 -I "$MODEL_VERIFY" --manifest "$MODEL_MANIFEST" verify-directory "$FILE_NAMING_MODEL_DIR"
 
 python3 -I "$ROOT/scripts/release_manifest.py" check-clean
-VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
+VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 INTERNAL_SIGNING_BASELINE="$ROOT/build/internal-signing-$APP_ID.json"

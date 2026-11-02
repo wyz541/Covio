@@ -30,7 +30,7 @@ covio_tx_load_environment() {
     source "$environment_file"
     local key
     for key in \
-        TRANSACTION_ID EXPECTED_RELEASE_ID EXPECTED_PRODUCT_VERSION \
+        TRANSACTION_ID EXPECTED_RELEASE_ID EXPECTED_CLIENT_VERSION EXPECTED_PRODUCT_VERSION \
         EXPECTED_BUILD_NUMBER EXPECTED_COMMIT EXPECTED_PROTOCOL_VERSION \
         EXPECTED_HELPER_SHA256 EXPECTED_CHANNEL
     do
@@ -155,16 +155,41 @@ covio_tx_identity_value() {
     printf '%s' "${!name:-}"
 }
 
+covio_tx_plist_has_key() {
+    local file="$1"
+    local key="$2"
+    "$COVIO_TX_PLUTIL" -extract "$key" raw -o - "$file" >/dev/null 2>&1
+}
+
+covio_tx_client_version_for_build() {
+    local build="$1"
+    local digits
+    [[ "$build" =~ ^[1-9][0-9]{0,3}$ ]] || return 1
+    printf -v digits '%04d' "$build"
+    printf '%s.%s.%s.%s\n' \
+        "${digits:0:1}" "${digits:1:1}" "${digits:2:1}" "${digits:3:1}"
+}
+
 covio_tx_load_info_identity() {
     local app="$1"
     local prefix="$2"
     local info="$app/Contents/Info.plist"
     local helper="$app/Contents/MacOS/CovioHelper"
+    local build
     if [[ ! -f "$info" || ! -x "$helper" ]]; then
         return 1
     fi
-    printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$info" CFBundleShortVersionString)"
-    printf -v "${prefix}_BUILD_NUMBER" '%s' "$(covio_tx_plist_raw "$info" CFBundleVersion)"
+    build="$(covio_tx_plist_raw "$info" CFBundleVersion)"
+    printf -v "${prefix}_BUILD_NUMBER" '%s' "$build"
+    if covio_tx_plist_has_key "$info" CovioClientVersion; then
+        printf -v "${prefix}_IDENTITY_FORMAT" '%s' modern
+        printf -v "${prefix}_CLIENT_VERSION" '%s' "$(covio_tx_plist_raw "$info" CovioClientVersion)"
+        printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$info" CovioProductVersion)"
+    else
+        printf -v "${prefix}_IDENTITY_FORMAT" '%s' legacy
+        printf -v "${prefix}_CLIENT_VERSION" '%s' "$(covio_tx_client_version_for_build "$build")"
+        printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$info" CFBundleShortVersionString)"
+    fi
     printf -v "${prefix}_GIT_COMMIT" '%s' "$(covio_tx_plist_raw "$info" CovioGitCommit)"
     printf -v "${prefix}_RELEASE_ID" '%s' "$(covio_tx_plist_raw "$info" CovioReleaseId)"
     printf -v "${prefix}_PROTOCOL_VERSION" '%s' "$(covio_tx_plist_raw "$info" CovioHelperProtocolVersion)"
@@ -179,9 +204,18 @@ covio_tx_load_info_identity() {
 covio_tx_load_manifest_identity() {
     local file="$1"
     local prefix="$2"
+    local build
     [[ -f "$file" ]] || return 1
+    build="$(covio_tx_plist_raw "$file" buildNumber)"
+    printf -v "${prefix}_BUILD_NUMBER" '%s' "$build"
+    if covio_tx_plist_has_key "$file" clientVersion; then
+        printf -v "${prefix}_IDENTITY_FORMAT" '%s' modern
+        printf -v "${prefix}_CLIENT_VERSION" '%s' "$(covio_tx_plist_raw "$file" clientVersion)"
+    else
+        printf -v "${prefix}_IDENTITY_FORMAT" '%s' legacy
+        printf -v "${prefix}_CLIENT_VERSION" '%s' "$(covio_tx_client_version_for_build "$build")"
+    fi
     printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$file" productVersion)"
-    printf -v "${prefix}_BUILD_NUMBER" '%s' "$(covio_tx_plist_raw "$file" buildNumber)"
     printf -v "${prefix}_GIT_COMMIT" '%s' "$(covio_tx_plist_raw "$file" gitCommit)"
     printf -v "${prefix}_RELEASE_ID" '%s' "$(covio_tx_plist_raw "$file" releaseId)"
     printf -v "${prefix}_PROTOCOL_VERSION" '%s' "$(covio_tx_plist_raw "$file" helperProtocolVersion)"
@@ -195,6 +229,7 @@ covio_tx_load_helper_identity() {
     local helper="$app/Contents/MacOS/CovioHelper"
     local output_file="$TX_TRANSACTION_ROOT/helper-identity-$prefix.json"
     local error_file="$TX_TRANSACTION_ROOT/helper-identity-$prefix.stderr"
+    local build
     mkdir -p "$TX_TRANSACTION_ROOT"
     if "$helper" --print-release-identity >"$output_file" 2>"$error_file"; then
         :
@@ -211,8 +246,16 @@ covio_tx_load_helper_identity() {
         covio_tx_log "Helper identity output is invalid for $prefix: ${output_text:-<empty>}"
         return 1
     fi
+    build="$(covio_tx_plist_raw "$output_file" buildNumber)"
+    printf -v "${prefix}_BUILD_NUMBER" '%s' "$build"
+    if covio_tx_plist_has_key "$output_file" clientVersion; then
+        printf -v "${prefix}_IDENTITY_FORMAT" '%s' modern
+        printf -v "${prefix}_CLIENT_VERSION" '%s' "$(covio_tx_plist_raw "$output_file" clientVersion)"
+    else
+        printf -v "${prefix}_IDENTITY_FORMAT" '%s' legacy
+        printf -v "${prefix}_CLIENT_VERSION" '%s' "$(covio_tx_client_version_for_build "$build")"
+    fi
     printf -v "${prefix}_PRODUCT_VERSION" '%s' "$(covio_tx_plist_raw "$output_file" productVersion)"
-    printf -v "${prefix}_BUILD_NUMBER" '%s' "$(covio_tx_plist_raw "$output_file" buildNumber)"
     printf -v "${prefix}_GIT_COMMIT" '%s' "$(covio_tx_plist_raw "$output_file" gitCommit)"
     printf -v "${prefix}_RELEASE_ID" '%s' "$(covio_tx_plist_raw "$output_file" releaseId)"
     printf -v "${prefix}_PROTOCOL_VERSION" '%s' "$(covio_tx_plist_raw "$output_file" protocolVersion)"
@@ -222,7 +265,9 @@ covio_tx_load_helper_identity() {
 
 covio_tx_validate_prefix() {
     local prefix="$1"
-    local version build commit release_id protocol channel helper_sha
+    local format client_version expected_client_version version build commit release_id protocol channel helper_sha
+    format="$(covio_tx_identity_value "$prefix" IDENTITY_FORMAT)"
+    client_version="$(covio_tx_identity_value "$prefix" CLIENT_VERSION)"
     version="$(covio_tx_identity_value "$prefix" PRODUCT_VERSION)"
     build="$(covio_tx_identity_value "$prefix" BUILD_NUMBER)"
     commit="$(covio_tx_identity_value "$prefix" GIT_COMMIT)"
@@ -230,20 +275,34 @@ covio_tx_validate_prefix() {
     protocol="$(covio_tx_identity_value "$prefix" PROTOCOL_VERSION)"
     channel="$(covio_tx_identity_value "$prefix" CHANNEL)"
     helper_sha="$(covio_tx_identity_value "$prefix" HELPER_SHA256)"
+    [[ "$format" == "modern" || "$format" == "legacy" ]] || return 1
+    [[ "$client_version" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]$ ]] || return 1
     [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || return 1
-    [[ "$build" =~ ^[1-9][0-9]*$ ]] || return 1
+    [[ "$build" =~ ^[1-9][0-9]{0,3}$ ]] || return 1
+    expected_client_version="$(covio_tx_client_version_for_build "$build")" || return 1
+    [[ "$client_version" == "$expected_client_version" ]] || return 1
     [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || return 1
     [[ "$protocol" =~ ^[1-9][0-9]*$ ]] || return 1
     [[ "$channel" == "internal" || "$channel" == "public" ]] || return 1
     [[ "$helper_sha" =~ ^[0-9a-f]{64}$ ]] || return 1
-    [[ "$release_id" == "$version+$build+$commit" ]]
+    if [[ "$format" == "modern" ]]; then
+        [[ "$release_id" == "$client_version-g$commit" ]]
+    else
+        [[ "$release_id" == "$version+$build+$commit" ]]
+    fi
+}
+
+covio_tx_validate_modern_prefix() {
+    local prefix="$1"
+    [[ "$(covio_tx_identity_value "$prefix" IDENTITY_FORMAT)" == "modern" ]] &&
+        covio_tx_validate_prefix "$prefix"
 }
 
 covio_tx_prefixes_equal() {
     local left="$1"
     local right="$2"
     local field value
-    for field in PRODUCT_VERSION BUILD_NUMBER GIT_COMMIT RELEASE_ID PROTOCOL_VERSION CHANNEL HELPER_SHA256
+    for field in IDENTITY_FORMAT CLIENT_VERSION PRODUCT_VERSION BUILD_NUMBER GIT_COMMIT RELEASE_ID PROTOCOL_VERSION CHANNEL HELPER_SHA256
     do
         value="$(covio_tx_identity_value "$left" "$field")"
         if [[ "$value" != "$(covio_tx_identity_value "$right" "$field")" ]]; then
@@ -253,8 +312,9 @@ covio_tx_prefixes_equal() {
 }
 
 covio_tx_validate_expected_identity() {
-    if [[ ! "$EXPECTED_PRODUCT_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ||
-          ! "$EXPECTED_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ||
+    if [[ ! "$EXPECTED_CLIENT_VERSION" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]$ ||
+          ! "$EXPECTED_PRODUCT_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ||
+          ! "$EXPECTED_BUILD_NUMBER" =~ ^[1-9][0-9]{0,3}$ ||
           ! "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ||
           ! "$EXPECTED_PROTOCOL_VERSION" =~ ^[1-9][0-9]*$ ||
           ! "$EXPECTED_HELPER_SHA256" =~ ^[0-9a-f]{64}$ ||
@@ -262,9 +322,14 @@ covio_tx_validate_expected_identity() {
         covio_tx_log "Signed installer identity has invalid fields"
         return 1
     fi
+    if [[ "$EXPECTED_CLIENT_VERSION" != \
+          "$(covio_tx_client_version_for_build "$EXPECTED_BUILD_NUMBER")" ]]; then
+        covio_tx_log "Expected clientVersion does not match buildNumber"
+        return 1
+    fi
     if [[ "$EXPECTED_RELEASE_ID" != \
-          "$EXPECTED_PRODUCT_VERSION+$EXPECTED_BUILD_NUMBER+$EXPECTED_COMMIT" ]]; then
-        covio_tx_log "Expected releaseId does not match its version, build and commit"
+          "$EXPECTED_CLIENT_VERSION-g$EXPECTED_COMMIT" ]]; then
+        covio_tx_log "Expected releaseId does not match its client version and commit"
         return 1
     fi
     if [[ -n "${NEW_HELPER_SHA256:-}" &&
@@ -352,18 +417,18 @@ covio_tx_verify_new_app() {
         return 1
     fi
     if ! covio_tx_load_info_identity "$app" NEW ||
-       ! covio_tx_validate_prefix NEW; then
+       ! covio_tx_validate_modern_prefix NEW; then
         covio_tx_log "Staged app identity is incomplete or invalid"
         return 1
     fi
     covio_tx_verify_signatures "$app" "$(covio_tx_identity_value NEW CHANNEL)" || return 1
     if ! covio_tx_load_manifest_identity "$manifest" NEW_MANIFEST ||
-       ! covio_tx_validate_prefix NEW_MANIFEST; then
+       ! covio_tx_validate_modern_prefix NEW_MANIFEST; then
         covio_tx_log "Staged release manifest is incomplete or invalid"
         return 1
     fi
     if ! covio_tx_load_helper_identity "$app" NEW_HELPER ||
-       ! covio_tx_validate_prefix NEW_HELPER; then
+       ! covio_tx_validate_modern_prefix NEW_HELPER; then
         covio_tx_log "Staged helper identity cannot be read"
         return 1
     fi
@@ -372,7 +437,8 @@ covio_tx_verify_new_app() {
         covio_tx_log "Staged app, manifest and helper identities differ"
         return 1
     fi
-    if [[ "$(covio_tx_identity_value NEW PRODUCT_VERSION)" != "$EXPECTED_PRODUCT_VERSION" ||
+    if [[ "$(covio_tx_identity_value NEW CLIENT_VERSION)" != "$EXPECTED_CLIENT_VERSION" ||
+          "$(covio_tx_identity_value NEW PRODUCT_VERSION)" != "$EXPECTED_PRODUCT_VERSION" ||
           "$(covio_tx_identity_value NEW BUILD_NUMBER)" != "$EXPECTED_BUILD_NUMBER" ||
           "$(covio_tx_identity_value NEW RELEASE_ID)" != "$EXPECTED_RELEASE_ID" ||
           "$(covio_tx_identity_value NEW GIT_COMMIT)" != "$EXPECTED_COMMIT" ||
@@ -422,8 +488,9 @@ covio_tx_write_identity_record() {
     local output="$2"
     local temporary="$output.tmp.$$"
     "$COVIO_TX_PLUTIL" -create xml1 "$temporary" >/dev/null
-    "$COVIO_TX_PLUTIL" -insert schemaVersion -integer 1 "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert schemaVersion -integer 2 "$temporary" >/dev/null
     "$COVIO_TX_PLUTIL" -insert releaseId -string "$(covio_tx_identity_value "$prefix" RELEASE_ID)" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert clientVersion -string "$(covio_tx_identity_value "$prefix" CLIENT_VERSION)" "$temporary" >/dev/null
     "$COVIO_TX_PLUTIL" -insert productVersion -string "$(covio_tx_identity_value "$prefix" PRODUCT_VERSION)" "$temporary" >/dev/null
     "$COVIO_TX_PLUTIL" -insert buildNumber -integer "$(covio_tx_identity_value "$prefix" BUILD_NUMBER)" "$temporary" >/dev/null
     "$COVIO_TX_PLUTIL" -insert gitCommit -string "$(covio_tx_identity_value "$prefix" GIT_COMMIT)" "$temporary" >/dev/null

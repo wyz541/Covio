@@ -8,6 +8,7 @@ package com.wyz.covio.core
  */
 data class HelperReleaseIdentity(
     val releaseId: String,
+    val clientVersion: String,
     val productVersion: String,
     val buildNumber: String,
     val gitCommit: String,
@@ -19,12 +20,14 @@ data class HelperReleaseIdentity(
 /** 发布身份解析与比较。只有实现放在共享层，两个宿主不会各写一套规则。 */
 object HelperReleaseHandshake {
     private val SEMVER = Regex("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$")
+    private val CLIENT_VERSION = Regex("^\\d\\.\\d\\.\\d\\.\\d$")
     private val COMMIT = Regex("^[0-9a-f]{40}$")
     private val SHA256 = Regex("^[0-9a-f]{64}$")
     private val CHANNELS = setOf("internal", "public")
 
     private val IDENTITY_FIELDS = setOf(
         "releaseId",
+        "clientVersion",
         "productVersion",
         "buildNumber",
         "gitCommit",
@@ -35,6 +38,7 @@ object HelperReleaseHandshake {
     /** 解析 `version` 应答中的完整身份。缺字段或格式错误时返回 null。 */
     fun parse(result: Map<String, String>): HelperReleaseIdentity? {
         val releaseId = result["releaseId"]?.trim().orEmpty()
+        val clientVersion = result["clientVersion"]?.trim().orEmpty()
         val productVersion = result["productVersion"]?.trim().orEmpty()
         val buildNumber = result["buildNumber"]?.trim().orEmpty()
         val gitCommit = result["gitCommit"]?.trim().orEmpty()
@@ -44,16 +48,18 @@ object HelperReleaseHandshake {
         val build = buildNumber.toLongOrNull()
         val protocol = protocolVersion.toIntOrNull()
 
+        if (!CLIENT_VERSION.matches(clientVersion)) return null
         if (!SEMVER.matches(productVersion)) return null
         if (build == null || build < 1 || build.toString() != buildNumber) return null
         if (!COMMIT.matches(gitCommit)) return null
         if (protocol == null || protocol < 1 || protocol.toString() != protocolVersion) return null
         if (!SHA256.matches(helperSHA256)) return null
         if (channel !in CHANNELS) return null
-        if (releaseId != "$productVersion+$buildNumber+$gitCommit") return null
+        if (releaseId != "$clientVersion-g$gitCommit") return null
 
         return HelperReleaseIdentity(
             releaseId = releaseId,
+            clientVersion = clientVersion,
             productVersion = productVersion,
             buildNumber = buildNumber,
             gitCommit = gitCommit,
@@ -85,9 +91,9 @@ object HelperReleaseHandshake {
     }
 
     private fun isOlder(observed: HelperReleaseIdentity, expected: HelperReleaseIdentity): Boolean {
-        val observedVersion = versionParts(observed.productVersion) ?: return false
-        val expectedVersion = versionParts(expected.productVersion) ?: return false
-        for (index in 0..2) {
+        val observedVersion = clientVersionParts(observed.clientVersion) ?: return false
+        val expectedVersion = clientVersionParts(expected.clientVersion) ?: return false
+        for (index in 0..3) {
             if (observedVersion[index] != expectedVersion[index]) {
                 return observedVersion[index] < expectedVersion[index]
             }
@@ -97,7 +103,7 @@ object HelperReleaseHandshake {
         return observedBuild < expectedBuild
     }
 
-    private fun versionParts(version: String): List<Long>? =
-        SEMVER.matchEntire(version)?.groupValues?.drop(1)?.mapNotNull(String::toLongOrNull)
-            ?.takeIf { it.size == 3 }
+    private fun clientVersionParts(version: String): List<Long>? =
+        CLIENT_VERSION.matchEntire(version)?.value?.split('.')?.mapNotNull(String::toLongOrNull)
+            ?.takeIf { it.size == 4 }
 }

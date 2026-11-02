@@ -62,7 +62,7 @@ expected_version() {
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as stream:
-    print(json.load(stream)["productVersion"])
+    print(json.load(stream)["clientVersion"])
 PY
 }
 
@@ -136,6 +136,7 @@ helper = json.loads(sys.argv[2])
 digest = sys.argv[3]
 fields = (
     "releaseId",
+    "clientVersion",
     "productVersion",
     "buildNumber",
     "gitCommit",
@@ -300,10 +301,24 @@ cmd_selftest() {
   local requirement="$helper_dir/client-requirement"
   local version_file="$helper_dir/version"
   local marker="$helper_dir/Covio.app"
-  local version release_id commit
+  local version product_version protocol commit release_id
   version="$(expected_version)"
+  product_version="$(python3 -I - "$ROOT/release/release-manifest.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    print(json.load(stream)["productVersion"])
+PY
+)"
+  protocol="$(python3 -I - "$ROOT/release/release-manifest.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    print(json.load(stream)["helperProtocolVersion"])
+PY
+)"
   commit="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-  release_id="$version+3+$commit"
+  release_id="$version-g$commit"
 
   mkdir -p "$app/Contents/MacOS" "$helper_dir/bin"
   cat > "$app_binary" <<STUB
@@ -311,7 +326,7 @@ cmd_selftest() {
 helper_sha="\$(/usr/bin/shasum -a 256 "\$0" | /usr/bin/awk '{print \$1}')"
 case "\${1:-}" in
   --print-release-identity)
-    printf '%s\n' '{"releaseId":"$release_id","productVersion":"$version","buildNumber":"3","gitCommit":"$commit","protocolVersion":"9","helperSHA256":"'\$helper_sha'","channel":"internal"}'
+    printf '%s\n' '{"releaseId":"$release_id","clientVersion":"$version","productVersion":"$product_version","buildNumber":"3","gitCommit":"$commit","protocolVersion":"$protocol","helperSHA256":"'\$helper_sha'","channel":"internal"}'
     ;;
   --verify-install-transaction)
     [[ "\${COVIO_SELFTEST_VERIFY_RESULT:-1}" == "1" ]]

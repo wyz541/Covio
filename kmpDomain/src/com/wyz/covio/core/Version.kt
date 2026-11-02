@@ -1,5 +1,35 @@
 package com.wyz.covio.core
 
+data class ClientVersion(
+    val thousands: Int,
+    val hundreds: Int,
+    val tens: Int,
+    val ones: Int,
+) : Comparable<ClientVersion> {
+    override fun compareTo(other: ClientVersion): Int {
+        compareValues(thousands, other.thousands).takeIf { it != 0 }?.let { return it }
+        compareValues(hundreds, other.hundreds).takeIf { it != 0 }?.let { return it }
+        compareValues(tens, other.tens).takeIf { it != 0 }?.let { return it }
+        return compareValues(ones, other.ones)
+    }
+
+    override fun toString(): String = "$thousands.$hundreds.$tens.$ones"
+
+    companion object {
+        private val pattern = Regex("^[vV]?(\\d)\\.(\\d)\\.(\\d)\\.(\\d)$")
+
+        fun parse(value: String): ClientVersion? {
+            val match = pattern.matchEntire(value.trim()) ?: return null
+            return ClientVersion(
+                thousands = match.groupValues[1].toIntOrNull() ?: return null,
+                hundreds = match.groupValues[2].toIntOrNull() ?: return null,
+                tens = match.groupValues[3].toIntOrNull() ?: return null,
+                ones = match.groupValues[4].toIntOrNull() ?: return null,
+            )
+        }
+    }
+}
+
 data class SemanticVersion(
     val major: Int,
     val minor: Int,
@@ -60,5 +90,13 @@ fun isStableVersion(value: String): Boolean = SemanticVersion.parse(value)?.prer
 fun isNewerVersion(candidate: String, current: String): Boolean {
     val left = SemanticVersion.parse(candidate) ?: return false
     val right = SemanticVersion.parse(current) ?: return false
+    return left > right
+}
+
+fun isStableClientVersion(value: String): Boolean = ClientVersion.parse(value) != null
+
+fun isNewerClientVersion(candidate: String, current: String): Boolean {
+    val left = ClientVersion.parse(candidate) ?: return false
+    val right = ClientVersion.parse(current) ?: return false
     return left > right
 }
