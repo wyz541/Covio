@@ -434,6 +434,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         // Visual QA uses an isolated support directory and skips the global hotkey.
         if ProcessInfo.processInfo.environment["COVIO_HUB_PREVIEW"] == "1" {
+            NSApp.setActivationPolicy(.regular)
             Task { @MainActor in
                 if let rawSection = ProcessInfo.processInfo.environment["COVIO_SETTINGS_PREVIEW_SECTION"],
                    let section = SettingsSection(rawValue: rawSection)
@@ -443,6 +444,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 // 固定打开，避免指针不在面板内时自动收起，截图才可复现。
                 self.shell.showFromGesture()
+                NSApp.activate(ignoringOtherApps: true)
             }
         }
         #endif
