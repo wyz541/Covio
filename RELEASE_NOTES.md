@@ -1,6 +1,7 @@
-# Covio 0.0.1.8
+# Covio 0.0.1.9
 
-Covio 0.0.1.8 是内测版。
+Covio 0.0.1.9 是内测版。
+此版本是自动更新的迁移桥。
 此版本不用于公开分发。
 
 ## 系统要求
@@ -15,37 +16,38 @@ Covio 0.0.1.8 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-## 从 0.0.1.7 到 0.0.1.8 的变化
+从 0.0.1.8 升级时，请使用事务安装 PKG。
+只安装 DMG 不会安装 root updater。
+事务安装 PKG 最多请求 1 次管理员授权。
 
-- 工作台顶栏把搜索框移到首页入口左侧。
-- 工作台导航不再显示助手和设置页签。
-- 用户从菜单栏状态项打开设置。
-- 助手成为设置分节。对话、本地模型和外部 Agent 服务使用同一入口。
-- 发现新版本时，工作台右下角显示带版本号的更新入口。
-- 用户点击更新入口后，Covio 执行手动检查。
-- 旧工作台配置继续保留隐藏的助手和设置记录，升级不删除用户数据。
+## 从 0.0.1.8 到 0.0.1.9 的变化
+
+- 设置新增自动更新开关、手动检查、安装和重启状态。
+- 首次安装迁移 PKG 会安装独立 root updater。
+- 后续 internal 更新由 updater 下载、验证并安装。
+- 更新覆盖 app、helper、updater engine 和安装记录。
+- 更新失败时事务恢复旧组件。
+- 自动更新只接受固定 internal Release 和签名 manifest。
+- 普通自动更新不替换不可变 launcher 和 LaunchDaemon。
+- 工作流文档改为精简的 Issue 和 PR 流程。
 
 ## 验证
 
-- `bash scripts/test-all.sh`：通过。
-- Kotlin：970 个测试通过。
-- macOS XCTest：1012 个测试通过，3 个跳过。
-- 发布脚本和设计合同校验：通过。
+- 自动更新 manifest 的签名、摘要、渠道、版本和 URL 校验：通过。
+- app、helper 和 updater 的原子事务、握手失败回滚和 launcher 保留：通过。
+- 设置页亮色和深色 Before/After 真机截图：通过。
 - GitHub Actions 的 Contract、Kotlin 和 macOS SwiftUI：通过。
-- 亮色和深色真机截图：通过。
-- 真机检查：搜索框在首页左侧，导航栏无助手和设置。
-- 真机检查：设置包含助手分节。
-- 真机检查：更新入口在工作台右下角，点击后执行更新检查。
-- Release 资产验证和事务安装 PKG 安装验收：通过。
+- `bash scripts/test-all.sh`：通过。
+- 本版从 0.0.1.8 到 0.0.1.9 的迁移安装验收记录在 #563。
+- 0.0.1.9 到 0.0.2.0 的无管理员更新验收记录在 #563。
 
 ## 安装
 
-1. 打开 `Covio-0.0.1.8.dmg`。
-2. 将 `Covio.app` 拖入 `Applications`。
-3. 打开 `Covio.app`。
-4. 打开 AI 功能并确认模型下载。
-
-事务安装与升级使用 `Covio-0.0.1.8.pkg`。
+1. 下载 `Covio-0.0.1.9.pkg`。
+2. 打开 PKG 并完成 1 次管理员授权。
+3. PKG 完成 app、helper 和 updater 的事务安装。
+4. 打开 `Covio.app`。
+5. 打开设置，确认自动更新状态和手动检查入口。
 
 **警告：** 此构建使用本地签名。
 macOS Gatekeeper 可能阻止此构建。
@@ -60,8 +62,8 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 - 使用测试 Mac。
 - 风扇控制会写入 SMC 值，并需要全局特权 helper。
 - 合盖保持会增加电池消耗。
-- 更新检查读取 GitHub Releases 页面。
-- 更新检查忽略 pre-release。
+- 自动更新仅使用 internal 渠道。
+- 更新私钥不随 app、Release 或安装包分发。
 
 ## 本版不包含
 
@@ -69,6 +71,5 @@ xattr -dr com.apple.quarantine /Applications/Covio.app
 - Developer ID 签名。
 - Apple 公证。
 - 公开分发。
-- 自动安装更新。
 - Intel 或 Universal 2 构建。
 - App Store 构建。
