@@ -32,7 +32,7 @@ jobs:
           path: |
             ~/.konan
             ~/Library/Caches/JetBrains/Kotlin
-          key: kotlin-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}-${{ github.sha }}
+          key: kotlin-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}
           restore-keys: |
             kotlin-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}-
             kotlin-${{ runner.os }}-
@@ -101,7 +101,7 @@ jobs:
             build/kmp-framework
             build/kmp-framework-static
             ~/Library/Caches/JetBrains/Kotlin
-          key: macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-${{ hashFiles('macosApp/Covio.xcodeproj/project.pbxproj', 'macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'kmpDomain/module.yaml', 'app/module.yaml') }}-${{ github.sha }}
+          key: macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-${{ hashFiles('macosApp/Covio.xcodeproj/project.pbxproj', 'macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'kmpDomain/module.yaml', 'app/module.yaml') }}
           restore-keys: |
             macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-${{ hashFiles('macosApp/Covio.xcodeproj/project.pbxproj', 'macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'kmpDomain/module.yaml', 'app/module.yaml') }}-
             macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-
