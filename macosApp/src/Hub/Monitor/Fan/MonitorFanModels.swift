@@ -75,6 +75,100 @@ struct MonitorFanCurvePoint: Codable, Equatable, Sendable, Identifiable {
     var id: String { "\(temperature)-\(rpm)" }
 }
 
+/// 用户可选的统一风扇策略。
+///
+/// 除系统策略外，其余策略共享一条温度到风量百分比的曲线。`manual` 只用于
+/// 兼容旧版保存的手动配置，不再出现在新的策略选择器中。
+enum MonitorFanPreset: String, Codable, CaseIterable, Sendable {
+    case system
+    case quiet
+    case compile
+    case sustained
+    case custom
+    /// 旧版按风扇保存的 RPM 曲线。读取后由弹窗迁移到共享自定义曲线。
+    case legacy
+    case manual
+
+    static let selectable: [MonitorFanPreset] = [
+        .system,
+        .quiet,
+        .compile,
+        .sustained,
+        .custom,
+    ]
+
+    var mode: MonitorFanMode {
+        switch self {
+        case .system:
+            .automatic
+        case .manual:
+            .manual
+        default:
+            .curve
+        }
+    }
+
+    var isCurvePreset: Bool {
+        switch self {
+        case .quiet, .compile, .sustained, .custom:
+            true
+        case .system, .legacy, .manual:
+            false
+        }
+    }
+
+    var isEditable: Bool {
+        isCurvePreset
+    }
+
+    /// 内置曲线是策略的初始值。用户拖动节点后，配置保存同名覆盖曲线。
+    var defaultPoints: [MonitorFanPresetPoint] {
+        switch self {
+        case .quiet:
+            [
+                .init(temperature: 40, percent: 12),
+                .init(temperature: 55, percent: 20),
+                .init(temperature: 70, percent: 35),
+                .init(temperature: 85, percent: 55),
+                .init(temperature: 95, percent: 75),
+            ]
+        case .compile:
+            [
+                .init(temperature: 40, percent: 20),
+                .init(temperature: 55, percent: 35),
+                .init(temperature: 70, percent: 55),
+                .init(temperature: 85, percent: 78),
+                .init(temperature: 95, percent: 95),
+            ]
+        case .sustained:
+            [
+                .init(temperature: 40, percent: 28),
+                .init(temperature: 55, percent: 42),
+                .init(temperature: 70, percent: 58),
+                .init(temperature: 85, percent: 75),
+                .init(temperature: 95, percent: 90),
+            ]
+        case .custom:
+            [
+                .init(temperature: 40, percent: 15),
+                .init(temperature: 55, percent: 30),
+                .init(temperature: 70, percent: 50),
+                .init(temperature: 90, percent: 68),
+            ]
+        case .system, .legacy, .manual:
+            []
+        }
+    }
+}
+
+/// 一条风扇曲线的控制点。纵轴是风量百分比，不是某一台风扇的 RPM。
+struct MonitorFanPresetPoint: Codable, Equatable, Sendable, Identifiable {
+    var temperature: Double
+    var percent: Double
+
+    var id: String { "\(temperature)-\(percent)" }
+}
+
 enum MonitorFanTemperatureSource: String, Codable, CaseIterable, Sendable {
     case cpu
     case gpu
@@ -144,6 +238,8 @@ struct MonitorFanTemperatureRuleDraft: Equatable, Sendable {
 struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var enabled: Bool = false
     var mode: MonitorFanMode = .automatic
+    /// 当前用户策略。新界面以这个字段为准，`mode` 只镜像 helper 的控制模式。
+    var selectedPreset: MonitorFanPreset = .system
     var startCelsius: Double = 58
     var fullCelsius: Double = 86
     var selectedSensorKeys: [String] = []
@@ -159,12 +255,15 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
     var batteryCurves: [String: [MonitorFanCurvePoint]] = [:]
     /// CPU、GPU 或电池来源对应的温度到风扇百分比控制点。
     var temperatureRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
+    /// 用户改过的共享预设曲线。缺少条目时使用该预设的默认曲线。
+    var presetPoints: [String: [MonitorFanPresetPoint]] = [:]
 
     static let defaultValue = MonitorFanConfiguration()
 
     init(
         enabled: Bool = false,
         mode: MonitorFanMode = .automatic,
+        selectedPreset: MonitorFanPreset? = nil,
         startCelsius: Double = 58,
         fullCelsius: Double = 86,
         selectedSensorKeys: [String] = [],
@@ -174,10 +273,12 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         powerSource: MonitorFanPowerSource = .adapter,
         curves: [String: [MonitorFanCurvePoint]] = [:],
         batteryCurves: [String: [MonitorFanCurvePoint]] = [:],
-        temperatureRules: [String: [MonitorFanTemperatureRulePoint]] = [:]
+        temperatureRules: [String: [MonitorFanTemperatureRulePoint]] = [:],
+        presetPoints: [String: [MonitorFanPresetPoint]] = [:]
     ) {
         self.enabled = enabled
         self.mode = mode
+        self.selectedPreset = selectedPreset ?? Self.preset(for: mode)
         self.startCelsius = startCelsius
         self.fullCelsius = fullCelsius
         self.selectedSensorKeys = selectedSensorKeys
@@ -188,11 +289,13 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         self.curves = curves
         self.batteryCurves = batteryCurves
         self.temperatureRules = temperatureRules
+        self.presetPoints = presetPoints
     }
 
     private enum CodingKeys: String, CodingKey {
         case enabled
         case mode
+        case selectedPreset
         case startCelsius
         case fullCelsius
         case selectedSensorKeys
@@ -203,6 +306,7 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         case curves
         case batteryCurves
         case temperatureRules
+        case presetPoints
     }
 
     init(from decoder: Decoder) throws {
@@ -211,6 +315,11 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         let storedMode = try container.decodeIfPresent(MonitorFanMode.self, forKey: .mode) ?? .automatic
         // 旧版 enabled + automatic 表示自动曲线。新版 automatic 表示系统自动。
         mode = enabled && storedMode == .automatic ? .curve : storedMode
+        let decodedPreset = try container.decodeIfPresent(
+            MonitorFanPreset.self,
+            forKey: .selectedPreset
+        )
+        selectedPreset = decodedPreset ?? Self.preset(for: mode)
         startCelsius = try container.decodeIfPresent(Double.self, forKey: .startCelsius) ?? 58
         fullCelsius = try container.decodeIfPresent(Double.self, forKey: .fullCelsius) ?? 86
         selectedSensorKeys = try container.decodeIfPresent([String].self, forKey: .selectedSensorKeys) ?? []
@@ -239,12 +348,17 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         temperatureRules = MonitorFanTemperatureRule.migratedBatteryDefaults(
             in: decodedTemperatureRules
         )
+        presetPoints = try container.decodeIfPresent(
+            [String: [MonitorFanPresetPoint]].self,
+            forKey: .presetPoints
+        ) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(enabled, forKey: .enabled)
         try container.encode(mode, forKey: .mode)
+        try container.encode(selectedPreset, forKey: .selectedPreset)
         try container.encode(startCelsius, forKey: .startCelsius)
         try container.encode(fullCelsius, forKey: .fullCelsius)
         try container.encode(selectedSensorKeys, forKey: .selectedSensorKeys)
@@ -255,6 +369,15 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         try container.encode(curves, forKey: .curves)
         try container.encode(batteryCurves, forKey: .batteryCurves)
         try container.encode(temperatureRules, forKey: .temperatureRules)
+        try container.encode(presetPoints, forKey: .presetPoints)
+    }
+
+    private static func preset(for mode: MonitorFanMode) -> MonitorFanPreset {
+        switch mode {
+        case .automatic: .system
+        case .curve: .legacy
+        case .manual: .manual
+        }
     }
 
     func normalized(fanMinimums: [Int: Double] = [:], fanMaximums: [Int: Double] = [:]) -> Self {
@@ -326,10 +449,86 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
             }
         }
         copy.temperatureRules = normalizedRules
+
+        var normalizedPresets: [String: [MonitorFanPresetPoint]] = [:]
+        for (rawPreset, points) in presetPoints {
+            guard let preset = MonitorFanPreset(rawValue: rawPreset),
+                  preset.isEditable
+            else { continue }
+            let normalizedPoints = MonitorFanPresetCurve.normalized(points)
+            if normalizedPoints.count >= 2 {
+                normalizedPresets[rawPreset] = normalizedPoints
+            }
+        }
+        copy.presetPoints = normalizedPresets
         return copy
     }
 
+    func points(for preset: MonitorFanPreset = .system) -> [MonitorFanPresetPoint] {
+        let resolved = preset == .system ? selectedPreset : preset
+        guard resolved.isEditable else { return [] }
+        return presetPoints[resolved.rawValue] ?? resolved.defaultPoints
+    }
+
+    var activePresetPoints: [MonitorFanPresetPoint] {
+        points(for: selectedPreset)
+    }
+
+    func presetTargetPercent(at temperature: Double) -> Double? {
+        guard selectedPreset.isCurvePreset else { return nil }
+        return MonitorFanPresetCurve.targetPercent(
+            points: activePresetPoints,
+            temperature: temperature
+        )
+    }
+
+    func isPresetCustomized(_ preset: MonitorFanPreset = .system) -> Bool {
+        let resolved = preset == .system ? selectedPreset : preset
+        return presetPoints[resolved.rawValue] != nil
+    }
+
+    mutating func setPresetPoints(
+        _ points: [MonitorFanPresetPoint],
+        for preset: MonitorFanPreset = .system
+    ) {
+        let resolved = preset == .system ? selectedPreset : preset
+        guard resolved.isEditable else { return }
+        let normalizedPoints = MonitorFanPresetCurve.normalized(points)
+        guard normalizedPoints.count >= 2 else { return }
+        presetPoints[resolved.rawValue] = normalizedPoints
+    }
+
+    mutating func resetPreset(_ preset: MonitorFanPreset = .system) {
+        let resolved = preset == .system ? selectedPreset : preset
+        guard resolved.isEditable else { return }
+        presetPoints.removeValue(forKey: resolved.rawValue)
+    }
+
+    /// 把共享百分比曲线换算成每台风扇的 RPM 曲线，供现有 helper 协议使用。
+    mutating func materializePresetCurves(for units: [MonitorFanReading.Unit]) {
+        guard selectedPreset.isCurvePreset else { return }
+        let points = activePresetPoints
+        var materialized: [String: [MonitorFanCurvePoint]] = [:]
+        for fan in units {
+            materialized[String(fan.index)] = points.map { point in
+                MonitorFanCurvePoint(
+                    temperature: point.temperature,
+                    rpm: MonitorFanPercent.rpm(
+                        percent: point.percent,
+                        minimumRPM: fan.minimumRPM,
+                        maximumRPM: fan.maximumRPM
+                    )
+                )
+            }
+        }
+        curves = materialized
+        batteryCurves = materialized
+    }
+
     func controlTemperature(in reading: MonitorFanReading) -> Double? {
+        if selectedPreset.isCurvePreset {
+            return reading.controlTemperature(selectedKeys: Set(selectedSensorKeys))
+        }
         let sources = enabledTemperatureSources
         if !sources.isEmpty {
             let readings = temperatureSourceReadings(in: reading)
@@ -369,6 +568,9 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
 
     /// 返回 helper 当前应使用的曲线。电池曲线缺少某台风扇时，沿用该风扇的插电曲线。
     var activePowerCurves: [String: [MonitorFanCurvePoint]] {
+        if selectedPreset.isCurvePreset {
+            return curves
+        }
         guard powerSource == .battery else { return curves }
         var resolved = curves
         for (key, points) in batteryCurves {
@@ -384,6 +586,21 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         maximumRPM: Double,
         source: MonitorFanCurveSource? = nil
     ) -> [MonitorFanCurvePoint] {
+        if selectedPreset.isCurvePreset {
+            if let points = curves[String(fanIndex)], points.count >= 2 {
+                return points
+            }
+            return activePresetPoints.map { point in
+                MonitorFanCurvePoint(
+                    temperature: point.temperature,
+                    rpm: MonitorFanPercent.rpm(
+                        percent: point.percent,
+                        minimumRPM: minimumRPM,
+                        maximumRPM: maximumRPM
+                    )
+                )
+            }
+        }
         let curveSource = source ?? powerSource.curveSource
         let key = String(fanIndex)
         if let points = customCurves(for: curveSource)[key], points.count >= 2 {
@@ -469,9 +686,10 @@ struct MonitorFanConfiguration: Codable, Equatable, Sendable {
         let manualModeText = manualModes.isEmpty
             ? ""
             : (try? encoder.encode(manualModes)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
-        let temperatureRuleText = temperatureRules.isEmpty
+        let helperTemperatureRules = selectedPreset.isCurvePreset ? [:] : temperatureRules
+        let temperatureRuleText = helperTemperatureRules.isEmpty
             ? ""
-            : (try? encoder.encode(temperatureRules)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            : (try? encoder.encode(helperTemperatureRules)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
         return [
             "enabled": enabled ? "true" : "false",
             "mode": mode == .automatic ? "auto" : mode.rawValue,
@@ -494,7 +712,7 @@ enum MonitorFanPolicy {
     static let minimumStartCelsius = 35.0
     static let maximumStartCelsius = 80.0
     static let minimumCurveCelsius = 40.0
-    static let maximumFullCelsius = 105.0
+    static let maximumFullCelsius = 100.0
     static let maximumCurvePointCount = 8
     static let minimumRuleCelsius = 20.0
     static let maximumRuleCelsius = 105.0
@@ -717,6 +935,83 @@ enum MonitorFanPercent {
         let fraction = min(100, max(0, percent)) / 100
         // 百分比按最高转速计算；低于最低转速时保留安全下限。
         return max(safeMinimum, safeMaximum * fraction)
+    }
+}
+
+enum MonitorFanPresetCurve {
+    static func normalized(
+        _ points: [MonitorFanPresetPoint]
+    ) -> [MonitorFanPresetPoint] {
+        var byTemperature: [Double: MonitorFanPresetPoint] = [:]
+        for point in points where point.temperature.isFinite && point.percent.isFinite {
+            let temperature = min(
+                MonitorFanPolicy.maximumFullCelsius,
+                max(MonitorFanPolicy.minimumCurveCelsius, point.temperature.rounded())
+            )
+            let percent = min(100, max(0, point.percent.rounded()))
+            byTemperature[temperature] = MonitorFanPresetPoint(
+                temperature: temperature,
+                percent: percent
+            )
+        }
+        let sorted = byTemperature.values.sorted { $0.temperature < $1.temperature }
+        var spaced: [MonitorFanPresetPoint] = []
+        for point in sorted {
+            if let previous = spaced.last,
+               point.temperature - previous.temperature < 1 {
+                continue
+            }
+            spaced.append(point)
+        }
+        guard spaced.count > MonitorFanPolicy.maximumCurvePointCount else {
+            return spaced
+        }
+        let lastIndex = spaced.count - 1
+        let interval = Double(lastIndex) / Double(MonitorFanPolicy.maximumCurvePointCount - 1)
+        return (0..<MonitorFanPolicy.maximumCurvePointCount).map { slot in
+            spaced[Int((Double(slot) * interval).rounded())]
+        }
+    }
+
+    static func targetPercent(
+        points: [MonitorFanPresetPoint],
+        temperature: Double
+    ) -> Double? {
+        let sorted = normalized(points)
+        guard let first = sorted.first, let last = sorted.last else { return nil }
+        if temperature <= first.temperature { return first.percent }
+        if temperature >= last.temperature { return last.percent }
+        let value = zip(sorted, sorted.dropFirst()).first { left, right in
+            temperature <= right.temperature
+        }.map { left, right in
+            let fraction = (temperature - left.temperature)
+                / max(0.001, right.temperature - left.temperature)
+            return left.percent + (right.percent - left.percent) * fraction
+        } ?? last.percent
+        return min(100, max(0, value))
+    }
+
+    static func editableTemperatureRange(
+        index: Int,
+        points: [MonitorFanPresetPoint]
+    ) -> ClosedRange<Double> {
+        guard points.indices.contains(index) else {
+            return MonitorFanPolicy.minimumCurveCelsius...MonitorFanPolicy.maximumFullCelsius
+        }
+        let lower = index > points.startIndex
+            ? points[index - 1].temperature + 1
+            : MonitorFanPolicy.minimumCurveCelsius
+        let upper = index < points.index(before: points.endIndex)
+            ? points[index + 1].temperature - 1
+            : MonitorFanPolicy.maximumFullCelsius
+        if lower >= upper {
+            return points[index].temperature...points[index].temperature
+        }
+        return lower...upper
+    }
+
+    static func currentPercent(in reading: MonitorFanReading) -> Double? {
+        reading.maximumUsageFraction.map { min(100, max(0, $0 * 100)) }
     }
 }
 

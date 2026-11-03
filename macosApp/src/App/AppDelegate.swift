@@ -234,6 +234,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 defer: false
             )
             window.title = "Covio Fan Control Preview"
+            window.isOpaque = false
+            window.backgroundColor = .clear
             let isDark = ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
                 .lowercased() == "dark"
             let colorScheme: ColorScheme = isDark ? .dark : .light

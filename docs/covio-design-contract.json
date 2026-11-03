@@ -4783,6 +4783,74 @@
       "en": "Fan",
       "zh-Hans": "风扇"
     },
+    "copy/monitor/fan/strategy": {
+      "en": "Strategy",
+      "zh-Hans": "策略"
+    },
+    "copy/monitor/fan/return-to-macos": {
+      "en": "Return to macOS",
+      "zh-Hans": "交回 macOS"
+    },
+    "copy/monitor/fan/curve-summary": {
+      "en": "One curve controls both fans. Temperature runs left to right; airflow runs bottom to top.",
+      "zh-Hans": "只有一条曲线。左右是温度，上下是转速。两个风扇都听它的。"
+    },
+    "copy/monitor/fan/preset-system": {
+      "en": "System",
+      "zh-Hans": "系统"
+    },
+    "copy/monitor/fan/preset-quiet": {
+      "en": "Quiet",
+      "zh-Hans": "安静"
+    },
+    "copy/monitor/fan/preset-compile": {
+      "en": "Compile",
+      "zh-Hans": "编译"
+    },
+    "copy/monitor/fan/preset-sustained": {
+      "en": "Sustained",
+      "zh-Hans": "持续"
+    },
+    "copy/monitor/fan/preset-custom": {
+      "en": "Custom",
+      "zh-Hans": "自定义"
+    },
+    "copy/monitor/fan/preset-curve": {
+      "en": "Preset curve",
+      "zh-Hans": "预设曲线"
+    },
+    "copy/monitor/fan/reset-preset": {
+      "en": "Reset preset",
+      "zh-Hans": "恢复预设"
+    },
+    "copy/monitor/fan/precise-adjust": {
+      "en": "Precise adjustment",
+      "zh-Hans": "精确调节"
+    },
+    "copy/monitor/fan/airflow": {
+      "en": "Airflow",
+      "zh-Hans": "风量"
+    },
+    "copy/monitor/fan/preset-legend": {
+      "en": "Line: preset airflow",
+      "zh-Hans": "实线：预设风量"
+    },
+    "copy/monitor/fan/preset-current": {
+      "en": "Current: %@",
+      "zh-Hans": "当前：%@"
+    },
+    "copy/monitor/fan/preset-a11y": {
+      "en": "Fan preset curve",
+      "zh-Hans": "风扇预设曲线"
+    },
+    "copy/monitor/fan/left": {
+      "en": "Left fan",
+      "zh-Hans": "左风扇"
+    },
+    "copy/monitor/fan/right": {
+      "en": "Right fan",
+      "zh-Hans": "右风扇"
+    },
     "copy/monitor/fan/all-fans": {
       "en": "All fans",
       "zh-Hans": "全部风扇"
@@ -4884,8 +4952,8 @@
       "zh-Hans": "系统控制"
     },
     "copy/monitor/fan/system-control-body": {
-      "en": "Switching to Covio curve or manual speed lets Covio take control.",
-      "zh-Hans": "切换到 Covio 曲线或手动转速后，Covio 会接管。"
+      "en": "Choose Quiet, Compile, Sustained, or Custom to let Covio take control.",
+      "zh-Hans": "选择安静、编译、持续或自定义策略后，Covio 会接管。"
     },
     "copy/monitor/fan/system-control-title": {
       "en": "macOS is controlling the fans",

@@ -9,6 +9,7 @@ struct MonitorFanCard: View {
 
     @State private var popoverPresented = false
     @State private var popoverID = UUID().uuidString
+    @Environment(\.monitorFanForceOpaqueSurface) private var forceOpaqueSurface
 
     private var controlTemperature: Double? {
         model.configuration.controlTemperature(in: reading)
@@ -70,7 +71,8 @@ struct MonitorFanCard: View {
             accent: MonitorCardKind.fan.accent,
             language: language,
             combinesAccessibility: false,
-            statusIndicator: statusIndicator
+            statusIndicator: statusIndicator,
+            glassInteractive: true
         ) {
             VStack(alignment: .leading, spacing: MacTheme.space2) {
                 HStack(spacing: MacTheme.space3) {
@@ -185,9 +187,10 @@ struct MonitorFanCard: View {
                     .rotationEffect(popoverPresented ? .degrees(90) : .zero)
             }
             .contentShape(Rectangle())
+            .padding(.horizontal, 8)
             .frame(minHeight: 24)
         }
-        .buttonStyle(.plain)
+        .modifier(MonitorFanGlassButtonStyleModifier(forceOpaque: forceOpaqueSurface))
         .accessibilityLabel(ContractCopy.copyMonitorFanA11yOpen.text(for: language))
     }
 
@@ -229,7 +232,9 @@ private enum MonitorFanControlCopy {
         reading: MonitorFanReading,
         language: AppLanguage
     ) -> String {
-        let sources = configuration.enabledTemperatureSources
+        let sources = configuration.selectedPreset.isCurvePreset
+            ? []
+            : configuration.enabledTemperatureSources
         if sources.count == 1, let source = sources.first {
             return String(
                 format: ContractCopy.copyMonitorFanControlSource.text(for: language),
@@ -278,6 +283,10 @@ struct MonitorFanPopover: View {
     @State private var sensorsExpanded = false
     @State private var sensorQuery = ""
     @State private var advancedExpanded = false
+    @State private var hoveredPreset: MonitorFanPreset?
+    @Namespace private var strategyGlassNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.monitorFanForceOpaqueSurface) private var forceOpaqueSurface
 
     private var sourceTemperatures: [MonitorFanTemperatureSource: Double] {
         var values = model.configuration.temperatureSourceReadings(in: reading)
@@ -288,10 +297,6 @@ struct MonitorFanPopover: View {
     }
 
     private var controlTemperature: Double? {
-        let sources = model.configuration.enabledTemperatureSources
-        if !sources.isEmpty {
-            return sources.compactMap { sourceTemperatures[$0] }.max()
-        }
         return model.configuration.controlTemperature(in: reading)
     }
 
@@ -305,15 +310,15 @@ struct MonitorFanPopover: View {
 
     private var preferredHeight: CGFloat {
         if model.configuration.mode == .automatic {
-            return 280
+            return 300
         }
         if advancedExpanded {
-            return 800
-        }
-        if model.configuration.mode == .manual {
             return 760
         }
-        return 360
+        if model.configuration.mode == .manual {
+            return 560
+        }
+        return 600
     }
 
     var body: some View {
@@ -331,18 +336,17 @@ struct MonitorFanPopover: View {
         }
         .padding(16)
         .frame(width: 420, height: preferredHeight, alignment: .topLeading)
-        .tint(MonitorCardKind.fan.accent)
+        .tint(MonitorFanPresetStyle.accent)
+        .animation(reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch), value: hoveredPreset)
         .onAppear {
             if sensorsInitiallyExpanded {
                 sensorsExpanded = true
             }
-            if advancedInitiallyExpanded || MonitorFanPolicy.expandsAdvanced(for: model.configuration.mode) {
+            if advancedInitiallyExpanded {
                 advancedExpanded = true
             }
+            model.migrateLegacyPresetIfNeeded(reading: reading)
             model.refreshFanControlStatus()
-        }
-        .onChange(of: model.configuration.mode) { _, mode in
-            advancedExpanded = MonitorFanPolicy.expandsAdvanced(for: mode)
         }
         .task {
             while !Task.isCancelled {
@@ -362,87 +366,72 @@ struct MonitorFanPopover: View {
             if !helperReady {
                 helperCallout
             }
-            if isControllingFans {
-                takeoverBanner
-            } else {
+            if model.configuration.selectedPreset == .system {
                 systemControlCallout
             }
             controls
-            if model.configuration.enabled,
-               model.configuration.enabledTemperatureSources.isEmpty {
-                sensorSection
-            }
         }
         .padding(.bottom, 4)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(ContractCopy.copyMonitorFanDetails.text(for: language))
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(MonitorCardKind.fan.accent)
-
-            VStack(spacing: 4) {
-                ForEach(reading.units) { fan in
-                    fanHeaderRow(fan)
-                }
-            }
-
-            HStack(spacing: 4) {
-                Text(ContractCopy.copyMonitorFanControlTemperature.text(for: language))
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(MacTheme.textPrimary)
-                Text(MonitorFanFormat.temperature(controlTemperature))
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(MacTheme.textPrimary)
-                    .monospacedDigit()
-                Text("·")
-                    .foregroundStyle(MacTheme.textSecondary)
-                Text(controlSummaryText)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(reading.units) { fan in
+                fanHeaderRow(fan)
             }
         }
     }
 
     private func fanHeaderRow(_ fan: MonitorFanReading.Unit) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "fanblades.fill")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(MonitorCardKind.fan.accent)
-                .frame(width: 14)
-            Text(String(
-                format: ContractCopy.copyMonitorFanUnit.text(for: language),
-                fan.index + 1
-            ))
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(MacTheme.textPrimary)
-            Spacer(minLength: 0)
-            Text(MonitorFanFormat.rpm(fan.rpm))
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(MacTheme.textPrimary)
-                .monospacedDigit()
-            Image(systemName: "arrow.right")
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundStyle(MacTheme.textSecondary)
-            Text(MonitorFanFormat.targetRPM(displayedTargetRPM(for: fan)))
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(MonitorCardKind.fan.accent)
-                .monospacedDigit()
-            Text(ContractCopy.copyMonitorFanTarget.text(for: language))
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(MacTheme.textSecondary)
+        let fraction = fan.usageFraction
+        let percent = fraction.map { MonitorFormat.percent($0) } ?? "—"
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(fanDisplayName(fan))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                Spacer(minLength: 0)
+                Text("\(percent) · \(MonitorFanFormat.rpm(fan.rpm))")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(MacTheme.textSecondary)
+                    .monospacedDigit()
+            }
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(MacTheme.textSecondary.opacity(0.16))
+                        .glassEffect(forceOpaqueSurface ? .identity : .clear, in: .capsule)
+                    Capsule()
+                        .fill(MonitorFanPresetStyle.accent.opacity(0.92))
+                        .frame(width: geometry.size.width * min(1, max(0, fraction ?? 0)))
+                        .glassEffect(
+                            forceOpaqueSurface
+                                ? .identity
+                                : .regular.tint(MonitorFanPresetStyle.accent.opacity(0.72)),
+                            in: .capsule
+                        )
+                }
+            }
+            .frame(height: 6)
         }
-        .frame(minHeight: 24)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(
-            format: ContractCopy.copyMonitorFanUnit.text(for: language),
-            fan.index + 1
-        ))
+        .accessibilityLabel(fanDisplayName(fan))
         .accessibilityValue(
-            "\(ContractCopy.copyMonitorFanActual.text(for: language)) \(MonitorFanFormat.rpm(fan.rpm)), "
+            "\(percent), \(MonitorFanFormat.rpm(fan.rpm)), "
             + "\(ContractCopy.copyMonitorFanTarget.text(for: language)) "
             + MonitorFanFormat.targetRPM(displayedTargetRPM(for: fan))
+        )
+    }
+
+    private func fanDisplayName(_ fan: MonitorFanReading.Unit) -> String {
+        if reading.units.count == 2 {
+            return fan.index == 0
+                ? ContractCopy.copyMonitorFanLeft.text(for: language)
+                : ContractCopy.copyMonitorFanRight.text(for: language)
+        }
+        return String(
+            format: ContractCopy.copyMonitorFanUnit.text(for: language),
+            fan.index + 1
         )
     }
 
@@ -456,6 +445,14 @@ struct MonitorFanPopover: View {
             }
             return model.configuration.manualRPM[String(fan.index)] ?? fan.targetRPM
         case .curve:
+            if let temperature = controlTemperature,
+               let percent = model.configuration.presetTargetPercent(at: temperature) {
+                return MonitorFanPercent.rpm(
+                    percent: percent,
+                    minimumRPM: fan.minimumRPM,
+                    maximumRPM: fan.maximumRPM
+                )
+            }
             if !model.configuration.enabledTemperatureSources.isEmpty,
                let percent = model.configuration.mergedTargetPercent(
                    sourceTemperatures: sourceTemperatures
@@ -550,21 +547,36 @@ struct MonitorFanPopover: View {
             .foregroundStyle(MacTheme.textSecondary)
 
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .popoverContentSurface(
-            cornerRadius: 9,
+        .monitorFanGlassPanel(
+            cornerRadius: 14,
             tint: MacTheme.warningText.opacity(0.12)
         )
     }
 
     private var controls: some View {
         VStack(alignment: .leading, spacing: 10) {
-            modeControl
+            strategyHeader
+            strategyControl
 
-            if model.configuration.mode != .automatic {
+            if model.configuration.selectedPreset.isCurvePreset {
+                Text(ContractCopy.copyMonitorFanCurveSummary.text(for: language))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                curveEditor
+
+                if let message = model.visibleErrorMessage {
+                    Text(message)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(MacTheme.errorText)
+                        .textSelection(.enabled)
+                }
+
                 DisclosureGroup(isExpanded: $advancedExpanded) {
-                    advancedControls
+                    sensorSection
                         .padding(.top, 8)
                 } label: {
                     HStack(spacing: 6) {
@@ -572,136 +584,166 @@ struct MonitorFanPopover: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(MacTheme.textPrimary)
                         Spacer(minLength: 0)
-                        Text(modeTitle(model.configuration.mode))
+                        Text(presetTitle(model.configuration.selectedPreset))
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(MacTheme.textSecondary)
                     }
                     .frame(minHeight: 24)
                 }
-                .tint(MonitorCardKind.fan.accent)
+                .tint(MonitorFanPresetStyle.accent)
+            } else if model.configuration.selectedPreset == .manual {
+                manualControls
             }
         }
-        .padding(10)
-        .popoverContentSurface()
+        .padding(12)
+        .monitorFanGlassPanel(cornerRadius: 18)
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(MacTheme.divider.opacity(0.36), lineWidth: 0.75)
+                .allowsHitTesting(false)
+        }
     }
 
-    @ViewBuilder
-    private var advancedControls: some View {
-        if model.configuration.mode == .curve {
-            temperatureRuleEditor
-            if model.configuration.enabledTemperatureSources.isEmpty {
-                presetRow
-                curveEditor
+    private var strategyHeader: some View {
+        HStack(spacing: 8) {
+            Text(ContractCopy.copyMonitorFanStrategy.text(for: language))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+            Spacer(minLength: 0)
+            if isControllingFans {
+                Button {
+                    model.restore()
+                } label: {
+                    Label(
+                        ContractCopy.copyMonitorFanReturnToMacos.text(for: language),
+                        systemImage: "arrow.uturn.backward"
+                    )
+                    .font(.system(size: 9, weight: .semibold))
+                    .padding(.horizontal, 8)
+                    .frame(minHeight: 26)
+                }
+                .modifier(MonitorFanGlassButtonStyleModifier(forceOpaque: forceOpaqueSurface))
+                .tint(MonitorFanPresetStyle.accent)
+                .disabled(model.busy)
+            } else {
+                Text(ContractCopy.copyMonitorFanSystemControl.text(for: language))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
             }
-        } else if model.configuration.mode == .manual {
-            manualControls
         }
     }
 
-    private var modeControl: some View {
-        Picker(ContractCopy.copyMonitorFanDetails.text(for: language), selection: Binding(
-            get: { model.configuration.mode },
-            set: { model.setMode($0, reading: reading) }
-        )) {
-            Text(modeTitle(.automatic))
-                .tag(MonitorFanMode.automatic)
-            Text(modeTitle(.curve))
-                .tag(MonitorFanMode.curve)
-            Text(modeTitle(.manual))
-                .tag(MonitorFanMode.manual)
+    private var strategyControl: some View {
+        GlassEffectContainer(spacing: 5) {
+            HStack(spacing: 2) {
+                ForEach(visiblePresets, id: \.rawValue) { preset in
+                    let selected = visibleSelection == preset
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch)) {
+                            model.selectPreset(preset, reading: reading)
+                        }
+                    } label: {
+                        Text(presetTitle(preset))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(
+                                selected && forceOpaqueSurface ? Color.white : MacTheme.textPrimary
+                            )
+                            .frame(maxWidth: .infinity, minHeight: 30)
+                            .background(
+                                forceOpaqueSurface && selected
+                                    ? MonitorFanPresetStyle.accent
+                                    : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(
+                        forceOpaqueSurface ? .identity : strategyGlass(for: preset),
+                        in: .rect(cornerRadius: 9)
+                    )
+                    .glassEffectID(
+                        selected && !forceOpaqueSurface ? "fan-strategy-selection" : nil,
+                        in: strategyGlassNamespace
+                    )
+                    .glassEffectTransition(.matchedGeometry)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .disabled(model.busy)
+                    .onHover { inside in
+                        hoveredPreset = inside ? preset : nil
+                    }
+                }
+            }
+            .padding(4)
+            .background(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(MacTheme.textSecondary.opacity(0.075))
+            )
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .disabled(model.busy)
+        .animation(reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch), value: visibleSelection)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(ContractCopy.copyMonitorFanStrategy.text(for: language))
     }
 
-    private func modeTitle(_ mode: MonitorFanMode) -> String {
-        switch mode {
-        case .automatic:
-            ContractCopy.copyMonitorFanSystemAuto.text(for: language)
-        case .curve:
-            ContractCopy.copyMonitorFanAutoCurve.text(for: language)
+    private func strategyGlass(for preset: MonitorFanPreset) -> Glass {
+        if preset == visibleSelection {
+            return .regular.tint(MonitorFanPresetStyle.accent).interactive()
+        }
+        if hoveredPreset == preset {
+            return .clear.interactive()
+        }
+        return .identity
+    }
+
+    private var visibleSelection: MonitorFanPreset {
+        model.configuration.selectedPreset == .legacy
+            ? .custom
+            : model.configuration.selectedPreset
+    }
+
+    private var visiblePresets: [MonitorFanPreset] {
+        if model.configuration.selectedPreset == .manual {
+            return MonitorFanPreset.selectable + [.manual]
+        }
+        return MonitorFanPreset.selectable
+    }
+
+    private func presetTitle(_ preset: MonitorFanPreset) -> String {
+        switch preset {
+        case .system:
+            ContractCopy.copyMonitorFanPresetSystem.text(for: language)
+        case .quiet:
+            ContractCopy.copyMonitorFanPresetQuiet.text(for: language)
+        case .compile:
+            ContractCopy.copyMonitorFanPresetCompile.text(for: language)
+        case .sustained:
+            ContractCopy.copyMonitorFanPresetSustained.text(for: language)
+        case .custom, .legacy:
+            ContractCopy.copyMonitorFanPresetCustom.text(for: language)
         case .manual:
             ContractCopy.copyMonitorFanManualRpm.text(for: language)
         }
     }
 
-    private var presetRow: some View {
-        HStack(spacing: 6) {
-            presetButton(ContractCopy.copyMonitorFanQuiet, MonitorFanPolicy.quiet)
-            presetButton(ContractCopy.copyMonitorFanBalanced, MonitorFanPolicy.balanced)
-            presetButton(ContractCopy.copyMonitorFanTurbo, MonitorFanPolicy.turbo)
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func presetButton(_ title: LocalizedCopy, _ preset: MonitorFanConfiguration) -> some View {
-        Group {
-            if rendersForSnapshot {
-                Button(title.text(for: language)) {
-                    model.applyPreset(preset, reading: reading)
-                }
-                .buttonStyle(.plain)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(MacTheme.textPrimary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(MacTheme.textSecondary.opacity(0.12), in: Capsule())
-            } else {
-                Button(title.text(for: language)) {
-                    model.applyPreset(preset, reading: reading)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-            }
-        }
-        .frame(minHeight: 24)
-        .contentShape(Rectangle())
-        .disabled(model.busy)
-    }
-
     private var curveEditor: some View {
         MonitorFanCurveEditor(
             reading: reading,
-            configuration: model.configuration,
+            preset: model.configuration.selectedPreset,
+            points: model.configuration.activePresetPoints,
+            controlTemperature: controlTemperature,
             language: language,
-            powerSource: model.configuration.powerSource,
             interactive: !rendersForSnapshot,
             busy: model.busy,
-            onCommit: { fanIndex, source, points in
-                model.setCurve(
-                    fanIndex: fanIndex,
-                    points: points,
-                    source: source,
-                    reading: reading
-                )
-            },
-            onClear: { fanIndex, source in
-                model.clearCurve(fanIndex: fanIndex, source: source, reading: reading)
-            },
-            onCopyAdapterCurves: {
-                model.copyAdapterCurvesToBattery(reading: reading)
-            }
-        )
-    }
-
-    private var temperatureRuleEditor: some View {
-        MonitorFanTemperatureRuleEditor(
-            reading: reading,
-            configuration: model.configuration,
-            helperSourceTemperatures: model.helperStatus?.sourceTemperatures ?? [:],
-            language: language,
-            busy: model.busy,
-            onToggleSource: { source, enabled in
-                model.setTemperatureSource(source, enabled: enabled, reading: reading)
-            },
-            onChangePoints: { source, points, applyImmediately in
-                model.setTemperatureRulePoints(
+            isCustomized: model.configuration.isPresetCustomized(),
+            onCommit: { points in
+                model.setPresetPoints(
                     points,
-                    source: source,
                     reading: reading,
-                    applyImmediately: applyImmediately
+                    applyImmediately: true
                 )
+            },
+            onReset: {
+                model.resetPreset(reading: reading)
             }
         )
     }
@@ -928,7 +970,7 @@ struct MonitorFanPopover: View {
         HStack(alignment: .top, spacing: 7) {
             Image(systemName: "fanblades.fill")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(MonitorCardKind.fan.accent)
+                .foregroundStyle(MonitorFanPresetStyle.accent)
             VStack(alignment: .leading, spacing: 3) {
                 Text(ContractCopy.copyMonitorFanSystemControlTitle.text(for: language))
                     .font(.system(size: 10, weight: .semibold))
@@ -945,9 +987,9 @@ struct MonitorFanPopover: View {
                 }
             }
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .popoverContentSurface()
+        .monitorFanGlassPanel(cornerRadius: 14)
     }
 }
 

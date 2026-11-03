@@ -1,403 +1,537 @@
 import Charts
 import SwiftUI
 
-/// 每风扇多点温控曲线编辑器。
+enum MonitorFanPresetStyle {
+    static var accent: Color {
+        MacTheme.color(ContractColors.tokenColorSuccessText)
+    }
+}
+
+private struct MonitorFanForceOpaqueSurfaceKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var monitorFanForceOpaqueSurface: Bool {
+        get { self[MonitorFanForceOpaqueSurfaceKey.self] }
+        set { self[MonitorFanForceOpaqueSurfaceKey.self] = newValue }
+    }
+}
+
+enum MonitorFanGlassButtonShape {
+    case capsule
+    case circle
+
+    var borderShape: ButtonBorderShape {
+        switch self {
+        case .circle: .circle
+        case .capsule: .capsule
+        }
+    }
+}
+
+struct MonitorFanGlassButtonStyleModifier: ViewModifier {
+    var shape: MonitorFanGlassButtonShape = .capsule
+    let forceOpaque: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if forceOpaque {
+            content
+                .buttonStyle(.plain)
+                .background(MacTheme.elevated.opacity(0.82), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(MacTheme.divider.opacity(0.55), lineWidth: 0.75)
+                }
+        } else {
+            content
+                .buttonStyle(.glass)
+                .buttonBorderShape(shape.borderShape)
+                .controlSize(.small)
+        }
+    }
+}
+
+/// 风扇控制的内容面板。默认使用清透玻璃；辅助功能需要更高对比时退回不透明表面。
+private struct MonitorFanGlassPanelModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let tint: Color?
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.monitorFanForceOpaqueSurface) private var forceOpaqueSurface
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    private var usesOpaqueSurface: Bool {
+        forceOpaqueSurface || reduceTransparency || colorSchemeContrast == .increased
+    }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if usesOpaqueSurface {
+            content
+                .background(shape.fill(tint ?? MacTheme.surface))
+                .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: 1))
+        } else {
+            content.glassSurface(cornerRadius: cornerRadius, tint: tint, mode: .clear)
+        }
+    }
+}
+
+extension View {
+    @MainActor
+    func monitorFanGlassPanel(cornerRadius: CGFloat, tint: Color? = nil) -> some View {
+        modifier(MonitorFanGlassPanelModifier(cornerRadius: cornerRadius, tint: tint))
+    }
+}
+
+/// 所有风扇共享的温度到风量曲线编辑器。
 ///
-/// 曲线本身使用 Apple Swift Charts。拖动只改本地草稿，
-/// 手势结束或滑杆结束编辑后才向 helper 提交，避免拖动期间连续写配置。
+/// 拖动只更新本地草稿。松手时一次提交，避免连续写配置打断手势。
+/// 图上的实线是预设请求，圆点是当前实际风量。
 struct MonitorFanCurveEditor: View {
     let reading: MonitorFanReading
-    let configuration: MonitorFanConfiguration
+    let preset: MonitorFanPreset
+    let points: [MonitorFanPresetPoint]
+    let controlTemperature: Double?
     let language: AppLanguage
-    let powerSource: MonitorFanPowerSource
     let interactive: Bool
     let busy: Bool
-    let onCommit: (Int?, MonitorFanCurveSource, [MonitorFanCurvePoint]) -> Void
-    let onClear: (Int?, MonitorFanCurveSource) -> Void
-    let onCopyAdapterCurves: () -> Void
+    let isCustomized: Bool
+    let onCommit: ([MonitorFanPresetPoint]) -> Void
+    let onReset: () -> Void
 
-    @State private var selectedFanIndex: Int?
-    @State private var selectedCurveSource: MonitorFanCurveSource?
+    @State private var draftPoints: [MonitorFanPresetPoint] = []
     @State private var selectedPointIndex = 0
-    @State private var draftPoints: [MonitorFanCurvePoint] = []
     @State private var draggingPointIndex: Int?
+    @State private var preciseExpanded = false
+    @State private var hoveredPointIndex: Int?
+    @Namespace private var pointGlassNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.monitorFanForceOpaqueSurface) private var forceOpaqueSurface
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(ContractCopy.copyMonitorFanCurve.text(for: language))
-                    .font(.system(size: 11, weight: .semibold))
+            HStack(spacing: 6) {
+                Text(ContractCopy.copyMonitorFanPresetCurve.text(for: language))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(MacTheme.textPrimary)
                 Spacer(minLength: 0)
-                Text(ContractCopy.copyMonitorFanCurveHint.text(for: language))
-                    .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
+                if isCustomized {
+                    Button {
+                        onReset()
+                        syncDraft()
+                    } label: {
+                        Label(
+                            ContractCopy.copyMonitorFanResetPreset.text(for: language),
+                            systemImage: "arrow.counterclockwise"
+                        )
+                        .font(.system(size: 8, weight: .semibold))
+                    }
+                    .modifier(MonitorFanGlassButtonStyleModifier(forceOpaque: forceOpaqueSurface))
+                    .disabled(busy)
+                }
             }
 
-            powerStatus
-            curveSourcePicker
-            if editingCurveSource == .battery, hasBatteryCurveFallback {
-                batteryFallback
-            }
-            fanPicker
             chartWithInteraction
-            pointSelector
 
-            if draftPoints.indices.contains(selectedPointIndex) {
-                pointEditor(index: selectedPointIndex)
-            }
+            nodeToolbar
+            legend
 
-            if !interactive {
-                Text(curveAccessibilityValue)
-                    .font(.system(size: 8))
+            DisclosureGroup(isExpanded: $preciseExpanded) {
+                preciseControls
+                    .padding(10)
+                    .monitorFanGlassPanel(cornerRadius: 12)
+                    .padding(.top, 6)
+            } label: {
+                Text(ContractCopy.copyMonitorFanPreciseAdjust.text(for: language))
+                    .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(MacTheme.textSecondary)
             }
+            .tint(MonitorFanPresetStyle.accent)
         }
         .onAppear(perform: syncDraft)
-        .onChange(of: selectedFanIndex) { _, _ in
+        .onChange(of: preset) { _, _ in
             selectedPointIndex = 0
             syncDraft()
         }
-        .onChange(of: selectedCurveSource) { _, _ in
-            selectedPointIndex = 0
+        .onChange(of: points) { _, _ in
+            guard draggingPointIndex == nil else { return }
             syncDraft()
-        }
-        .onChange(of: powerSource) { _, source in
-            if selectedCurveSource == nil {
-                selectedCurveSource = source.curveSource
-            }
-        }
-        .onChange(of: configuration) { _, _ in
-            syncDraft()
-        }
-    }
-
-    private var powerStatus: some View {
-        HStack(spacing: 6) {
-            Label {
-                Text(powerSourceTitle)
-                    .lineLimit(1)
-            } icon: {
-                Image(systemName: powerSourceIcon)
-            }
-            .foregroundStyle(MacTheme.textSecondary)
-            Spacer(minLength: 0)
-            Text(activeCurveText)
-                .foregroundStyle(MacTheme.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .font(.system(size: 8, weight: .medium))
-    }
-
-    private var curveSourcePicker: some View {
-        Picker(ContractCopy.copyMonitorFanCurveSource.text(for: language), selection: Binding(
-            get: { editingCurveSource },
-            set: { selectedCurveSource = $0 }
-        )) {
-            Text(ContractCopy.copyMonitorFanCurveSourceAdapter.text(for: language))
-                .tag(MonitorFanCurveSource.adapter)
-            Text(ContractCopy.copyMonitorFanCurveSourceBattery.text(for: language))
-                .tag(MonitorFanCurveSource.battery)
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .disabled(busy)
-    }
-
-    private var batteryFallback: some View {
-        HStack(spacing: 8) {
-            Text(ContractCopy.copyMonitorFanBatteryCurveFallback.text(for: language))
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(MacTheme.warningText)
-            Spacer(minLength: 0)
-            Button(ContractCopy.copyMonitorFanCopyAdapterCurve.text(for: language)) {
-                onCopyAdapterCurves()
-                syncDraft()
-            }
-            .buttonStyle(.link)
-            .font(.system(size: 8, weight: .semibold))
-            .disabled(busy)
-        }
-        .padding(7)
-        .background(
-            MacTheme.warningBackground.opacity(0.62),
-            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-        )
-    }
-
-    private var fanPicker: some View {
-        Picker(ContractCopy.copyMonitorFanDetails.text(for: language), selection: $selectedFanIndex) {
-            Text(ContractCopy.copyMonitorFanAllFans.text(for: language))
-                .tag(nil as Int?)
-            ForEach(reading.units) { fan in
-                Text(String(format: ContractCopy.copyMonitorFanUnit.text(for: language), fan.index + 1))
-                    .tag(Optional(fan.index))
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .disabled(busy)
-    }
-
-    private var editingCurveSource: MonitorFanCurveSource {
-        selectedCurveSource ?? powerSource.curveSource
-    }
-
-    private var editingFanIndices: [Int] {
-        selectedFanIndex.map { [$0] } ?? reading.units.map(\.index)
-    }
-
-    private var hasBatteryCurveFallback: Bool {
-        editingFanIndices.contains { fanIndex in
-            !configuration.hasCustomCurve(for: fanIndex, source: .battery)
-        }
-    }
-
-    private var clearCurveTitle: String {
-        editingCurveSource == .battery
-            ? ContractCopy.copyMonitorFanClearBatteryCurve.text(for: language)
-            : ContractCopy.copyMonitorFanResetCurve.text(for: language)
-    }
-
-    private var canClearCurve: Bool {
-        editingCurveSource == .adapter || editingFanIndices.contains { fanIndex in
-            configuration.hasCustomCurve(for: fanIndex, source: .battery)
-        }
-    }
-
-    private var activeCurveText: String {
-        guard powerSource == .battery else {
-            return ContractCopy.copyMonitorFanActiveCurveAdapter.text(for: language)
-        }
-        let indices = reading.units.map(\.index)
-        let batteryCount = indices.filter {
-            configuration.hasCustomCurve(for: $0, source: .battery)
-        }.count
-        if batteryCount == 0 {
-            return ContractCopy.copyMonitorFanActiveCurveAdapter.text(for: language)
-        }
-        if batteryCount == indices.count {
-            return ContractCopy.copyMonitorFanActiveCurveBattery.text(for: language)
-        }
-        return ContractCopy.copyMonitorFanActiveCurveMixed.text(for: language)
-    }
-
-    private var powerSourceTitle: String {
-        switch powerSource {
-        case .adapter:
-            ContractCopy.copyMonitorFanPowerSourceAdapter.text(for: language)
-        case .battery:
-            ContractCopy.copyMonitorFanPowerSourceBattery.text(for: language)
-        case .unknown:
-            ContractCopy.copyMonitorFanPowerSourceUnknown.text(for: language)
-        }
-    }
-
-    private var powerSourceIcon: String {
-        switch powerSource {
-        case .adapter:
-            "powerplug"
-        case .battery:
-            "battery.75percent"
-        case .unknown:
-            "questionmark.circle"
         }
     }
 
     private var chart: some View {
-        Chart(draftPoints) { point in
-            LineMark(
-                x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), point.temperature),
-                y: .value(ContractCopy.copyMonitorFanRpm.text(for: language), point.rpm)
-            )
-            .interpolationMethod(.linear)
-            .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round))
-            .foregroundStyle(MacTheme.accent)
+        Chart {
+            ForEach(draftPoints) { point in
+                AreaMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), point.temperature),
+                    yStart: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), 0),
+                    yEnd: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), point.percent)
+                )
+                .interpolationMethod(.linear)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            MonitorFanPresetStyle.accent.opacity(0.22),
+                            MonitorFanPresetStyle.accent.opacity(0.025),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
 
-            PointMark(
-                x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), point.temperature),
-                y: .value(ContractCopy.copyMonitorFanRpm.text(for: language), point.rpm)
-            )
-            .symbolSize(58)
-            .foregroundStyle(MacTheme.accent)
+            ForEach(draftPoints) { point in
+                LineMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), point.temperature),
+                    y: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), point.percent)
+                )
+                .interpolationMethod(.linear)
+                .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round))
+                .foregroundStyle(MonitorFanPresetStyle.accent)
+            }
+
+            ForEach(Array(draftPoints.enumerated()), id: \.element.id) { index, point in
+                PointMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), point.temperature),
+                    y: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), point.percent)
+                )
+                .symbolSize(index == selectedPointIndex ? 118 : 82)
+                .foregroundStyle(MonitorFanPresetStyle.accent)
+
+                PointMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), point.temperature),
+                    y: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), point.percent)
+                )
+                .symbolSize(index == selectedPointIndex ? 74 : 48)
+                .foregroundStyle(MacTheme.surface)
+            }
+
+            if let controlTemperature {
+                RuleMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), controlTemperature)
+                )
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .foregroundStyle(MacTheme.textSecondary.opacity(0.50))
+            }
+
+            if let controlTemperature,
+               let targetPercent = MonitorFanPresetCurve.targetPercent(
+                   points: draftPoints,
+                   temperature: controlTemperature
+               ) {
+                PointMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), controlTemperature),
+                    y: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), targetPercent)
+                )
+                .symbolSize(46)
+                .foregroundStyle(MonitorFanPresetStyle.accent)
+
+                PointMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), controlTemperature),
+                    y: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), targetPercent)
+                )
+                .symbolSize(22)
+                .foregroundStyle(MacTheme.surface)
+            }
+
+            if let controlTemperature,
+               let currentPercent = MonitorFanPresetCurve.currentPercent(in: reading) {
+                PointMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), controlTemperature),
+                    y: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), currentPercent)
+                )
+                .symbolSize(92)
+                .foregroundStyle(MonitorFanPresetStyle.accent)
+
+                PointMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), controlTemperature),
+                    y: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), currentPercent)
+                )
+                .symbolSize(58)
+                .foregroundStyle(MacTheme.surface)
+
+                PointMark(
+                    x: .value(ContractCopy.copyMonitorFanTemperature.text(for: language), controlTemperature),
+                    y: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), currentPercent)
+                )
+                .symbolSize(20)
+                .foregroundStyle(MonitorFanPresetStyle.accent)
+            }
         }
-        .chartXScale(domain: MonitorFanPolicy.minimumCurveCelsius...MonitorFanPolicy.maximumFullCelsius)
-        .chartYScale(domain: displayRange)
+        .chartXScale(domain: 38...MonitorFanPolicy.maximumFullCelsius)
+        .chartYScale(domain: 0...100)
         .chartXAxis {
-            AxisMarks(values: [40, 60, 80, 100])
+            AxisMarks(values: [40, 60, 80, 100]) {
+                AxisGridLine()
+                    .foregroundStyle(MacTheme.textSecondary.opacity(0.18))
+                AxisValueLabel()
+                    .foregroundStyle(MacTheme.textSecondary)
+            }
         }
         .chartYAxis {
-            AxisMarks(position: .trailing, values: .automatic(desiredCount: 3))
+            AxisMarks(position: .leading, values: [0, 50, 100]) { value in
+                AxisGridLine()
+                    .foregroundStyle(MacTheme.textSecondary.opacity(0.18))
+                AxisValueLabel {
+                    if let percent = value.as(Double.self) {
+                        Text("\(Int(percent))%")
+                    }
+                }
+                .foregroundStyle(MacTheme.textSecondary)
+            }
         }
         .chartLegend(.hidden)
         .chartPlotStyle { plot in
             plot
-                .background(MacTheme.material.opacity(0.7))
-                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .background(Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-        .frame(height: 148)
+        .frame(height: 214)
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(MacTheme.divider.opacity(0.34), lineWidth: 0.75)
+                .allowsHitTesting(false)
+        }
         .animation(nil, value: draftPoints)
     }
 
     @ViewBuilder
     private var chartWithInteraction: some View {
         if interactive {
-            chart.chartOverlay { proxy in
-                GeometryReader { geometry in
-                    Rectangle()
-                        .fill(.clear)
-                        .contentShape(Rectangle())
-                        .gesture(dragGesture(proxy: proxy, geometry: geometry))
+            chart
+                .chartOverlay { proxy in
+                    GeometryReader { geometry in
+                        Rectangle()
+                            .fill(.clear)
+                            .contentShape(Rectangle())
+                            .gesture(dragGesture(proxy: proxy, geometry: geometry))
+                    }
                 }
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(ContractCopy.copyMonitorFanA11yCurve.text(for: language))
-            .accessibilityValue(curveAccessibilityValue)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(ContractCopy.copyMonitorFanPresetA11y.text(for: language))
+                .accessibilityValue(accessibilityValue)
         } else {
             chart
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(ContractCopy.copyMonitorFanA11yCurve.text(for: language))
-                .accessibilityValue(curveAccessibilityValue)
+                .accessibilityLabel(ContractCopy.copyMonitorFanPresetA11y.text(for: language))
+                .accessibilityValue(accessibilityValue)
         }
     }
 
-    private var pointSelector: some View {
-        HStack(spacing: 5) {
-            ForEach(draftPoints.indices, id: \.self) { index in
-                Button("\(index + 1)") {
-                    selectedPointIndex = index
-                }
-                .buttonStyle(.plain)
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundStyle(index == selectedPointIndex ? Color.white : MacTheme.textPrimary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(
-                    index == selectedPointIndex ? MacTheme.accent : MacTheme.elevated,
-                    in: Capsule()
-                )
-                .disabled(busy)
-            }
-            Spacer(minLength: 0)
-            Button(ContractCopy.copyMonitorFanAddPoint.text(for: language)) {
-                addPoint()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .disabled(busy || draftPoints.count >= MonitorFanPolicy.maximumCurvePointCount)
-            Button(ContractCopy.copyMonitorFanDeletePoint.text(for: language)) {
-                deletePoint()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .disabled(busy || draftPoints.count <= 2)
-        }
-    }
-
-    private func pointEditor(index: Int) -> some View {
-        let point = draftPoints[index]
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text(String(
-                    format: ContractCopy.copyMonitorFanControlPoint.text(for: language),
-                    index + 1
-                ))
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(MacTheme.textSecondary)
-                Spacer(minLength: 0)
-                Text("\(Int(point.temperature.rounded())) °C · \(Int(point.rpm.rounded())) RPM")
-                    .font(.system(size: 9, design: .rounded))
-                    .foregroundStyle(MacTheme.textSecondary)
-                    .monospacedDigit()
-            }
-
-            HStack(spacing: 8) {
-                Text(ContractCopy.copyMonitorFanTemperature.text(for: language))
-                    .font(.system(size: 8))
-                    .foregroundStyle(MacTheme.textSecondary)
-                    .frame(width: 30, alignment: .leading)
-                Slider(
-                    value: Binding(
-                        get: { draftPoints[index].temperature },
-                        set: { updatePoint(index, temperature: $0, rpm: draftPoints[index].rpm) }
-                    ),
-                    in: MonitorFanPolicy.minimumCurveCelsius...MonitorFanPolicy.maximumFullCelsius
-                ) { editing in
-                    if !editing { commitDraft() }
-                }
-                .disabled(busy)
-            }
-
-            HStack(spacing: 8) {
-                Text(ContractCopy.copyMonitorFanRpm.text(for: language))
-                    .font(.system(size: 8))
-                    .foregroundStyle(MacTheme.textSecondary)
-                    .frame(width: 30, alignment: .leading)
-                Slider(
-                    value: Binding(
-                        get: { draftPoints[index].rpm },
-                        set: {
-                            updatePoint(
-                                index,
-                                temperature: draftPoints[index].temperature,
-                                rpm: ($0 / 50).rounded() * 50
-                            )
+    private var nodeToolbar: some View {
+        GlassEffectContainer(spacing: 6) {
+            HStack(spacing: 4) {
+                ForEach(draftPoints.indices, id: \.self) { index in
+                    let selected = index == selectedPointIndex
+                    Button("\(index + 1)") {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch)) {
+                            selectedPointIndex = index
                         }
-                    ),
-                    in: displayRange
-                ) { editing in
-                    if !editing { commitDraft() }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(
+                        selected && forceOpaqueSurface ? Color.white : MacTheme.textPrimary
+                    )
+                    .frame(width: 26, height: 24)
+                    .background(
+                        forceOpaqueSurface && selected
+                            ? MonitorFanPresetStyle.accent
+                            : Color.clear,
+                        in: Capsule()
+                    )
+                    .contentShape(Capsule())
+                    .glassEffect(
+                        forceOpaqueSurface
+                            ? .identity
+                            : selected
+                                ? .regular.tint(MonitorFanPresetStyle.accent).interactive()
+                                : (hoveredPointIndex == index ? .clear.interactive() : .identity),
+                        in: .capsule
+                    )
+                    .glassEffectID(
+                        selected && !forceOpaqueSurface ? "fan-point-selection" : nil,
+                        in: pointGlassNamespace
+                    )
+                    .glassEffectTransition(.matchedGeometry)
+                    .accessibilityLabel(
+                        String(
+                            format: ContractCopy.copyMonitorFanControlPoint.text(for: language),
+                            index + 1
+                        )
+                    )
+                    .disabled(busy)
+                    .onHover { inside in
+                        hoveredPointIndex = inside ? index : nil
+                    }
                 }
-                .disabled(busy)
-            }
 
-            Button(clearCurveTitle) {
-                onClear(selectedFanIndex, editingCurveSource)
-                syncDraft()
+                Spacer(minLength: 0)
+
+                Button {
+                    addPoint()
+                } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 24, height: 24)
+                }
+                .modifier(MonitorFanGlassButtonStyleModifier(
+                    shape: .circle,
+                    forceOpaque: forceOpaqueSurface
+                ))
+                .help(ContractCopy.copyMonitorFanAddPoint.text(for: language))
+                .accessibilityLabel(ContractCopy.copyMonitorFanAddPoint.text(for: language))
+                .disabled(busy || draftPoints.count >= MonitorFanPolicy.maximumCurvePointCount)
+
+                Button {
+                    deletePoint()
+                } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 24, height: 24)
+                }
+                .modifier(MonitorFanGlassButtonStyleModifier(
+                    shape: .circle,
+                    forceOpaque: forceOpaqueSurface
+                ))
+                .help(ContractCopy.copyMonitorFanDeletePoint.text(for: language))
+                .accessibilityLabel(ContractCopy.copyMonitorFanDeletePoint.text(for: language))
+                .disabled(busy || draftPoints.count <= 2)
             }
-            .buttonStyle(.link)
-            .font(.system(size: 9))
-            .disabled(busy || !canClearCurve)
+        }
+        .animation(
+            reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch),
+            value: selectedPointIndex
+        )
+        .animation(
+            reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch),
+            value: hoveredPointIndex
+        )
+    }
+
+    private var legend: some View {
+        HStack(spacing: 6) {
+            Capsule()
+                .fill(MonitorFanPresetStyle.accent)
+                .frame(width: 20, height: 2)
+            Text(ContractCopy.copyMonitorFanPresetLegend.text(for: language))
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(MacTheme.textSecondary)
+
+            Spacer(minLength: 8)
+
+            ZStack {
+                Circle()
+                    .stroke(MonitorFanPresetStyle.accent, lineWidth: 1.4)
+                    .frame(width: 9, height: 9)
+                Circle()
+                    .fill(MonitorFanPresetStyle.accent)
+                    .frame(width: 3, height: 3)
+            }
+            Text(currentFlowText)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundStyle(MacTheme.textSecondary)
+                .monospacedDigit()
         }
     }
 
-    private var displayRange: ClosedRange<Double> {
-        guard let first = reading.units.first else {
-            return 0...MonitorFanPolicy.maximumRPM
+    private var preciseControls: some View {
+        Group {
+            if draftPoints.indices.contains(selectedPointIndex) {
+                let point = draftPoints[selectedPointIndex]
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(String(
+                            format: ContractCopy.copyMonitorFanControlPoint.text(for: language),
+                            selectedPointIndex + 1
+                        ))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(MacTheme.textSecondary)
+                        Spacer(minLength: 0)
+                        Text("\(Int(point.temperature.rounded())) °C · \(Int(point.percent.rounded()))%")
+                            .font(.system(size: 9, design: .rounded))
+                            .foregroundStyle(MacTheme.textSecondary)
+                            .monospacedDigit()
+                    }
+
+                    HStack(spacing: 8) {
+                        Text(ContractCopy.copyMonitorFanTemperature.text(for: language))
+                            .font(.system(size: 8))
+                            .foregroundStyle(MacTheme.textSecondary)
+                            .frame(width: 42, alignment: .leading)
+                        Slider(
+                            value: Binding(
+                                get: { draftPoints[selectedPointIndex].temperature },
+                                set: { temperature in
+                                    updatePoint(
+                                        selectedPointIndex,
+                                        temperature: temperature,
+                                        percent: draftPoints[selectedPointIndex].percent
+                                    )
+                                }
+                            ),
+                            in: MonitorFanPresetCurve.editableTemperatureRange(
+                                index: selectedPointIndex,
+                                points: draftPoints
+                            )
+                        ) { editing in
+                            if !editing { commitDraft() }
+                        }
+                        .disabled(busy)
+                    }
+
+                    HStack(spacing: 8) {
+                        Text(ContractCopy.copyMonitorFanAirflow.text(for: language))
+                            .font(.system(size: 8))
+                            .foregroundStyle(MacTheme.textSecondary)
+                            .frame(width: 42, alignment: .leading)
+                        Slider(
+                            value: Binding(
+                                get: { draftPoints[selectedPointIndex].percent },
+                                set: { percent in
+                                    updatePoint(
+                                        selectedPointIndex,
+                                        temperature: draftPoints[selectedPointIndex].temperature,
+                                        percent: percent
+                                    )
+                                }
+                            ),
+                            in: 0...100
+                        ) { editing in
+                            if !editing { commitDraft() }
+                        }
+                        .disabled(busy)
+                    }
+                }
+            }
         }
-        if let selectedFanIndex,
-           let fan = reading.units.first(where: { $0.index == selectedFanIndex }) {
-            return fan.minimumRPM...max(fan.minimumRPM + 1, fan.maximumRPM)
-        }
-        let minimum = reading.units.map(\.minimumRPM).min() ?? first.minimumRPM
-        let maximum = reading.units.map(\.maximumRPM).max() ?? first.maximumRPM
-        return minimum...max(minimum + 1, maximum)
     }
 
-    private var curveAccessibilityValue: String {
-        draftPoints
-            .map {
-                "\(Int($0.temperature.rounded())) °C \(Int($0.rpm.rounded())) RPM"
-            }
-            .joined(separator: "，")
+    private var currentFlowText: String {
+        let current = MonitorFanPresetCurve.currentPercent(in: reading)
+            .map { "\(Int($0.rounded()))%" }
+            ?? "—"
+        return String(
+            format: ContractCopy.copyMonitorFanPresetCurrent.text(for: language),
+            current
+        )
+    }
+
+    private var accessibilityValue: String {
+        let pointText = draftPoints.map {
+            "\(Int($0.temperature.rounded())) °C \(Int($0.percent.rounded()))%"
+        }.joined(separator: "，")
+        let current = MonitorFanPresetCurve.currentPercent(in: reading)
+            .map { "\(Int($0.rounded()))%" }
+            ?? "—"
+        return "\(pointText)。\(ContractCopy.copyMonitorFanActual.text(for: language)) \(current)"
     }
 
     private func syncDraft() {
-        let sourceCurves = configuration.customCurves(for: editingCurveSource)
-        let fanIndex = selectedFanIndex
-            ?? reading.units.first(where: { sourceCurves[String($0.index)] != nil })?.index
-            ?? reading.units.first?.index
-            ?? 0
-        let fan = reading.units.first(where: { $0.index == fanIndex })
-        let minimum = fan?.minimumRPM ?? 0
-        let maximum = fan?.maximumRPM ?? MonitorFanPolicy.maximumRPM
-        draftPoints = configuration.curvePoints(
-            for: fanIndex,
-            minimumRPM: minimum,
-            maximumRPM: maximum,
-            source: editingCurveSource
-        )
+        draftPoints = MonitorFanPresetCurve.normalized(points)
         selectedPointIndex = min(selectedPointIndex, max(0, draftPoints.count - 1))
     }
 
@@ -417,9 +551,9 @@ struct MonitorFanCurveEditor: View {
         let before = sorted[insertAt - 1]
         let after = sorted[insertAt]
         sorted.insert(
-            MonitorFanCurvePoint(
+            MonitorFanPresetPoint(
                 temperature: ((before.temperature + after.temperature) / 2).rounded(),
-                rpm: ((before.rpm + after.rpm) / 2 / 50).rounded() * 50
+                percent: ((before.percent + after.percent) / 2).rounded()
             ),
             at: insertAt
         )
@@ -429,33 +563,43 @@ struct MonitorFanCurveEditor: View {
     }
 
     private func deletePoint() {
-        guard draftPoints.count > 2, draftPoints.indices.contains(selectedPointIndex) else { return }
+        guard draftPoints.count > 2, draftPoints.indices.contains(selectedPointIndex) else {
+            return
+        }
         draftPoints.remove(at: selectedPointIndex)
         selectedPointIndex = min(selectedPointIndex, draftPoints.count - 1)
         commitDraft()
     }
 
-    private func updatePoint(_ index: Int, temperature: Double, rpm: Double) {
+    private func updatePoint(_ index: Int, temperature: Double, percent: Double) {
         guard draftPoints.indices.contains(index) else { return }
-        draftPoints[index] = MonitorFanCurvePoint(
-            temperature: min(
-                MonitorFanPolicy.maximumFullCelsius,
-                max(MonitorFanPolicy.minimumCurveCelsius, temperature.rounded())
-            ),
-            rpm: min(displayRange.upperBound, max(displayRange.lowerBound, rpm))
+        let range = MonitorFanPresetCurve.editableTemperatureRange(
+            index: index,
+            points: draftPoints
+        )
+        draftPoints[index] = MonitorFanPresetPoint(
+            temperature: min(range.upperBound, max(range.lowerBound, temperature.rounded())),
+            percent: min(100, max(0, percent.rounded()))
         )
     }
 
     private func commitDraft() {
+        let movedTemperature = draftPoints.indices.contains(selectedPointIndex)
+            ? draftPoints[selectedPointIndex].temperature
+            : nil
         let sorted = draftPoints.sorted { $0.temperature < $1.temperature }
         draftPoints = sorted
-        onCommit(selectedFanIndex, editingCurveSource, sorted)
+        if let movedTemperature,
+           let index = sorted.firstIndex(where: { $0.temperature == movedTemperature }) {
+            selectedPointIndex = index
+        }
+        onCommit(sorted)
     }
 
     private func dragGesture(proxy: ChartProxy, geometry: GeometryProxy) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                guard let plotFrame = proxy.plotFrame else { return }
+                guard interactive, let plotFrame = proxy.plotFrame else { return }
                 let frame = geometry[plotFrame]
                 if draggingPointIndex == nil {
                     draggingPointIndex = nearestPointIndex(
@@ -467,31 +611,38 @@ struct MonitorFanCurveEditor: View {
                         selectedPointIndex = draggingPointIndex
                     }
                 }
-                guard let index = draggingPointIndex, draftPoints.indices.contains(index) else { return }
+                guard let index = draggingPointIndex, draftPoints.indices.contains(index) else {
+                    return
+                }
                 let x = value.location.x - frame.origin.x
                 let y = value.location.y - frame.origin.y
                 guard let temperature = proxy.value(atX: x, as: Double.self),
-                      let rpm = proxy.value(atY: y, as: Double.self)
+                      let percent = proxy.value(atY: y, as: Double.self)
                 else { return }
-                updatePoint(index, temperature: temperature, rpm: (rpm / 50).rounded() * 50)
+                updatePoint(index, temperature: temperature, percent: percent)
             }
             .onEnded { _ in
+                guard draggingPointIndex != nil else { return }
                 draggingPointIndex = nil
                 commitDraft()
             }
     }
 
-    private func nearestPointIndex(location: CGPoint, frame: CGRect, proxy: ChartProxy) -> Int? {
+    private func nearestPointIndex(
+        location: CGPoint,
+        frame: CGRect,
+        proxy: ChartProxy
+    ) -> Int? {
         let candidates = draftPoints.indices.compactMap { index -> (Int, CGPoint)? in
             guard let x = proxy.position(forX: draftPoints[index].temperature),
-                  let y = proxy.position(forY: draftPoints[index].rpm)
+                  let y = proxy.position(forY: draftPoints[index].percent)
             else { return nil }
             return (index, CGPoint(x: frame.origin.x + x, y: frame.origin.y + y))
         }
         guard let nearest = candidates.min(by: {
-            hypot($0.1.x - location.x, $0.1.y - location.y) <
-                hypot($1.1.x - location.x, $1.1.y - location.y)
-        }), hypot(nearest.1.x - location.x, nearest.1.y - location.y) <= 26 else {
+            hypot($0.1.x - location.x, $0.1.y - location.y)
+                < hypot($1.1.x - location.x, $1.1.y - location.y)
+        }), hypot(nearest.1.x - location.x, nearest.1.y - location.y) <= 28 else {
             return nil
         }
         return nearest.0

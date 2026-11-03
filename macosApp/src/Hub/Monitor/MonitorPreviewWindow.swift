@@ -530,18 +530,23 @@ struct MonitorFanPreviewRoot: View {
         ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] ?? "curve"
     }
 
+    private static var language: AppLanguage {
+        let code = ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_LANGUAGE"]?.lowercased()
+        return code == "english" ? .english : .simplifiedChinese
+    }
+
     private static var previewError: String? {
         scenario == "error" ? "Fan control write failed" : nil
     }
 
     static var renderHeight: CGFloat {
         if scenario == "system-control" {
-            return 280
+            return 300
         }
         if scenario == "temperature-rules-advanced" {
-            return 1050
+            return 760
         }
-        return 360
+        return 600
     }
 
     private static var usesTemperatureRules: Bool {
@@ -558,6 +563,9 @@ struct MonitorFanPreviewRoot: View {
             mode: Self.scenario == "manual-sync"
                 ? .manual
                 : Self.scenario == "system-control" ? .automatic : .curve,
+            selectedPreset: Self.scenario == "manual-sync"
+                ? .manual
+                : Self.scenario == "system-control" ? .system : .custom,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
@@ -615,17 +623,28 @@ struct MonitorFanPreviewRoot: View {
     )
 
     var body: some View {
-        MonitorFanPopover(
+        let popover = MonitorFanPopover(
             reading: MonitorFanPreviewFixtures.reading,
-            language: .simplifiedChinese,
+            language: Self.language,
             model: model,
             scrollsContent: Self.scenario == "sensors",
-            rendersForSnapshot: true,
+            rendersForSnapshot: !Self.livePreview,
             sensorsInitiallyExpanded: Self.scenario == "sensors",
             advancedInitiallyExpanded: Self.scenario == "temperature-rules-advanced"
         )
         .frame(width: 420, alignment: .topLeading)
-        .background(MacTheme.surface)
+
+        if Self.livePreview {
+            popover
+                .glassSurface(cornerRadius: 28, mode: .glass)
+        } else {
+            popover
+                .background(MacTheme.surface)
+        }
+    }
+
+    private static var livePreview: Bool {
+        ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_PREVIEW"] == "1"
     }
 }
 
@@ -648,6 +667,7 @@ struct MonitorFanCardPreviewRoot: View {
         previewConfiguration: MonitorFanConfiguration(
             enabled: Self.controlsFans,
             mode: .curve,
+            selectedPreset: .custom,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
@@ -691,7 +711,9 @@ enum MonitorFanPreviewSnapshot {
         if let glassMode { GlassSurfaceMode.current = glassMode }
         defer { GlassSurfaceMode.current = previousMode }
 
-        let host = NSHostingView(rootView: content)
+        let host = NSHostingView(
+            rootView: content.environment(\.monitorFanForceOpaqueSurface, true)
+        )
         host.frame = NSRect(origin: .zero, size: size)
         host.wantsLayer = true
         host.layer?.contentsScale = 2
@@ -708,7 +730,8 @@ enum MonitorFanPreviewSnapshot {
         window.center()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
-        try? await Task.sleep(for: .milliseconds(200))
+        // Liquid Glass 需要等窗口合成完成再截屏；过早读取会丢失玻璃及其相邻文字。
+        try? await Task.sleep(for: .milliseconds(900))
         host.needsLayout = true
         host.layoutSubtreeIfNeeded()
         host.displayIfNeeded()
