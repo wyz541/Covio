@@ -105,9 +105,7 @@ jobs:
           restore-keys: |
             macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-${{ hashFiles('macosApp/Covio.xcodeproj/project.pbxproj', 'macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'kmpDomain/module.yaml', 'app/module.yaml') }}-
             macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-
-      # Xcode 的 "Build KMP framework" 脚本阶段会自己调 Amper 与 konanc。
-      - name: Build
-        run: bash scripts/build-macos-swift.sh
+      # xcodebuild test builds the app and test host before running XCTest.
       - name: Test
         run: bash scripts/test-macos-swift.sh
       - name: Save macOS caches
