@@ -67,6 +67,7 @@ TRANSACTION_ID="client-$VERSION-${COMMIT:0:12}"
 STAGED_APP_RELATIVE="Library/Application Support/Covio/Installer/staged/$APP_NAME.app"
 STAGED_APP_PATH="/$STAGED_APP_RELATIVE"
 OFFLINE_DMG="$DIST/$APP_NAME-Offline-$VERSION.dmg"
+UPDATER_OUT_DIR="$ROOT/build/updater-release"
 
 if [[ "$CHANNEL" == "internal" && -z "$RELEASE_SIGN_IDENTITY" ]]; then
   if LOCAL_IDENTITY="$(bash "$ROOT/scripts/setup-local-signing.sh" --print-identity 2>/dev/null)"; then
@@ -172,6 +173,13 @@ fi
 # ditto 保留符号链接与扩展属性。cp -R 会丢掉 framework 里的版本链接。
 /usr/bin/ditto "$ARCHIVED_APP" "$APP_IMAGE"
 
+CONFIGURATION=Release \
+CODE_SIGN_IDENTITY="$RELEASE_SIGN_IDENTITY" \
+COVIO_UPDATER_OUT_DIR="$UPDATER_OUT_DIR" \
+bash "$ROOT/scripts/build-covio-updater.sh"
+COVIO_UPDATER_OUT_DIR="$UPDATER_OUT_DIR" \
+bash "$ROOT/scripts/install-covio-updater.sh" "$APP_IMAGE"
+
 # 默认包只携带模型清单和许可证。模型权重由离线包或首次使用下载提供。
 for model_manifest in "$ROOT"/macosApp/src/AutoNaming/FileNamingModelManifest*.json; do
   manifest_name="$(basename "$model_manifest")"
@@ -211,6 +219,9 @@ done
 PLIST="$APP_IMAGE/Contents/Info.plist"
 HELPER="$APP_IMAGE/Contents/MacOS/CovioHelper"
 DAEMON_PLIST="$APP_IMAGE/Contents/Library/LaunchDaemons/com.wyz.covio.helper.plist"
+UPDATER_ENGINE="$APP_IMAGE/Contents/MacOS/CovioUpdater"
+UPDATER_LAUNCHER="$APP_IMAGE/Contents/MacOS/CovioUpdaterLauncher"
+UPDATER_PLIST="$APP_IMAGE/Contents/Library/LaunchDaemons/com.wyz.covio.updater.plist"
 
 read_plist() {
   "$PLIST_BUDDY" -c "Print :$1" "$PLIST" 2>/dev/null || true
@@ -265,6 +276,10 @@ fi
 
 if [[ ! -x "$HELPER" || ! -f "$DAEMON_PLIST" ]]; then
   printf 'Missing bundled CovioHelper or daemon plist.\n' >&2
+  exit 1
+fi
+if [[ ! -x "$UPDATER_ENGINE" || ! -x "$UPDATER_LAUNCHER" || ! -f "$UPDATER_PLIST" ]]; then
+  printf 'Missing bundled CovioUpdater files.\n' >&2
   exit 1
 fi
 
@@ -325,6 +340,7 @@ if [[ -n "$NOTARY_PROFILE" ]]; then
 fi
 
 bash "$ROOT/scripts/verify-helper-daemon.sh" "$APP_IMAGE" --require-manifest
+bash "$ROOT/scripts/verify-updater-daemon.sh" "$APP_IMAGE"
 
 # app.zip lets the publish command download and verify the app and helper pair again.
 /usr/bin/ditto -c -k --keepParent "$APP_IMAGE" "$APP_ZIP"
@@ -392,6 +408,8 @@ chmod 0755 "$INSTALLER_PAYLOAD/recover.sh" "$INSTALLER_PAYLOAD/transaction.sh"
 /usr/bin/ditto "$ROOT/installer/transaction.sh" "$PKG_SCRIPTS/transaction.sh"
 chmod 0755 "$PKG_SCRIPTS/preinstall" "$PKG_SCRIPTS/postinstall"
 HELPER_SHA256="$(/usr/bin/plutil -extract helperSHA256 raw -o - "$BUNDLED_MANIFEST")"
+UPDATER_SHA256="$(/usr/bin/shasum -a 256 "$UPDATER_ENGINE" | awk '{print $1}')"
+UPDATER_LAUNCHER_SHA256="$(/usr/bin/shasum -a 256 "$UPDATER_LAUNCHER" | awk '{print $1}')"
 cat > "$PKG_SCRIPTS/transaction.env" <<EOF
 TRANSACTION_ID='$TRANSACTION_ID'
 EXPECTED_RELEASE_ID='$RELEASE_ID'
@@ -401,6 +419,8 @@ EXPECTED_BUILD_NUMBER='$BUILD_NUMBER'
 EXPECTED_COMMIT='$COMMIT'
 EXPECTED_PROTOCOL_VERSION='$(python3 -I "$ROOT/scripts/release_manifest.py" value helperProtocolVersion)'
 EXPECTED_HELPER_SHA256='$HELPER_SHA256'
+EXPECTED_UPDATER_SHA256='$UPDATER_SHA256'
+EXPECTED_UPDATER_LAUNCHER_SHA256='$UPDATER_LAUNCHER_SHA256'
 EXPECTED_CHANNEL='$CHANNEL'
 STAGED_APP_PATH='$STAGED_APP_PATH'
 EOF
@@ -446,6 +466,11 @@ fi
 PKG_PAYLOAD_FILES="$(/usr/sbin/pkgutil --payload-files "$PKG_PATH")"
 if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/staged/$APP_NAME.app/Contents/MacOS/CovioHelper"* ]]; then
   printf 'PKG payload is missing the staged app helper.\n' >&2
+  exit 1
+fi
+if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/staged/$APP_NAME.app/Contents/MacOS/CovioUpdater"* ||
+      "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/staged/$APP_NAME.app/Contents/MacOS/CovioUpdaterLauncher"* ]]; then
+  printf 'PKG payload is missing the staged updater files.\n' >&2
   exit 1
 fi
 if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/bin/CovioTransaction"* ]]; then

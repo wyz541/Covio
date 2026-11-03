@@ -135,6 +135,7 @@ if [[ "$CHANNEL" == "internal" && -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_
 fi
 
 bash "$ROOT/scripts/verify-helper-daemon.sh" "$OFFLINE_APP" --require-manifest
+bash "$ROOT/scripts/verify-updater-daemon.sh" "$OFFLINE_APP"
 
 notarize_and_staple() {
   local target="$1"

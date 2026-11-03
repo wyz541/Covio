@@ -17,6 +17,21 @@
 
 `current` 和 `previous` 只保存 release ID。它们不保存任意路径。
 
+## 安装流程
+
+1. Migration PKG 取得 1 次管理员授权。
+2. PKG 事务交换新的 Covio.app。
+3. App 以 root 执行 `--install-updater-as-root`。
+4. App 校验 app 与 updater 的 designated requirement。
+5. App 安装 launcher、versioned engine、requirements 和 LaunchDaemon plist。
+6. App 写入 `current`，并在已有版本时写入 `previous`。
+7. App bootstrap Updater LaunchDaemon。
+8. Launcher 启动 engine。
+9. Engine 写入 health。
+10. 事务验证 health 后写入安装记录。
+
+Updater 安装失败时，事务恢复旧 app、helper、updater、plist 和安装记录。
+
 ## 启动流程
 
 ```text
