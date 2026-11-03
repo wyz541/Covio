@@ -46,6 +46,9 @@ It requires macOS 26 or later on Apple Silicon.
 The default installer does not contain model weights.
 Covio downloads the model after user confirmation.
 This release does not provide an offline model installer.
+Covio 0.0.1.9 is the migration bridge for passwordless internal updates.
+Existing 0.0.1.8 users must install the transactional PKG once.
+Later internal updates do not request administrator credentials.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
 - [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.1.9-internal/Covio-0.0.1.9.dmg)
