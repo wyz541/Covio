@@ -4,18 +4,14 @@
 - Kind：architecture
 - Date：<YYYY-MM-DD>
 - Supersedes：none
-- Implements：pending
-- 相关：<链接到调研 issue 或文档。没有就删掉本行>
-
-字段取值见[流程文件](../process/workflow.md)的 S4。
+- Implements：#<issue>
+- 相关：<链接到 Issue、研究或文档。没有就删掉本行>
 
 ## 背景
 
-<什么问题促成了这个决策。写清约束、既有事实和受影响的范围。>
+<什么问题促成了这个决策。写清约束和既有事实。>
 
 ## 决策
-
-<决定做什么。一条决策写一个编号。>
 
 1. <决策一>
 2. <决策二>

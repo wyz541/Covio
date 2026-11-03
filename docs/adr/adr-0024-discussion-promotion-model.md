@@ -1,9 +1,10 @@
 # ADR-0024：用 Parent Feature 组织 Discussion、Research 与 Task
 
-- Status：accepted
+- Status：superseded
 - Kind：process
 - Date：2026-10-29
 - Supersedes：none
+- Superseded by：ADR-0028
 - Implements：#445
 - 相关：[研发工作流](../process/workflow.md)
 

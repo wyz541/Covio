@@ -1,39 +1,21 @@
 name: Task
-description: 明确的小任务或 Parent Feature 的实现 sub-issue。一个会话能做完。
+description: 一个会话可完成的小任务或 Feature sub-issue。
 labels: ["task"]
 body:
   - type: markdown
     attributes:
       value: |
-        目标、范围与验收标准明确时，直接使用本表单。不要求先建 Discussion 或 Parent Feature。
-        一个 issue 对应一条分支和一个 PR。
-        Parent Feature 的 Task 使用 GitHub 原生 sub-issue 关系关联。
-        从 Research 产生的 Task 用 `blocked by` 指向 Research issue。
-        Task 只负责实现和单个 PR 的交付证据。
-        如果验收跨越多个 Task 或 PR，需要真机、发布前验证或长期证据，另建 Verify sub-issue，不把 Task 扩大成 Feature 验收。
-        标题写成「动词 对象」。
-        UI issue 写可判断的验收标准和表现预期。
-        真机截图写在实现后的 PR 的 `Visual verification`。
-        验收规则见 [研发工作流](../../docs/process/workflow.md) 的 S5 与 Visual verification。
+        一个 Task 对应一条分支和一个 PR。
+        小任务可以直接创建，不要求 Discussion 或 Feature。
+        属于 Feature 时，使用 GitHub 原生 sub-issue。
+        UI 证据写在实现后的 PR。
 
   - type: textarea
     id: goal
     attributes:
       label: 目标
-      description: 交付后用户能做什么。不写实现细节。
-    validations:
-      required: true
-
-  - type: textarea
-    id: expectation
-    attributes:
-      label: 表现预期
-      description: |
-        写用户可观察的界面变化，一行一条。
-        没有 UI 变化时填「无」。
-      placeholder: |
-        - <界面变化一：可判断的描述>
-        - <界面变化二：可判断的描述>
+      description: 写交付后用户能完成什么。
+      placeholder: 用户可以关闭自动更新。
     validations:
       required: true
 
@@ -41,47 +23,17 @@ body:
     id: acceptance
     attributes:
       label: 验收标准
-      description: 一行一条。每条必须可判定。
+      description: 一行一个结果。每条必须可判定。
       placeholder: |
-        - 验收：<可判断的结果>
-        - 验收：<可判断的结果>
-    validations:
-      required: true
-
-  - type: dropdown
-    id: estimated_days
-    attributes:
-      label: 预计工期
-      options:
-        - 1 天
-        - 2 天
-        - 3 天
-    validations:
-      required: true
-
-  - type: dropdown
-    id: ui_type
-    attributes:
-      label: UI 类型
-      description: 选择本 issue 的 UI 类型。UI 代码变更的真机证据在 PR 提供。
-      options:
-        - 不涉及 UI
-        - UI 决策
-        - UI 代码变更
+        - 用户可以关闭自动更新。
+        - 重启应用后设置保持。
     validations:
       required: true
 
   - type: textarea
-    id: preview
+    id: notes
     attributes:
-      label: 预览
-      description: |
-        仅 UI 决策填写候选方案、截图和评审状态。
-        UI 代码变更不在 issue 放 After 截图。
-        真机验收证据在 PR 补齐。
-      placeholder: |
-        - 候选方案：<链接或简短说明>
-        - 截图：docs/design/previews/<name>.png
-        - 评审：Pending
+      label: 补充信息
+      description: 可选。写 UI 状态、预览、依赖或已知风险。
     validations:
       required: false

@@ -1,45 +1,23 @@
 name: Research
-description: Parent Feature 的时间盒调研。回答一个问题。
+description: 时间盒研究。回答一个问题，并把结论写回正文。
 title: "research: "
 labels: ["research"]
 body:
   - type: markdown
     attributes:
       value: |
-        问题、负责人、时间盒和预期产出明确时，直接使用本表单。不要求先建 Discussion。
-        Research 是 Parent Feature 的 sub-issue。一个 Research 只回答一个问题。
-        创建后回到 Parent Feature，在 `Sub-issues` 中添加本 issue。
-        时间盒默认 2 个工作日，上限 3 个工作日。
-        格式见 [研发工作流](../../docs/process/workflow.md) 的 S1、S2 与 S3。
-        UI 决策可在 `预览` 段记录候选方案。
-        UI 代码变更的真机截图在实现后的 PR 提供。
+        Research 可以独立创建。
+        属于 Feature 时，使用 GitHub 原生 sub-issue。
+        默认时间盒是 2 个工作日，最长 3 个工作日。
+        结论写回正文后关闭 Issue。
+        不要填写决策占位符。
 
   - type: textarea
     id: question
     attributes:
       label: 待答问题
-      description: 只写一个问题。用问句写。
-      placeholder: |
-        例如：kmpDomain 能否在不引第三方库的前提下解析 pmset 的唤醒日志？
-    validations:
-      required: true
-
-  - type: textarea
-    id: background
-    attributes:
-      label: 背景
-      description: 为什么现在要问这个问题。有 Discussion 来源时贴链接；没有来源时只写背景。不要重复 Parent Feature 编号；原生 sub-issue 关系是层级来源。
-    validations:
-      required: true
-
-  - type: dropdown
-    id: timebox
-    attributes:
-      label: 时间盒
-      description: 到期召集一次 15 分钟评审，只决定结题或延长。延长只允许一次。
-      options:
-        - 2 个工作日（默认）
-        - 3 个工作日（上限）
+      description: 只写一个问题，并用问句表示。
+      placeholder: kmpDomain 能否解析 `pmset` 唤醒日志？
     validations:
       required: true
 
@@ -47,62 +25,32 @@ body:
     id: output
     attributes:
       label: 预期产出
-      description: 到期交出什么。例如一份文档、一段基准数据、一个可行的方案。
+      description: 写到期时必须交出的结论或数据。
+      placeholder: 一份兼容性结论和可复现证据。
+    validations:
+      required: true
+
+  - type: input
+    id: deadline
+    attributes:
+      label: 截止日期
+      description: 使用 ISO 8601 日期。默认 2 个工作日。
+      placeholder: "2026-11-05"
     validations:
       required: true
 
   - type: textarea
-    id: preview
+    id: background
     attributes:
-      label: 预览
-      description: |
-        仅在调研产出 UI 候选方案时填写。
-        真机验收截图在实现后的 PR 提供。
-      placeholder: |
-        - 候选方案：<链接或简短说明>
-        - 截图：docs/design/previews/<name>.png
-        - 评审：Pending
+      label: 背景
+      description: 可选。写为什么要问这个问题。
     validations:
       required: false
-
-  - type: input
-    id: assignee
-    attributes:
-      label: 负责人
-      description: GitHub 用户名。
-    validations:
-      required: true
-
-  - type: markdown
-    attributes:
-      value: |
-        ---
-
-        ## 结论（到期后填，未结题时留空）
-
-        结题时编辑正文，补下面三样，再加一行 `decision: pending`。
-        结论写在正文，不写评论。
 
   - type: textarea
     id: conclusion
     attributes:
       label: 结论
-      description: 结题时填。未结题时留空。
-    validations:
-      required: false
-
-  - type: textarea
-    id: evidence
-    attributes:
-      label: 依据
-      description: 结题时填。含数据或链接。例如基准结果、文档链接、失败日志。
-    validations:
-      required: false
-
-  - type: textarea
-    id: next
-    attributes:
-      label: 后续动作
-      description: 结题时填。结论是否决时写明理由。
+      description: 可选。结题时写结论、依据和后续动作。
     validations:
       required: false
