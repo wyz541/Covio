@@ -4,6 +4,7 @@
 - Kind：architecture
 - Date：2026-10-25
 - Supersedes：ADR-0018
+- Superseded by：ADR-0027（仅常规 helper 升级授权与自动更新部分）
 - Implements：#350
 - 相关：#355、#358
 
@@ -37,15 +38,17 @@ ADR-0018 选择 `SMAppService.daemon`，并要求 Developer ID、hardened runtim
 8. LaunchDaemon plist 安装到：
    `/Library/LaunchDaemons/com.wyz.covio.helper.plist`。
 9. LaunchDaemon 使用固定 helper 路径和 `MachServices`，继续通过 XPC 通信。
-10. 安装和升级 helper 必须取得一次明确的管理员授权。
+10. 安装和升级 helper 必须取得一次明确的管理员授权。（常规自动升级部分由 ADR-0027 取代）
 11. app、helper、Release 和本机安装记录继续使用同一个 `releaseId`。
 12. app 继续验证 helper 的完整发布身份和 SHA-256。身份不一致时进入只读安全模式。
 13. 本机升级继续使用成对安装、精确握手和成对回滚。
 14. 本机签名优先使用稳定自签名证书，减少构建间 cdhash 变化。内测 Release 必须使用稳定证书；没有证书时 ad-hoc 只允许用于 CI 或本机调试。
 15. 自签名和 ad-hoc 不提供发布者真实性。文档不得把它们描述为 Developer ID。
-16. 更新只支持手动安装。禁用自动更新和公开更新检查。
+16. 更新只支持手动安装。禁用自动更新和公开更新检查。（由 ADR-0027 取代）
 17. 每个本地包提供 SHA-256、安装报告和恢复命令。
 18. 未来如需公开分发，必须先取得 Apple Developer Program，并写新 ADR 取代本决策。
+
+> 2026-11-03 补充：ADR-0027 取代常规 helper 升级的授权要求和决策 16。首次安装与 repair PKG 仍请求 1 次管理员授权。其余决策不变。
 
 ## 后果
 
