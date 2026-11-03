@@ -1,6 +1,6 @@
-# Covio 0.0.1.8
+# Covio 0.0.1.9
 
-Covio 0.0.1.8 是内测版。
+Covio 0.0.1.9 是内测版。
 此版本不用于公开分发。
 
 ## 系统要求
@@ -15,37 +15,31 @@ Covio 0.0.1.8 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-## 从 0.0.1.7 到 0.0.1.8 的变化
+## 从 0.0.1.8 到 0.0.1.9 的变化
 
-- 工作台顶栏把搜索框移到首页入口左侧。
-- 工作台导航不再显示助手和设置页签。
-- 用户从菜单栏状态项打开设置。
-- 助手成为设置分节。对话、本地模型和外部 Agent 服务使用同一入口。
-- 发现新版本时，工作台右下角显示带版本号的更新入口。
-- 用户点击更新入口后，Covio 执行手动检查。
-- 旧工作台配置继续保留隐藏的助手和设置记录，升级不删除用户数据。
+<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+
+- Add atomic updater installation pipeline（#573）
+- Simplify the issue workflow（#572）
+- Add automatic update controls to Settings（#570）
+- Install the updater with the migration package（#569）
+- Add the updater service and launcher（#568）
+- Add signed update manifests（#567）
+- Clarify the updater boundary（#566）
+- Add the passwordless update ADR（#554）
 
 ## 验证
 
-- `bash scripts/test-all.sh`：通过。
-- Kotlin：970 个测试通过。
-- macOS XCTest：1012 个测试通过，3 个跳过。
-- 发布脚本和设计合同校验：通过。
-- GitHub Actions 的 Contract、Kotlin 和 macOS SwiftUI：通过。
-- 亮色和深色真机截图：通过。
-- 真机检查：搜索框在首页左侧，导航栏无助手和设置。
-- 真机检查：设置包含助手分节。
-- 真机检查：更新入口在工作台右下角，点击后执行更新检查。
-- Release 资产验证和事务安装 PKG 安装验收：通过。
+<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
 
 ## 安装
 
-1. 打开 `Covio-0.0.1.8.dmg`。
+1. 打开 `Covio-0.0.1.9.dmg`。
 2. 将 `Covio.app` 拖入 `Applications`。
 3. 打开 `Covio.app`。
 4. 打开 AI 功能并确认模型下载。
 
-事务安装与升级使用 `Covio-0.0.1.8.pkg`。
+事务安装与升级使用 `Covio-0.0.1.9.pkg`。
 
 **警告：** 此构建使用本地签名。
 macOS Gatekeeper 可能阻止此构建。
