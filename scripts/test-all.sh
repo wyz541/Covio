@@ -4,15 +4,16 @@ set -euo pipefail
 # 全量测试入口。跨模块、协议、发布和 CI 门禁排障时使用。
 # 日常迭代按 `docs/process/workflow.md` 的「测试门禁」运行相关测试。
 #
-# 八步，任一步失败就停：
+# 九步，任一步失败就停：
 #   1. 共享层的 Kotlin 测试。两个平台都跑，macosArm64 也在内。
 #   2. 合同常量有没有漂移。
 #   3. 合同的跨段规则。schema 表达不了的那些。
 #   4. Issue 与 PR 模板是否把视觉证据放在正确对象。
 #   5. 割接脚本的断言。
 #   6. 本机 app-helper 升级与回滚事务。
-#   7. 文件自动命名模型清单。
-#   8. macOS SwiftUI 宿主的 XCTest。
+#   7. Updater launcher、XPC engine 和回退状态机。
+#   8. 文件自动命名模型清单。
+#   9. macOS SwiftUI 宿主的 XCTest。
 #
 # 第 6 步自己也会跑第 2、3 步。分开列是为了让它们单独报错，一眼能看出问题在哪。
 
@@ -48,6 +49,9 @@ bash "$ROOT/scripts/verify-helper-cutover.sh" selftest
 
 step "本机升级事务"
 bash "$ROOT/scripts/test-transactional-installer.sh"
+
+step "Updater service"
+bash "$ROOT/scripts/test-covio-updater.sh"
 
 step "文件自动命名模型清单"
 python3 -I "$ROOT/scripts/file_naming_model.py" verify-all
