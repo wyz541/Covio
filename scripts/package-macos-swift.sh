@@ -13,7 +13,10 @@ DIST="$ROOT/dist"
 PROJECT="$ROOT/macosApp/Covio.xcodeproj"
 SCHEME="Covio"
 CONFIGURATION="Release"
-DERIVED_DATA="$ROOT/build/xcode-archive"
+DERIVED_DATA="${COVIO_RELEASE_DERIVED_DATA:-$ROOT/build/xcode-archive}"
+if [[ "$DERIVED_DATA" != /* ]]; then
+  DERIVED_DATA="$ROOT/$DERIVED_DATA"
+fi
 ARCHIVE="$DERIVED_DATA/$SCHEME.xcarchive"
 APP_NAME="Covio"
 APP_ID="com.wyz.covio"
@@ -27,6 +30,18 @@ DEVELOPMENT_TEAM="${COVIO_DEVELOPMENT_TEAM:-}"
 NOTARY_PROFILE="${COVIO_NOTARY_PROFILE:-}"
 REQUIRE_STABLE_SIGNING="${COVIO_REQUIRE_STABLE_SIGNING:-0}"
 CLEANUP_PATHS=()
+
+# Release worktrees can share one persistent DerivedData cache.
+# A lock prevents two packaging jobs from corrupting the same archive.
+if [[ -n "${COVIO_RELEASE_DERIVED_DATA:-}" ]]; then
+  mkdir -p "$(dirname "$DERIVED_DATA")"
+  CACHE_LOCK_PATH="$DERIVED_DATA.lock"
+  if ! /usr/bin/shlock -f "$CACHE_LOCK_PATH" -p $$; then
+    printf 'Release build cache is in use: %s\n' "$DERIVED_DATA" >&2
+    exit 1
+  fi
+  CLEANUP_PATHS+=("$CACHE_LOCK_PATH")
+fi
 
 cleanup_temporary_paths() {
   local path
@@ -59,7 +74,7 @@ BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")"
-INTERNAL_SIGNING_BASELINE="$ROOT/build/internal-signing-$APP_ID.json"
+INTERNAL_SIGNING_BASELINE="$DERIVED_DATA/internal-signing-$APP_ID.json"
 DMG_PATH="$DIST/$APP_NAME-$VERSION.dmg"
 APP_ZIP="$DIST/$APP_NAME-$VERSION.app.zip"
 UPDATE_ZIP="$DIST/CovioUpdate-$VERSION.zip"

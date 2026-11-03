@@ -23,6 +23,10 @@ MAIN_REF="$REMOTE/$MAIN_BRANCH"
 COMMON_DIR="$(cd "$ROOT" && cd "$(git rev-parse --git-common-dir)" && pwd)"
 PRIMARY_CHECKOUT="$(dirname "$COMMON_DIR")"
 WORKTREE_ROOT="${COVIO_WORKTREE_ROOT:-$(dirname "$PRIMARY_CHECKOUT")/_worktrees/$(basename "$PRIMARY_CHECKOUT")}"
+RELEASE_DERIVED_DATA="${COVIO_RELEASE_DERIVED_DATA:-$PRIMARY_CHECKOUT/build/release-xcode-cache}"
+if [[ "$RELEASE_DERIVED_DATA" != /* ]]; then
+  RELEASE_DERIVED_DATA="$PRIMARY_CHECKOUT/$RELEASE_DERIVED_DATA"
+fi
 
 say() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
@@ -437,7 +441,9 @@ release_draft() {
   fi
 
   bash "$worktree/scripts/setup-local-signing.sh"
-  RELEASE_REPO="$repo" bash "$worktree/scripts/create-release.sh" ${create_args[@]+"${create_args[@]}"}
+  COVIO_RELEASE_DERIVED_DATA="$RELEASE_DERIVED_DATA" \
+    RELEASE_REPO="$repo" \
+    bash "$worktree/scripts/create-release.sh" ${create_args[@]+"${create_args[@]}"}
   if [[ " ${create_args[*]+${create_args[*]}} " != *" --dry-run "* ]]; then
     printf '\nDraft: %s\n' "$(gh release view "$tag" --repo "$repo" --json url --jq .url)"
     printf 'Install and check the PKG, then run: scripts/covio release publish %s\n' "$tag"

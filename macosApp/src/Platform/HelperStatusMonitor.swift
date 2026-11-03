@@ -160,20 +160,21 @@ final class HelperStatusMonitor: NSObject, PrivilegedOps, @unchecked Sendable {
 
     private func completeProbe(_ result: HelperStatusSnapshot) {
         let now = clock()
-        let completion: (handler: (@Sendable (HelperStatusSnapshot) -> Void)?, nextProbeAt: TimeInterval) = lock.withLock {
+        let handler: (@Sendable (HelperStatusSnapshot) -> Void)? = lock.withLock {
             snapshot = result
             activeProbe = nil
             if result.status == .match {
                 failureCount = 0
-                return (updateHandler, now + 5)
+                nextProbeAt = now + 5
+                return updateHandler
             }
             failureCount += 1
             let exponent = min(failureCount - 1, 4)
             let delay = min(60, 5 * Double(1 << exponent))
-            return (updateHandler, now + delay)
+            nextProbeAt = now + delay
+            return updateHandler
         }
-        nextProbeAt = completion.nextProbeAt
-        completion.handler?(result)
+        handler?(result)
     }
 
     /// A successful write must update the cached lid status before Engine reads it.

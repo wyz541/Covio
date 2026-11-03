@@ -14,6 +14,10 @@ on:
       - "docs/**"
       - "*.md"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   kotlin:
     name: Kotlin
@@ -21,12 +25,31 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Restore Kotlin caches
+        id: kotlin-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.konan
+            ~/Library/Caches/JetBrains/Kotlin
+          key: kotlin-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            kotlin-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}-
+            kotlin-${{ runner.os }}-
       - name: Provision Amper downloads
         run: bash scripts/provision-amper-github-downloads.sh
       - name: Build
         run: /bin/sh ./kotlin build
       - name: Test
         run: /bin/sh ./kotlin test
+      - name: Save Kotlin caches
+        if: always() && steps.kotlin-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.konan
+            ~/Library/Caches/JetBrains/Kotlin
+          key: ${{ steps.kotlin-cache.outputs.cache-primary-key }}
 
   checks:
     name: Contract and scripts
@@ -63,8 +86,37 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve Xcode cache key
+        id: xcode-cache
+        shell: bash
+        run: |
+          version="$(xcodebuild -version | tr '\n' '-' | tr -cd '[:alnum:]._-')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Restore macOS caches
+        id: macos-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/xcode-dd
+            build/kmp-framework
+            build/kmp-framework-static
+            ~/Library/Caches/JetBrains/Kotlin
+          key: macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-${{ hashFiles('macosApp/Covio.xcodeproj/project.pbxproj', 'macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'kmpDomain/module.yaml', 'app/module.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-${{ hashFiles('macosApp/Covio.xcodeproj/project.pbxproj', 'macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'kmpDomain/module.yaml', 'app/module.yaml') }}-
+            macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-
       # Xcode 的 "Build KMP framework" 脚本阶段会自己调 Amper 与 konanc。
       - name: Build
         run: bash scripts/build-macos-swift.sh
       - name: Test
         run: bash scripts/test-macos-swift.sh
+      - name: Save macOS caches
+        if: always() && steps.macos-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/xcode-dd
+            build/kmp-framework
+            build/kmp-framework-static
+            ~/Library/Caches/JetBrains/Kotlin
+          key: ${{ steps.macos-cache.outputs.cache-primary-key }}
