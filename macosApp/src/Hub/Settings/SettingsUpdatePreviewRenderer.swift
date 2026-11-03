@@ -1,5 +1,6 @@
 #if DEBUG
 import AppKit
+import ScreenCaptureKit
 import SwiftUI
 
 private struct SettingsUpdatePreviewRoot: View {
@@ -69,27 +70,37 @@ private struct SettingsUpdatePreviewRoot: View {
     }
 }
 
+private final class SettingsPreviewWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 @MainActor
 enum SettingsUpdatePreviewRenderer {
     static func render(to path: String) async -> Bool {
-        let previousMode = GlassSurfaceMode.current
-        GlassSurfaceMode.current = .material
-        defer { GlassSurfaceMode.current = previousMode }
-
         let isDark = ProcessInfo.processInfo.environment["AppleInterfaceStyle"]?
             .lowercased() == "dark"
             || ProcessInfo.processInfo.environment["COVIO_FORCE_APPEARANCE"]?.lowercased() == "dark"
         let colorScheme: ColorScheme = isDark ? .dark : .light
         let language = AppLanguage.simplifiedChinese
+        let state: UpdaterEngineState
+        switch ProcessInfo.processInfo.environment["COVIO_SETTINGS_UPDATE_PREVIEW_STATE"] {
+        case "restartRequired":
+            state = .restartRequired
+        case "idle":
+            state = .idle
+        default:
+            state = .available
+        }
         let presentation = UpdaterSettingsPresentation(
             status: UpdaterStatus(
                 schemaVersion: 1,
                 updaterProtocolVersion: 1,
                 releaseId: "0.0.1.9-g\(String(repeating: "a", count: 40))",
-                state: .available,
+                state: state,
                 automaticUpdatesEnabled: true,
                 lastCheckAt: "2026-11-04T00:00:00Z",
-                availableVersion: "0.0.2.0",
+                availableVersion: state == .available ? "0.0.2.0" : nil,
                 message: nil
             ),
             busy: false,
@@ -105,28 +116,41 @@ enum SettingsUpdatePreviewRenderer {
             .environment(\.colorScheme, colorScheme)
         )
         hosting.frame = NSRect(origin: .zero, size: size)
-        let window = NSWindow(
+        let window = SettingsPreviewWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
+        window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
         window.contentView = hosting
-        window.orderFront(nil)
+        window.center()
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.makeKey()
         hosting.layoutSubtreeIfNeeded()
+        hosting.displayIfNeeded()
         do {
             try await Task.sleep(for: .milliseconds(350))
         } catch {
             window.orderOut(nil)
             return false
         }
+        hosting.needsLayout = true
         hosting.layoutSubtreeIfNeeded()
-        guard let bitmap = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+        hosting.displayIfNeeded()
+        let bitmap: NSBitmapImageRep
+        if let image = await screenCapture(window: window, size: size) {
+            bitmap = NSBitmapImageRep(cgImage: image)
+        } else if let cached = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) {
+            hosting.cacheDisplay(in: hosting.bounds, to: cached)
+            bitmap = cached
+        } else {
             window.orderOut(nil)
             return false
         }
-        hosting.cacheDisplay(in: hosting.bounds, to: bitmap)
         window.orderOut(nil)
         guard let png = bitmap.representation(using: .png, properties: [:]) else {
             return false
@@ -137,6 +161,29 @@ enum SettingsUpdatePreviewRenderer {
         } catch {
             return false
         }
+    }
+
+    private static func screenCapture(window: NSWindow, size: CGSize) async -> CGImage? {
+        for _ in 0..<4 {
+            if let content = try? await SCShareableContent.excludingDesktopWindows(
+                false,
+                onScreenWindowsOnly: true
+            ), let capturedWindow = content.windows.first(where: {
+                $0.windowID == CGWindowID(window.windowNumber)
+            }) {
+                let configuration = SCStreamConfiguration()
+                configuration.width = Int(size.width * 2)
+                configuration.height = Int(size.height * 2)
+                configuration.showsCursor = false
+                let filter = SCContentFilter(desktopIndependentWindow: capturedWindow)
+                return try? await SCScreenshotManager.captureImage(
+                    contentFilter: filter,
+                    configuration: configuration
+                )
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return nil
     }
 }
 #endif

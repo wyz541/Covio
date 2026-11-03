@@ -8,7 +8,7 @@ import kmpDomain
 /// - 行为设置使用原生 Toggle 和 Picker。
 /// - 更新状态使用 LabeledContent，控件在行尾对齐。
 /// - 安装和重启只在对应状态出现。
-/// - 清除配置使用 destructive role，并放在独立分组。
+/// - 动作按钮使用 Liquid Glass，并放在独立分组。
 struct GeneralPage: View {
     let runtime: AppRuntime
 
@@ -140,23 +140,34 @@ struct GeneralPage: View {
 
     private var diagnosticsSection: some View {
         Section {
-            HStack(spacing: MacTheme.space3) {
-                Button(ContractCopy.copyHubLogView.text(for: runtime.language)) {
-                    runtime.viewLog()
-                }
-                Button(ContractCopy.copyHubLogExport.text(for: runtime.language)) {
-                    runtime.exportLog()
+            GlassEffectContainer(spacing: MacTheme.space3) {
+                HStack(spacing: MacTheme.space3) {
+                    Button(ContractCopy.copyHubLogView.text(for: runtime.language)) {
+                        runtime.viewLog()
+                    }
+                    .buttonStyle(.glass)
+
+                    Button(ContractCopy.copyHubLogExport.text(for: runtime.language)) {
+                        runtime.exportLog()
+                    }
+                    .buttonStyle(.glass)
+
+                    Spacer(minLength: 0)
                 }
             }
             .settingsRowAnchor(SettingsRowID.generalLogs)
 
-            Button(
-                ContractCopy.copyGeneralClearConfig.text(for: runtime.language),
-                role: .destructive
-            ) {
-                confirmClearConfig()
+            GlassEffectContainer(spacing: MacTheme.space2) {
+                Button(
+                    ContractCopy.copyGeneralClearConfig.text(for: runtime.language),
+                    role: .destructive
+                ) {
+                    confirmClearConfig()
+                }
+                .buttonStyle(.glass)
+                .tint(.red)
+                .disabled(runtime.busy)
             }
-            .disabled(runtime.busy)
             .settingsRowAnchor(SettingsRowID.generalReset)
         } header: {
             Text(ContractCopy.copyGeneralSectionDiagnostics.text(for: runtime.language))

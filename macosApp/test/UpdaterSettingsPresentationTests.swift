@@ -13,6 +13,7 @@ final class UpdaterSettingsPresentationTests: XCTestCase {
             language: .english
         )
         XCTAssertTrue(value.canInstall)
+        XCTAssertTrue(value.canCheck)
         XCTAssertFalse(value.canRestart)
         XCTAssertEqual(value.availableVersionText, "0.0.2.0")
         XCTAssertEqual(
