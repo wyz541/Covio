@@ -72,6 +72,8 @@ The packaging job locks the cache, and every release identity and asset check st
 Internal Release creation requires a stable local signing identity.
 The app and helper must use the same certificate.
 CI packaging without a certificate still uses ad-hoc signing.
+GitHub Actions does not run the macOS SwiftUI host.
+Run `bash scripts/test-all.sh` on the release Mac before creating a Draft.
 
 Build the optional offline app and DMG:
 

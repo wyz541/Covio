@@ -18,6 +18,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# macOS XCTest runs on the release Mac. GitHub Actions only covers portable checks.
 jobs:
   kotlin:
     name: Kotlin
@@ -78,43 +79,3 @@ jobs:
         run: bash scripts/test-transactional-installer.sh
       - name: File naming model manifests
         run: python3 -I scripts/file_naming_model.py verify-all
-
-  macos-swift:
-    name: macOS SwiftUI
-    # 宿主的最低系统版本是 26.0。测试跑在运行器自己的系统上，
-    # 所以运行器必须也是 macOS 26，否则测试二进制无法启动。
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-      - name: Resolve Xcode cache key
-        id: xcode-cache
-        shell: bash
-        run: |
-          version="$(xcodebuild -version | tr '\n' '-' | tr -cd '[:alnum:]._-')"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Restore macOS caches
-        id: macos-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build/xcode-dd
-            build/kmp-framework
-            build/kmp-framework-static
-            ~/Library/Caches/JetBrains/Kotlin
-          key: macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-${{ hashFiles('macosApp/Covio.xcodeproj/project.pbxproj', 'macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'kmpDomain/module.yaml', 'app/module.yaml') }}
-          restore-keys: |
-            macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-${{ hashFiles('macosApp/Covio.xcodeproj/project.pbxproj', 'macosApp/Covio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'kmpDomain/module.yaml', 'app/module.yaml') }}-
-            macos-swift-${{ runner.os }}-${{ steps.xcode-cache.outputs.version }}-
-      # xcodebuild test builds the app and test host before running XCTest.
-      - name: Test
-        run: bash scripts/test-macos-swift.sh
-      - name: Save macOS caches
-        if: always() && steps.macos-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/xcode-dd
-            build/kmp-framework
-            build/kmp-framework-static
-            ~/Library/Caches/JetBrains/Kotlin
-          key: ${{ steps.macos-cache.outputs.cache-primary-key }}

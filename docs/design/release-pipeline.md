@@ -194,6 +194,9 @@ release clean     删除已发布 tag 的 release worktree
 `release draft` 复用主 checkout 的 `build/release-xcode-cache`。
 缓存只减少重复编译。缓存不改变 release identity、签名或资产验证。
 设置 `COVIO_RELEASE_DERIVED_DATA` 可以改缓存位置。
+GitHub Actions 不运行 macOS SwiftUI 作业。
+macOS 测试和 Release 构建由发布 Mac 负责。
+创建 Draft 前，维护者必须在本机运行 `bash scripts/test-all.sh`。
 
 ### 本机安装
 
