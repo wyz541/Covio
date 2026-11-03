@@ -21,16 +21,18 @@
 
 1. Migration PKG 取得 1 次管理员授权。
 2. PKG 事务交换新的 Covio.app。
-3. App 以 root 执行 `--install-updater-as-root`。
+3. App 以 root 执行 `--install-updater-as-root`。事务要求 App 只写文件，不启动 LaunchDaemon。
 4. App 校验 app 与 updater 的 designated requirement。
 5. App 安装 launcher、versioned engine、requirements 和 LaunchDaemon plist。
 6. App 写入 `current`，并在已有版本时写入 `previous`。
-7. App bootstrap Updater LaunchDaemon。
-8. Launcher 启动 engine。
-9. Engine 写入 health。
-10. 事务验证 health 后写入安装记录。
+7. 事务验证 Updater 布局和摘要。
+8. 如果 App 没有生成完整布局，事务从已验证的新 App 复制 Updater 文件。
+9. 事务 bootstrap Updater LaunchDaemon。
+10. Launcher 启动 engine。
+11. Engine 写入 health。
+12. 事务验证 health 后写入安装记录。
 
-Updater 安装失败时，事务恢复旧 app、helper、updater、plist 和安装记录。
+Updater 安装、布局校验或 health 失败时，事务恢复旧 app、helper、updater、plist 和安装记录。
 
 ## 启动流程
 

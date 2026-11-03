@@ -1066,6 +1066,129 @@ covio_tx_verify_installed_updater() {
     [[ -n "${EXPECTED_PREVIOUS_RELEASE_ID:-}" && "$current" == "$EXPECTED_PREVIOUS_RELEASE_ID" ]]
 }
 
+covio_tx_install_updater_file() {
+    local source="$1"
+    local destination="$2"
+    local mode="$3"
+    local temporary="$destination.tmp.$$"
+    mkdir -p "$(dirname "$destination")" || return 1
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        "$COVIO_TX_INSTALL" -m "$mode" "$source" "$temporary" || return 1
+    else
+        "$COVIO_TX_INSTALL" -m "$mode" -o root -g wheel "$source" "$temporary" || return 1
+    fi
+    mv "$temporary" "$destination"
+}
+
+covio_tx_write_updater_file() {
+    local value="$1"
+    local destination="$2"
+    local temporary="$destination.tmp.$$"
+    mkdir -p "$(dirname "$destination")" || return 1
+    printf '%s\n' "$value" > "$temporary" || return 1
+    chmod 0644 "$temporary" || return 1
+    if [[ "$TX_TEST_MODE" != "1" ]]; then
+        chown root:wheel "$temporary" || return 1
+    fi
+    sync
+    mv "$temporary" "$destination"
+}
+
+covio_tx_codesign_requirement() {
+    "$COVIO_TX_CODESIGN" -d -r- "$1" 2>&1 |
+        sed -n -e 's/^# designated => //p' -e 's/^designated => //p' |
+        tail -1
+}
+
+covio_tx_install_updater_from_verified_app() {
+    local app="$1"
+    local prefix="$2"
+    local release_id source_engine source_launcher source_plist
+    local client_requirement updater_requirement engine_sha launcher_sha version_directory
+    release_id="$(covio_tx_identity_value "$prefix" RELEASE_ID)"
+    source_engine="$app/Contents/MacOS/CovioUpdater"
+    source_launcher="$app/Contents/MacOS/CovioUpdaterLauncher"
+    source_plist="$app/Contents/Library/LaunchDaemons/com.wyz.covio.updater.plist"
+    version_directory="$TX_UPDATER_ROOT/versions/$release_id"
+
+    [[ -n "$release_id" && -x "$source_engine" && -x "$source_launcher" &&
+       -f "$source_plist" ]] || {
+        covio_tx_log "Verified app does not contain the updater layout"
+        return 1
+    }
+    engine_sha="$(covio_tx_sha256 "$source_engine")"
+    launcher_sha="$(covio_tx_sha256 "$source_launcher")"
+    [[ "$engine_sha" == "$(covio_tx_identity_value "$prefix" UPDATER_SHA256)" &&
+       "$launcher_sha" == "$(covio_tx_identity_value "$prefix" UPDATER_LAUNCHER_SHA256)" ]] || {
+        covio_tx_log "Verified app updater digest is invalid"
+        return 1
+    }
+
+    if [[ "$TX_TEST_MODE" != "1" ]]; then
+        "$COVIO_TX_CODESIGN" --verify --strict "$source_engine" >/dev/null 2>&1 ||
+            return 1
+        "$COVIO_TX_CODESIGN" --verify --strict "$source_launcher" >/dev/null 2>&1 ||
+            return 1
+        [[ "$("$COVIO_TX_CODESIGN" -d --verbose=2 "$source_engine" 2>&1)" == \
+           *"Identifier=com.wyz.covio.updater"* ]] || return 1
+        [[ "$("$COVIO_TX_CODESIGN" -d --verbose=2 "$source_launcher" 2>&1)" == \
+           *"Identifier=com.wyz.covio.updater.launcher"* ]] || return 1
+    fi
+
+    if [[ -s "$TX_STATE_ROOT/client-requirement" ]]; then
+        client_requirement="$(cat "$TX_STATE_ROOT/client-requirement")"
+    else
+        client_requirement="$(covio_tx_codesign_requirement "$app/Contents/MacOS/Covio")"
+    fi
+    updater_requirement="$(covio_tx_codesign_requirement "$source_engine")"
+    [[ -n "$client_requirement" && -n "$updater_requirement" ]] || {
+        covio_tx_log "Verified app updater requirement is missing"
+        return 1
+    }
+
+    covio_tx_install_updater_file "$source_launcher" \
+        "$TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" 0755 || return 1
+    covio_tx_install_updater_file "$source_engine" \
+        "$version_directory/CovioUpdater" 0755 || return 1
+    covio_tx_write_updater_file "$client_requirement" \
+        "$TX_UPDATER_ROOT/updater-client-requirement" || return 1
+    covio_tx_write_updater_file "$updater_requirement" \
+        "$TX_UPDATER_ROOT/updater-requirement" || return 1
+    covio_tx_install_updater_file "$source_plist" \
+        "$TX_UPDATER_LAUNCHD_PATH" 0644 || return 1
+    covio_tx_write_updater_file "$release_id" "$TX_UPDATER_ROOT/current" || return 1
+
+    chmod 0755 "$TX_UPDATER_ROOT" "$TX_UPDATER_ROOT/bin" \
+        "$TX_UPDATER_ROOT/versions" "$version_directory" || return 1
+    if [[ "$TX_TEST_MODE" != "1" ]]; then
+        chown root:wheel "$TX_UPDATER_ROOT" "$TX_UPDATER_ROOT/bin" \
+            "$TX_UPDATER_ROOT/versions" "$version_directory" || return 1
+    fi
+}
+
+covio_tx_start_and_verify_updater() {
+    local release_id="$1"
+    local attempt health_release attempts="${COVIO_TX_WAIT_ATTEMPTS:-40}"
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        return 0
+    fi
+    "$COVIO_TX_LAUNCHCTL" bootout "system/com.wyz.covio.updater" >/dev/null 2>&1 || true
+    if ! "$COVIO_TX_LAUNCHCTL" bootstrap system "$TX_UPDATER_LAUNCHD_PATH"; then
+        covio_tx_log "Cannot bootstrap CovioUpdater"
+        return 1
+    fi
+    for attempt in $(seq 1 "$attempts"); do
+        health_release="$("$COVIO_TX_PLUTIL" -extract releaseId raw -o - \
+            "$TX_UPDATER_ROOT/health.json" 2>/dev/null || true)"
+        if [[ "$health_release" == "$release_id" ]]; then
+            return 0
+        fi
+        sleep 0.25
+    done
+    covio_tx_log "Updater health did not match after $attempts attempts: $(tail -c 4096 "$TX_UPDATER_ROOT/updater.log" 2>/dev/null || true)"
+    return 1
+}
+
 covio_tx_register_and_verify_updater() {
     local app="$1"
     local prefix="$2"
@@ -1104,7 +1227,7 @@ covio_tx_register_and_verify_updater() {
              COVIO_UPDATER_LAUNCHD_PATH="$TX_UPDATER_LAUNCHD_PATH" \
              COVIO_UPDATER_RELEASE_ID="$(covio_tx_identity_value "$prefix" RELEASE_ID)" \
              COVIO_UPDATER_TEST_MODE="$TX_TEST_MODE" \
-             COVIO_UPDATER_SKIP_LAUNCHD="$TX_TEST_MODE" \
+             COVIO_UPDATER_SKIP_LAUNCHD=1 \
              "$binary" --install-updater-as-root \
              >"$output" 2>"$error"
         then
@@ -1113,17 +1236,26 @@ covio_tx_register_and_verify_updater() {
             return 1
         fi
     fi
-    current_release="$(tr -d '[:space:]' < "$TX_UPDATER_ROOT/current" 2>/dev/null || true)"
-    if [[ "$current_release" != "$(covio_tx_identity_value "$prefix" RELEASE_ID)" ]]; then
-        covio_tx_log "Updater current pointer does not match $prefix release ID"
-        return 1
+    current_release=""
+    if [[ -f "$TX_UPDATER_ROOT/current" ]]; then
+        current_release="$(tr -d '[:space:]' < "$TX_UPDATER_ROOT/current")"
     fi
-    if [[ ! -x "$TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" ||
+    if [[ "$current_release" != "$(covio_tx_identity_value "$prefix" RELEASE_ID)" ||
+          ! -x "$TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" ||
           ! -x "$TX_UPDATER_ROOT/versions/$current_release/CovioUpdater" ||
           ! -f "$TX_UPDATER_LAUNCHD_PATH" ||
           ! -f "$TX_UPDATER_ROOT/updater-client-requirement" ||
           ! -f "$TX_UPDATER_ROOT/updater-requirement" ]]; then
-        covio_tx_log "Updater installation is incomplete"
+        if [[ "$TX_UPDATE_MODE" != "pkg" ]]; then
+            covio_tx_log "Automatic updater installation is incomplete"
+            return 1
+        fi
+        covio_tx_log "Updater bootstrap did not create a complete layout; installing verified app files"
+        covio_tx_install_updater_from_verified_app "$app" "$prefix" || return 1
+        current_release="$(covio_tx_identity_value "$prefix" RELEASE_ID)"
+    fi
+    if [[ "$TX_UPDATE_MODE" == "pkg" ]] &&
+       ! covio_tx_start_and_verify_updater "$current_release"; then
         return 1
     fi
     if [[ "$TX_TEST_MODE" != "1" ]]; then
