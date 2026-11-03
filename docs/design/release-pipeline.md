@@ -116,6 +116,7 @@ bash scripts/publish-release.sh v<clientVersion>
 发布命令重算 release evidence。
 发布命令检查 Draft、tag、pre-release 标记和 app/helper 成对资产。
 任一检查失败时，命令在 `gh release edit` 前退出。
+`publish-release.sh` 已执行完整验证。因此，正式发布前不需要再单独运行一次 `--dry-run`。
 
 内部渠道发布后保持 pre-release。
 内部渠道不会成为正式 latest。
@@ -190,6 +191,12 @@ release clean     删除已发布 tag 的 release worktree
 
 `release draft` 只从 origin/main 构建。
 因此 Release 的 commit 就是 bump PR 合并后的 main，不是本地分支。
+`release draft` 复用主 checkout 的 `build/release-xcode-cache`。
+缓存只减少重复编译。缓存不改变 release identity、签名或资产验证。
+设置 `COVIO_RELEASE_DERIVED_DATA` 可以改缓存位置。
+GitHub Actions 不运行 macOS SwiftUI 作业。
+macOS 测试和 Release 构建由发布 Mac 负责。
+创建 Draft 前，维护者必须在本机运行 `bash scripts/test-all.sh`。
 
 ### 本机安装
 

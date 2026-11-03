@@ -64,9 +64,16 @@ bash scripts/setup-local-signing.sh
 bash scripts/package-macos-swift.sh
 ```
 
+`scripts/covio release draft` reuses a persistent DerivedData cache outside the clean release worktree.
+The default cache is under the primary checkout at `build/release-xcode-cache`.
+Set `COVIO_RELEASE_DERIVED_DATA` to use another cache directory.
+The packaging job locks the cache, and every release identity and asset check still runs.
+
 Internal Release creation requires a stable local signing identity.
 The app and helper must use the same certificate.
 CI packaging without a certificate still uses ad-hoc signing.
+GitHub Actions does not run the macOS SwiftUI host.
+Run `bash scripts/test-all.sh` on the release Mac before creating a Draft.
 
 Build the optional offline app and DMG:
 
