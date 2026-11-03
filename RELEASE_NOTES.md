@@ -1,4 +1,4 @@
-# Covio 0.0.1.9
+# Covio 0.0.2.0
 
 Covio 0.0.1.9 是内测版。
 此版本是自动更新的迁移桥。
@@ -16,30 +16,28 @@ Covio 0.0.1.9 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-从 0.0.1.8 升级时，请使用事务安装 PKG。
+从 0.0.2.0 升级时，请使用事务安装 PKG。
 只安装 DMG 不会安装 root updater。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.0.1.8 到 0.0.1.9 的变化
+## 从 0.0.1.8 到 0.0.2.0 的变化
 
-- 设置新增自动更新开关、手动检查、安装和重启状态。
-- 首次安装迁移 PKG 会安装独立 root updater。
-- 后续 internal 更新由 updater 下载、验证并安装。
-- 更新覆盖 app、helper、updater engine 和安装记录。
-- 更新失败时事务恢复旧组件。
-- 自动更新只接受固定 internal Release 和签名 manifest。
-- 普通自动更新不替换不可变 launcher 和 LaunchDaemon。
-- 工作流文档改为精简的 Issue 和 PR 流程。
+<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+
+- Use Liquid Glass for General settings actions（#578）
+- Redesign the General settings page（#576）
+- Add atomic updater installation pipeline（#573）
+- Simplify the issue workflow（#572）
+- Add automatic update controls to Settings（#570）
+- Install the updater with the migration package（#569）
+- Add the updater service and launcher（#568）
+- Add signed update manifests（#567）
+- Clarify the updater boundary（#566）
+- Add the passwordless update ADR（#554）
 
 ## 验证
 
-- 自动更新 manifest 的签名、摘要、渠道、版本和 URL 校验：通过。
-- app、helper 和 updater 的原子事务、握手失败回滚和 launcher 保留：通过。
-- 设置页亮色和深色 Before/After 真机截图：通过。
-- GitHub Actions 的 Contract、Kotlin 和 macOS SwiftUI：通过。
-- `bash scripts/test-all.sh`：通过。
-- 本版从 0.0.1.8 到 0.0.1.9 的迁移安装验收记录在 #563。
-- 0.0.1.9 到 0.0.2.0 的无管理员更新验收记录在 #563。
+<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
 
 ## 安装
 
