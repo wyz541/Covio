@@ -408,4 +408,15 @@ final class NotchShellControllerTests: XCTestCase {
         // 本用例只验证宿主接线。启动时收起由 testStartCreatesOneHotZonePerScreenAndKeepsTheHubHidden 覆盖；
         // 这里再读可见性会受真实鼠标是否停在胶囊上影响。
     }
+
+    @MainActor
+    func testApplicationMenuSettingsOpensTheWorkbenchSettingsPane() throws {
+        let appDelegate = try XCTUnwrap(AppDelegate.current)
+
+        XCTAssertTrue(appDelegate.openSettingsFromApplicationMenu())
+        XCTAssertEqual(
+            appDelegate.debugWorkbenchDestination,
+            .pane(id: PaneKind.settings.defaultId)
+        )
+    }
 }

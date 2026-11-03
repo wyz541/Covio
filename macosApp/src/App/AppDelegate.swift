@@ -462,6 +462,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.hotKey = hotKey
     }
 
+    /// 应用菜单和 ⌘, 打开真实的工作台设置页。
+    @discardableResult
+    func openSettingsFromApplicationMenu() -> Bool {
+        guard shell.workbench.openSettings() else { return false }
+        shell.showFromGesture()
+        return true
+    }
+
+    #if DEBUG
+    var debugWorkbenchDestination: HubDestination {
+        shell.workbench.destination
+    }
+    #endif
+
     func applicationWillTerminate(_ notification: Notification) {
         Self.current = nil
         hotKey?.unregister()
