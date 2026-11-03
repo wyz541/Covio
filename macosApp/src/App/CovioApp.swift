@@ -47,6 +47,9 @@ enum CovioMain {
         if arguments.contains(MaintenanceCommand.installUpdaterAsRoot) {
             exit(UpdaterInstaller.installForInstallTransactionAsRoot(logger: log) ? 0 : 1)
         }
+        if arguments.contains(MaintenanceCommand.installUpdaterEngineAsRoot) {
+            exit(UpdaterInstaller.installForAutomaticUpdateAsRoot(logger: log) ? 0 : 1)
+        }
         if arguments.contains(MaintenanceCommand.verifyInstallTransaction) {
             exit(verifyInstallTransaction())
         }
@@ -379,6 +382,8 @@ enum MaintenanceCommand {
     static let registerInstallTransactionHelper = "--register-install-transaction-helper"
     /// PKG 事务以 root 安装独立 updater LauncherDaemon、engine 和指针。
     static let installUpdaterAsRoot = "--install-updater-as-root"
+    /// 自动更新事务只替换 versioned updater engine 和指针。
+    static let installUpdaterEngineAsRoot = "--install-updater-engine-as-root"
     /// 验证新 helper 与当前 app 的发布身份完全一致。
     static let verifyInstallTransaction = "--verify-install-transaction"
     /// 从真实模型源下载、暂停、重启恢复并验证损坏拒绝。

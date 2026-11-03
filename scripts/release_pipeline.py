@@ -77,6 +77,9 @@ def read_plist(path: pathlib.Path) -> dict[str, Any]:
 def expected_asset_names(version: str) -> tuple[str, ...]:
     return (
         f"Covio-{version}.app.zip",
+        f"CovioUpdate-{version}.zip",
+        f"CovioUpdate-{version}.json",
+        f"CovioUpdate-{version}.sig.json",
         f"Covio-{version}.dmg",
         f"Covio-{version}.pkg",
     )
@@ -92,7 +95,15 @@ def release_asset_names(directory: pathlib.Path, version: str) -> tuple[str, ...
     names = [f"Covio-{version}.app.zip", default_name]
     if offline_name is not None:
         names.append(offline_name)
-    names.extend((f"Covio-{version}.pkg", "release-manifest.json"))
+    names.extend(
+        (
+            f"CovioUpdate-{version}.zip",
+            f"CovioUpdate-{version}.json",
+            f"CovioUpdate-{version}.sig.json",
+            f"Covio-{version}.pkg",
+            "release-manifest.json",
+        )
+    )
     return tuple(names)
 
 
@@ -371,6 +382,7 @@ def evidence_for(
         "verification": {
             "appHelperPaired": True,
             "identity": "MATCH",
+            "updateManifest": "MATCH",
             "architecture": [app_arch, helper_arch],
             "signatureKind": signature_kind,
             "notarized": notarized,
@@ -435,6 +447,130 @@ def _verify_updater_files(app: pathlib.Path) -> None:
             raise ReleaseVerificationError(
                 f"updater binary identifier mismatch: {binary.name}"
             )
+
+
+def _tree_manifest(root: pathlib.Path) -> list[tuple[str, str, str]]:
+    entries: list[tuple[str, str, str]] = []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            entries.append((relative, "link", path.readlink().as_posix()))
+        elif path.is_file():
+            entries.append((relative, "file", sha256_file(path)))
+        elif path.is_dir():
+            entries.append((relative, "dir", ""))
+    return entries
+
+
+def verify_update_assets(
+    directory: pathlib.Path,
+    source: release.ReleaseSpec,
+    artifact: dict[str, Any],
+    app_binary: pathlib.Path,
+    helper: pathlib.Path,
+    updater: pathlib.Path,
+    root: pathlib.Path,
+    temporary: pathlib.Path,
+) -> None:
+    archive = directory / f"CovioUpdate-{source.client_version}.zip"
+    manifest_path = directory / f"CovioUpdate-{source.client_version}.json"
+    signature_path = directory / f"CovioUpdate-{source.client_version}.sig.json"
+    manifest = read_json(manifest_path)
+    signature = read_json(signature_path)
+    expected_release_id = artifact.get("releaseId")
+    if manifest.get("schemaVersion") != 1:
+        raise ReleaseVerificationError("update manifest schemaVersion must be 1")
+    if manifest.get("channel") != "internal" or source.channel != "internal":
+        raise ReleaseVerificationError("update manifest channel must be internal")
+    expected = {
+        "productVersion": source.product_version,
+        "clientVersion": source.client_version,
+        "buildNumber": source.build_number,
+        "gitCommit": artifact.get("gitCommit"),
+        "releaseId": expected_release_id,
+        "helperProtocolVersion": source.helper_protocol_version,
+        "updaterProtocolVersion": 1,
+    }
+    for key, value in expected.items():
+        if manifest.get(key) != value:
+            raise ReleaseVerificationError(f"update manifest {key} differs from release identity")
+    expected_url = (
+        f"https://github.com/wyz541/kmp-Covio/releases/download/"
+        f"v{source.client_version}-internal/CovioUpdate-{source.client_version}.zip"
+    )
+    if manifest.get("archiveURL") != expected_url:
+        raise ReleaseVerificationError("update manifest archive URL is not the fixed internal URL")
+    if manifest.get("archiveSize") != archive.stat().st_size:
+        raise ReleaseVerificationError("update manifest archive size differs from the archive")
+    if manifest.get("archiveSHA256") != sha256_file(archive):
+        raise ReleaseVerificationError("update manifest archive digest differs from the archive")
+    hashes = manifest.get("componentHashes")
+    if not isinstance(hashes, dict):
+        raise ReleaseVerificationError("update manifest componentHashes is invalid")
+    for key, path in (("app", app_binary), ("helper", helper), ("updater", updater)):
+        if hashes.get(key) != sha256_file(path):
+            raise ReleaseVerificationError(f"update manifest component hash differs: {key}")
+    update_root = temporary / "update-archive"
+    update_app = _extract_app_zip(archive, update_root)
+    top_level = sorted(path.name for path in update_root.iterdir())
+    if top_level != ["Covio.app"]:
+        raise ReleaseVerificationError("update archive must contain only Covio.app")
+    app_root = app_binary.parents[2]
+    if _tree_manifest(update_app) != _tree_manifest(app_root):
+        raise ReleaseVerificationError("update archive differs from the verified app archive")
+    key_id = manifest.get("keyId")
+    published_at = manifest.get("publishedAt")
+    if not isinstance(key_id, str) or not key_id:
+        raise ReleaseVerificationError("update manifest keyId is invalid")
+    if not isinstance(published_at, str) or not published_at.endswith("Z"):
+        raise ReleaseVerificationError("update manifest publishedAt is invalid")
+    if signature.get("schemaVersion") != 1:
+        raise ReleaseVerificationError("update signature schemaVersion must be 1")
+    if signature.get("manifestSHA256") != sha256_file(manifest_path):
+        raise ReleaseVerificationError("update signature manifest digest mismatch")
+    records = signature.get("signatures")
+    if not isinstance(records, list) or not any(
+        isinstance(record, dict) and record.get("keyId") == key_id for record in records
+    ):
+        raise ReleaseVerificationError("update signature envelope does not cover manifest keyId")
+
+    keys_path = root / "release" / "update-public-keys.json"
+    keys_document = read_json(keys_path)
+    if keys_document.get("schemaVersion") != 1:
+        raise ReleaseVerificationError("update public key schemaVersion must be 1")
+    keys = keys_document.get("keys")
+    if not isinstance(keys, list):
+        raise ReleaseVerificationError("update public keys must be an array")
+    key = next(
+        (value for value in keys if isinstance(value, dict) and value.get("keyId") == key_id),
+        None,
+    )
+    if key is None or not isinstance(key.get("publicKey"), str):
+        raise ReleaseVerificationError("update manifest uses an untrusted key ID")
+    public_key_path = temporary / "update-public-key.json"
+    _write_json(
+        public_key_path,
+        {
+            "schemaVersion": 1,
+            "keyId": key_id,
+            "publicKey": key["publicKey"],
+        },
+    )
+    signer = root / "build" / "update-signing" / "CovioUpdateSigner"
+    if not signer.is_file():
+        raise ReleaseVerificationError("missing update signature verifier")
+    require_command(
+        [
+            str(signer),
+            "verify",
+            "--public-key",
+            str(public_key_path),
+            "--manifest",
+            str(manifest_path),
+            "--signature",
+            str(signature_path),
+        ]
+    )
 
 
 def _extract_app_zip(archive: pathlib.Path, destination: pathlib.Path) -> pathlib.Path:
@@ -515,6 +651,9 @@ def verify_release(
     for name in names:
         if not (directory / name).is_file():
             raise ReleaseVerificationError(f"missing release asset: {name}")
+    app_zip = directory / f"Covio-{source.client_version}.app.zip"
+    dmg_path = directory / f"Covio-{source.client_version}.dmg"
+    package_path = directory / f"Covio-{source.client_version}.pkg"
     verify_checksums(directory, source.client_version)
     size_errors = asset_size_errors(directory)
     if size_errors:
@@ -522,7 +661,7 @@ def verify_release(
 
     with tempfile.TemporaryDirectory(prefix="covio-release-verify-") as temporary:
         temp = pathlib.Path(temporary)
-        app = _extract_app_zip(directory / names[0], temp / "app")
+        app = _extract_app_zip(app_zip, temp / "app")
         app_plist_path = app / "Contents" / "Info.plist"
         helper = app / "Contents" / "MacOS" / "CovioHelper"
         app_binary = app / "Contents" / "MacOS" / "Covio"
@@ -564,10 +703,20 @@ def verify_release(
         require_command(["/usr/bin/codesign", "--verify", "--deep", "--strict", str(app)])
         require_command(["/usr/bin/codesign", "--verify", "--strict", str(helper)])
         _verify_updater_files(app)
+        verify_update_assets(
+            directory,
+            source,
+            artifact,
+            app_binary,
+            helper,
+            app / "Contents" / "MacOS" / "CovioUpdater",
+            root,
+            temp,
+        )
         app_signature = _signature_report(app)
         helper_signature = _signature_report(helper)
-        package_signature = run_command(["/usr/sbin/pkgutil", "--check-signature", str(directory / names[2])])
-        disk_image_signature = run_command(["/usr/bin/codesign", "-dv", "--verbose=4", str(directory / names[1])])
+        package_signature = run_command(["/usr/sbin/pkgutil", "--check-signature", str(package_path)])
+        disk_image_signature = run_command(["/usr/bin/codesign", "-dv", "--verbose=4", str(dmg_path)])
         errors = signature_errors(
             app_signature,
             helper_signature,
@@ -580,10 +729,10 @@ def verify_release(
             raise ReleaseVerificationError("\n".join(errors))
 
         app_staple = run_command(["/usr/bin/xcrun", "stapler", "validate", str(app)])
-        dmg_staple = run_command(["/usr/bin/xcrun", "stapler", "validate", str(directory / names[1])])
-        pkg_staple = run_command(["/usr/bin/xcrun", "stapler", "validate", str(directory / names[2])])
+        dmg_staple = run_command(["/usr/bin/xcrun", "stapler", "validate", str(dmg_path)])
+        pkg_staple = run_command(["/usr/bin/xcrun", "stapler", "validate", str(package_path)])
         app_gatekeeper = run_command(["/usr/sbin/spctl", "-a", "-vv", "--type", "execute", str(app)])
-        pkg_gatekeeper = run_command(["/usr/sbin/spctl", "-a", "-vv", "--type", "install", str(directory / names[2])])
+        pkg_gatekeeper = run_command(["/usr/sbin/spctl", "-a", "-vv", "--type", "install", str(package_path)])
         errors = notarization_errors(
             channel,
             app_staple,
@@ -597,7 +746,7 @@ def verify_release(
 
         mount = temp / "dmg"
         try:
-            _mount_dmg(directory / names[1], mount)
+            _mount_dmg(dmg_path, mount)
             mounted_app = mount / "Covio.app"
             mounted_info = read_plist(mounted_app / "Contents" / "Info.plist")
             mounted_helper = mounted_app / "Contents" / "MacOS" / "CovioHelper"
@@ -741,13 +890,14 @@ def verify_release(
             finally:
                 _detach_dmg(offline_mount)
 
-        package_payload = require_command(["/usr/sbin/pkgutil", "--payload-files", str(directory / names[2])])
+        package_payload = require_command(["/usr/sbin/pkgutil", "--payload-files", str(package_path)])
         required_package_paths = (
             "Library/Application Support/Covio/Installer/staged/Covio.app/Contents/MacOS/CovioHelper",
             "Library/Application Support/Covio/Installer/staged/Covio.app/Contents/MacOS/CovioUpdater",
             "Library/Application Support/Covio/Installer/staged/Covio.app/Contents/MacOS/CovioUpdaterLauncher",
             "Library/Application Support/Covio/Installer/bin/CovioTransaction",
             "Library/Application Support/Covio/Installer/recover.sh",
+            "Library/Application Support/Covio/Installer/install-update.sh",
         )
         missing_package_paths = [path for path in required_package_paths if path not in package_payload]
         if missing_package_paths:

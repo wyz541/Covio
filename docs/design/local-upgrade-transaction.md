@@ -37,6 +37,25 @@ LaunchDaemon plist 安装在系统目录。
 安装器最后提交全部新对象。
 首次握手失败时，安装器恢复全部旧对象。
 
+## 自动更新事务
+
+自动更新复用同一套 prepare、commit 和 rollback 函数。
+自动更新和 PKG 的边界不同：
+
+| 项目 | PKG | 自动更新 |
+| --- | --- | --- |
+| 执行者 | Installer root script | root updater one-shot LaunchDaemon |
+| App 和 helper | 可替换 | 可替换 |
+| Updater engine | 可替换 | 可替换 |
+| Launcher | 可替换 | 禁止替换 |
+| Updater LaunchDaemon plist | 可替换 | 禁止替换 |
+| Code-signing requirement | 可替换 | 禁止替换 |
+
+自动更新在事务环境写入 `UPDATE_MODE='automatic'`。
+事务检查已安装 launcher 的 root ownership、代码签名和 SHA-256。
+事务检查 `installed-release.json` 与当前 updater engine 一致。
+成功记录保留原 launcher 摘要，不写入新 app 内嵌 launcher 的摘要。
+
 ## PKG 布局
 
 PKG 不直接覆盖 `/Applications/Covio.app`。
@@ -140,6 +159,9 @@ sudo "/Library/Application Support/Covio/Installer/recover.sh" --manual-rollback
 | 状态恢复失败 | app 和 helper 不变，升级停止 |
 | 降级或混合 release | 所有对象不变，不交换 bundle |
 | helper 首次握手失败 | 恢复旧 app、helper、plist 和记录 |
+| updater 安装或 health 失败 | 恢复旧 app、helper、updater、plist 和记录 |
+| 自动更新替换 launcher | 事务拒绝提交 |
+| 自动更新发现损坏的 updater 记录 | 事务拒绝提交 |
 | 安装记录写入失败 | 恢复旧 app、helper、plist 和记录 |
 | 交换后进程中断 | 恢复命令根据事务状态回滚 |
 | 未开始事务阻塞 | 事务归档后允许重试，当前安装不变 |

@@ -240,6 +240,51 @@ static int install_updater(const char *executable) {
     return system(command) == 0 ? 0 : 1;
 }
 
+static int install_updater_engine(const char *executable) {
+    const char *root = getenv("COVIO_UPDATER_ROOT");
+    const char *old_release_id = getenv("COVIO_UPDATER_CURRENT_RELEASE_ID");
+    const char *new_release_id = getenv("COVIO_UPDATER_NEW_RELEASE_ID");
+    const char *expected_engine = getenv("COVIO_UPDATER_EXPECTED_SHA256");
+    const char *expected_launcher = getenv("COVIO_UPDATER_EXPECTED_LAUNCHER_SHA256");
+    if (root == NULL || old_release_id == NULL || new_release_id == NULL ||
+        expected_engine == NULL || expected_launcher == NULL) {
+        return 1;
+    }
+    char bundle[4096];
+    if (bundle_root(bundle, sizeof(bundle), executable) != 0) return 1;
+    if (result_file(bundle, "--install-updater-engine-as-root") != 0) return 1;
+    char command[20000];
+    snprintf(
+        command,
+        sizeof(command),
+        "old=\"$(cat '%s/current')\" && test \"$old\" = '%s' && "
+        "test \"$(shasum -a 256 '%s/bin/CovioUpdaterLauncher' | awk '{print $1}')\" = '%s' && "
+        "test \"$(shasum -a 256 '%s/Contents/MacOS/CovioUpdater' | awk '{print $1}')\" = '%s' && "
+        "mkdir -p '%s/versions/%s' && "
+        "cp '%s/Contents/MacOS/CovioUpdater' '%s/versions/%s/CovioUpdater' && "
+        "printf '%%s\\n' \"$old\" > '%s/previous' && "
+        "printf '%%s\\n' '%s' > '%s/current' && "
+        "chmod 0755 '%s/versions/%s/CovioUpdater'",
+        root,
+        old_release_id,
+        root,
+        expected_launcher,
+        bundle,
+        expected_engine,
+        root,
+        new_release_id,
+        bundle,
+        root,
+        new_release_id,
+        root,
+        new_release_id,
+        root,
+        root,
+        new_release_id
+    );
+    return system(command) == 0 ? 0 : 1;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
     char bundle[4096];
@@ -258,6 +303,9 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "--register-install-transaction-helper") == 0) return 0;
     if (strcmp(argv[1], "--install-updater-as-root") == 0) {
         return install_updater(argv[0]);
+    }
+    if (strcmp(argv[1], "--install-updater-engine-as-root") == 0) {
+        return install_updater_engine(argv[0]);
     }
     if (strcmp(argv[1], "--install-legacy-helper-as-root") == 0) {
         return install_legacy_helper(argv[0]);
@@ -364,6 +412,8 @@ setup_case() {
 
 write_environment() {
   local new_app="$1"
+  local update_mode="${2:-pkg}"
+  local previous_release_id="${3:-}"
   local helper_sha updater_sha launcher_sha
   helper_sha="$(/usr/bin/plutil -extract helperSHA256 raw -o - \
     "$new_app/Contents/Resources/release-manifest.json")"
@@ -381,6 +431,8 @@ EXPECTED_HELPER_SHA256='$helper_sha'
 EXPECTED_UPDATER_SHA256='$updater_sha'
 EXPECTED_UPDATER_LAUNCHER_SHA256='$launcher_sha'
 EXPECTED_CHANNEL='internal'
+UPDATE_MODE='$update_mode'
+EXPECTED_PREVIOUS_RELEASE_ID='$previous_release_id'
 STAGED_APP_PATH='$COVIO_TX_STATE_ROOT/Installer/staged/Covio.app'
 EOF
 }
@@ -400,6 +452,17 @@ prepare_case() {
   covio_tx_configure
 }
 
+prepare_automatic_case() {
+  setup_case "$1"
+  OLD_APP="$COVIO_TX_APPLICATIONS_ROOT/Covio.app"
+  NEW_APP="$CASE_ROOT/new/Covio.app"
+  build_app "$NEW_APP" 0.6.0 16 "$NEW_COMMIT" 10 internal 1 "" 1 legacy modern
+  build_app "$OLD_APP" 0.6.0 15 "$OLD_COMMIT" 9 internal 1 "" 1 legacy modern
+  write_environment "$NEW_APP"
+  covio_tx_load_environment "$TX_ENVIRONMENT_SOURCE"
+  covio_tx_configure
+}
+
 stage_new_app() {
   mkdir -p "$COVIO_TX_STATE_ROOT/Installer/staged"
   /usr/bin/ditto "$NEW_APP" "$TX_STAGED_APP"
@@ -411,6 +474,25 @@ seed_legacy_helper() {
   chmod 0755 "$TX_HELPER_PATH"
   printf '<plist><dict><key>Version</key><string>old</string></dict></plist>\n' \
     > "$TX_LAUNCHD_PATH"
+}
+
+seed_installed_updater() {
+  local app="$1"
+  local release_id updater_sha launcher_sha build client_version
+  release_id="$(/usr/bin/plutil -extract CovioReleaseId raw -o - "$app/Contents/Info.plist")"
+  build="$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$app/Contents/Info.plist")"
+  client_version="$(client_version_for_build "$build")"
+  COVIO_UPDATER_ROOT="$COVIO_TX_UPDATER_ROOT" \
+  COVIO_UPDATER_LAUNCHD_PATH="$COVIO_TX_UPDATER_LAUNCHD_PATH" \
+  COVIO_UPDATER_RELEASE_ID="$release_id" \
+  COVIO_UPDATER_TEST_MODE=1 \
+  COVIO_UPDATER_SKIP_LAUNCHD=1 \
+    "$app/Contents/MacOS/Covio" --install-updater-as-root >/dev/null
+  updater_sha="$(/usr/bin/shasum -a 256 "$COVIO_TX_UPDATER_ROOT/versions/$release_id/CovioUpdater" | awk '{print $1}')"
+  launcher_sha="$(/usr/bin/shasum -a 256 "$COVIO_TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" | awk '{print $1}')"
+  cat > "$TX_RECORD_PATH" <<EOF
+{"schemaVersion":2,"releaseId":"$release_id","clientVersion":"$client_version","productVersion":"0.6.0","buildNumber":$build,"gitCommit":"$OLD_COMMIT","helperProtocolVersion":9,"helperSHA256":"$(/usr/bin/plutil -extract helperSHA256 raw -o - "$app/Contents/Resources/release-manifest.json")","updaterReleaseId":"$release_id","updaterProtocolVersion":1,"updaterSHA256":"$updater_sha","updaterLauncherSHA256":"$launcher_sha","channel":"internal"}
+EOF
 }
 
 seed_legacy_release_record() {
@@ -543,6 +625,30 @@ assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Con
 [[ ! -e "$COVIO_TX_UPDATER_ROOT" && ! -e "$COVIO_TX_UPDATER_LAUNCHD_PATH" ]] || \
   fail "updater failure left updater files"
 assert_json "$TX_REPORT_PATH" result rolled-back
+
+printf 'case: automatic update replaces the app helper and engine but keeps the launcher\n'
+prepare_automatic_case automatic
+seed_legacy_helper
+seed_installed_updater "$OLD_APP"
+OLD_RELEASE_ID="$(tr -d '[:space:]' < "$COVIO_TX_UPDATER_ROOT/current")"
+OLD_LAUNCHER_SHA="$(/usr/bin/shasum -a 256 "$COVIO_TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" | awk '{print $1}')"
+OLD_PLIST_SHA="$(/usr/bin/shasum -a 256 "$COVIO_TX_UPDATER_LAUNCHD_PATH" | awk '{print $1}')"
+write_environment "$NEW_APP" automatic "$OLD_RELEASE_ID"
+covio_tx_load_environment "$TX_ENVIRONMENT_SOURCE"
+covio_tx_configure
+printf '1\n' > "$NEW_APP/Contents/Resources/install-updater-engine-as-root.result"
+/usr/bin/codesign --force --deep --sign - "$NEW_APP" >/dev/null 2>&1
+/usr/bin/codesign --verify --deep --strict "$NEW_APP" >/dev/null 2>&1
+covio_tx_prepare
+stage_new_app
+covio_tx_commit
+assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 16 "automatic update did not install the app"
+assert_eq "$(tr -d '[:space:]' < "$COVIO_TX_UPDATER_ROOT/current")" "0.0.1.6-g$NEW_COMMIT" "automatic update current pointer differs"
+assert_eq "$(tr -d '[:space:]' < "$COVIO_TX_UPDATER_ROOT/previous")" "$OLD_RELEASE_ID" "automatic update previous pointer differs"
+assert_eq "$(/usr/bin/shasum -a 256 "$COVIO_TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" | awk '{print $1}')" "$OLD_LAUNCHER_SHA" "automatic update replaced the launcher"
+assert_eq "$(/usr/bin/shasum -a 256 "$COVIO_TX_UPDATER_LAUNCHD_PATH" | awk '{print $1}')" "$OLD_PLIST_SHA" "automatic update replaced the LaunchDaemon"
+assert_json "$TX_RECORD_PATH" updaterLauncherSHA256 "$OLD_LAUNCHER_SHA"
+assert_json "$TX_RECORD_PATH" releaseId "0.0.1.6-g$NEW_COMMIT"
 
 printf 'case: interruption after bundle exchange is recoverable\n'
 prepare_case interruption 0.6.0 21 "$NEW_COMMIT"

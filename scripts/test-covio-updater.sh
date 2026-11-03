@@ -29,7 +29,7 @@ import os
 import sys
 value = json.loads(os.environ["STATUS"])
 assert value["releaseId"] == sys.argv[1]
-assert value["state"] == "notConfigured"
+assert value["state"] == "idle"
 assert value["updaterProtocolVersion"] == 1
 PY
 

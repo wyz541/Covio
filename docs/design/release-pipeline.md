@@ -43,6 +43,9 @@ app 的 `CFBundleVersion` 使用 `buildNumber`。
 
 ```text
 Covio-<clientVersion>.app.zip
+CovioUpdate-<clientVersion>.zip
+CovioUpdate-<clientVersion>.json
+CovioUpdate-<clientVersion>.sig.json
 Covio-<clientVersion>.dmg
 Covio-<clientVersion>.pkg
 Covio-Offline-<clientVersion>.dmg  # 可选
@@ -54,8 +57,10 @@ release-operation.json
 ```
 
 `release-evidence.json` 记录全部资产摘要、releaseId、commit、协议和验证结果。
+`CovioUpdate-<clientVersion>.zip` 只包含根级 `Covio.app`。
+Manifest 和签名信封由当前 Release 的同一组 app、helper 和 updater 生成。
 `release-notes.generated.md` 从同一份证据生成。
-`checksums.txt` 包含 app zip、默认 DMG、PKG 和 artifact manifest。
+`checksums.txt` 包含 app zip、update archive、update manifest、签名信封、默认 DMG、PKG 和 artifact manifest。
 发布离线包时，`checksums.txt` 还包含 `Covio-Offline-<clientVersion>.dmg`。
 `release-manifest.json` 记录默认包、可选离线包和模型 revision。
 `Covio.app` 的 Resources 携带 bundle identity manifest，不包含安装包摘要。
@@ -63,11 +68,20 @@ PKG 把 app 写入暂存区，再通过原子 bundle 交换完成 app 与 helper
 
 ## 创建 Draft
 
-内部渠道：
+内部渠道先准备 Keychain 签名密钥：
+
+```sh
+bash scripts/setup-update-signing-key.sh covio-internal-2026-01
+```
+
+创建内部 Draft：
 
 ```sh
 bash scripts/create-release.sh
 ```
+
+`create-release.sh` 拒绝没有 update 签名密钥的内部发布。
+脚本不把私钥写入仓库、Draft、日志或临时文件。
 
 附带离线整包：
 

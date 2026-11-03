@@ -48,3 +48,23 @@ struct UpdaterAutomaticPreference: Codable, Equatable, Sendable {
     let schemaVersion: Int
     let automaticUpdatesEnabled: Bool
 }
+
+struct UpdaterPersistedState: Codable, Equatable, Sendable {
+    let schemaVersion: Int
+    let state: UpdaterEngineState
+    let lastCheckAt: String?
+    let availableVersion: String?
+    let targetReleaseId: String?
+    let message: String?
+}
+
+struct UpdaterTransactionResult: Codable, Equatable, Sendable {
+    let schemaVersion: Int
+    let state: UpdaterEngineState
+    let transactionId: String?
+    let targetReleaseId: String
+    let previousReleaseId: String?
+    let result: String
+    let rollbackReason: String?
+    let recordedAt: String
+}

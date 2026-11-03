@@ -39,6 +39,12 @@ python3 scripts/release_manifest.py generate-artifact \
 
 For a default-only artifact manifest, omit `--offline-dmg` and `--model-manifest`.
 
+Internal releases add these update assets:
+
+- `CovioUpdate-<clientVersion>.zip`
+- `CovioUpdate-<clientVersion>.json`
+- `CovioUpdate-<clientVersion>.sig.json`
+
 The generated files are:
 
 - `kmpDomain/src/com/wyz/covio/core/GeneratedReleaseIdentity.kt`
@@ -79,6 +85,15 @@ scripts/covio release draft
 scripts/covio release publish
 scripts/covio local
 ```
+
+Prepare the automatic update signing key once:
+
+```sh
+bash scripts/setup-update-signing-key.sh covio-internal-2026-01
+```
+
+The private key stays in login Keychain. The public key is committed in
+`release/update-public-keys.json`.
 
 Build and create a Draft Release:
 

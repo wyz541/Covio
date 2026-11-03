@@ -1,8 +1,9 @@
 import Darwin
 import Foundation
 
-@objc final class CovioUpdaterService: NSObject, CovioUpdaterXPCProtocol {
-    typealias CheckHandler = @Sendable (uid_t) -> UpdaterOperationResult
+@objc final class CovioUpdaterService: NSObject, CovioUpdaterXPCProtocol, @unchecked Sendable {
+    typealias CheckHandler = (@escaping (UpdaterOperationResult) -> Void) -> Void
+    typealias InstallHandler = (@escaping (UpdaterOperationResult) -> Void) -> Void
 
     private struct Caller {
         let uid: uid_t
@@ -14,6 +15,7 @@ import Foundation
     private let paths: UpdaterPaths
     private let releaseId: String
     private let checkHandler: CheckHandler?
+    private let installHandler: InstallHandler?
     private let stateLock = NSLock()
     private var state: UpdaterEngineState
     private var lastCheckAt: String?
@@ -25,12 +27,20 @@ import Foundation
         paths: UpdaterPaths,
         releaseId: String,
         state: UpdaterEngineState = .notConfigured,
-        checkHandler: CheckHandler? = nil
+        lastCheckAt: String? = nil,
+        availableVersion: String? = nil,
+        message: String? = nil,
+        checkHandler: CheckHandler? = nil,
+        installHandler: InstallHandler? = nil
     ) {
         self.paths = paths
         self.releaseId = releaseId
         self.checkHandler = checkHandler
+        self.installHandler = installHandler
         self.state = state
+        self.lastCheckAt = lastCheckAt
+        self.availableVersion = availableVersion
+        self.message = message
         super.init()
     }
 
@@ -67,19 +77,20 @@ import Foundation
             return
         }
 
-        let result = checkHandler?(caller.uid) ?? .init(
-            ok: false,
-            state: .notConfigured,
-            message: "Automatic update trust keys are not configured",
-            availableVersion: nil
-        )
-        stateLock.lock()
-        state = result.state
-        availableVersion = result.availableVersion
-        message = result.message
-        lastCheckAt = Self.timestamp()
-        stateLock.unlock()
-        reply(encoded(result))
+        guard let checkHandler else {
+            reply(encoded(UpdaterOperationResult(
+                ok: false,
+                state: .notConfigured,
+                message: "Automatic update trust keys are not configured",
+                availableVersion: nil
+            )))
+            return
+        }
+        checkHandler { [weak self] result in
+            guard let self else { return }
+            self.apply(result)
+            reply(self.encoded(result))
+        }
     }
 
     func installAvailable(withReply reply: @escaping (Data) -> Void) {
@@ -92,12 +103,20 @@ import Foundation
             )))
             return
         }
-        reply(encoded(UpdaterOperationResult(
-            ok: false,
-            state: .failed,
-            message: "The updater transaction is not available in this build",
-            availableVersion: nil
-        )))
+        guard let installHandler else {
+            reply(encoded(UpdaterOperationResult(
+                ok: false,
+                state: .failed,
+                message: "The updater transaction is not available in this build",
+                availableVersion: nil
+            )))
+            return
+        }
+        installHandler { [weak self] result in
+            guard let self else { return }
+            self.apply(result)
+            reply(self.encoded(result))
+        }
     }
 
     func setAutomaticUpdates(_ enabled: Bool, withReply reply: @escaping (Data) -> Void) {
@@ -187,6 +206,10 @@ import Foundation
         }
     }
 
+    func applyScheduledResult(_ result: UpdaterOperationResult) {
+        apply(result)
+    }
+
     func status(for uid: uid_t) -> UpdaterStatus {
         stateLock.lock()
         let snapshot = (state, lastCheckAt, availableVersion, message)
@@ -196,7 +219,9 @@ import Foundation
             updaterProtocolVersion: UpdaterContract.protocolVersion,
             releaseId: releaseId,
             state: snapshot.0,
-            automaticUpdatesEnabled: automaticUpdatesEnabled(for: uid),
+            automaticUpdatesEnabled: UpdaterPreferenceStore(
+                paths: paths
+            ).isAutomaticUpdateEnabled(for: uid),
             lastCheckAt: snapshot.1,
             availableVersion: snapshot.2,
             message: snapshot.3
@@ -213,6 +238,15 @@ import Foundation
             auditSessionIdentifier: connection.auditSessionIdentifier,
             groupIdentifier: connection.effectiveGroupIdentifier
         )
+    }
+
+    private func apply(_ result: UpdaterOperationResult) {
+        stateLock.lock()
+        state = result.state
+        availableVersion = result.availableVersion
+        message = result.message
+        lastCheckAt = Self.timestamp()
+        stateLock.unlock()
     }
 
     private func currentState() -> UpdaterEngineState {
@@ -247,19 +281,6 @@ import Foundation
         }
     }
 
-    private func automaticUpdatesEnabled(for uid: uid_t) -> Bool {
-        let path = paths.preference(for: uid)
-        guard let data = try? Data(contentsOf: path),
-              let preference = try? JSONDecoder().decode(
-                  UpdaterAutomaticPreference.self,
-                  from: data
-              ),
-              preference.schemaVersion == 1
-        else {
-            return true
-        }
-        return preference.automaticUpdatesEnabled
-    }
 
     private func encoded<T: Encodable>(_ value: T) -> Data {
         (try? JSONEncoder().encode(value)) ?? Data()

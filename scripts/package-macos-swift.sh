@@ -62,6 +62,7 @@ RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit
 INTERNAL_SIGNING_BASELINE="$ROOT/build/internal-signing-$APP_ID.json"
 DMG_PATH="$DIST/$APP_NAME-$VERSION.dmg"
 APP_ZIP="$DIST/$APP_NAME-$VERSION.app.zip"
+UPDATE_ZIP="$DIST/CovioUpdate-$VERSION.zip"
 PKG_PATH="$DIST/$APP_NAME-$VERSION.pkg"
 TRANSACTION_ID="client-$VERSION-${COMMIT:0:12}"
 STAGED_APP_RELATIVE="Library/Application Support/Covio/Installer/staged/$APP_NAME.app"
@@ -120,7 +121,7 @@ fi
 if [[ -d "$OFFLINE_APP" ]]; then
   find "$OFFLINE_APP" -depth -delete
 fi
-for artifact in "$DMG_PATH" "$APP_ZIP" "$PKG_PATH" "$OFFLINE_DMG"; do
+for artifact in "$DMG_PATH" "$APP_ZIP" "$UPDATE_ZIP" "$PKG_PATH" "$OFFLINE_DMG"; do
   if [[ -e "$artifact" ]]; then
     unlink "$artifact"
   fi
@@ -283,17 +284,17 @@ if [[ ! -x "$UPDATER_ENGINE" || ! -x "$UPDATER_LAUNCHER" || ! -f "$UPDATER_PLIST
   exit 1
 fi
 
-# 先签整个 bundle，确保嵌套 helper 的最终字节稳定。生成发布清单后只重签 app 外层，
-# 避免复制清单使签名失效，也避免 helper 摘要随 deep 签名再次变化。
+# 嵌套 helper、framework、updater 和 launcher 在归档或构建时已经单独签名。
+# 这里只签 app 外层，避免 deep signing 覆盖 updater 和 launcher 的固定 identifier。
+# 生成发布清单后再重签外层一次，使最终资源摘要进入 code seal。
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
   release_codesign \
     --force \
-    --deep \
     --timestamp \
     --sign "$RELEASE_SIGN_IDENTITY" \
     "$APP_IMAGE"
 else
-  /usr/bin/codesign --force --deep --sign - "$APP_IMAGE"
+  /usr/bin/codesign --force --sign - "$APP_IMAGE"
 fi
 /usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
 
@@ -344,6 +345,8 @@ bash "$ROOT/scripts/verify-updater-daemon.sh" "$APP_IMAGE"
 
 # app.zip lets the publish command download and verify the app and helper pair again.
 /usr/bin/ditto -c -k --keepParent "$APP_IMAGE" "$APP_ZIP"
+# Automatic updates use a fixed top-level Covio.app layout.
+/usr/bin/ditto -c -k --norsrc --keepParent "$APP_IMAGE" "$UPDATE_ZIP"
 
 # 镜像的根要同时有 app 与指向 /Applications 的链接，装的时候才能拖进去。
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/covio-dmg-stage.XXXXXX")"
@@ -401,7 +404,8 @@ fi
 /usr/bin/ditto "$APP_IMAGE" "$PKG_ROOT/$STAGED_APP_RELATIVE"
 /usr/bin/ditto "$ROOT/installer/transaction.sh" "$INSTALLER_PAYLOAD/transaction.sh"
 /usr/bin/ditto "$ROOT/installer/recover.sh" "$INSTALLER_PAYLOAD/recover.sh"
-chmod 0755 "$INSTALLER_PAYLOAD/recover.sh" "$INSTALLER_PAYLOAD/transaction.sh"
+/usr/bin/ditto "$ROOT/installer/install-update.sh" "$INSTALLER_PAYLOAD/install-update.sh"
+chmod 0755 "$INSTALLER_PAYLOAD/recover.sh" "$INSTALLER_PAYLOAD/transaction.sh" "$INSTALLER_PAYLOAD/install-update.sh"
 
 /usr/bin/ditto "$ROOT/installer/preinstall" "$PKG_SCRIPTS/preinstall"
 /usr/bin/ditto "$ROOT/installer/postinstall" "$PKG_SCRIPTS/postinstall"
@@ -477,6 +481,10 @@ if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/bin/
   printf 'PKG payload is missing the transaction executable.\n' >&2
   exit 1
 fi
+if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/install-update.sh"* ]]; then
+  printf 'PKG payload is missing the updater transaction entrypoint.\n' >&2
+  exit 1
+fi
 
 if [[ -n "$NOTARY_PROFILE" ]]; then
   notarize_and_staple "$DMG_PATH" "$DMG_PATH"
@@ -487,8 +495,8 @@ if [[ -n "$NOTARY_PROFILE" ]]; then
   notarize_and_staple "$PKG_PATH" "$PKG_PATH"
 fi
 
-if [[ ! -f "$APP_ZIP" || ! -f "$PKG_PATH" ]]; then
-  printf 'Packaging did not create the expected app zip or PKG.\n' >&2
+if [[ ! -f "$APP_ZIP" || ! -f "$UPDATE_ZIP" || ! -f "$PKG_PATH" ]]; then
+  printf 'Packaging did not create the expected app zips or PKG.\n' >&2
   exit 1
 fi
 
@@ -505,4 +513,5 @@ printf 'App bytes: %s\n' "$APP_BYTES"
 printf 'Created %s\n' "$DMG_PATH"
 printf 'DMG bytes: %s\n' "$DMG_BYTES"
 printf 'Created %s\n' "$APP_ZIP"
+printf 'Created %s\n' "$UPDATE_ZIP"
 printf 'Created %s\n' "$PKG_PATH"

@@ -12,7 +12,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 mkdir -p "$OUT_DIR"
-xcrun swiftc "$SOURCE" -o "$OUTPUT"
+xcrun swiftc "$SOURCE" -framework Security -o "$OUTPUT"
 chmod 0755 "$OUTPUT"
 "$OUTPUT" >/dev/null 2>&1 || true
 printf 'Built %s\n' "$OUTPUT"
