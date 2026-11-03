@@ -530,18 +530,23 @@ struct MonitorFanPreviewRoot: View {
         ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_RENDER_SCENARIO"] ?? "curve"
     }
 
+    private static var language: AppLanguage {
+        let code = ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_LANGUAGE"]?.lowercased()
+        return code == "english" ? .english : .simplifiedChinese
+    }
+
     private static var previewError: String? {
         scenario == "error" ? "Fan control write failed" : nil
     }
 
     static var renderHeight: CGFloat {
         if scenario == "system-control" {
-            return 280
+            return 300
         }
         if scenario == "temperature-rules-advanced" {
-            return 1050
+            return 760
         }
-        return 360
+        return 600
     }
 
     private static var usesTemperatureRules: Bool {
@@ -558,6 +563,9 @@ struct MonitorFanPreviewRoot: View {
             mode: Self.scenario == "manual-sync"
                 ? .manual
                 : Self.scenario == "system-control" ? .automatic : .curve,
+            selectedPreset: Self.scenario == "manual-sync"
+                ? .manual
+                : Self.scenario == "system-control" ? .system : .custom,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],
@@ -617,7 +625,7 @@ struct MonitorFanPreviewRoot: View {
     var body: some View {
         MonitorFanPopover(
             reading: MonitorFanPreviewFixtures.reading,
-            language: .simplifiedChinese,
+            language: Self.language,
             model: model,
             scrollsContent: Self.scenario == "sensors",
             rendersForSnapshot: true,
@@ -648,6 +656,7 @@ struct MonitorFanCardPreviewRoot: View {
         previewConfiguration: MonitorFanConfiguration(
             enabled: Self.controlsFans,
             mode: .curve,
+            selectedPreset: .custom,
             startCelsius: 58,
             fullCelsius: 86,
             selectedSensorKeys: ["TCMz", "TC0P"],

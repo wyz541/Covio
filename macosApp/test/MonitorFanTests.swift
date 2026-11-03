@@ -110,6 +110,192 @@ final class MonitorFanTests: XCTestCase {
         )
     }
 
+    func testPresetCurveNormalizesAndInterpolatesSharedPercent() {
+        let points = MonitorFanPresetCurve.normalized([
+            .init(temperature: 95, percent: 180),
+            .init(temperature: 40, percent: -20),
+            .init(temperature: 70, percent: 50),
+        ])
+
+        XCTAssertEqual(points.map(\.temperature), [40, 70, 95])
+        XCTAssertEqual(points.map(\.percent), [0, 50, 100])
+        XCTAssertEqual(
+            MonitorFanPresetCurve.targetPercent(points: points, temperature: 82.5),
+            75
+        )
+    }
+
+    func testPresetCurveMaterializesTheSamePercentForEachFanRange() {
+        var configuration = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            selectedPreset: .custom,
+            presetPoints: [
+                "custom": [
+                    .init(temperature: 40, percent: 20),
+                    .init(temperature: 90, percent: 80),
+                ],
+            ]
+        )
+        let units = [
+            MonitorFanReading.Unit(
+                index: 0,
+                rpm: 1_000,
+                minimumRPM: 1_000,
+                maximumRPM: 5_000,
+                targetRPM: 0,
+                mode: 0
+            ),
+            MonitorFanReading.Unit(
+                index: 1,
+                rpm: 1_200,
+                minimumRPM: 1_200,
+                maximumRPM: 6_000,
+                targetRPM: 0,
+                mode: 0
+            ),
+        ]
+
+        configuration.materializePresetCurves(for: units)
+
+        XCTAssertEqual(configuration.curves["0"]?.first?.rpm, 1_000)
+        XCTAssertEqual(configuration.curves["0"]?.last?.rpm, 4_000)
+        XCTAssertEqual(configuration.curves["1"]?.first?.rpm, 1_200)
+        XCTAssertEqual(configuration.curves["1"]?.last?.rpm, 4_800)
+    }
+
+    func testPresetPointsRoundTripThroughConfigurationCoding() throws {
+        let original = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            selectedPreset: .compile,
+            presetPoints: [
+                "compile": [
+                    .init(temperature: 45, percent: 25),
+                    .init(temperature: 85, percent: 85),
+                ],
+            ]
+        )
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(MonitorFanConfiguration.self, from: data)
+
+        XCTAssertEqual(decoded.selectedPreset, .compile)
+        XCTAssertEqual(decoded.activePresetPoints, original.activePresetPoints)
+    }
+
+    func testPresetModeDoesNotSendLegacyTemperatureRulesToHelper() {
+        let configuration = MonitorFanConfiguration(
+            enabled: true,
+            mode: .curve,
+            selectedPreset: .sustained,
+            temperatureRules: [
+                "battery": MonitorFanTemperatureRule.defaultPoints(for: .battery),
+            ]
+        )
+
+        XCTAssertEqual(configuration.helperPayload()["temperatureRules"], "")
+    }
+
+    func testCurrentPresetPercentUsesTheBusiestFan() {
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(
+                    index: 0,
+                    rpm: 2_900,
+                    minimumRPM: 1_200,
+                    maximumRPM: 5_800,
+                    targetRPM: 2_900,
+                    mode: 1
+                ),
+                .init(
+                    index: 1,
+                    rpm: 3_480,
+                    minimumRPM: 1_200,
+                    maximumRPM: 5_800,
+                    targetRPM: 3_480,
+                    mode: 1
+                ),
+            ]
+        )
+
+        XCTAssertEqual(MonitorFanPresetCurve.currentPercent(in: reading) ?? -1, 60, accuracy: 0.001)
+    }
+
+    @MainActor
+    func testSelectingPresetUpdatesModeAndMaterializesCurves() {
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(
+                    index: 0,
+                    rpm: 2_200,
+                    minimumRPM: 1_200,
+                    maximumRPM: 5_800,
+                    targetRPM: 2_200,
+                    mode: 1
+                ),
+            ]
+        )
+        let model = MonitorFanControlModel(
+            previewConfiguration: .defaultValue,
+            availability: .ready
+        )
+
+        model.selectPreset(.quiet, reading: reading)
+
+        XCTAssertEqual(model.configuration.selectedPreset, .quiet)
+        XCTAssertEqual(model.configuration.mode, .curve)
+        XCTAssertTrue(model.configuration.enabled)
+        XCTAssertEqual(
+            model.configuration.curves["0"]?.count,
+            MonitorFanPreset.quiet.defaultPoints.count
+        )
+    }
+
+    @MainActor
+    func testLegacyFanCurveMigratesToSharedCustomPreset() {
+        let reading = MonitorFanReading(
+            temperatures: [.init(key: "TCMz", celsius: 65)],
+            units: [
+                .init(
+                    index: 0,
+                    rpm: 2_300,
+                    minimumRPM: 1_200,
+                    maximumRPM: 5_800,
+                    targetRPM: 2_300,
+                    mode: 1
+                ),
+            ]
+        )
+        let model = MonitorFanControlModel(
+            previewConfiguration: MonitorFanConfiguration(
+                enabled: true,
+                mode: .curve,
+                curves: [
+                    "0": [
+                        .init(temperature: 40, rpm: 2_120),
+                        .init(temperature: 80, rpm: 4_640),
+                    ],
+                ]
+            ),
+            availability: .ready
+        )
+
+        XCTAssertEqual(model.configuration.selectedPreset, .legacy)
+        model.migrateLegacyPresetIfNeeded(reading: reading)
+
+        XCTAssertEqual(model.configuration.selectedPreset, .custom)
+        XCTAssertEqual(
+            model.configuration.activePresetPoints,
+            [
+                .init(temperature: 40, percent: 20),
+                .init(temperature: 80, percent: 75),
+            ]
+        )
+    }
+
     func testConfigurationNormalizesCurveAndManualRPM() {
         let value = MonitorFanConfiguration(
             enabled: true,

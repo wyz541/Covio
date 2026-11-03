@@ -229,7 +229,9 @@ private enum MonitorFanControlCopy {
         reading: MonitorFanReading,
         language: AppLanguage
     ) -> String {
-        let sources = configuration.enabledTemperatureSources
+        let sources = configuration.selectedPreset.isCurvePreset
+            ? []
+            : configuration.enabledTemperatureSources
         if sources.count == 1, let source = sources.first {
             return String(
                 format: ContractCopy.copyMonitorFanControlSource.text(for: language),
@@ -288,10 +290,6 @@ struct MonitorFanPopover: View {
     }
 
     private var controlTemperature: Double? {
-        let sources = model.configuration.enabledTemperatureSources
-        if !sources.isEmpty {
-            return sources.compactMap { sourceTemperatures[$0] }.max()
-        }
         return model.configuration.controlTemperature(in: reading)
     }
 
@@ -305,15 +303,15 @@ struct MonitorFanPopover: View {
 
     private var preferredHeight: CGFloat {
         if model.configuration.mode == .automatic {
-            return 280
+            return 300
         }
         if advancedExpanded {
-            return 800
-        }
-        if model.configuration.mode == .manual {
             return 760
         }
-        return 360
+        if model.configuration.mode == .manual {
+            return 560
+        }
+        return 600
     }
 
     var body: some View {
@@ -331,18 +329,16 @@ struct MonitorFanPopover: View {
         }
         .padding(16)
         .frame(width: 420, height: preferredHeight, alignment: .topLeading)
-        .tint(MonitorCardKind.fan.accent)
+        .tint(MonitorFanPresetStyle.accent)
         .onAppear {
             if sensorsInitiallyExpanded {
                 sensorsExpanded = true
             }
-            if advancedInitiallyExpanded || MonitorFanPolicy.expandsAdvanced(for: model.configuration.mode) {
+            if advancedInitiallyExpanded {
                 advancedExpanded = true
             }
+            model.migrateLegacyPresetIfNeeded(reading: reading)
             model.refreshFanControlStatus()
-        }
-        .onChange(of: model.configuration.mode) { _, mode in
-            advancedExpanded = MonitorFanPolicy.expandsAdvanced(for: mode)
         }
         .task {
             while !Task.isCancelled {
@@ -362,87 +358,65 @@ struct MonitorFanPopover: View {
             if !helperReady {
                 helperCallout
             }
-            if isControllingFans {
-                takeoverBanner
-            } else {
+            if model.configuration.selectedPreset == .system {
                 systemControlCallout
             }
             controls
-            if model.configuration.enabled,
-               model.configuration.enabledTemperatureSources.isEmpty {
-                sensorSection
-            }
         }
         .padding(.bottom, 4)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(ContractCopy.copyMonitorFanDetails.text(for: language))
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(MonitorCardKind.fan.accent)
-
-            VStack(spacing: 4) {
-                ForEach(reading.units) { fan in
-                    fanHeaderRow(fan)
-                }
-            }
-
-            HStack(spacing: 4) {
-                Text(ContractCopy.copyMonitorFanControlTemperature.text(for: language))
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(MacTheme.textPrimary)
-                Text(MonitorFanFormat.temperature(controlTemperature))
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(MacTheme.textPrimary)
-                    .monospacedDigit()
-                Text("·")
-                    .foregroundStyle(MacTheme.textSecondary)
-                Text(controlSummaryText)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(MacTheme.textSecondary)
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(reading.units) { fan in
+                fanHeaderRow(fan)
             }
         }
     }
 
     private func fanHeaderRow(_ fan: MonitorFanReading.Unit) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "fanblades.fill")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(MonitorCardKind.fan.accent)
-                .frame(width: 14)
-            Text(String(
-                format: ContractCopy.copyMonitorFanUnit.text(for: language),
-                fan.index + 1
-            ))
-            .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(MacTheme.textPrimary)
-            Spacer(minLength: 0)
-            Text(MonitorFanFormat.rpm(fan.rpm))
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(MacTheme.textPrimary)
-                .monospacedDigit()
-            Image(systemName: "arrow.right")
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundStyle(MacTheme.textSecondary)
-            Text(MonitorFanFormat.targetRPM(displayedTargetRPM(for: fan)))
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(MonitorCardKind.fan.accent)
-                .monospacedDigit()
-            Text(ContractCopy.copyMonitorFanTarget.text(for: language))
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(MacTheme.textSecondary)
+        let fraction = fan.usageFraction
+        let percent = fraction.map { MonitorFormat.percent($0) } ?? "—"
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(fanDisplayName(fan))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(MacTheme.textPrimary)
+                Spacer(minLength: 0)
+                Text("\(percent) · \(MonitorFanFormat.rpm(fan.rpm))")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(MacTheme.textSecondary)
+                    .monospacedDigit()
+            }
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(MacTheme.textSecondary.opacity(0.16))
+                    Capsule()
+                        .fill(MonitorFanPresetStyle.accent)
+                        .frame(width: geometry.size.width * min(1, max(0, fraction ?? 0)))
+                }
+            }
+            .frame(height: 4)
         }
-        .frame(minHeight: 24)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(
-            format: ContractCopy.copyMonitorFanUnit.text(for: language),
-            fan.index + 1
-        ))
+        .accessibilityLabel(fanDisplayName(fan))
         .accessibilityValue(
-            "\(ContractCopy.copyMonitorFanActual.text(for: language)) \(MonitorFanFormat.rpm(fan.rpm)), "
+            "\(percent), \(MonitorFanFormat.rpm(fan.rpm)), "
             + "\(ContractCopy.copyMonitorFanTarget.text(for: language)) "
             + MonitorFanFormat.targetRPM(displayedTargetRPM(for: fan))
+        )
+    }
+
+    private func fanDisplayName(_ fan: MonitorFanReading.Unit) -> String {
+        if reading.units.count == 2 {
+            return fan.index == 0
+                ? ContractCopy.copyMonitorFanLeft.text(for: language)
+                : ContractCopy.copyMonitorFanRight.text(for: language)
+        }
+        return String(
+            format: ContractCopy.copyMonitorFanUnit.text(for: language),
+            fan.index + 1
         )
     }
 
@@ -456,6 +430,14 @@ struct MonitorFanPopover: View {
             }
             return model.configuration.manualRPM[String(fan.index)] ?? fan.targetRPM
         case .curve:
+            if let temperature = controlTemperature,
+               let percent = model.configuration.presetTargetPercent(at: temperature) {
+                return MonitorFanPercent.rpm(
+                    percent: percent,
+                    minimumRPM: fan.minimumRPM,
+                    maximumRPM: fan.maximumRPM
+                )
+            }
             if !model.configuration.enabledTemperatureSources.isEmpty,
                let percent = model.configuration.mergedTargetPercent(
                    sourceTemperatures: sourceTemperatures
@@ -560,11 +542,26 @@ struct MonitorFanPopover: View {
 
     private var controls: some View {
         VStack(alignment: .leading, spacing: 10) {
-            modeControl
+            strategyHeader
+            strategyControl
 
-            if model.configuration.mode != .automatic {
+            if model.configuration.selectedPreset.isCurvePreset {
+                Text(ContractCopy.copyMonitorFanCurveSummary.text(for: language))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                curveEditor
+
+                if let message = model.visibleErrorMessage {
+                    Text(message)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(MacTheme.errorText)
+                        .textSelection(.enabled)
+                }
+
                 DisclosureGroup(isExpanded: $advancedExpanded) {
-                    advancedControls
+                    sensorSection
                         .padding(.top, 8)
                 } label: {
                     HStack(spacing: 6) {
@@ -572,136 +569,123 @@ struct MonitorFanPopover: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(MacTheme.textPrimary)
                         Spacer(minLength: 0)
-                        Text(modeTitle(model.configuration.mode))
+                        Text(presetTitle(model.configuration.selectedPreset))
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(MacTheme.textSecondary)
                     }
                     .frame(minHeight: 24)
                 }
-                .tint(MonitorCardKind.fan.accent)
+                .tint(MonitorFanPresetStyle.accent)
+            } else if model.configuration.selectedPreset == .manual {
+                manualControls
             }
         }
         .padding(10)
         .popoverContentSurface()
     }
 
-    @ViewBuilder
-    private var advancedControls: some View {
-        if model.configuration.mode == .curve {
-            temperatureRuleEditor
-            if model.configuration.enabledTemperatureSources.isEmpty {
-                presetRow
-                curveEditor
+    private var strategyHeader: some View {
+        HStack(spacing: 8) {
+            Text(ContractCopy.copyMonitorFanStrategy.text(for: language))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+            Spacer(minLength: 0)
+            if isControllingFans {
+                Button(ContractCopy.copyMonitorFanReturnToMacos.text(for: language)) {
+                    model.restore()
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(MonitorFanPresetStyle.accent)
+                .disabled(model.busy)
+            } else {
+                Text(ContractCopy.copyMonitorFanSystemControl.text(for: language))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(MacTheme.textSecondary)
             }
-        } else if model.configuration.mode == .manual {
-            manualControls
         }
     }
 
-    private var modeControl: some View {
-        Picker(ContractCopy.copyMonitorFanDetails.text(for: language), selection: Binding(
-            get: { model.configuration.mode },
-            set: { model.setMode($0, reading: reading) }
-        )) {
-            Text(modeTitle(.automatic))
-                .tag(MonitorFanMode.automatic)
-            Text(modeTitle(.curve))
-                .tag(MonitorFanMode.curve)
-            Text(modeTitle(.manual))
-                .tag(MonitorFanMode.manual)
+    private var strategyControl: some View {
+        HStack(spacing: 0) {
+            ForEach(visiblePresets, id: \.rawValue) { preset in
+                let selected = visibleSelection == preset
+                Button {
+                    model.selectPreset(preset, reading: reading)
+                } label: {
+                    Text(presetTitle(preset))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(selected ? Color.white : MacTheme.textPrimary)
+                        .frame(maxWidth: .infinity, minHeight: 30)
+                        .background(
+                            selected ? MonitorFanPresetStyle.accent : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+                .disabled(model.busy)
+            }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .disabled(model.busy)
+        .padding(4)
+        .background(
+            MacTheme.material.opacity(0.82),
+            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(ContractCopy.copyMonitorFanStrategy.text(for: language))
     }
 
-    private func modeTitle(_ mode: MonitorFanMode) -> String {
-        switch mode {
-        case .automatic:
-            ContractCopy.copyMonitorFanSystemAuto.text(for: language)
-        case .curve:
-            ContractCopy.copyMonitorFanAutoCurve.text(for: language)
+    private var visibleSelection: MonitorFanPreset {
+        model.configuration.selectedPreset == .legacy
+            ? .custom
+            : model.configuration.selectedPreset
+    }
+
+    private var visiblePresets: [MonitorFanPreset] {
+        if model.configuration.selectedPreset == .manual {
+            return MonitorFanPreset.selectable + [.manual]
+        }
+        return MonitorFanPreset.selectable
+    }
+
+    private func presetTitle(_ preset: MonitorFanPreset) -> String {
+        switch preset {
+        case .system:
+            ContractCopy.copyMonitorFanPresetSystem.text(for: language)
+        case .quiet:
+            ContractCopy.copyMonitorFanPresetQuiet.text(for: language)
+        case .compile:
+            ContractCopy.copyMonitorFanPresetCompile.text(for: language)
+        case .sustained:
+            ContractCopy.copyMonitorFanPresetSustained.text(for: language)
+        case .custom, .legacy:
+            ContractCopy.copyMonitorFanPresetCustom.text(for: language)
         case .manual:
             ContractCopy.copyMonitorFanManualRpm.text(for: language)
         }
     }
 
-    private var presetRow: some View {
-        HStack(spacing: 6) {
-            presetButton(ContractCopy.copyMonitorFanQuiet, MonitorFanPolicy.quiet)
-            presetButton(ContractCopy.copyMonitorFanBalanced, MonitorFanPolicy.balanced)
-            presetButton(ContractCopy.copyMonitorFanTurbo, MonitorFanPolicy.turbo)
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func presetButton(_ title: LocalizedCopy, _ preset: MonitorFanConfiguration) -> some View {
-        Group {
-            if rendersForSnapshot {
-                Button(title.text(for: language)) {
-                    model.applyPreset(preset, reading: reading)
-                }
-                .buttonStyle(.plain)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(MacTheme.textPrimary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(MacTheme.textSecondary.opacity(0.12), in: Capsule())
-            } else {
-                Button(title.text(for: language)) {
-                    model.applyPreset(preset, reading: reading)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-            }
-        }
-        .frame(minHeight: 24)
-        .contentShape(Rectangle())
-        .disabled(model.busy)
-    }
-
     private var curveEditor: some View {
         MonitorFanCurveEditor(
             reading: reading,
-            configuration: model.configuration,
+            preset: model.configuration.selectedPreset,
+            points: model.configuration.activePresetPoints,
+            controlTemperature: controlTemperature,
             language: language,
-            powerSource: model.configuration.powerSource,
             interactive: !rendersForSnapshot,
             busy: model.busy,
-            onCommit: { fanIndex, source, points in
-                model.setCurve(
-                    fanIndex: fanIndex,
-                    points: points,
-                    source: source,
-                    reading: reading
-                )
-            },
-            onClear: { fanIndex, source in
-                model.clearCurve(fanIndex: fanIndex, source: source, reading: reading)
-            },
-            onCopyAdapterCurves: {
-                model.copyAdapterCurvesToBattery(reading: reading)
-            }
-        )
-    }
-
-    private var temperatureRuleEditor: some View {
-        MonitorFanTemperatureRuleEditor(
-            reading: reading,
-            configuration: model.configuration,
-            helperSourceTemperatures: model.helperStatus?.sourceTemperatures ?? [:],
-            language: language,
-            busy: model.busy,
-            onToggleSource: { source, enabled in
-                model.setTemperatureSource(source, enabled: enabled, reading: reading)
-            },
-            onChangePoints: { source, points, applyImmediately in
-                model.setTemperatureRulePoints(
+            isCustomized: model.configuration.isPresetCustomized(),
+            onCommit: { points in
+                model.setPresetPoints(
                     points,
-                    source: source,
                     reading: reading,
-                    applyImmediately: applyImmediately
+                    applyImmediately: true
                 )
+            },
+            onReset: {
+                model.resetPreset(reading: reading)
             }
         )
     }
@@ -928,7 +912,7 @@ struct MonitorFanPopover: View {
         HStack(alignment: .top, spacing: 7) {
             Image(systemName: "fanblades.fill")
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(MonitorCardKind.fan.accent)
+                .foregroundStyle(MonitorFanPresetStyle.accent)
             VStack(alignment: .leading, spacing: 3) {
                 Text(ContractCopy.copyMonitorFanSystemControlTitle.text(for: language))
                     .font(.system(size: 10, weight: .semibold))

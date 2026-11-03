@@ -96,6 +96,8 @@ final class MonitorFanControlModel: ObservableObject {
                 self.helperStatus = status
                 if status?.active != true, self.configuration.enabled {
                     self.configuration.enabled = false
+                    self.configuration.mode = .automatic
+                    self.configuration.selectedPreset = .system
                     self.persist()
                 }
             }
@@ -118,11 +120,36 @@ final class MonitorFanControlModel: ObservableObject {
         }
     }
 
+    /// 把旧版每风扇 RPM 曲线转换为一条共享自定义曲线。
+    func migrateLegacyPresetIfNeeded(reading: MonitorFanReading) {
+        guard configuration.selectedPreset == .legacy else { return }
+        guard let fan = reading.units.first else { return }
+        let legacyPoints = configuration.curvePoints(
+            for: fan.index,
+            minimumRPM: fan.minimumRPM,
+            maximumRPM: fan.maximumRPM,
+            source: configuration.powerSource.curveSource
+        )
+        let sharedPoints = legacyPoints.map { point in
+            let span = max(1, fan.maximumRPM - fan.minimumRPM)
+            return MonitorFanPresetPoint(
+                temperature: point.temperature,
+                percent: ((point.rpm - fan.minimumRPM) / span * 100).rounded()
+            )
+        }
+        configuration.selectedPreset = .custom
+        configuration.mode = .curve
+        configuration.setPresetPoints(sharedPoints, for: .custom)
+        configuration.materializePresetCurves(for: reading.units)
+        persist()
+    }
+
     func setEnabled(_ enabled: Bool, reading: MonitorFanReading) {
         curveApplyTask?.cancel()
         configuration.enabled = enabled
         if enabled, configuration.mode.isAutomatic {
             configuration.mode = .curve
+            configuration.selectedPreset = .custom
         }
         if enabled, configuration.mode == .manual,
            reading.units.allSatisfy({ manualMode(for: $0.index) == .automatic }) {
@@ -142,6 +169,13 @@ final class MonitorFanControlModel: ObservableObject {
         manualApplyTask?.cancel()
         curveApplyTask?.cancel()
         configuration.mode = mode
+        if mode == .automatic {
+            configuration.selectedPreset = .system
+        } else if mode == .manual {
+            configuration.selectedPreset = .manual
+        } else if !configuration.selectedPreset.isCurvePreset {
+            configuration.selectedPreset = .custom
+        }
         configuration.enabled = !mode.isAutomatic
         if mode == .manual {
             for fan in reading.units {
@@ -156,6 +190,65 @@ final class MonitorFanControlModel: ObservableObject {
         }
     }
 
+    /// 选择统一策略。系统策略交还 macOS；其他策略共用当前预设曲线。
+    func selectPreset(_ preset: MonitorFanPreset, reading: MonitorFanReading) {
+        guard preset != .manual else { return }
+        manualApplyTask?.cancel()
+        curveApplyTask?.cancel()
+        configuration.selectedPreset = preset
+        configuration.mode = preset.mode
+        configuration.enabled = preset.isCurvePreset
+        if preset.isCurvePreset {
+            configuration.materializePresetCurves(for: reading.units)
+        }
+        persist()
+        if preset == .system {
+            restore()
+        } else {
+            apply(reading: reading)
+        }
+    }
+
+    /// 提交节点拖动后的共享曲线。拖动期间界面只更新草稿，松手才调用这里。
+    func setPresetPoints(
+        _ points: [MonitorFanPresetPoint],
+        reading: MonitorFanReading,
+        applyImmediately: Bool = true
+    ) {
+        guard configuration.selectedPreset.isEditable else { return }
+        curveApplyTask?.cancel()
+        configuration.setPresetPoints(points)
+        let minimums = Dictionary(uniqueKeysWithValues: reading.units.map {
+            ($0.index, $0.minimumRPM)
+        })
+        let maximums = Dictionary(uniqueKeysWithValues: reading.units.map {
+            ($0.index, $0.maximumRPM)
+        })
+        configuration = configuration.normalized(
+            fanMinimums: minimums,
+            fanMaximums: maximums
+        )
+        configuration.materializePresetCurves(for: reading.units)
+        persist()
+        guard configuration.enabled, configuration.mode == .curve else { return }
+        if applyImmediately {
+            apply(reading: reading)
+        } else {
+            scheduleCurveApply(reading: reading)
+        }
+    }
+
+    func resetPreset(reading: MonitorFanReading) {
+        guard configuration.selectedPreset.isEditable else { return }
+        curveApplyTask?.cancel()
+        configuration.resetPreset()
+        configuration.materializePresetCurves(for: reading.units)
+        persist()
+        if configuration.enabled, configuration.mode == .curve {
+            apply(reading: reading)
+        }
+    }
+
     func applyPreset(_ preset: MonitorFanConfiguration, reading: MonitorFanReading) {
         manualApplyTask?.cancel()
         curveApplyTask?.cancel()
@@ -163,6 +256,7 @@ final class MonitorFanControlModel: ObservableObject {
         configuration.startCelsius = preset.startCelsius
         configuration.fullCelsius = preset.fullCelsius
         configuration.mode = .curve
+        configuration.selectedPreset = .custom
         configuration.enabled = true
         configuration.selectedSensorKeys = sensorKeys
         configuration.curves.removeAll()
@@ -422,6 +516,7 @@ final class MonitorFanControlModel: ObservableObject {
         if skipsAvailabilityRefresh {
             configuration.enabled = false
             configuration.mode = .automatic
+            configuration.selectedPreset = .system
             return
         }
         busy = true
@@ -433,6 +528,7 @@ final class MonitorFanControlModel: ObservableObject {
                 if result.ok {
                     self.configuration.enabled = false
                     self.configuration.mode = .automatic
+                    self.configuration.selectedPreset = .system
                     self.helperStatus = result.status ?? FanControlHelperStatus(
                         active: false,
                         mode: "system",
@@ -466,6 +562,9 @@ final class MonitorFanControlModel: ObservableObject {
             fanMinimums: minimums,
             fanMaximums: maximums
         )
+        if configuration.selectedPreset.isCurvePreset {
+            configuration.materializePresetCurves(for: reading.units)
+        }
         if configuration.selectedSensorKeys.isEmpty {
             configuration.selectedSensorKeys = SMCFanReader.controlSensorKeys(
                 for: reading.temperatures.map {
