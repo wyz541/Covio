@@ -623,17 +623,28 @@ struct MonitorFanPreviewRoot: View {
     )
 
     var body: some View {
-        MonitorFanPopover(
+        let popover = MonitorFanPopover(
             reading: MonitorFanPreviewFixtures.reading,
             language: Self.language,
             model: model,
             scrollsContent: Self.scenario == "sensors",
-            rendersForSnapshot: true,
+            rendersForSnapshot: !Self.livePreview,
             sensorsInitiallyExpanded: Self.scenario == "sensors",
             advancedInitiallyExpanded: Self.scenario == "temperature-rules-advanced"
         )
         .frame(width: 420, alignment: .topLeading)
-        .background(MacTheme.surface)
+
+        if Self.livePreview {
+            popover
+                .glassSurface(cornerRadius: 28, mode: .glass)
+        } else {
+            popover
+                .background(MacTheme.surface)
+        }
+    }
+
+    private static var livePreview: Bool {
+        ProcessInfo.processInfo.environment["COVIO_MONITOR_FAN_PREVIEW"] == "1"
     }
 }
 
@@ -700,7 +711,9 @@ enum MonitorFanPreviewSnapshot {
         if let glassMode { GlassSurfaceMode.current = glassMode }
         defer { GlassSurfaceMode.current = previousMode }
 
-        let host = NSHostingView(rootView: content)
+        let host = NSHostingView(
+            rootView: content.environment(\.monitorFanForceOpaqueSurface, true)
+        )
         host.frame = NSRect(origin: .zero, size: size)
         host.wantsLayer = true
         host.layer?.contentsScale = 2
@@ -717,7 +730,8 @@ enum MonitorFanPreviewSnapshot {
         window.center()
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
-        try? await Task.sleep(for: .milliseconds(200))
+        // Liquid Glass 需要等窗口合成完成再截屏；过早读取会丢失玻璃及其相邻文字。
+        try? await Task.sleep(for: .milliseconds(900))
         host.needsLayout = true
         host.layoutSubtreeIfNeeded()
         host.displayIfNeeded()

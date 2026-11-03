@@ -7,6 +7,87 @@ enum MonitorFanPresetStyle {
     }
 }
 
+private struct MonitorFanForceOpaqueSurfaceKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var monitorFanForceOpaqueSurface: Bool {
+        get { self[MonitorFanForceOpaqueSurfaceKey.self] }
+        set { self[MonitorFanForceOpaqueSurfaceKey.self] = newValue }
+    }
+}
+
+enum MonitorFanGlassButtonShape {
+    case capsule
+    case circle
+
+    var borderShape: ButtonBorderShape {
+        switch self {
+        case .circle: .circle
+        case .capsule: .capsule
+        }
+    }
+}
+
+struct MonitorFanGlassButtonStyleModifier: ViewModifier {
+    var shape: MonitorFanGlassButtonShape = .capsule
+    let forceOpaque: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if forceOpaque {
+            content
+                .buttonStyle(.plain)
+                .background(MacTheme.elevated.opacity(0.82), in: Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(MacTheme.divider.opacity(0.55), lineWidth: 0.75)
+                }
+        } else {
+            content
+                .buttonStyle(.glass)
+                .buttonBorderShape(shape.borderShape)
+                .controlSize(.small)
+        }
+    }
+}
+
+/// 风扇控制的内容面板。默认使用清透玻璃；辅助功能需要更高对比时退回不透明表面。
+private struct MonitorFanGlassPanelModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    let tint: Color?
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.monitorFanForceOpaqueSurface) private var forceOpaqueSurface
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    private var usesOpaqueSurface: Bool {
+        forceOpaqueSurface || reduceTransparency || colorSchemeContrast == .increased
+    }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if usesOpaqueSurface {
+            content
+                .background(shape.fill(tint ?? MacTheme.surface))
+                .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: 1))
+        } else {
+            content.glassSurface(cornerRadius: cornerRadius, tint: tint, mode: .clear)
+        }
+    }
+}
+
+extension View {
+    @MainActor
+    func monitorFanGlassPanel(cornerRadius: CGFloat, tint: Color? = nil) -> some View {
+        modifier(MonitorFanGlassPanelModifier(cornerRadius: cornerRadius, tint: tint))
+    }
+}
+
 /// 所有风扇共享的温度到风量曲线编辑器。
 ///
 /// 拖动只更新本地草稿。松手时一次提交，避免连续写配置打断手势。
@@ -27,6 +108,10 @@ struct MonitorFanCurveEditor: View {
     @State private var selectedPointIndex = 0
     @State private var draggingPointIndex: Int?
     @State private var preciseExpanded = false
+    @State private var hoveredPointIndex: Int?
+    @Namespace private var pointGlassNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.monitorFanForceOpaqueSurface) private var forceOpaqueSurface
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -36,12 +121,17 @@ struct MonitorFanCurveEditor: View {
                     .foregroundStyle(MacTheme.textPrimary)
                 Spacer(minLength: 0)
                 if isCustomized {
-                    Button(ContractCopy.copyMonitorFanResetPreset.text(for: language)) {
+                    Button {
                         onReset()
                         syncDraft()
+                    } label: {
+                        Label(
+                            ContractCopy.copyMonitorFanResetPreset.text(for: language),
+                            systemImage: "arrow.counterclockwise"
+                        )
+                        .font(.system(size: 8, weight: .semibold))
                     }
-                    .buttonStyle(.link)
-                    .font(.system(size: 8, weight: .semibold))
+                    .modifier(MonitorFanGlassButtonStyleModifier(forceOpaque: forceOpaqueSurface))
                     .disabled(busy)
                 }
             }
@@ -53,6 +143,8 @@ struct MonitorFanCurveEditor: View {
 
             DisclosureGroup(isExpanded: $preciseExpanded) {
                 preciseControls
+                    .padding(10)
+                    .monitorFanGlassPanel(cornerRadius: 12)
                     .padding(.top, 6)
             } label: {
                 Text(ContractCopy.copyMonitorFanPreciseAdjust.text(for: language))
@@ -81,7 +173,16 @@ struct MonitorFanCurveEditor: View {
                     yEnd: .value(ContractCopy.copyMonitorFanAirflow.text(for: language), point.percent)
                 )
                 .interpolationMethod(.linear)
-                .foregroundStyle(MonitorFanPresetStyle.accent.opacity(0.10))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [
+                            MonitorFanPresetStyle.accent.opacity(0.22),
+                            MonitorFanPresetStyle.accent.opacity(0.025),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
             }
 
             ForEach(draftPoints) { point in
@@ -187,10 +288,15 @@ struct MonitorFanCurveEditor: View {
         .chartLegend(.hidden)
         .chartPlotStyle { plot in
             plot
-                .background(MacTheme.material.opacity(0.56))
-                .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+                .background(Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .frame(height: 214)
+        .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(MacTheme.divider.opacity(0.34), lineWidth: 0.75)
+                .allowsHitTesting(false)
+        }
         .animation(nil, value: draftPoints)
     }
 
@@ -218,55 +324,92 @@ struct MonitorFanCurveEditor: View {
     }
 
     private var nodeToolbar: some View {
-        HStack(spacing: 5) {
-            ForEach(draftPoints.indices, id: \.self) { index in
-                Button("\(index + 1)") {
-                    selectedPointIndex = index
-                }
-                .buttonStyle(.plain)
-                .font(.system(size: 8, weight: .semibold))
-                .foregroundStyle(index == selectedPointIndex ? Color.white : MacTheme.textPrimary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(
-                    index == selectedPointIndex ? MonitorFanPresetStyle.accent : MacTheme.elevated,
-                    in: Capsule()
-                )
-                .accessibilityLabel(
-                    String(
-                        format: ContractCopy.copyMonitorFanControlPoint.text(for: language),
-                        index + 1
+        GlassEffectContainer(spacing: 6) {
+            HStack(spacing: 4) {
+                ForEach(draftPoints.indices, id: \.self) { index in
+                    let selected = index == selectedPointIndex
+                    Button("\(index + 1)") {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch)) {
+                            selectedPointIndex = index
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(
+                        selected && forceOpaqueSurface ? Color.white : MacTheme.textPrimary
                     )
-                )
-                .disabled(busy)
-            }
+                    .frame(width: 26, height: 24)
+                    .background(
+                        forceOpaqueSurface && selected
+                            ? MonitorFanPresetStyle.accent
+                            : Color.clear,
+                        in: Capsule()
+                    )
+                    .contentShape(Capsule())
+                    .glassEffect(
+                        forceOpaqueSurface
+                            ? .identity
+                            : selected
+                                ? .regular.tint(MonitorFanPresetStyle.accent).interactive()
+                                : (hoveredPointIndex == index ? .clear.interactive() : .identity),
+                        in: .capsule
+                    )
+                    .glassEffectID(
+                        selected && !forceOpaqueSurface ? "fan-point-selection" : nil,
+                        in: pointGlassNamespace
+                    )
+                    .glassEffectTransition(.matchedGeometry)
+                    .accessibilityLabel(
+                        String(
+                            format: ContractCopy.copyMonitorFanControlPoint.text(for: language),
+                            index + 1
+                        )
+                    )
+                    .disabled(busy)
+                    .onHover { inside in
+                        hoveredPointIndex = inside ? index : nil
+                    }
+                }
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
 
-            Button {
-                addPoint()
-            } label: {
-                Image(systemName: "plus")
-                    .frame(width: 22, height: 22)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .help(ContractCopy.copyMonitorFanAddPoint.text(for: language))
-            .accessibilityLabel(ContractCopy.copyMonitorFanAddPoint.text(for: language))
-            .disabled(busy || draftPoints.count >= MonitorFanPolicy.maximumCurvePointCount)
+                Button {
+                    addPoint()
+                } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 24, height: 24)
+                }
+                .modifier(MonitorFanGlassButtonStyleModifier(
+                    shape: .circle,
+                    forceOpaque: forceOpaqueSurface
+                ))
+                .help(ContractCopy.copyMonitorFanAddPoint.text(for: language))
+                .accessibilityLabel(ContractCopy.copyMonitorFanAddPoint.text(for: language))
+                .disabled(busy || draftPoints.count >= MonitorFanPolicy.maximumCurvePointCount)
 
-            Button {
-                deletePoint()
-            } label: {
-                Image(systemName: "minus")
-                    .frame(width: 22, height: 22)
+                Button {
+                    deletePoint()
+                } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 24, height: 24)
+                }
+                .modifier(MonitorFanGlassButtonStyleModifier(
+                    shape: .circle,
+                    forceOpaque: forceOpaqueSurface
+                ))
+                .help(ContractCopy.copyMonitorFanDeletePoint.text(for: language))
+                .accessibilityLabel(ContractCopy.copyMonitorFanDeletePoint.text(for: language))
+                .disabled(busy || draftPoints.count <= 2)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .help(ContractCopy.copyMonitorFanDeletePoint.text(for: language))
-            .accessibilityLabel(ContractCopy.copyMonitorFanDeletePoint.text(for: language))
-            .disabled(busy || draftPoints.count <= 2)
         }
+        .animation(
+            reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch),
+            value: selectedPointIndex
+        )
+        .animation(
+            reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch),
+            value: hoveredPointIndex
+        )
     }
 
     private var legend: some View {

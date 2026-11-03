@@ -37,6 +37,10 @@
 | --- | --- | --- |
 | ![Covio 已接管](previews/528-fan-card-light-after-1.png) | ![正在接管](previews/528-fan-card-applying-light-after-1.png) | ![系统控制](previews/528-fan-card-system-control-light-after-1.png) |
 
+风扇卡片使用 `.clear` Liquid Glass。
+卡片玻璃启用交互反馈。
+详情入口使用原生 Liquid Glass 按钮。
+
 ## 3. 三段式结构
 
 | 段 | 折叠态 | 展开态 |
@@ -79,7 +83,12 @@ popover 固定宽度 `420` 点。
 曲线状态高度为 `600` 点。
 高级区展开后，内容可滚动。
 popover 外壳使用系统原生 regular Liquid Glass。
-控制区使用标准 thin material。
+控制面板使用 `.clear` Liquid Glass。
+策略选择、交回 macOS、节点选择和增删按钮使用可交互 Liquid Glass。
+选中策略和选中节点使用 `glassEffectID` 与 matchedGeometry 完成形变。
+相邻控件放入 `GlassEffectContainer`，由系统合并玻璃轮廓和交互反馈。
+启用降低透明度或增强对比度时，内容面板退回不透明 surface。
+内容文字直接叠在玻璃上，不再添加仿制模糊、渐变高光或阴影。
 
 头部逐台风扇显示名称、当前使用率、当前 RPM 和横向进度条。
 两台风扇使用「左风扇」和「右风扇」。

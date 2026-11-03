@@ -9,6 +9,7 @@ struct MonitorFanCard: View {
 
     @State private var popoverPresented = false
     @State private var popoverID = UUID().uuidString
+    @Environment(\.monitorFanForceOpaqueSurface) private var forceOpaqueSurface
 
     private var controlTemperature: Double? {
         model.configuration.controlTemperature(in: reading)
@@ -70,7 +71,8 @@ struct MonitorFanCard: View {
             accent: MonitorCardKind.fan.accent,
             language: language,
             combinesAccessibility: false,
-            statusIndicator: statusIndicator
+            statusIndicator: statusIndicator,
+            glassInteractive: true
         ) {
             VStack(alignment: .leading, spacing: MacTheme.space2) {
                 HStack(spacing: MacTheme.space3) {
@@ -185,9 +187,10 @@ struct MonitorFanCard: View {
                     .rotationEffect(popoverPresented ? .degrees(90) : .zero)
             }
             .contentShape(Rectangle())
+            .padding(.horizontal, 8)
             .frame(minHeight: 24)
         }
-        .buttonStyle(.plain)
+        .modifier(MonitorFanGlassButtonStyleModifier(forceOpaque: forceOpaqueSurface))
         .accessibilityLabel(ContractCopy.copyMonitorFanA11yOpen.text(for: language))
     }
 
@@ -280,6 +283,10 @@ struct MonitorFanPopover: View {
     @State private var sensorsExpanded = false
     @State private var sensorQuery = ""
     @State private var advancedExpanded = false
+    @State private var hoveredPreset: MonitorFanPreset?
+    @Namespace private var strategyGlassNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.monitorFanForceOpaqueSurface) private var forceOpaqueSurface
 
     private var sourceTemperatures: [MonitorFanTemperatureSource: Double] {
         var values = model.configuration.temperatureSourceReadings(in: reading)
@@ -330,6 +337,7 @@ struct MonitorFanPopover: View {
         .padding(16)
         .frame(width: 420, height: preferredHeight, alignment: .topLeading)
         .tint(MonitorFanPresetStyle.accent)
+        .animation(reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch), value: hoveredPreset)
         .onAppear {
             if sensorsInitiallyExpanded {
                 sensorsExpanded = true
@@ -392,12 +400,19 @@ struct MonitorFanPopover: View {
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(MacTheme.textSecondary.opacity(0.16))
+                        .glassEffect(forceOpaqueSurface ? .identity : .clear, in: .capsule)
                     Capsule()
-                        .fill(MonitorFanPresetStyle.accent)
+                        .fill(MonitorFanPresetStyle.accent.opacity(0.92))
                         .frame(width: geometry.size.width * min(1, max(0, fraction ?? 0)))
+                        .glassEffect(
+                            forceOpaqueSurface
+                                ? .identity
+                                : .regular.tint(MonitorFanPresetStyle.accent.opacity(0.72)),
+                            in: .capsule
+                        )
                 }
             }
-            .frame(height: 4)
+            .frame(height: 6)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(fanDisplayName(fan))
@@ -532,10 +547,10 @@ struct MonitorFanPopover: View {
             .foregroundStyle(MacTheme.textSecondary)
 
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .popoverContentSurface(
-            cornerRadius: 9,
+        .monitorFanGlassPanel(
+            cornerRadius: 14,
             tint: MacTheme.warningText.opacity(0.12)
         )
     }
@@ -580,8 +595,13 @@ struct MonitorFanPopover: View {
                 manualControls
             }
         }
-        .padding(10)
-        .popoverContentSurface()
+        .padding(12)
+        .monitorFanGlassPanel(cornerRadius: 18)
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(MacTheme.divider.opacity(0.36), lineWidth: 0.75)
+                .allowsHitTesting(false)
+        }
     }
 
     private var strategyHeader: some View {
@@ -591,12 +611,19 @@ struct MonitorFanPopover: View {
                 .foregroundStyle(MacTheme.textPrimary)
             Spacer(minLength: 0)
             if isControllingFans {
-                Button(ContractCopy.copyMonitorFanReturnToMacos.text(for: language)) {
+                Button {
                     model.restore()
+                } label: {
+                    Label(
+                        ContractCopy.copyMonitorFanReturnToMacos.text(for: language),
+                        systemImage: "arrow.uturn.backward"
+                    )
+                    .font(.system(size: 9, weight: .semibold))
+                    .padding(.horizontal, 8)
+                    .frame(minHeight: 26)
                 }
-                .buttonStyle(.link)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(MonitorFanPresetStyle.accent)
+                .modifier(MonitorFanGlassButtonStyleModifier(forceOpaque: forceOpaqueSurface))
+                .tint(MonitorFanPresetStyle.accent)
                 .disabled(model.busy)
             } else {
                 Text(ContractCopy.copyMonitorFanSystemControl.text(for: language))
@@ -607,34 +634,65 @@ struct MonitorFanPopover: View {
     }
 
     private var strategyControl: some View {
-        HStack(spacing: 0) {
-            ForEach(visiblePresets, id: \.rawValue) { preset in
-                let selected = visibleSelection == preset
-                Button {
-                    model.selectPreset(preset, reading: reading)
-                } label: {
-                    Text(presetTitle(preset))
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(selected ? Color.white : MacTheme.textPrimary)
-                        .frame(maxWidth: .infinity, minHeight: 30)
-                        .background(
-                            selected ? MonitorFanPresetStyle.accent : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        )
-                        .contentShape(Rectangle())
+        GlassEffectContainer(spacing: 5) {
+            HStack(spacing: 2) {
+                ForEach(visiblePresets, id: \.rawValue) { preset in
+                    let selected = visibleSelection == preset
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch)) {
+                            model.selectPreset(preset, reading: reading)
+                        }
+                    } label: {
+                        Text(presetTitle(preset))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(
+                                selected && forceOpaqueSurface ? Color.white : MacTheme.textPrimary
+                            )
+                            .frame(maxWidth: .infinity, minHeight: 30)
+                            .background(
+                                forceOpaqueSurface && selected
+                                    ? MonitorFanPresetStyle.accent
+                                    : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(
+                        forceOpaqueSurface ? .identity : strategyGlass(for: preset),
+                        in: .rect(cornerRadius: 9)
+                    )
+                    .glassEffectID(
+                        selected && !forceOpaqueSurface ? "fan-strategy-selection" : nil,
+                        in: strategyGlassNamespace
+                    )
+                    .glassEffectTransition(.matchedGeometry)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .disabled(model.busy)
+                    .onHover { inside in
+                        hoveredPreset = inside ? preset : nil
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-                .disabled(model.busy)
             }
+            .padding(4)
+            .background(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(MacTheme.textSecondary.opacity(0.075))
+            )
         }
-        .padding(4)
-        .background(
-            MacTheme.material.opacity(0.82),
-            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-        )
+        .animation(reduceMotion ? nil : .easeOut(duration: HubMotion.tabSwitch), value: visibleSelection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(ContractCopy.copyMonitorFanStrategy.text(for: language))
+    }
+
+    private func strategyGlass(for preset: MonitorFanPreset) -> Glass {
+        if preset == visibleSelection {
+            return .regular.tint(MonitorFanPresetStyle.accent).interactive()
+        }
+        if hoveredPreset == preset {
+            return .clear.interactive()
+        }
+        return .identity
     }
 
     private var visibleSelection: MonitorFanPreset {
@@ -929,9 +987,9 @@ struct MonitorFanPopover: View {
                 }
             }
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .popoverContentSurface()
+        .monitorFanGlassPanel(cornerRadius: 14)
     }
 }
 

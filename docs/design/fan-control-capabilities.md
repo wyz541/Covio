@@ -27,6 +27,12 @@ Popover 宽 `420` 点。
 内容在头部下方滚动。
 卡片尺寸和 Monitor 网格不随内容变化。
 
+popover 外壳使用系统 regular Liquid Glass。
+控制面板使用 `.clear` Liquid Glass。
+策略、恢复、节点和增删按钮使用原生 Liquid Glass 控件。
+选中玻璃通过 `glassEffectID` 与 matchedGeometry 在相邻位置之间形变。
+系统开启降低透明度或增强对比度时，内容面板退回不透明表面。
+
 ## 3. Swift Charts
 
 曲线必须使用 `Chart`。

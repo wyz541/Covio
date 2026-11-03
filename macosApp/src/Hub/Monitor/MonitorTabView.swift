@@ -1718,6 +1718,7 @@ struct MonitorCardShell<Content: View>: View {
     let language: AppLanguage
     var combinesAccessibility = true
     var statusIndicator: MonitorCardStatusIndicator?
+    var glassInteractive = false
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -1753,7 +1754,7 @@ struct MonitorCardShell<Content: View>: View {
         .padding(MacTheme.space3)
         .frame(maxWidth: .infinity).frame(height: HubMetrics.monitorCardHeight, alignment: .topLeading)
         .background(cardBackground, in: shape)
-        .glassSurface(cornerRadius: MacTheme.cardRadius)
+        .glassSurface(cornerRadius: MacTheme.cardRadius, interactive: glassInteractive)
         .overlay(shape.strokeBorder(accent.opacity(0.22), lineWidth: 1))
         .accessibilityElement(children: combinesAccessibility ? .combine : .contain)
         .accessibilityLabel(kind.title.text(for: language))
