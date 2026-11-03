@@ -54,13 +54,22 @@ struct ScreenGeometry: Equatable, Sendable {
         hotZoneRect.size
     }
 
-    /// 展开态的面板矩形，用首页的内容高度。
-    var expandedRect: CGRect {
-        expandedRect(contentHeight: HubMetrics.contentHeight(for: .home(rows: HubMetrics.defaultHomeRows)))
+    /// 固定外壳的内容高度。只由屏幕高度与顶部安全区决定。
+    var shellContentHeight: CGFloat {
+        HubMetrics.shellContentHeight(screenHeight: frame.height, safeAreaTop: panelTopInset)
     }
 
-    /// 展开态的面板矩形。`contentHeight` 由当前页签决定。
-    /// 面板锚定在顶部中央。
+    /// 固定外壳里导航层与内容层共用的高度。
+    var shellPlateStackHeight: CGFloat {
+        HubMetrics.shellPlateStackHeight(screenHeight: frame.height, safeAreaTop: panelTopInset)
+    }
+
+    /// 展开态的面板矩形。页签与编辑模式不参与计算。
+    var expandedRect: CGRect {
+        expandedRect(contentHeight: shellContentHeight)
+    }
+
+    /// 按给定内容高度计算展开态面板矩形。面板锚定在顶部中央。
     func expandedRect(contentHeight: CGFloat) -> CGRect {
         let width = HubMetrics.hubWidth(screenWidth: frame.width)
         let height = HubMetrics.expandedHeight(

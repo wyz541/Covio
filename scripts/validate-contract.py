@@ -36,8 +36,8 @@ COPY_LITERAL_ALLOWED = (
     "macosApp/src/Design/LocalizedCopy.swift",
 )
 
-TOKEN_PREFIXES = ("token/art/", "token/color/", "token/radius/", "token/space/",
-                  "token/material/", "token/motion/")
+TOKEN_PREFIXES = ("token/art/", "token/color/", "token/radius/", "token/size/",
+                  "token/space/", "token/material/", "token/motion/")
 
 errors: list[str] = []
 

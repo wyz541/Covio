@@ -4,7 +4,7 @@ import kmpDomain
 
 /// Hub 面板的根视图。
 ///
-/// 面板窗口的尺寸是固定的展开尺寸。展开与收起只改内容的高度，
+/// 面板窗口的尺寸在屏幕变化时固定下来。展开与收起只改内容的高度，
 /// 所以视觉上是一条从顶部垂下来的窗帘。
 ///
 /// 顶栏是悬浮在内容上的功能层。内容延伸到顶栏背后，并从顶栏下方开始首屏排版。
@@ -50,12 +50,11 @@ struct HubView: View {
             Spacer(minLength: 0)
         }
         .frame(
-            width: geometry.expandedRect(contentHeight: panelHeight).width,
-            height: geometry.expandedRect(contentHeight: panelHeight).height,
+            width: geometry.expandedRect.width,
+            height: geometry.expandedRect.height,
             alignment: .top
         )
-        // 切换页面时，新高度先到 SwiftUI，窗口下一轮才改尺寸。
-        // 这一帧里根视图比宿主高。不贴顶的话，宿主会把它居中，顶栏上下跳一下。
+        // 宿主给固定外壳更大或更小的尺寸时，内容始终贴着顶部。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(curtainAnimation, value: isExpanded)
         .onChange(of: workbench.destination) { _, _ in
@@ -66,16 +65,9 @@ struct HubView: View {
         }
     }
 
-    /// 导航层与内容层共用的高度。
+    /// 导航层与内容层共用的固定高度。
     private var plateStackHeight: CGFloat {
-        HubMetrics.plateStackHeight(for: HubPage.current(workbench), editing: workbench.isEditing)
-    }
-
-    /// 面板窗口的高度：内容层加上与菜单栏之间的缝。
-    ///
-    /// 面板窗口的高度由控制器按同一个值设置，两边必须一致。
-    private var panelHeight: CGFloat {
-        HubMetrics.contentHeight(for: HubPage.current(workbench), editing: workbench.isEditing)
+        geometry.shellPlateStackHeight
     }
 
     /// 减弱动态效果时只改透明度，不做位移。

@@ -41,14 +41,14 @@ final class HubMetricsTests: XCTestCase {
         XCTAssertGreaterThan(HubMetrics.tabBarHeight, tallest)
     }
 
-    /// 功能层高度等于顶栏、内容顶部留白、内容列内边距与页内容之和。
-    func testThePlateStackHeightIsTheSumOfItsParts() {
+    /// 页面自然板高等于顶栏、内容顶部留白、内容列内边距与页内容之和。
+    func testTheNaturalPlateStackHeightIsTheSumOfItsParts() {
         for page in Self.allPages {
             let expected = HubMetrics.tabBarHeight
                 + HubMetrics.navigationContentGap
                 + HubMetrics.panelPadding * 2
                 + HubMetrics.pageContentHeight(for: page)
-            XCTAssertEqual(HubMetrics.plateStackHeight(for: page), expected)
+            XCTAssertEqual(HubMetrics.naturalPlateStackHeight(for: page), expected)
         }
     }
 
@@ -63,13 +63,12 @@ final class HubMetricsTests: XCTestCase {
         XCTAssertGreaterThan(HubMetrics.contentTopPadding, HubMetrics.tabBarHeight)
     }
 
-    /// 面板高度是内容层加上与菜单栏之间的缝。缝不算进内容层，否则挂帘收起时会
-    /// 先露出一条空缝再露出顶栏。
-    func testThePanelHeightAddsTheGapAboveThePlates() {
+    /// 页面自然高度加上顶栏与菜单栏之间的缝。这个值不决定窗口尺寸。
+    func testTheNaturalContentHeightAddsTheGapAboveThePlates() {
         for page in Self.allPages {
             XCTAssertEqual(
-                HubMetrics.contentHeight(for: page),
-                HubMetrics.plateTopInset + HubMetrics.plateStackHeight(for: page)
+                HubMetrics.naturalContentHeight(for: page),
+                HubMetrics.plateTopInset + HubMetrics.naturalPlateStackHeight(for: page)
             )
         }
     }
@@ -78,10 +77,40 @@ final class HubMetricsTests: XCTestCase {
     func testEditingAddsTheBannerAndItsGap() {
         for page in Self.allPages {
             XCTAssertEqual(
-                HubMetrics.contentHeight(for: page, editing: true),
-                HubMetrics.contentHeight(for: page) + HubMetrics.editBannerHeight + HubMetrics.pageGap
+                HubMetrics.naturalContentHeight(for: page, editing: true),
+                HubMetrics.naturalContentHeight(for: page)
+                    + HubMetrics.editBannerHeight
+                    + HubMetrics.pageGap
             )
         }
+    }
+
+    /// 首选外壳高度来自合同，并覆盖监控页当前的三行卡片布局。
+    func testThePreferredShellHeightCoversTheMonitorPage() {
+        XCTAssertEqual(
+            HubMetrics.preferredShellContentHeight,
+            ContractDimensions.tokenSizeWorkbenchShellHeight
+        )
+        XCTAssertGreaterThanOrEqual(
+            HubMetrics.preferredShellContentHeight,
+            HubMetrics.naturalContentHeight(for: .pane(.devices))
+        )
+    }
+
+    /// 外壳高度只由屏幕决定。大屏取首选值，小屏收缩到可用高度。
+    func testTheShellHeightDependsOnTheScreenOnly() {
+        XCTAssertEqual(
+            HubMetrics.shellContentHeight(screenHeight: 1_117, safeAreaTop: 32),
+            HubMetrics.preferredShellContentHeight
+        )
+        XCTAssertEqual(
+            HubMetrics.shellContentHeight(screenHeight: 768, safeAreaTop: 0),
+            HubMetrics.hubMaxHeight(screenHeight: 768)
+        )
+        XCTAssertEqual(
+            HubMetrics.shellPlateStackHeight(screenHeight: 768, safeAreaTop: 0),
+            HubMetrics.hubMaxHeight(screenHeight: 768) - HubMetrics.plateTopInset
+        )
     }
 
     /// 首页没有页操作行，直接从网格开始。
@@ -111,10 +140,10 @@ final class HubMetricsTests: XCTestCase {
         XCTAssertFalse(HubTab.settings.hasInlineActions)
     }
 
-    /// 每个页面的内容高度都比 0 大。零高度说明某一段漏算了。
+    /// 每个页面的自然内容高度都比 0 大。零高度说明某一段漏算了。
     func testEveryPageHasAPositiveContentHeight() {
         for page in Self.allPages {
-            XCTAssertGreaterThan(HubMetrics.contentHeight(for: page), 0, "\(page) 的内容高度为 0")
+            XCTAssertGreaterThan(HubMetrics.naturalContentHeight(for: page), 0, "\(page) 的内容高度为 0")
         }
     }
 

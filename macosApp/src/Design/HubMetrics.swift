@@ -9,8 +9,8 @@ import CoreGraphics
 /// 冲突时以合同为准。`DesignContractTests` 会逐值比对。
 ///
 /// 面板的组成是「悬浮顶栏 46 + 内容顶部留白 11 + 内容列」。内容列自带
-/// 24 点内边距，里面是「页标题行 + 主体」。高度按各段相加，不写死一个数：
-/// 少算一段会把底部裁掉。
+/// 24 点内边距，里面是当前页内容。页内容有自己的自然高度，但外壳高度只在
+/// 屏幕变化时计算一次。页签和编辑模式不能改变窗口尺寸。
 enum HubMetrics {
     /// Hub 最小宽度 720 点。
     static let minWidth: CGFloat = 720
@@ -25,6 +25,12 @@ enum HubMetrics {
 
     /// 面板宽度 960 点。合同 `component/tab-bar` 的 `nativeSize.width`。
     static let panelWidth: CGFloat = 960
+
+    /// 工作台外壳的首选内容高度 880 点。合同 `token/size/workbench-shell-height`。
+    ///
+    /// 这个值覆盖当前监控页的完整三行卡片。屏幕较小时，整体窗口收缩到
+    /// 屏幕高度减 120 点。页签切换不会重新读取这个值。
+    static let preferredShellContentHeight = ContractDimensions.tokenSizeWorkbenchShellHeight
 
     /// 面板内边距 24 点。合同 `token/space/6`。
     static let panelPadding: CGFloat = MacTheme.space6
@@ -283,28 +289,24 @@ enum HubMetrics {
         }
     }
 
-    /// 导航层与内容层共用的高度：顶栏、内容顶部留白与内容列。
+    /// 某一页的自然板高：顶栏、内容顶部留白与内容列。
     ///
     /// 内容板里面是内容列的内边距与页内容。编辑模式在内容列顶部多一条提示条，
     /// 提示条下面留一段间距。
     ///
-    /// 与菜单栏之间那条缝不在这里，见 [plateTopInset]。卡片按这个高度排，
-    /// 面板窗口按 [contentHeight] 排。
-    static func plateStackHeight(for page: HubPage, editing: Bool = false) -> CGFloat {
+    /// 与菜单栏之间那条缝不在这里，见 [plateTopInset]。这个值只描述页面
+    /// 内容需要多少高度，不决定窗口尺寸。
+    static func naturalPlateStackHeight(for page: HubPage, editing: Bool = false) -> CGFloat {
         let chrome = tabBarHeight + navigationContentGap + panelPadding * 2
         let banner = editing ? editBannerHeight + pageGap : 0
         return chrome + banner + pageContentHeight(for: page)
     }
 
-    /// 某个页面的面板高度。面板窗口的高度由它决定。
+    /// 某一页的自然内容高度。
     ///
-    /// 等于内容层的高度加上与菜单栏之间的缝。内边距已经算在 `plateStackHeight`
-    /// 里，所以这里不再加一次。
-    ///
-    /// `HubView` 的卡片 frame 用 `plateStackHeight`，窗口 frame 用这个值。
-    /// 两边不一致会把内容裁掉。
-    static func contentHeight(for page: HubPage, editing: Bool = false) -> CGFloat {
-        plateTopInset + plateStackHeight(for: page, editing: editing)
+    /// 自然高度用来检查页面内容是否完整。固定外壳不会用它改窗口尺寸。
+    static func naturalContentHeight(for page: HubPage, editing: Bool = false) -> CGFloat {
+        plateTopInset + naturalPlateStackHeight(for: page, editing: editing)
     }
 
     // MARK: - 菜单栏
@@ -333,13 +335,22 @@ enum HubMetrics {
         max(0, screenHeight - verticalScreenMargin)
     }
 
+    /// 固定外壳的内容高度。这个值只由屏幕高度与顶部安全区决定。
+    static func shellContentHeight(screenHeight: CGFloat, safeAreaTop: CGFloat) -> CGFloat {
+        let available = max(0, hubMaxHeight(screenHeight: screenHeight) - safeAreaTop)
+        return min(preferredShellContentHeight, available)
+    }
+
+    /// 固定外壳里导航层与内容层共用的高度。
+    static func shellPlateStackHeight(screenHeight: CGFloat, safeAreaTop: CGFloat) -> CGFloat {
+        max(0, shellContentHeight(screenHeight: screenHeight, safeAreaTop: safeAreaTop) - plateTopInset)
+    }
+
     /// 展开态的面板高度。
-    ///
-    /// 不给 `contentHeight` 时用首页的高度。
     static func expandedHeight(
         safeAreaTop: CGFloat,
         screenHeight: CGFloat,
-        contentHeight: CGFloat = HubMetrics.contentHeight(for: .home(rows: defaultHomeRows))
+        contentHeight: CGFloat
     ) -> CGFloat {
         let chrome = safeAreaTop + contentHeight
         return min(chrome, hubMaxHeight(screenHeight: screenHeight))

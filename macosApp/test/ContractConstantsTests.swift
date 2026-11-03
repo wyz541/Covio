@@ -364,17 +364,16 @@ final class SettingsSectionTests: XCTestCase {
         }
     }
 
-    /// 页面对应的内容高度。
+    /// 页面对应的自然内容高度。
     ///
-    /// 面板高度是各段之和，所以这里比的是内容高度，不是某一页的绝对高度。
-    /// 面板窗口的高度直接由它决定，改小了会把页面底部裁掉。
+    /// 这个值只描述页面需要多少空间。固定外壳高度不随页面变化。
     func testEachPageContentHeightIsTheSumOfItsParts() {
         for tab in HubTab.allCases {
             let page = HubPage.pane(tab)
             XCTAssertEqual(
-                HubMetrics.contentHeight(for: page),
-                HubMetrics.plateTopInset + HubMetrics.plateStackHeight(for: page),
-                "\(tab.rawValue) 的面板高度不等于内容层加上顶部的缝"
+                HubMetrics.naturalContentHeight(for: page),
+                HubMetrics.plateTopInset + HubMetrics.naturalPlateStackHeight(for: page),
+                "\(tab.rawValue) 的自然高度不等于内容层加上顶部的缝"
             )
             let actionRow = tab.hasInlineActions
                 ? HubMetrics.pageActionHeight + HubMetrics.pageActionGap
@@ -419,14 +418,12 @@ final class SettingsSectionTests: XCTestCase {
         }
     }
 
-    /// 面板必须盖得住顶栏与内容列。
-    ///
-    /// 编辑模式多一条提示条，也要盖得住。
-    func testThePanelCoversTheTabBarAndThePageOnEveryPage() {
+    /// 页面的自然板高必须覆盖顶栏、内容列和编辑提示条。
+    func testTheNaturalPlateCoversTheTabBarAndThePageOnEveryPage() {
         for tab in HubTab.allCases {
             let page = HubPage.pane(tab)
             for editing in [false, true] {
-                let plates = HubMetrics.plateStackHeight(for: page, editing: editing)
+                let plates = HubMetrics.naturalPlateStackHeight(for: page, editing: editing)
                 let needed = HubMetrics.tabBarHeight
                     + HubMetrics.navigationContentGap
                     + HubMetrics.panelPadding * 2

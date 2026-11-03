@@ -17,9 +17,8 @@ final class NotchShellController {
     private(set) var state: HubState = .hidden
     /// 内容区状态。来源是合同 `states.notchOutputHub.states`。M1 固定为 collapsed。
     private(set) var outputState: HubOutputState = .collapsed
-    /// 工作台状态。当前页、页签列表、首页组件、编辑模式都住在这里。
-    ///
-    /// 页内容高度随页与编辑模式变，所以它一变就要重排面板。见 `observeWorkbench()`。
+    /// 工作台状态。当前页、页签列表、首页组件和编辑模式都住在这里。
+    /// 这些状态不改变外壳尺寸。
     let workbench = WorkbenchModel()
 
     /// Hub 外壳的共享状态。搜索文字与设置分节住在这里。
@@ -30,10 +29,6 @@ final class NotchShellController {
     /// 页内 Popover 的生命周期。Popover 打开时暂停自动收起。
     let popoverCoordinator = HubPopoverCoordinator()
 
-    /// 当前页需要的内容高度。编辑模式多一条提示条，也要算进去。
-    private var contentHeight: CGFloat {
-        HubMetrics.contentHeight(for: HubPage.current(workbench), editing: workbench.isEditing)
-    }
     /// 当前面板所在的屏幕几何。
     private(set) var geometry: ScreenGeometry?
     /// 系统是否要求减弱动态效果。
@@ -84,7 +79,6 @@ final class NotchShellController {
         makeHubPanel()
         rebuildHotZones()
         observeSystemChanges()
-        observeWorkbench()
         applyVisibility()
     }
 
@@ -249,7 +243,7 @@ final class NotchShellController {
         guard let geometry = ScreenGeometry.current(location: pointerLocation()) else { return }
         self.geometry = geometry
 
-        hubPanel.setFrame(geometry.expandedRect(contentHeight: contentHeight), display: true)
+        hubPanel.setFrame(geometry.expandedRect, display: true)
         // 先进入保护，再显示视图。视图出现时触发的 hover 也会被拦住。
         workbench.beginInitialHoverProtection()
         hubPanel.orderFrontRegardless()
@@ -323,7 +317,7 @@ final class NotchShellController {
         guard let hubPanel, let geometry = ScreenGeometry.current(location: pointerLocation()) else { return }
         guard geometry != self.geometry else { return }
         self.geometry = geometry
-        hubPanel.setFrame(geometry.expandedRect(contentHeight: contentHeight), display: true)
+        hubPanel.setFrame(geometry.expandedRect, display: true)
     }
 
     private var pointerIsInsideHubPanel: Bool {
@@ -378,9 +372,13 @@ final class NotchShellController {
     // MARK: - 面板与屏幕
 
     private func makeHubPanel() {
-        let initial = ScreenGeometry.current(location: pointerLocation())?
-            .expandedRect(contentHeight: contentHeight)
-            ?? CGRect(x: 0, y: 0, width: HubMetrics.panelWidth, height: contentHeight)
+        let initial = ScreenGeometry.current(location: pointerLocation())?.expandedRect
+            ?? CGRect(
+                x: 0,
+                y: 0,
+                width: HubMetrics.panelWidth,
+                height: HubMetrics.preferredShellContentHeight
+            )
         let panel = HubPanel(rect: initial)
 
         let host = PointerTrackingHost(rootView: hubContentView())
@@ -400,28 +398,10 @@ final class NotchShellController {
     }
 
     private func hubContentView() -> some View {
-        // 面板尺寸固定，内容只改高度。这里用一个稳定的几何快照，
+        // 外壳尺寸由屏幕决定。这里用一个稳定的几何快照，
         // 屏幕变化时由 rebuild 重建面板。
         let snapshot = geometry ?? ScreenGeometry.current(location: pointerLocation())
         return HubContentRoot(controller: self, initialGeometry: snapshot, runtime: runtime)
-    }
-
-    /// 盯着工作台里影响面板高度的几个值。它们一变就重排面板。
-    ///
-    /// `withObservationTracking` 只报一次，所以回调里要重新挂一次。
-    /// 改这些值的都是主 actor 上的代码，回调直接跳回主 actor 再重排。
-    private func observeWorkbench() {
-        withObservationTracking {
-            _ = workbench.destination
-            _ = workbench.isEditing
-            _ = workbench.homeRows
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                guard let self else { return }
-                self.refreshLayout()
-                self.observeWorkbench()
-            }
-        }
     }
 
     /// 重建热区面板。显示器变化与全屏 Space 切换时调用。
@@ -467,7 +447,7 @@ final class NotchShellController {
             // 展开中换屏：把面板移到新屏幕，热区跟着重建。
             rebuildHotZones()
             if let hubPanel, let geometry {
-                hubPanel.setFrame(geometry.expandedRect(contentHeight: contentHeight), display: true)
+                hubPanel.setFrame(geometry.expandedRect, display: true)
             }
         }
         applyVisibility()
