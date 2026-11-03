@@ -413,5 +413,13 @@ struct CovioApp: App {
         Settings {
             EmptyView()
         }
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button(ContractCopy.copyTrayActionSettings.text) {
+                    appDelegate.openSettingsFromApplicationMenu()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+        }
     }
 }

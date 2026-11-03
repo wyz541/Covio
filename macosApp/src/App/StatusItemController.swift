@@ -114,7 +114,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openSettings() {
         guard shell.workbench.openSettings() else { return }
-        shell.show()
+        shell.showFromGesture()
     }
 
     @objc private func quit() {
