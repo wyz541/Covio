@@ -73,6 +73,19 @@ COVIO_UPDATER_HEALTH_TIMEOUT_MS=300 \
 test "$(tr -d '[:space:]' < "$TEST_ROOT/runtime/current")" = "$VALID"
 grep -Fq "rolled back to $VALID" "$LAUNCHER_LOG"
 
+printf '%s\n' 'case: packaged updater layout is signed and fixed'
+RELEASE_OUT="$TEST_ROOT/updater-release"
+CONFIGURATION=Release CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}" \
+  COVIO_UPDATER_OUT_DIR="$RELEASE_OUT" \
+  bash "$ROOT/scripts/build-covio-updater.sh" >/dev/null
+PACKAGE_APP="$TEST_ROOT/packaged/Covio.app"
+mkdir -p "$PACKAGE_APP/Contents"
+plutil -create xml1 "$PACKAGE_APP/Contents/Info.plist" >/dev/null
+plutil -insert CovioReleaseId -string "$VALID" "$PACKAGE_APP/Contents/Info.plist" >/dev/null
+COVIO_UPDATER_OUT_DIR="$RELEASE_OUT" \
+  bash "$ROOT/scripts/install-covio-updater.sh" "$PACKAGE_APP" >/dev/null
+bash "$ROOT/scripts/verify-updater-daemon.sh" "$PACKAGE_APP" >/dev/null
+
 printf '%s\n' 'case: LaunchDaemon uses the immutable launcher'
 PLIST="$ROOT/macosApp/daemons/com.wyz.covio.updater.plist"
 plutil -lint "$PLIST" >/dev/null

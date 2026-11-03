@@ -8,7 +8,7 @@
 | --- | --- |
 | 状态 | 已实现；#358 真机矩阵通过 |
 | 日期 | `2026-10-25` |
-| Issue | #357、#390 |
+| Issue | #357、#390、#562 |
 | 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0026](../adr/adr-0026-four-part-client-version.md) |
 
 ## 目标
@@ -28,7 +28,9 @@ LaunchDaemon plist 安装在系统目录。
 | --- | --- |
 | app | `/Applications/Covio.app` |
 | helper 和元数据 | `/Library/Application Support/Covio/bin/CovioHelper` 与 root-owned helper 元数据 |
-| LaunchDaemon | `/Library/LaunchDaemons/com.wyz.covio.helper.plist` |
+| updater | `/Library/Application Support/Covio/Updater` |
+| Helper LaunchDaemon | `/Library/LaunchDaemons/com.wyz.covio.helper.plist` |
+| Updater LaunchDaemon | `/Library/LaunchDaemons/com.wyz.covio.updater.plist` |
 | 安装记录 | `/Library/Application Support/Covio/installed-release.json` |
 
 安装器先备份全部旧对象。

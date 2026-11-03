@@ -3,7 +3,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/covio-installer-test.XXXXXX")"
-trap 'find "$TEST_ROOT" -depth -delete' EXIT
+cleanup_test_root() {
+  if [[ "${COVIO_KEEP_TEST_ROOT:-0}" == "1" ]]; then
+    printf 'Kept test root: %s\n' "$TEST_ROOT" >&2
+    return
+  fi
+  find "$TEST_ROOT" -depth -delete
+}
+trap cleanup_test_root EXIT
 
 fail() {
   printf 'transactional installer test failed: %s\n' "$1" >&2
@@ -38,6 +45,30 @@ assert_app_helper_record_match() {
   assert_eq "$(/usr/bin/plutil -extract releaseId raw -o - "$TX_RECORD_PATH")" \
     "$expected_release_id" \
     "installed release record differs from the install transaction"
+}
+
+assert_updater_record_match() {
+  local app="$1"
+  local expected_release_id="$2"
+  local current engine launcher updater_sha launcher_sha
+  current="$(tr -d '[:space:]' < "$COVIO_TX_UPDATER_ROOT/current")"
+  assert_eq "$current" "$expected_release_id" "updater current pointer differs"
+  engine="$COVIO_TX_UPDATER_ROOT/versions/$expected_release_id/CovioUpdater"
+  launcher="$COVIO_TX_UPDATER_ROOT/bin/CovioUpdaterLauncher"
+  [[ -x "$engine" && -x "$launcher" ]] || fail "updater layout is incomplete"
+  [[ -f "$COVIO_TX_UPDATER_LAUNCHD_PATH" ]] || fail "updater LaunchDaemon is missing"
+  [[ -f "$COVIO_TX_UPDATER_ROOT/updater-client-requirement" ]] || fail "updater client requirement is missing"
+  [[ -f "$COVIO_TX_UPDATER_ROOT/updater-requirement" ]] || fail "updater requirement is missing"
+  updater_sha="$(/usr/bin/shasum -a 256 "$engine" | awk '{print $1}')"
+  launcher_sha="$(/usr/bin/shasum -a 256 "$launcher" | awk '{print $1}')"
+  assert_json "$TX_RECORD_PATH" updaterReleaseId "$expected_release_id"
+  assert_json "$TX_RECORD_PATH" updaterProtocolVersion 1
+  assert_json "$TX_RECORD_PATH" updaterSHA256 "$updater_sha"
+  assert_json "$TX_RECORD_PATH" updaterLauncherSHA256 "$launcher_sha"
+  assert_eq \
+    "$(/usr/bin/plutil -extract CovioReleaseId raw -o - "$app/Contents/Info.plist")" \
+    "$expected_release_id" \
+    "app release ID differs from updater"
 }
 
 client_version_for_build() {
@@ -156,6 +187,59 @@ static int install_legacy_helper(const char *executable) {
     return system(command) == 0 ? 0 : 1;
 }
 
+static int install_updater(const char *executable) {
+    const char *root = getenv("COVIO_UPDATER_ROOT");
+    const char *plist = getenv("COVIO_UPDATER_LAUNCHD_PATH");
+    const char *release_id = getenv("COVIO_UPDATER_RELEASE_ID");
+    if (root == NULL || plist == NULL || release_id == NULL) return 1;
+    char bundle[4096];
+    char plist_dir[4096];
+    if (bundle_root(bundle, sizeof(bundle), executable) != 0) return 1;
+    if (result_file(bundle, "--install-updater-as-root") != 0) return 1;
+    snprintf(plist_dir, sizeof(plist_dir), "%s", plist);
+    char *plist_slash = strrchr(plist_dir, '/');
+    if (plist_slash == NULL) return 1;
+    *plist_slash = '\0';
+    char command[20000];
+    snprintf(
+        command,
+        sizeof(command),
+        "mkdir -p '%s/bin' '%s/versions/%s' '%s' && "
+        "cp '%s/Contents/MacOS/CovioUpdater' '%s/versions/%s/CovioUpdater' && "
+        "cp '%s/Contents/MacOS/CovioUpdaterLauncher' '%s/bin/CovioUpdaterLauncher' && "
+        "cp '%s/Contents/Library/LaunchDaemons/com.wyz.covio.updater.plist' '%s' && "
+        "printf '%%s\n' '%s' > '%s/current' && "
+        "printf 'test-requirement\n' > '%s/updater-client-requirement' && "
+        "printf 'test-requirement\n' > '%s/updater-requirement' && "
+        "printf '{\"createdAt\":\"2026-11-04T00:00:00Z\",\"processIdentifier\":123,"
+        "\"releaseId\":\"%s\",\"schemaVersion\":1}\n' > '%s/health.json' && "
+        "chmod 0755 '%s/versions/%s/CovioUpdater' '%s/bin/CovioUpdaterLauncher' && "
+        "chmod 0644 '%s'",
+        root,
+        root,
+        release_id,
+        plist_dir,
+        bundle,
+        root,
+        release_id,
+        bundle,
+        root,
+        bundle,
+        plist,
+        release_id,
+        root,
+        root,
+        root,
+        release_id,
+        root,
+        root,
+        release_id,
+        root,
+        plist
+    );
+    return system(command) == 0 ? 0 : 1;
+}
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
     char bundle[4096];
@@ -172,6 +256,9 @@ int main(int argc, char **argv) {
     }
     if (strcmp(argv[1], "--uninstall-helper") == 0) return 0;
     if (strcmp(argv[1], "--register-install-transaction-helper") == 0) return 0;
+    if (strcmp(argv[1], "--install-updater-as-root") == 0) {
+        return install_updater(argv[0]);
+    }
     if (strcmp(argv[1], "--install-legacy-helper-as-root") == 0) {
         return install_legacy_helper(argv[0]);
     }
@@ -195,6 +282,7 @@ build_app() {
   local prepare_result="${10:-1}"
   local install_mode="${11-legacy}"
   local identity_format="${12:-modern}"
+  local updater_result="${13:-1}"
   local client_version release_id helper helper_sha manifest_sha info
   client_version="$(client_version_for_build "$build")"
   release_id="$(release_id_for_build "$build" "$commit" "$identity_format")"
@@ -202,12 +290,18 @@ build_app() {
     "$app/Contents/Library/LaunchDaemons"
   cp "$TEST_ROOT/fake_covio" "$app/Contents/MacOS/Covio"
   cp "$TEST_ROOT/fake_covio" "$app/Contents/MacOS/CovioHelper"
-  chmod 0755 "$app/Contents/MacOS/Covio" "$app/Contents/MacOS/CovioHelper"
+  cp "$TEST_ROOT/fake_covio" "$app/Contents/MacOS/CovioUpdater"
+  cp "$TEST_ROOT/fake_covio" "$app/Contents/MacOS/CovioUpdaterLauncher"
+  cp "$ROOT/macosApp/daemons/com.wyz.covio.updater.plist" \
+    "$app/Contents/Library/LaunchDaemons/com.wyz.covio.updater.plist"
+  chmod 0755 "$app/Contents/MacOS/Covio" "$app/Contents/MacOS/CovioHelper" \
+    "$app/Contents/MacOS/CovioUpdater" "$app/Contents/MacOS/CovioUpdaterLauncher"
   printf '%s\n' "$client_version" > "$app/Contents/Resources/version.txt"
   printf '%s\n' "$verify_result" > "$app/Contents/Resources/verify-install-transaction.result"
   printf '%s\n' "$prepare_result" > "$app/Contents/Resources/prepare-install-transaction.result"
   printf '1\n' > "$app/Contents/Resources/install-helper.result"
   printf '1\n' > "$app/Contents/Resources/install-legacy-helper-as-root.result"
+  printf '%s\n' "$updater_result" > "$app/Contents/Resources/install-updater-as-root.result"
   helper="$app/Contents/MacOS/CovioHelper"
   /usr/bin/codesign --force --sign - "$helper" >/dev/null 2>&1
   helper_sha="$(/usr/bin/shasum -a 256 "$helper" | awk '{print $1}')"
@@ -245,7 +339,7 @@ EOF
   if [[ -n "$install_mode" ]]; then
     /usr/bin/plutil -insert CovioHelperInstallMode -string "$install_mode" "$info" >/dev/null
   fi
-  /usr/bin/codesign --force --sign - "$app" >/dev/null 2>&1
+  /usr/bin/codesign --force --deep --sign - "$app" >/dev/null 2>&1
   /usr/bin/codesign --verify --deep --strict "$app"
 }
 
@@ -259,6 +353,8 @@ setup_case() {
   export COVIO_TX_ATOMIC_SWAP="$TEST_ROOT/CovioTransaction"
   export COVIO_TX_HELPER_PATH="$COVIO_TX_STATE_ROOT/bin/CovioHelper"
   export COVIO_TX_LAUNCHD_PATH="$CASE_ROOT/Library/LaunchDaemons/com.wyz.covio.helper.plist"
+  export COVIO_TX_UPDATER_ROOT="$COVIO_TX_STATE_ROOT/Updater"
+  export COVIO_TX_UPDATER_LAUNCHD_PATH="$CASE_ROOT/Library/LaunchDaemons/com.wyz.covio.updater.plist"
   export COVIO_TX_TEST_MODE=1
   export COVIO_TX_WAIT_ATTEMPTS=2
   mkdir -p "$COVIO_TX_APPLICATIONS_ROOT"
@@ -268,9 +364,11 @@ setup_case() {
 
 write_environment() {
   local new_app="$1"
-  local helper_sha
+  local helper_sha updater_sha launcher_sha
   helper_sha="$(/usr/bin/plutil -extract helperSHA256 raw -o - \
     "$new_app/Contents/Resources/release-manifest.json")"
+  updater_sha="$(/usr/bin/shasum -a 256 "$new_app/Contents/MacOS/CovioUpdater" | awk '{print $1}')"
+  launcher_sha="$(/usr/bin/shasum -a 256 "$new_app/Contents/MacOS/CovioUpdaterLauncher" | awk '{print $1}')"
   cat > "$TX_ENVIRONMENT_SOURCE" <<EOF
 TRANSACTION_ID='test-transaction'
 EXPECTED_RELEASE_ID='$(/usr/bin/plutil -extract CovioReleaseId raw -o - "$new_app/Contents/Info.plist")'
@@ -280,6 +378,8 @@ EXPECTED_BUILD_NUMBER='$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$new
 EXPECTED_COMMIT='$(/usr/bin/plutil -extract CovioGitCommit raw -o - "$new_app/Contents/Info.plist")'
 EXPECTED_PROTOCOL_VERSION='$(/usr/bin/plutil -extract CovioHelperProtocolVersion raw -o - "$new_app/Contents/Info.plist")'
 EXPECTED_HELPER_SHA256='$helper_sha'
+EXPECTED_UPDATER_SHA256='$updater_sha'
+EXPECTED_UPDATER_LAUNCHER_SHA256='$launcher_sha'
 EXPECTED_CHANNEL='internal'
 STAGED_APP_PATH='$COVIO_TX_STATE_ROOT/Installer/staged/Covio.app'
 EOF
@@ -292,7 +392,8 @@ prepare_case() {
   setup_case "$1"
   OLD_APP="$COVIO_TX_APPLICATIONS_ROOT/Covio.app"
   NEW_APP="$CASE_ROOT/new/Covio.app"
-  build_app "$NEW_APP" "$2" "$3" "$4" 10 internal "${5:-1}" "${6:-}" "${7:-1}"
+  build_app "$NEW_APP" "$2" "$3" "$4" 10 internal "${5:-1}" "${6:-}" "${7:-1}" \
+    1 legacy "${10:-modern}" "${12:-1}"
   build_app "$OLD_APP" 0.6.0 15 "$OLD_COMMIT" 9 internal 1 "" 1 "${8:-1}" "${9-legacy}" legacy
   write_environment "$NEW_APP"
   covio_tx_load_environment "$TX_ENVIRONMENT_SOURCE"
@@ -355,6 +456,7 @@ assert_json "$TX_RECORD_PATH" clientVersion 0.0.1.6
 assert_json "$TX_RECORD_PATH" productVersion 0.6.0
 assert_json "$TX_RECORD_PATH" releaseId "0.0.1.6-g$NEW_COMMIT"
 assert_app_helper_record_match "$TX_APP_PATH" "0.0.1.6-g$NEW_COMMIT"
+assert_updater_record_match "$TX_APP_PATH" "0.0.1.6-g$NEW_COMMIT"
 assert_json "$TX_REPORT_PATH" result installed
 assert_json "$TX_REPORT_PATH" source pkg
 assert_json "$TX_REPORT_PATH" previousReleaseId "0.6.0+15+$OLD_COMMIT"
@@ -376,6 +478,8 @@ fi
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 15 "app did not roll back"
 assert_json "$TX_RECORD_PATH" releaseId "0.6.0+15+$OLD_COMMIT"
 assert_app_helper_record_match "$TX_APP_PATH" "0.6.0+15+$OLD_COMMIT"
+[[ ! -e "$COVIO_TX_UPDATER_ROOT" && ! -e "$COVIO_TX_UPDATER_LAUNCHD_PATH" ]] || \
+  fail "rollback left updater files"
 assert_json "$TX_REPORT_PATH" result rolled-back
 assert_eq "$(/usr/bin/plutil -extract source raw -o - "$TX_REPORT_PATH")" pkg "rollback report source"
 [[ -n "$(/usr/bin/plutil -extract rollbackReason raw -o - "$TX_REPORT_PATH")" ]] || \
@@ -426,6 +530,19 @@ if covio_tx_commit; then
 fi
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 15 "invalid signature changed the app"
 assert_json "$TX_REPORT_PATH" result failed
+
+printf 'case: updater installation failure rolls back the transaction\n'
+prepare_case updater-failure 0.6.0 26 "$NEW_COMMIT" 1 "" 1 "" legacy modern legacy 0
+seed_legacy_helper
+covio_tx_prepare
+stage_new_app
+if covio_tx_commit; then
+  fail "updater failure unexpectedly committed"
+fi
+assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 15 "updater failure changed the app"
+[[ ! -e "$COVIO_TX_UPDATER_ROOT" && ! -e "$COVIO_TX_UPDATER_LAUNCHD_PATH" ]] || \
+  fail "updater failure left updater files"
+assert_json "$TX_REPORT_PATH" result rolled-back
 
 printf 'case: interruption after bundle exchange is recoverable\n'
 prepare_case interruption 0.6.0 21 "$NEW_COMMIT"
@@ -488,6 +605,7 @@ covio_tx_prepare
 stage_new_app
 covio_tx_commit
 assert_app_helper_record_match "$TX_APP_PATH" "0.0.2.4-g$NEW_COMMIT"
+assert_updater_record_match "$TX_APP_PATH" "0.0.2.4-g$NEW_COMMIT"
 [[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || \
   fail "SMAppService migration did not create the Legacy helper"
 
@@ -504,6 +622,7 @@ TMPDIR="$CASE_ROOT/unavailable-tmp" covio_tx_commit
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 25 "clean install did not commit"
 assert_json "$TX_RECORD_PATH" releaseId "0.0.2.5-g$NEW_COMMIT"
 assert_app_helper_record_match "$TX_APP_PATH" "0.0.2.5-g$NEW_COMMIT"
+assert_updater_record_match "$TX_APP_PATH" "0.0.2.5-g$NEW_COMMIT"
 [[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || fail "clean install did not create fixed helper paths"
 assert_json "$TX_REPORT_PATH" result installed
 

@@ -22,7 +22,8 @@ struct UpdaterPaths: Equatable {
         }
     }
 
-    var launcher: URL { root.appendingPathComponent("bin/CovioUpdaterLauncher") }
+    var binDirectory: URL { root.appendingPathComponent("bin", isDirectory: true) }
+    var launcher: URL { binDirectory.appendingPathComponent("CovioUpdaterLauncher") }
     var versions: URL { root.appendingPathComponent("versions", isDirectory: true) }
     var currentPointer: URL { root.appendingPathComponent("current") }
     var previousPointer: URL { root.appendingPathComponent("previous") }

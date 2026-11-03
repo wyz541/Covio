@@ -409,6 +409,34 @@ def require_command(args: list[str], timeout: float = 120) -> str:
     return result.output
 
 
+def _updater_files(app: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+    engine = app / "Contents" / "MacOS" / "CovioUpdater"
+    launcher = app / "Contents" / "MacOS" / "CovioUpdaterLauncher"
+    daemon = app / "Contents" / "Library" / "LaunchDaemons" / "com.wyz.covio.updater.plist"
+    return engine, launcher, daemon
+
+
+def _verify_updater_files(app: pathlib.Path) -> None:
+    engine, launcher, daemon = _updater_files(app)
+    if not engine.is_file() or not launcher.is_file() or not daemon.is_file():
+        raise ReleaseVerificationError(
+            "app bundle must contain updater engine, launcher and LaunchDaemon"
+        )
+    for binary, identifier in (
+        (engine, "com.wyz.covio.updater"),
+        (launcher, "com.wyz.covio.updater.launcher"),
+    ):
+        require_command(["/usr/bin/codesign", "--verify", "--strict", str(binary)])
+        arches = require_command(["/usr/bin/lipo", "-archs", str(binary)]).strip()
+        if arches != "arm64":
+            raise ReleaseVerificationError(f"updater binary is not arm64: {binary.name}")
+        report = _signature_report(binary)
+        if f"Identifier={identifier}" not in report:
+            raise ReleaseVerificationError(
+                f"updater binary identifier mismatch: {binary.name}"
+            )
+
+
 def _extract_app_zip(archive: pathlib.Path, destination: pathlib.Path) -> pathlib.Path:
     require_command(["/usr/bin/ditto", "-x", "-k", str(archive), str(destination)])
     app = destination / "Covio.app"
@@ -535,6 +563,7 @@ def verify_release(
 
         require_command(["/usr/bin/codesign", "--verify", "--deep", "--strict", str(app)])
         require_command(["/usr/bin/codesign", "--verify", "--strict", str(helper)])
+        _verify_updater_files(app)
         app_signature = _signature_report(app)
         helper_signature = _signature_report(helper)
         package_signature = run_command(["/usr/sbin/pkgutil", "--check-signature", str(directory / names[2])])
@@ -574,6 +603,7 @@ def verify_release(
             mounted_helper = mounted_app / "Contents" / "MacOS" / "CovioHelper"
             if not mounted_helper.is_file():
                 raise ReleaseVerificationError("DMG app is missing CovioHelper")
+            _verify_updater_files(mounted_app)
             mounted_errors = identity_errors(
                 source,
                 artifact,
@@ -598,6 +628,7 @@ def verify_release(
                 offline_helper = offline_app / "Contents" / "MacOS" / "CovioHelper"
                 if not offline_helper.is_file():
                     raise ReleaseVerificationError("offline DMG app is missing CovioHelper")
+                _verify_updater_files(offline_app)
                 offline_bundle_manifest = release.verify_bundle_manifest(
                     offline_app / "Contents" / "Resources" / "release-manifest.json",
                     offline_helper,
@@ -713,6 +744,8 @@ def verify_release(
         package_payload = require_command(["/usr/sbin/pkgutil", "--payload-files", str(directory / names[2])])
         required_package_paths = (
             "Library/Application Support/Covio/Installer/staged/Covio.app/Contents/MacOS/CovioHelper",
+            "Library/Application Support/Covio/Installer/staged/Covio.app/Contents/MacOS/CovioUpdater",
+            "Library/Application Support/Covio/Installer/staged/Covio.app/Contents/MacOS/CovioUpdaterLauncher",
             "Library/Application Support/Covio/Installer/bin/CovioTransaction",
             "Library/Application Support/Covio/Installer/recover.sh",
         )
