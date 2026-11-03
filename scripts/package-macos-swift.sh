@@ -121,7 +121,7 @@ fi
 if [[ -d "$OFFLINE_APP" ]]; then
   find "$OFFLINE_APP" -depth -delete
 fi
-for artifact in "$DMG_PATH" "$APP_ZIP" "$PKG_PATH" "$OFFLINE_DMG"; do
+for artifact in "$DMG_PATH" "$APP_ZIP" "$UPDATE_ZIP" "$PKG_PATH" "$OFFLINE_DMG"; do
   if [[ -e "$artifact" ]]; then
     unlink "$artifact"
   fi
@@ -284,17 +284,17 @@ if [[ ! -x "$UPDATER_ENGINE" || ! -x "$UPDATER_LAUNCHER" || ! -f "$UPDATER_PLIST
   exit 1
 fi
 
-# 先签整个 bundle，确保嵌套 helper 的最终字节稳定。生成发布清单后只重签 app 外层，
-# 避免复制清单使签名失效，也避免 helper 摘要随 deep 签名再次变化。
+# 嵌套 helper、framework、updater 和 launcher 在归档或构建时已经单独签名。
+# 这里只签 app 外层，避免 deep signing 覆盖 updater 和 launcher 的固定 identifier。
+# 生成发布清单后再重签外层一次，使最终资源摘要进入 code seal。
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
   release_codesign \
     --force \
-    --deep \
     --timestamp \
     --sign "$RELEASE_SIGN_IDENTITY" \
     "$APP_IMAGE"
 else
-  /usr/bin/codesign --force --deep --sign - "$APP_IMAGE"
+  /usr/bin/codesign --force --sign - "$APP_IMAGE"
 fi
 /usr/bin/codesign --verify --deep --strict "$APP_IMAGE"
 
