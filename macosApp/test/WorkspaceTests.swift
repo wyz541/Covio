@@ -321,12 +321,12 @@ final class WorkspaceTests: XCTestCase {
         )
     }
 
-    /// 面板不超过 Hub 的最大高度，否则面板会被屏幕裁掉。
-    func testTheFilesCardStaysWithinTheHubLimit() {
+    /// 文件页的自然高度放得进固定外壳。
+    func testTheFilesCardStaysWithinTheShell() {
         for height in [CGFloat(900), 1_080, 1_200] {
-            XCTAssertLessThan(
-                HubMetrics.contentHeight(for: .pane(.files)) + 60,
-                HubMetrics.hubMaxHeight(screenHeight: height),
+            XCTAssertLessThanOrEqual(
+                HubMetrics.naturalContentHeight(for: .pane(.files)),
+                HubMetrics.shellContentHeight(screenHeight: height, safeAreaTop: 0),
                 "屏幕高 \(height) 时文件页放不下"
             )
         }

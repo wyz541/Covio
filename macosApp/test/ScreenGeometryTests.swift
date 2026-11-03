@@ -48,8 +48,8 @@ final class ScreenGeometryTests: XCTestCase {
         XCTAssertEqual(rect.width, 960)
         XCTAssertEqual(rect.maxY, 1117)
         XCTAssertEqual(rect.midX, 864)
-        // 高度是顶部安全区加首页的内容高度。
-        XCTAssertEqual(rect.height, 32 + HubMetrics.contentHeight(for: .home(rows: HubMetrics.defaultHomeRows)), accuracy: 0.001)
+        // 高度是顶部安全区加固定外壳内容高度。
+        XCTAssertEqual(rect.height, 32 + notched.shellContentHeight, accuracy: 0.001)
     }
 
     func testNotchedCollapsedRectMatchesTheNotch() {
@@ -64,6 +64,22 @@ final class ScreenGeometryTests: XCTestCase {
         for geometry in [notched, notchless] {
             let rect = geometry.expandedRect
             XCTAssertTrue(geometry.frame.contains(rect), "面板矩形超出了屏幕")
+        }
+    }
+
+    /// 展开矩形只读取固定外壳高度，不读取页面内容。
+    func testExpandedRectUsesTheFixedShellHeight() {
+        for geometry in [notched, notchless, smallNotchless] {
+            XCTAssertEqual(
+                geometry.expandedRect.height,
+                geometry.panelTopInset + geometry.shellContentHeight,
+                accuracy: 0.001
+            )
+            XCTAssertEqual(
+                geometry.shellPlateStackHeight,
+                geometry.shellContentHeight - HubMetrics.plateTopInset,
+                accuracy: 0.001
+            )
         }
     }
 
@@ -83,7 +99,7 @@ final class ScreenGeometryTests: XCTestCase {
         XCTAssertEqual(notchless.panelTop, 1055)
         XCTAssertEqual(notchless.panelTopInset, 0)
         XCTAssertEqual(notchless.expandedRect.maxY, 1055)
-        XCTAssertEqual(notchless.expandedRect.height, HubMetrics.contentHeight(for: .home(rows: HubMetrics.defaultHomeRows)), accuracy: 0.001)
+        XCTAssertEqual(notchless.expandedRect.height, notchless.shellContentHeight, accuracy: 0.001)
     }
 
     // MARK: - 全屏 Space
@@ -108,6 +124,15 @@ final class ScreenGeometryTests: XCTestCase {
     func testSmallScreenNarrowsThePanelBelowTheCardWidth() {
         XCTAssertEqual(smallNotchless.expandedRect.width, 944)
         XCTAssertLessThan(smallNotchless.expandedRect.width, HubMetrics.panelWidth)
+    }
+
+    /// 小屏只收缩外壳，不改变固定外壳规则。
+    func testSmallScreenClampsTheShellToTheAvailableHeight() {
+        XCTAssertEqual(
+            smallNotchless.shellContentHeight,
+            HubMetrics.hubMaxHeight(screenHeight: smallNotchless.frame.height),
+            accuracy: 0.001
+        )
     }
 
     /// 非刘海屏的面板挂在菜单栏下方，所以屏幕顶部中央在面板之外。

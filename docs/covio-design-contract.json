@@ -1066,6 +1066,13 @@
       "lightVariableId": "VariableID:25:4647",
       "darkVariableId": "VariableID:25:4648"
     },
+    "token/size/workbench-shell-height": {
+      "name": "Covio/Size/Workbench Shell Height",
+      "type": "dimension",
+      "light": 880,
+      "dark": 880,
+      "purpose": "固定工作台外壳的首选内容高度。屏幕高度不足时按可用高度收缩；页签和编辑模式切换不改变外壳高度。"
+    },
     "token/radius/large": {
       "name": "Covio/Radius/large",
       "type": "dimension",
@@ -7725,7 +7732,7 @@
     "platform/component/window-shell": {
       "componentKey": "component/window-shell",
       "runtimeTarget": "MacWindowShell",
-      "behavior": "Use the shared shell. The Hub content plate uses Liquid Glass; the system material is a debug fallback.",
+      "behavior": "Use the shared shell. Compute the Hub height once per screen. Pane and edit changes must not resize the NSPanel. The Hub content plate uses Liquid Glass; the system material is a debug fallback.",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "HubPanel"
     },

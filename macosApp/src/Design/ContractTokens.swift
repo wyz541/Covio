@@ -212,6 +212,8 @@ enum ContractDimensions {
     static let tokenRadiusPopover: CGFloat = 10
     /// `token/radius/small` — Inputs and small controls.
     static let tokenRadiusSmall: CGFloat = 8
+    /// `token/size/workbench-shell-height` — 固定工作台外壳的首选内容高度。屏幕高度不足时按可用高度收缩；页签和编辑模式切换不改变外壳高度。
+    static let tokenSizeWorkbenchShellHeight: CGFloat = 880
     /// `token/space/1` — Tight icon and label spacing.
     static let tokenSpace1: CGFloat = 4
     /// `token/space/10` — Page top and bottom padding.
@@ -247,6 +249,7 @@ enum ContractDimensions {
         "token/radius/pill": tokenRadiusPill,
         "token/radius/popover": tokenRadiusPopover,
         "token/radius/small": tokenRadiusSmall,
+        "token/size/workbench-shell-height": tokenSizeWorkbenchShellHeight,
         "token/space/1": tokenSpace1,
         "token/space/10": tokenSpace10,
         "token/space/2": tokenSpace2,

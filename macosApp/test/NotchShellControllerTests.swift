@@ -105,6 +105,26 @@ final class NotchShellControllerTests: XCTestCase {
         waitUntil("展开后应该进入 ACTIVE") { controller.state == .active }
     }
 
+    /// 页签和编辑模式只改变内容，不改变固定外壳。
+    func testPaneAndEditingChangesKeepThePanelFrame() throws {
+        let controller = try controllerWithPointerInsideHub()
+        controller.start()
+        defer { controller.stop() }
+
+        controller.show()
+        waitUntil("展开后应该进入 ACTIVE") { controller.state == .active }
+        let frame = try XCTUnwrap(controller.hubPanelFrame)
+
+        controller.workbench.destination = .home
+        controller.workbench.performPageAction()
+        XCTAssertTrue(controller.workbench.isEditing)
+        XCTAssertEqual(controller.hubPanelFrame, frame, "编辑模式不能改变外壳尺寸")
+
+        for tab in HubTab.allCases where controller.workbench.open(tab) {
+            XCTAssertEqual(controller.hubPanelFrame, frame, "切到 \(tab.rawValue) 不能改变外壳尺寸")
+        }
+    }
+
     /// 每次展开都先禁用导航 hover，面板收起时立即清理保护。
     func testExpansionStartsTheInitialHoverProtection() throws {
         let controller = try controllerWithPointerInsideHub()
