@@ -31,6 +31,15 @@ struct UpdaterPaths: Equatable {
     var clientRequirement: URL { root.appendingPathComponent("updater-client-requirement") }
     var updaterRequirement: URL { root.appendingPathComponent("updater-requirement") }
     var automaticPreferences: URL { root.appendingPathComponent("preferences", isDirectory: true) }
+    var transactions: URL { root.appendingPathComponent("transactions", isDirectory: true) }
+    var updateState: URL { root.appendingPathComponent("update-state.json") }
+    var updateResult: URL { root.appendingPathComponent("update-result.json") }
+    var candidateManifest: URL { root.appendingPathComponent("update-candidate.json") }
+    var candidateSignature: URL { root.appendingPathComponent("update-candidate.sig.json") }
+    var installerRoot: URL { root.deletingLastPathComponent().appendingPathComponent("Installer", isDirectory: true) }
+    var currentInstallTransaction: URL { installerRoot.appendingPathComponent("current-transaction") }
+    var recoverInstallScript: URL { installerRoot.appendingPathComponent("recover.sh") }
+    var installUpdateScript: URL { installerRoot.appendingPathComponent("install-update.sh") }
 
     func engine(for releaseId: String) throws -> URL {
         guard Self.isReleaseId(releaseId) else {

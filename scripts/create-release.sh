@@ -36,8 +36,12 @@ if [[ "$CHANNEL" == "internal" ]]; then
   VERIFY_SIGN_ARGS+=(--require-stable-signing)
 fi
 APP_ZIP="$DIST/Covio-$VERSION.app.zip"
+UPDATE_ZIP="$DIST/CovioUpdate-$VERSION.zip"
+UPDATE_MANIFEST="$DIST/CovioUpdate-$VERSION.json"
+UPDATE_SIGNATURE="$DIST/CovioUpdate-$VERSION.sig.json"
 DMG="$DIST/Covio-$VERSION.dmg"
 PKG="$DIST/Covio-$VERSION.pkg"
+APP_BUNDLE="$DIST/Covio.app"
 MANIFEST="$DIST/release-manifest.json"
 CHECKSUMS="$DIST/checksums.txt"
 EVIDENCE="$DIST/release-evidence.json"
@@ -68,6 +72,64 @@ PY
 if [[ "$WITH_OFFLINE" -eq 1 && -z "$OFFLINE_NAME" ]]; then
   printf 'Offline packaging did not record an offline installer.\n' >&2
   exit 1
+fi
+
+if [[ "$CHANNEL" == "internal" ]]; then
+  UPDATE_KEY_ID="${COVIO_UPDATE_KEY_ID:-}"
+  UPDATE_PRIVATE_KEY="${COVIO_UPDATE_PRIVATE_KEY_PATH:-}"
+  UPDATE_KEYCHAIN_SERVICE="${COVIO_UPDATE_KEYCHAIN_SERVICE:-com.wyz.covio.update-signing}"
+  UPDATE_SIGNER="${COVIO_UPDATE_SIGNER_PATH:-$ROOT/build/update-signing/CovioUpdateSigner}"
+  if [[ -z "$UPDATE_KEY_ID" ]]; then
+    UPDATE_KEY_ID="$(python3 -I - "$ROOT/release/update-public-keys.json" <<'PYKEY'
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    keys = json.load(stream).get("keys", [])
+print(keys[0].get("keyId", "") if len(keys) == 1 else "")
+PYKEY
+)"
+  fi
+  if [[ -z "$UPDATE_KEY_ID" ]]; then
+    printf 'Set COVIO_UPDATE_KEY_ID.\n' >&2
+    exit 1
+  fi
+  KEY_SOURCE_ARGS=()
+  if [[ -n "$UPDATE_PRIVATE_KEY" ]]; then
+    if [[ ! -f "$UPDATE_PRIVATE_KEY" ]]; then
+      printf 'Missing update private key: %s\n' "$UPDATE_PRIVATE_KEY" >&2
+      exit 1
+    fi
+    if [[ "$(/usr/bin/stat -f '%Lp' "$UPDATE_PRIVATE_KEY")" != "600" ]]; then
+      printf 'Update private key must have mode 0600.\n' >&2
+      exit 1
+    fi
+    KEY_SOURCE_ARGS+=(--private-key "$UPDATE_PRIVATE_KEY")
+  else
+    if ! /usr/bin/security find-generic-password \
+      -s "$UPDATE_KEYCHAIN_SERVICE" \
+      -a "$UPDATE_KEY_ID" >/dev/null 2>&1
+    then
+      printf 'Missing update signing key in Keychain.\n' >&2
+      printf 'Run bash scripts/setup-update-signing-key.sh %s\n' "$UPDATE_KEY_ID" >&2
+      exit 1
+    fi
+    KEY_SOURCE_ARGS+=(--keychain-service "$UPDATE_KEYCHAIN_SERVICE")
+  fi
+  if [[ ! -x "$UPDATE_SIGNER" ]]; then
+    bash "$ROOT/scripts/build-update-signature-tool.sh"
+    UPDATE_SIGNER="$ROOT/build/update-signing/CovioUpdateSigner"
+  fi
+  python3 -I "$ROOT/scripts/update_manifest.py" generate \
+    --release-manifest "$ROOT/release/release-manifest.json" \
+    --archive "$UPDATE_ZIP" \
+    --app-executable "$APP_BUNDLE/Contents/MacOS/Covio" \
+    --helper "$APP_BUNDLE/Contents/MacOS/CovioHelper" \
+    --updater "$APP_BUNDLE/Contents/MacOS/CovioUpdater" \
+    --commit "$COMMIT" \
+    --key-id "$UPDATE_KEY_ID" \
+    --signer "$UPDATE_SIGNER" \
+    "${KEY_SOURCE_ARGS[@]}" \
+    --output-dir "$DIST"
 fi
 
 python3 -I "$PIPELINE" checksums \
@@ -121,7 +183,7 @@ if [[ "$CHANNEL" == "internal" ]]; then
   PRERELEASE=true
 fi
 
-ASSETS=("$APP_ZIP" "$DMG" "$PKG")
+ASSETS=("$APP_ZIP" "$UPDATE_ZIP" "$UPDATE_MANIFEST" "$UPDATE_SIGNATURE" "$DMG" "$PKG")
 if [[ -n "$OFFLINE_NAME" ]]; then
   ASSETS+=("$DIST/$OFFLINE_NAME")
 fi

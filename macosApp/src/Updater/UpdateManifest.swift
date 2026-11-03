@@ -164,6 +164,12 @@ enum UpdateManifestVerifier {
         else {
             throw UpdateManifestError.unsupportedChannel(manifest.channel)
         }
+        guard !manifest.keyId.isEmpty,
+              manifest.keyId.count <= 64,
+              isProductVersion(manifest.productVersion)
+        else {
+            throw UpdateManifestError.invalidManifest
+        }
         guard let versionDigits = clientVersionDigits(manifest.clientVersion) else {
             throw UpdateManifestError.invalidVersion
         }
@@ -208,6 +214,9 @@ enum UpdateManifestVerifier {
               isLowercaseHex(manifest.componentHashes.updater, count: 64)
         else {
             throw UpdateManifestError.invalidArchiveDigest
+        }
+        guard versionParts(manifest.minimumMacOSVersion) != nil else {
+            throw UpdateManifestError.invalidManifest
         }
         guard isVersion(manifest.minimumMacOSVersion, atMost: expectations.macOSVersion) else {
             throw UpdateManifestError.operatingSystemTooOld
@@ -256,6 +265,14 @@ enum UpdateManifestVerifier {
     private static func isLowercaseHex(_ value: String, count: Int) -> Bool {
         value.count == count && value.unicodeScalars.allSatisfy {
             ($0.value >= 48 && $0.value <= 57) || ($0.value >= 97 && $0.value <= 102)
+        }
+    }
+
+    private static func isProductVersion(_ value: String) -> Bool {
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3 else { return false }
+        return parts.allSatisfy { part in
+            !part.isEmpty && part.allSatisfy { $0.isNumber }
         }
     }
 

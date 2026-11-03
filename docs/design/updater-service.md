@@ -78,11 +78,40 @@ XPC 不接受调用方提供的路径、命令、URL 或任意字典。
 4. App 使用 root-owned updater requirement 校验 updater 身份。
 5. 缺失 requirement 时，双向连接均失败关闭。
 
+## 自动调度
+
+Updater 在 root LaunchDaemon 内独立调度。App 未运行时，调度继续工作。
+
+| 项目 | 行为 |
+| --- | --- |
+| 默认间隔 | 6 小时 |
+| 启动检查 | 启动后 15 秒 |
+| 默认偏好 | 按 console 用户 UID 开启 |
+| 关闭自动安装 | 仍然允许手动检查 |
+| 候选恢复 | Manifest、签名和版本状态保存在 root-owned `Updater` 目录 |
+
+每次调度先读取当前 console 用户的偏好。偏好关闭时，调度不检查。
+检查成功后，updater 保存已验证候选。Updater 重启后可以继续安装该候选。
+
+## 事务结果
+
+一次性事务 job 使用固定标签：
+
+```text
+com.wyz.covio.updater.transaction.<transactionId>
+```
+
+事务结果写入 `update-result.json`。
+新 updater 启动后读取结果、结束一次性 job，并把结果合并到 `update-state.json`。
+成功事务删除 staging 和更新归档。
+失败事务保留日志，供下一次检查或 repair PKG 使用。
+
 ## 当前状态
 
 `checkNow` 在没有安装更新公钥时返回 `notConfigured`。
-`installAvailable` 在更新事务完成前返回失败。
-这两个状态让 Settings 可以区分“未配置”和“已是最新”。
+正常自动更新只替换 `versions/<releaseId>/CovioUpdater` 和指针。
+正常自动更新不替换 launcher、LaunchDaemon plist 或 code-signing requirement。
+只有 migration PKG 或 repair PKG 可以替换 launcher。
 
 ## 测试
 
@@ -98,3 +127,7 @@ bash scripts/test-covio-updater.sh
 - 新 engine health 错误时回退 `previous`。
 - LaunchDaemon 指向不可变 launcher。
 - Mach service、KeepAlive 和 ThrottleInterval 固定值。
+- 已签名候选可以跨 updater 重启保存。
+- 自动更新保留 launcher 和 LaunchDaemon。
+- 自动偏好默认开启，并按 UID 读取。
+- GitHub feed 只接受固定 internal tag、asset 名和 asset URL。

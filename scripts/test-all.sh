@@ -28,6 +28,7 @@ python3 -I "$ROOT/scripts/test_release_manifest.py"
 python3 -I "$ROOT/scripts/test_release_pipeline.py"
 python3 -I "$ROOT/scripts/test_release_notes.py"
 python3 -I "$ROOT/scripts/test_update_manifest.py"
+python3 -I "$ROOT/scripts/generate-update-trust.py" --check
 python3 -I "$ROOT/scripts/test_verify_macos_signing.py"
 
 step "Kotlin 共享层"
@@ -49,6 +50,7 @@ bash "$ROOT/scripts/verify-helper-cutover.sh" selftest
 
 step "本机升级事务"
 bash "$ROOT/scripts/test-transactional-installer.sh"
+bash "$ROOT/scripts/test-update-installer.sh"
 
 step "Updater service"
 bash "$ROOT/scripts/test-covio-updater.sh"

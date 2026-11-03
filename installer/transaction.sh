@@ -29,6 +29,8 @@ covio_tx_load_environment() {
     fi
     # shellcheck disable=SC1090
     source "$environment_file"
+    TX_UPDATE_MODE="${UPDATE_MODE:-pkg}"
+    TX_REPORT_SOURCE="${COVIO_TX_REPORT_SOURCE:-pkg}"
     local key
     for key in \
         TRANSACTION_ID EXPECTED_RELEASE_ID EXPECTED_CLIENT_VERSION EXPECTED_PRODUCT_VERSION \
@@ -41,6 +43,10 @@ covio_tx_load_environment() {
             return 1
         fi
     done
+    if [[ "$TX_UPDATE_MODE" != "pkg" && "$TX_UPDATE_MODE" != "automatic" ]]; then
+        printf 'Invalid update mode: %s\n' "$TX_UPDATE_MODE" >&2
+        return 1
+    fi
 }
 
 covio_tx_configure() {
@@ -465,7 +471,8 @@ covio_tx_verify_new_app() {
           "$(covio_tx_identity_value NEW PROTOCOL_VERSION)" != "$EXPECTED_PROTOCOL_VERSION" ||
           "$(covio_tx_identity_value NEW HELPER_SHA256)" != "$EXPECTED_HELPER_SHA256" ||
           "$(covio_tx_identity_value NEW UPDATER_SHA256)" != "$EXPECTED_UPDATER_SHA256" ||
-          "$(covio_tx_identity_value NEW UPDATER_LAUNCHER_SHA256)" != "$EXPECTED_UPDATER_LAUNCHER_SHA256" ||
+          ( "$TX_UPDATE_MODE" != "automatic" &&
+            "$(covio_tx_identity_value NEW UPDATER_LAUNCHER_SHA256)" != "$EXPECTED_UPDATER_LAUNCHER_SHA256" ) ||
           "$(covio_tx_identity_value NEW CHANNEL)" != "$EXPECTED_CHANNEL" ]]; then
         covio_tx_log "Staged app differs from the signed installer identity"
         return 1
@@ -794,7 +801,7 @@ covio_tx_write_report() {
     mkdir -p "$TX_STATE_ROOT"
     "$COVIO_TX_PLUTIL" -create xml1 "$temporary" >/dev/null
     "$COVIO_TX_PLUTIL" -insert schemaVersion -integer 1 "$temporary" >/dev/null
-    "$COVIO_TX_PLUTIL" -insert source -string "pkg" "$temporary" >/dev/null
+    "$COVIO_TX_PLUTIL" -insert source -string "$TX_REPORT_SOURCE" "$temporary" >/dev/null
     "$COVIO_TX_PLUTIL" -insert transactionId -string "$TRANSACTION_ID" "$temporary" >/dev/null
     "$COVIO_TX_PLUTIL" -insert releaseId -string "$EXPECTED_RELEASE_ID" "$temporary" >/dev/null
     "$COVIO_TX_PLUTIL" -insert previousReleaseId -string "$previous_release_id" "$temporary" >/dev/null
@@ -831,7 +838,7 @@ covio_tx_prepare() {
             unlink "$TX_CURRENT_POINTER"
         fi
     fi
-    if [[ -e "$TX_STAGED_APP" ]]; then
+    if [[ -e "$TX_STAGED_APP" && "$TX_UPDATE_MODE" != "automatic" ]]; then
         covio_tx_log "A stale staged app already exists"
         return 1
     fi
@@ -865,6 +872,11 @@ covio_tx_prepare() {
         covio_tx_write_report failed "installed app verification failed" ""
         return 1
     }
+    if [[ "$TX_UPDATE_MODE" == "automatic" ]] && ! covio_tx_verify_installed_updater; then
+        covio_tx_write_report failed "installed updater verification failed" \
+            "$(covio_tx_identity_value OLD RELEASE_ID)"
+        return 1
+    fi
     covio_tx_current_record_matches_old || {
         covio_tx_write_report failed "installed release record mismatch" \
             "$(covio_tx_identity_value OLD RELEASE_ID)"
@@ -1025,27 +1037,81 @@ covio_tx_register_and_verify_helper() {
     covio_tx_log "Exact helper handshake matched for $prefix"
 }
 
+covio_tx_verify_installed_updater() {
+    local current launcher engine record_release record_engine record_launcher launcher_sha engine_sha
+    current="$(tr -d '[:space:]' < "$TX_UPDATER_ROOT/current" 2>/dev/null || true)"
+    launcher="$TX_UPDATER_ROOT/bin/CovioUpdaterLauncher"
+    engine="$TX_UPDATER_ROOT/versions/$current/CovioUpdater"
+    [[ "$current" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]-g[0-9a-f]{40}$ ]] || return 1
+    [[ -x "$launcher" && -x "$engine" && -f "$TX_UPDATER_LAUNCHD_PATH" ]] || return 1
+    [[ -f "$TX_RECORD_PATH" && -f "$TX_UPDATER_ROOT/updater-client-requirement" &&
+       -f "$TX_UPDATER_ROOT/updater-requirement" ]] || return 1
+    record_release="$("$COVIO_TX_PLUTIL" -extract releaseId raw -o - "$TX_RECORD_PATH" 2>/dev/null || true)"
+    record_engine="$("$COVIO_TX_PLUTIL" -extract updaterSHA256 raw -o - "$TX_RECORD_PATH" 2>/dev/null || true)"
+    record_launcher="$("$COVIO_TX_PLUTIL" -extract updaterLauncherSHA256 raw -o - "$TX_RECORD_PATH" 2>/dev/null || true)"
+    [[ "$record_release" == "$current" && "$record_engine" =~ ^[0-9a-f]{64}$ &&
+       "$record_launcher" =~ ^[0-9a-f]{64}$ ]] || return 1
+    launcher_sha="$(covio_tx_sha256 "$launcher")"
+    engine_sha="$(covio_tx_sha256 "$engine")"
+    [[ "$launcher_sha" == "$record_launcher" && "$engine_sha" == "$record_engine" ]] || return 1
+    [[ "$launcher_sha" == "$EXPECTED_UPDATER_LAUNCHER_SHA256" ]] || return 1
+    if [[ "$TX_TEST_MODE" != "1" ]]; then
+        "$COVIO_TX_CODESIGN" --verify --strict "$launcher" >/dev/null 2>&1 || return 1
+        "$COVIO_TX_CODESIGN" --verify --strict "$engine" >/dev/null 2>&1 || return 1
+        [[ "$("$COVIO_TX_CODESIGN" -d --verbose=2 "$launcher" 2>&1)" == *"Identifier=com.wyz.covio.updater.launcher"* ]] || return 1
+        [[ "$("$COVIO_TX_CODESIGN" -d --verbose=2 "$engine" 2>&1)" == *"Identifier=com.wyz.covio.updater"* ]] || return 1
+        [[ "$(stat -f '%u:%g' "$launcher")" == "0:0" ]] || return 1
+        [[ "$(stat -f '%u:%g' "$engine")" == "0:0" ]] || return 1
+    fi
+    [[ -n "${EXPECTED_PREVIOUS_RELEASE_ID:-}" && "$current" == "$EXPECTED_PREVIOUS_RELEASE_ID" ]]
+}
+
 covio_tx_register_and_verify_updater() {
     local app="$1"
     local prefix="$2"
     local binary="$app/Contents/MacOS/Covio"
     local output="$TX_TRANSACTION_ROOT/updater-install-$prefix.out"
     local error="$TX_TRANSACTION_ROOT/updater-install-$prefix.err"
-    local uid current_release health_release status
+    local uid current_release health_release status launcher_sha
     uid="$(covio_tx_console_uid)" || return 1
     mkdir -p "$TX_TRANSACTION_ROOT"
     covio_tx_log "Installing updater for $prefix"
-    if ! COVIO_UPDATER_ROOT="$TX_UPDATER_ROOT" \
-         COVIO_UPDATER_LAUNCHD_PATH="$TX_UPDATER_LAUNCHD_PATH" \
-         COVIO_UPDATER_RELEASE_ID="$(covio_tx_identity_value "$prefix" RELEASE_ID)" \
-         COVIO_UPDATER_TEST_MODE="$TX_TEST_MODE" \
-         COVIO_UPDATER_SKIP_LAUNCHD="$TX_TEST_MODE" \
-         "$binary" --install-updater-as-root \
-         >"$output" 2>"$error"
-    then
-        status=$?
-        covio_tx_log "Updater installation failed: exit=$status stderr=$(tail -c 4096 "$error" 2>/dev/null || true)"
-        return 1
+    if [[ "$TX_UPDATE_MODE" == "automatic" ]]; then
+        [[ "$EXPECTED_PREVIOUS_RELEASE_ID" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]-g[0-9a-f]{40}$ ]] || return 1
+        covio_tx_verify_installed_updater || return 1
+        if ! COVIO_UPDATER_ROOT="$TX_UPDATER_ROOT" \
+             COVIO_UPDATER_CURRENT_RELEASE_ID="$EXPECTED_PREVIOUS_RELEASE_ID" \
+             COVIO_UPDATER_NEW_RELEASE_ID="$(covio_tx_identity_value "$prefix" RELEASE_ID)" \
+             COVIO_UPDATER_EXPECTED_SHA256="$(covio_tx_identity_value "$prefix" UPDATER_SHA256)" \
+             COVIO_UPDATER_EXPECTED_LAUNCHER_SHA256="$EXPECTED_UPDATER_LAUNCHER_SHA256" \
+             COVIO_UPDATER_TEST_MODE="$TX_TEST_MODE" \
+             COVIO_UPDATER_SKIP_LAUNCHD="$TX_TEST_MODE" \
+             "$binary" --install-updater-engine-as-root \
+             >"$output" 2>"$error"
+        then
+            status=$?
+            covio_tx_log "Automatic updater engine installation failed: exit=$status stderr=$(tail -c 4096 "$error" 2>/dev/null || true)"
+            return 1
+        fi
+        launcher_sha="$(covio_tx_sha256 "$TX_UPDATER_ROOT/bin/CovioUpdaterLauncher")"
+        if [[ "$launcher_sha" != "$EXPECTED_UPDATER_LAUNCHER_SHA256" ]]; then
+            covio_tx_log "Automatic update replaced the immutable launcher"
+            return 1
+        fi
+        NEW_UPDATER_LAUNCHER_SHA256="$launcher_sha"
+    else
+        if ! COVIO_UPDATER_ROOT="$TX_UPDATER_ROOT" \
+             COVIO_UPDATER_LAUNCHD_PATH="$TX_UPDATER_LAUNCHD_PATH" \
+             COVIO_UPDATER_RELEASE_ID="$(covio_tx_identity_value "$prefix" RELEASE_ID)" \
+             COVIO_UPDATER_TEST_MODE="$TX_TEST_MODE" \
+             COVIO_UPDATER_SKIP_LAUNCHD="$TX_TEST_MODE" \
+             "$binary" --install-updater-as-root \
+             >"$output" 2>"$error"
+        then
+            status=$?
+            covio_tx_log "Updater installation failed: exit=$status stderr=$(tail -c 4096 "$error" 2>/dev/null || true)"
+            return 1
+        fi
     fi
     current_release="$(tr -d '[:space:]' < "$TX_UPDATER_ROOT/current" 2>/dev/null || true)"
     if [[ "$current_release" != "$(covio_tx_identity_value "$prefix" RELEASE_ID)" ]]; then

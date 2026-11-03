@@ -104,7 +104,8 @@ def generate_manifest(
     git_commit: str,
     key_id: str,
     signer: pathlib.Path,
-    private_key: pathlib.Path,
+    private_key: pathlib.Path | None = None,
+    keychain_service: str | None = None,
     output_dir: pathlib.Path,
     minimum_macos_version: str = "26.0",
     published_at: str | None = None,
@@ -116,8 +117,12 @@ def generate_manifest(
         raise UpdateManifestError("key ID is invalid")
     if not signer.is_file():
         raise UpdateManifestError(f"missing signer: {signer}")
-    if not private_key.is_file():
+    if (private_key is None) == (keychain_service is None):
+        raise UpdateManifestError("provide exactly one update signing key source")
+    if private_key is not None and not private_key.is_file():
         raise UpdateManifestError(f"missing private key: {private_key}")
+    if keychain_service is not None and not keychain_service:
+        raise UpdateManifestError("update signing keychain service is empty")
 
     expected_archive_name = f"CovioUpdate-{spec.client_version}.zip"
     if archive.name != expected_archive_name:
@@ -183,17 +188,51 @@ def generate_manifest(
     os.chmod(temporary_manifest, 0o644)
     os.replace(temporary_manifest, manifest_path)
 
-    result = subprocess.run(
-        [
+    if private_key is not None:
+        command = [
             str(signer),
             "sign",
             "--private-key",
             str(private_key),
+        ]
+        command.extend(
+            [
+                "--manifest",
+                str(manifest_path),
+                "--output",
+                str(signature_path),
+            ]
+        )
+        input_value = None
+    else:
+        key_result = subprocess.run(
+            [
+                "/usr/bin/security",
+                "find-generic-password",
+                "-s",
+                str(keychain_service),
+                "-a",
+                key_id,
+                "-w",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if key_result.returncode != 0:
+            raise UpdateManifestError("cannot read update signing key from Keychain")
+        command = [
+            str(signer),
+            "sign-stdin",
             "--manifest",
             str(manifest_path),
             "--output",
             str(signature_path),
-        ],
+        ]
+        input_value = key_result.stdout
+    result = subprocess.run(
+        command,
+        input=input_value,
         check=False,
         capture_output=True,
         text=True,
@@ -228,7 +267,9 @@ def _parser() -> argparse.ArgumentParser:
     generate.add_argument("--commit", required=True)
     generate.add_argument("--key-id", required=True)
     generate.add_argument("--signer", required=True, type=pathlib.Path)
-    generate.add_argument("--private-key", required=True, type=pathlib.Path)
+    key_source = generate.add_mutually_exclusive_group(required=True)
+    key_source.add_argument("--private-key", type=pathlib.Path)
+    key_source.add_argument("--keychain-service")
     generate.add_argument("--output-dir", required=True, type=pathlib.Path)
     generate.add_argument("--minimum-macos-version", default="26.0")
     generate.add_argument("--published-at")
@@ -249,6 +290,7 @@ def main() -> int:
                 key_id=arguments.key_id,
                 signer=arguments.signer,
                 private_key=arguments.private_key,
+                keychain_service=arguments.keychain_service,
                 output_dir=arguments.output_dir,
                 minimum_macos_version=arguments.minimum_macos_version,
                 published_at=arguments.published_at,

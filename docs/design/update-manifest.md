@@ -12,8 +12,10 @@
 | Signature schema | `1` |
 | Updater protocol | `1` |
 
-Manifest 和签名信封来自同一个 GitHub Release。
+Manifest、签名信封和更新归档来自同一个 GitHub Release。
 Updater 不从网页正文读取更新身份。
+GitHub API 的 release 必须是已发布 internal pre-release。
+Asset 名和 GitHub download URL 使用固定值。
 
 ## 文件
 
@@ -79,9 +81,22 @@ archive size、SHA-256 和 component hashes
 
 1. 构建并签名 app、helper 和 updater。
 2. 创建 `CovioUpdate-<clientVersion>.zip`。
-3. 运行 `scripts/update_manifest.py generate`。
-4. 使用离线私钥和 `CovioUpdateSigner` 生成签名信封。
+3. 从固定 internal Release 的当前身份生成 manifest。
+4. 使用私钥和 `CovioUpdateSigner` 生成签名信封。
 5. 上传 manifest、签名信封和 archive 到固定 internal Release。
+
+首次生成本机签名密钥：
+
+```sh
+bash scripts/setup-update-signing-key.sh covio-internal-2026-01
+```
+
+脚本把私钥保存在 login Keychain。脚本只把公钥写入
+`release/update-public-keys.json`。release 构建通过 `/usr/bin/security`
+读取 Keychain，不把私钥写入仓库或临时文件。
+
+密钥轮换时新增 key ID。不要在同一个 key ID 下替换公钥。
+旧公钥保留到所有待更新客户端都升级完成。
 
 生成命令：
 
@@ -95,11 +110,11 @@ python3 -I scripts/update_manifest.py generate \
   --commit <40 lowercase hex characters> \
   --key-id <key ID> \
   --signer build/update-signing/CovioUpdateSigner \
-  --private-key <offline private key file> \
+  --keychain-service com.wyz.covio.update-signing \
   --output-dir build/dist
 ```
 
-私钥文件不得进入仓库、CI 缓存、Release 资产或普通用户目录。
+私钥不得进入仓库、CI 缓存、Release 资产或普通用户目录。
 
 ## 验证入口
 

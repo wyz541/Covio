@@ -1,6 +1,7 @@
 import CryptoKit
 import Darwin
 import Foundation
+import Security
 
 private struct PrivateKeyFile: Codable {
     let schemaVersion: Int
@@ -58,7 +59,10 @@ private func sha256Hex(_ data: Data) -> String {
 }
 
 private func readPrivateKey(_ path: String) throws -> (PrivateKeyFile, Curve25519.Signing.PrivateKey) {
-    let data = try Data(contentsOf: URL(fileURLWithPath: path))
+    try parsePrivateKey(Data(contentsOf: URL(fileURLWithPath: path)))
+}
+
+private func parsePrivateKey(_ data: Data) throws -> (PrivateKeyFile, Curve25519.Signing.PrivateKey) {
     let file = try JSONDecoder().decode(PrivateKeyFile.self, from: data)
     guard file.schemaVersion == 1,
           !file.keyId.isEmpty,
@@ -83,6 +87,35 @@ private func readPublicKey(_ path: String) throws -> (PublicKeyFile, Curve25519.
     }
     let key = try Curve25519.Signing.PublicKey(rawRepresentation: publicKey)
     return (file, key)
+}
+
+private func readKeychainPrivateKey(
+    service: String,
+    account: String
+) throws -> (PrivateKeyFile, Curve25519.Signing.PrivateKey) {
+    let query: [String: Any] = [
+        kSecClass as String: kSecClassGenericPassword,
+        kSecAttrService as String: service,
+        kSecAttrAccount as String: account,
+        kSecReturnData as String: true,
+        kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+    var item: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &item)
+    guard status == errSecSuccess,
+          let data = item as? Data
+    else {
+        throw ToolError.invalidKey
+    }
+    let file = try JSONDecoder().decode(PrivateKeyFile.self, from: data)
+    guard file.schemaVersion == 1,
+          file.keyId == account,
+          let seed = Data(base64Encoded: file.seed),
+          seed.count == 32
+    else {
+        throw ToolError.invalidKey
+    }
+    return (file, try Curve25519.Signing.PrivateKey(rawRepresentation: seed))
 }
 
 private func writeJSON<T: Encodable>(_ value: T, to path: String, permissions: Int) throws {
@@ -138,14 +171,12 @@ private func keygen(_ arguments: [String]) throws {
     try writeJSON(publicFile, to: publicPath, permissions: 0o644)
 }
 
-private func sign(_ arguments: [String]) throws {
-    guard let privatePath = argumentValue("--private-key", in: arguments),
-          let manifestPath = argumentValue("--manifest", in: arguments),
-          let outputPath = argumentValue("--output", in: arguments)
-    else {
-        throw ToolError.usage
-    }
-    let (keyFile, key) = try readPrivateKey(privatePath)
+private func signManifest(
+    keyFile: PrivateKeyFile,
+    key: Curve25519.Signing.PrivateKey,
+    manifestPath: String,
+    outputPath: String
+) throws {
     let manifest = try Data(contentsOf: URL(fileURLWithPath: manifestPath))
     let signature = try key.signature(for: manifest)
     let envelope = SignatureEnvelope(
@@ -156,6 +187,86 @@ private func sign(_ arguments: [String]) throws {
         ]
     )
     try writeJSON(envelope, to: outputPath, permissions: 0o644)
+}
+
+private func sign(_ arguments: [String]) throws {
+    guard let privatePath = argumentValue("--private-key", in: arguments),
+          let manifestPath = argumentValue("--manifest", in: arguments),
+          let outputPath = argumentValue("--output", in: arguments)
+    else {
+        throw ToolError.usage
+    }
+    let (keyFile, key) = try readPrivateKey(privatePath)
+    try signManifest(
+        keyFile: keyFile,
+        key: key,
+        manifestPath: manifestPath,
+        outputPath: outputPath
+    )
+}
+
+private func signKeychain(_ arguments: [String]) throws {
+    guard let service = argumentValue("--service", in: arguments),
+          let account = argumentValue("--account", in: arguments),
+          let manifestPath = argumentValue("--manifest", in: arguments),
+          let outputPath = argumentValue("--output", in: arguments)
+    else {
+        throw ToolError.usage
+    }
+    let (keyFile, key) = try readKeychainPrivateKey(
+        service: service,
+        account: account
+    )
+    try signManifest(
+        keyFile: keyFile,
+        key: key,
+        manifestPath: manifestPath,
+        outputPath: outputPath
+    )
+}
+
+private func privateKeyInput(_ data: Data) throws -> Data {
+    let trimmed = String(decoding: data, as: UTF8.self)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.hasPrefix("{") {
+        return Data(trimmed.utf8)
+    }
+    guard trimmed.count.isMultiple(of: 2),
+          trimmed.unicodeScalars.allSatisfy({
+              ($0.value >= 48 && $0.value <= 57)
+                  || ($0.value >= 97 && $0.value <= 102)
+                  || ($0.value >= 65 && $0.value <= 70)
+          })
+    else {
+        throw ToolError.invalidKey
+    }
+    var decoded = Data(capacity: trimmed.count / 2)
+    var index = trimmed.startIndex
+    while index < trimmed.endIndex {
+        let end = trimmed.index(index, offsetBy: 2)
+        guard let byte = UInt8(trimmed[index..<end], radix: 16) else {
+            throw ToolError.invalidKey
+        }
+        decoded.append(byte)
+        index = end
+    }
+    return decoded
+}
+
+private func signStdin(_ arguments: [String]) throws {
+    guard let manifestPath = argumentValue("--manifest", in: arguments),
+          let outputPath = argumentValue("--output", in: arguments)
+    else {
+        throw ToolError.usage
+    }
+    let data = FileHandle.standardInput.readDataToEndOfFile()
+    let (keyFile, key) = try parsePrivateKey(privateKeyInput(data))
+    try signManifest(
+        keyFile: keyFile,
+        key: key,
+        manifestPath: manifestPath,
+        outputPath: outputPath
+    )
 }
 
 private func verify(_ arguments: [String]) throws {
@@ -182,12 +293,14 @@ private func verify(_ arguments: [String]) throws {
 private func main() -> Int32 {
     let arguments = Array(CommandLine.arguments.dropFirst())
     guard let command = arguments.first else {
-        fail("Usage: CovioUpdateSigner <keygen|sign|verify> ...")
+        fail("Usage: CovioUpdateSigner <keygen|sign|sign-keychain|sign-stdin|verify> ...")
     }
     do {
         switch command {
         case "keygen": try keygen(arguments)
         case "sign": try sign(arguments)
+        case "sign-keychain": try signKeychain(arguments)
+        case "sign-stdin": try signStdin(arguments)
         case "verify": try verify(arguments)
         default: throw ToolError.usage
         }

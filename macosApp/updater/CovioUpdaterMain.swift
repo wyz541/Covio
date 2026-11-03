@@ -13,10 +13,20 @@ enum CovioUpdaterMain {
             exit(1)
         }
 
+        let coordinator = UpdaterCoordinator(
+            paths: paths,
+            currentReleaseId: releaseId
+        )
+        let persisted = coordinator.startupStatus()
         let service = CovioUpdaterService(
             paths: paths,
             releaseId: releaseId,
-            state: .notConfigured
+            state: persisted.state,
+            lastCheckAt: persisted.lastCheckAt,
+            availableVersion: persisted.availableVersion,
+            message: persisted.message,
+            checkHandler: coordinator.check,
+            installHandler: coordinator.install
         )
         if arguments.contains("--selftest") {
             do {
@@ -38,6 +48,17 @@ enum CovioUpdaterMain {
             clientRequirement(paths: paths)
         )
         listener.activate()
+
+        let scheduler = UpdaterScheduler(
+            coordinator: coordinator,
+            paths: paths,
+            environment: environment
+        )
+        if environment["COVIO_UPDATER_DISABLE_SCHEDULER"] != "1" {
+            scheduler.start { result in
+                service.applyScheduledResult(result)
+            }
+        }
 
         do {
             try writeHealth(paths: paths, releaseId: releaseId)

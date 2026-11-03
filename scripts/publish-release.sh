@@ -101,6 +101,9 @@ PY
 VERIFY_SIGN_ARGS=()
 if [[ "$CHANNEL" == "internal" ]]; then
   VERIFY_SIGN_ARGS+=(--require-stable-signing)
+  if [[ ! -x "$ROOT/build/update-signing/CovioUpdateSigner" ]]; then
+    bash "$ROOT/scripts/build-update-signature-tool.sh"
+  fi
 fi
 EVIDENCE_TAG="$(python3 -I - "$ASSET_DIR/release-evidence.json" <<'PY'
 import json
