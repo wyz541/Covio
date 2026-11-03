@@ -17,7 +17,6 @@ DERIVED_DATA="${COVIO_RELEASE_DERIVED_DATA:-$ROOT/build/xcode-archive}"
 if [[ "$DERIVED_DATA" != /* ]]; then
   DERIVED_DATA="$ROOT/$DERIVED_DATA"
 fi
-ARCHIVE="$DERIVED_DATA/$SCHEME.xcarchive"
 APP_NAME="Covio"
 APP_ID="com.wyz.covio"
 ICON="$ROOT/macosApp/src/Covio.icns"
@@ -30,6 +29,15 @@ DEVELOPMENT_TEAM="${COVIO_DEVELOPMENT_TEAM:-}"
 NOTARY_PROFILE="${COVIO_NOTARY_PROFILE:-}"
 REQUIRE_STABLE_SIGNING="${COVIO_REQUIRE_STABLE_SIGNING:-0}"
 CLEANUP_PATHS=()
+SECONDS=0
+PHASE_START=0
+
+phase_done() {
+  local name="$1"
+  local elapsed=$((SECONDS - PHASE_START))
+  printf 'phase %-20s %4ss\n' "$name" "$elapsed"
+  PHASE_START=$SECONDS
+}
 
 # Release worktrees can share one persistent DerivedData cache.
 # A lock prevents two packaging jobs from corrupting the same archive.
@@ -160,6 +168,8 @@ else
   XCODE_SIGN_ARGS+=(CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY=-)
 fi
 
+phase_done "setup"
+
 xcodebuild \
   -project "$PROJECT" \
   -scheme "$SCHEME" \
@@ -167,7 +177,6 @@ xcodebuild \
   -derivedDataPath "$DERIVED_DATA" \
   -skipMacroValidation \
   -skipPackagePluginValidation \
-  -archivePath "$ARCHIVE" \
   -destination 'generic/platform=macOS' \
   ARCHS=arm64 \
   ONLY_ACTIVE_ARCH=NO \
@@ -178,16 +187,17 @@ xcodebuild \
   COVIO_GIT_COMMIT="$COMMIT" \
   COVIO_RELEASE_ID="$RELEASE_ID" \
   "${XCODE_SIGN_ARGS[@]}" \
-  archive
+  build
 
-ARCHIVED_APP="$ARCHIVE/Products/Applications/$APP_NAME.app"
-if [[ ! -d "$ARCHIVED_APP" ]]; then
-  printf 'Archive has no app bundle: %s\n' "$ARCHIVED_APP" >&2
+BUILT_APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/$APP_NAME.app"
+if [[ ! -d "$BUILT_APP" ]]; then
+  printf 'Release build has no app bundle: %s\n' "$BUILT_APP" >&2
   exit 1
 fi
 
 # ditto 保留符号链接与扩展属性。cp -R 会丢掉 framework 里的版本链接。
-/usr/bin/ditto "$ARCHIVED_APP" "$APP_IMAGE"
+/usr/bin/ditto "$BUILT_APP" "$APP_IMAGE"
+phase_done "xcode build"
 
 CONFIGURATION=Release \
 CODE_SIGN_IDENTITY="$RELEASE_SIGN_IDENTITY" \
@@ -195,6 +205,7 @@ COVIO_UPDATER_OUT_DIR="$UPDATER_OUT_DIR" \
 bash "$ROOT/scripts/build-covio-updater.sh"
 COVIO_UPDATER_OUT_DIR="$UPDATER_OUT_DIR" \
 bash "$ROOT/scripts/install-covio-updater.sh" "$APP_IMAGE"
+phase_done "updater"
 
 # 默认包只携带模型清单和许可证。模型权重由离线包或首次使用下载提供。
 for model_manifest in "$ROOT"/macosApp/src/AutoNaming/FileNamingModelManifest*.json; do
@@ -336,6 +347,7 @@ if [[ "$CHANNEL" == "internal" && -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_
     --require-stable \
     --baseline "$INTERNAL_SIGNING_BASELINE"
 fi
+phase_done "bundle signing"
 
 notarize_and_staple() {
   local target="$1"
@@ -357,11 +369,13 @@ fi
 
 bash "$ROOT/scripts/verify-helper-daemon.sh" "$APP_IMAGE" --require-manifest
 bash "$ROOT/scripts/verify-updater-daemon.sh" "$APP_IMAGE"
+phase_done "daemon verification"
 
 # app.zip lets the publish command download and verify the app and helper pair again.
 /usr/bin/ditto -c -k --keepParent "$APP_IMAGE" "$APP_ZIP"
 # Automatic updates use a fixed top-level Covio.app layout.
 /usr/bin/ditto -c -k --norsrc --keepParent "$APP_IMAGE" "$UPDATE_ZIP"
+phase_done "archives"
 
 # 镜像的根要同时有 app 与指向 /Applications 的链接，装的时候才能拖进去。
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/covio-dmg-stage.XXXXXX")"
@@ -389,6 +403,7 @@ if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
   /usr/bin/codesign --force --timestamp --sign "$RELEASE_SIGN_IDENTITY" "$DMG_PATH"
   /usr/bin/codesign --verify --strict "$DMG_PATH"
 fi
+phase_done "dmg"
 
 PKG_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/covio-pkg-root.XXXXXX")"
 PKG_SCRIPTS="$(mktemp -d "${TMPDIR:-/tmp}/covio-pkg-scripts.XXXXXX")"
@@ -500,6 +515,7 @@ if [[ "$PKG_PAYLOAD_FILES" != *"Library/Application Support/Covio/Installer/inst
   printf 'PKG payload is missing the updater transaction entrypoint.\n' >&2
   exit 1
 fi
+phase_done "pkg"
 
 if [[ -n "$NOTARY_PROFILE" ]]; then
   notarize_and_staple "$DMG_PATH" "$DMG_PATH"
@@ -509,6 +525,7 @@ if [[ -n "$NOTARY_PROFILE" ]]; then
   fi
   notarize_and_staple "$PKG_PATH" "$PKG_PATH"
 fi
+phase_done "notarization"
 
 if [[ ! -f "$APP_ZIP" || ! -f "$UPDATE_ZIP" || ! -f "$PKG_PATH" ]]; then
   printf 'Packaging did not create the expected app zips or PKG.\n' >&2
@@ -520,6 +537,7 @@ python3 -I "$ROOT/scripts/release_manifest.py" generate-artifact \
   --default-dmg "$DMG_PATH" \
   --output "$DIST/release-manifest.json" \
   --commit "$COMMIT"
+phase_done "artifact manifest"
 
 APP_BYTES="$(du -sk "$APP_IMAGE" | awk '{print $1 * 1024}')"
 DMG_BYTES="$(stat -f %z "$DMG_PATH")"
@@ -530,3 +548,4 @@ printf 'DMG bytes: %s\n' "$DMG_BYTES"
 printf 'Created %s\n' "$APP_ZIP"
 printf 'Created %s\n' "$UPDATE_ZIP"
 printf 'Created %s\n' "$PKG_PATH"
+printf 'Package total: %ss\n' "$SECONDS"

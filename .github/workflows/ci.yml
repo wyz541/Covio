@@ -31,12 +31,13 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
+            build/
             ~/.konan
             ~/Library/Caches/JetBrains/Kotlin
-          key: kotlin-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}
+          key: kotlin-build-v2-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}
           restore-keys: |
-            kotlin-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}-
-            kotlin-${{ runner.os }}-
+            kotlin-build-v2-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}-
+            kotlin-build-v2-${{ runner.os }}-
       - name: Provision Amper downloads
         run: bash scripts/provision-amper-github-downloads.sh
       - name: Build
@@ -48,6 +49,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
+            build/
             ~/.konan
             ~/Library/Caches/JetBrains/Kotlin
           key: ${{ steps.kotlin-cache.outputs.cache-primary-key }}
