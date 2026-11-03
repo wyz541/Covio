@@ -26,6 +26,7 @@ python3 -I "$ROOT/scripts/release_manifest.py" check
 python3 -I "$ROOT/scripts/test_release_manifest.py"
 python3 -I "$ROOT/scripts/test_release_pipeline.py"
 python3 -I "$ROOT/scripts/test_release_notes.py"
+python3 -I "$ROOT/scripts/test_update_manifest.py"
 python3 -I "$ROOT/scripts/test_verify_macos_signing.py"
 
 step "Kotlin 共享层"
