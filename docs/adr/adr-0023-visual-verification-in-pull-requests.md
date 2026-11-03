@@ -1,9 +1,10 @@
 # ADR-0023：把 Visual verification 放到 PR
 
-- Status：accepted
+- Status：superseded
 - Kind：process
 - Date：2026-10-28
 - Supersedes：none
+- Superseded by：ADR-0028
 - Implements：#442
 - 相关：ADR-0021
 

@@ -361,23 +361,19 @@ release_prepare() {
 - Bump the release identity to client version \`$client_version\`.
 - Keep product version \`$product_version\` and build number \`$next_build\` as separate fields.
 - Draft the release notes from the pull requests merged since \`$previous_tag\`.
-- Update the README download links for client version \`$client_version\`.
-
-## Why
-
-Prepare the internal release \`$current_tag\`.${issue:+
+- Update the README download links for client version \`$client_version\`.${issue:+
 
 Related issue: #$issue.}
-
-## Visual verification
-
-Not applicable. This PR does not change UI code.
 
 ## Proof
 
 - \`python3 scripts/release_manifest.py check\`:
 - \`python3 scripts/release_notes.py check --notes RELEASE_NOTES.md --current-tag $current_tag\`:
 - CI:
+
+## Visual verification
+
+Not applicable. This PR does not change UI code.
 
 ## Risk
 

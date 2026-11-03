@@ -1,111 +1,48 @@
 name: Feature
-description: Parent Feature。用原生 sub-issue 跟踪 Research、Task 和 Verify。
+description: 多 PR、超过 5 个工作日或需要先改设计的工作容器。
 labels: ["feature"]
 body:
   - type: markdown
     attributes:
       value: |
-        本表单创建 Parent Feature。Parent Feature 是工作容器，不表示已经承诺实施。
-        目标、范围与完成条件明确时，直接使用本表单。不要求先建 Discussion。
-        Parent Feature 可以在调研结论产生前创建。Research、Task 与 Verify 都是 Parent Feature 的 sub-issue。
-        Verify 与 Task 同级。Verify 不是 Task 的 child。
-        需要先调研、需要 2 个以上 PR、预计超过 5 个工作日，或需要先改设计时，使用本表单。
-        标题写成「动词 对象」，例如「Add the workbench store」。
-        UI issue 写可判断的表现预期，不在 issue 等待 After 截图。
-        真机截图写在实现后的 PR 的 `Visual verification`。
-        层级、回链与验收规则见 [研发工作流](../../docs/process/workflow.md) 的 S1、S2、S5、S6 与 Visual verification。
+        Feature 是原生 sub-issue 的容器。
+        不要求先建 Discussion。
+        Research、Task 和例外 Verify 使用原生 sub-issue。
+        Priority 和 Target date 只在 Project 8 维护。
+        UI 证据写在实现后的 PR。
 
   - type: textarea
     id: goal
     attributes:
       label: 目标
-      description: 交付后用户能做什么。不写实现细节。
-    validations:
-      required: true
-
-  - type: input
-    id: discussion
-    attributes:
-      label: Discussion 来源（可选）
-      description: |
-        仅当事项确实经过 Discussion 时填写 `discussion: <URL>`。
-        直接创建 Parent Feature 时留空。
-      placeholder: "discussion: https://github.com/wyz541/kmp-Covio/discussions/1"
-    validations:
-      required: false
-
-  - type: textarea
-    id: expectation
-    attributes:
-      label: 表现预期
-      description: |
-        界面变化的可判断描述，一行一条。视觉评审对照本栏逐条判断。
-        没有界面变化时填「无」。
-      placeholder: |
-        - <界面变化一：可判断的描述>
-        - <界面变化二：可判断的描述>
-    validations:
-      required: true
-
-  - type: dropdown
-    id: ui_type
-    attributes:
-      label: UI 类型
-      description: 选择本 issue 的 UI 类型。UI 代码变更的真机证据在 PR 提供。
-      options:
-        - 不涉及 UI
-        - UI 决策
-        - UI 代码变更
+      description: 写交付后用户能完成什么。
     validations:
       required: true
 
   - type: textarea
-    id: preview
+    id: completion
     attributes:
-      label: 预览
-      description: |
-        仅 UI 决策填写候选方案、截图和评审状态。
-        UI 代码变更不在 issue 放 After 截图。
-        真机验收证据在 PR 补齐。
+      label: 完成条件
+      description: 写 Feature 可关闭的条件。
       placeholder: |
-        - 候选方案：<链接或简短说明>
-        - 截图：docs/design/previews/<name>.png
-        - 评审：Pending
+        - 所有 Task 已合并。
+        - 真机验收通过。
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 补充信息
+      description: 可选。写范围、UI 预期、风险或依赖。
     validations:
       required: false
 
   - type: input
     id: decision
     attributes:
-      label: 决策指向
-      description: 填写决策编号，例如 `ADR-0007`。没有长期决策时填 `none`。
-      placeholder: "decision: pending"
+      label: ADR
+      description: "可选。已有生效 ADR 时写 `decision: ADR-NNNN`。"
+      placeholder: "decision: ADR-0028"
     validations:
-      required: true
-
-  - type: dropdown
-    id: priority
-    attributes:
-      label: Priority
-      options: [P0, P1, P2]
-    validations:
-      required: true
-
-  - type: dropdown
-    id: size
-    attributes:
-      label: Size
-      description: 由负责人打分。取值与 Project 的 `Size` 字段一致。
-      options: [XS, S, M, L, XL]
-    validations:
-      required: true
-
-  - type: markdown
-    attributes:
-      value: |
-        建好之后在 Project 里补 Start date 与 Target date。这两个字段只在 Project 维护，不写进正文。
-        有调研时先添加 Research sub-issue，调研结束后再添加 Task sub-issue。
-        需要跨 Task 的真机或端到端验收时，再添加 Verify sub-issue，并用 `blocked by` 指向被验收的 Task。
-        Sub-issues 是层级与进度的唯一来源，不在正文维护第二份清单。
-        Task sub-issue 使用 `blocked by` 指向 Research issue 或前置 Task。
-        Verify 的产出是证据，不要求 PR。单个 PR 的 UI 证据仍写在 PR 的 `Visual verification`。
+      required: false

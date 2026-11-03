@@ -1,65 +1,38 @@
 <!--
 UI code changes: complete Visual verification before marking the PR ready.
-No UI changes: write “Not applicable” under Visual verification.
+No UI changes: write "Not applicable" under Visual verification.
 Use test data in screenshots. Hide personal information.
 -->
 
 ## What changed
 
-<!-- One paragraph describing the delivered result. -->
+<!-- Describe the delivered result. Reference the issue. -->
 
-## Why
+## Proof
 
-<!-- Explain the problem and link the issue. -->
+- Tests:
+- CI:
+- Real-Mac:
 
 ## Visual verification
 
 <!--
-UI code changes only.
-Use the same page and state for Before and After.
-Run the app on a real Mac. Provide both light and dark screenshots.
-Use fixed commit URLs for images stored in docs/design/previews/.
-Delete this section for no-UI PRs or write “Not applicable”.
+No UI changes: write "Not applicable".
+Local UI change: one Before/After pair for the affected mode.
+Appearance, navigation or material change: light and dark Before/After pairs.
+Release candidate: light, dark and real-device evidence.
+Evidence: date, device, OS, page, state, commit.
 -->
 
-**亮色**
+- Scope:
+- Evidence:
 
 | Before | After |
 | --- | --- |
-| Light before | Light after |
-
-**深色**
-
-| Before | After |
-| --- | --- |
-| Dark before | Dark after |
-
-### Evidence details
-
-- Source:
-- Date:
-- Device:
-- OS:
-- Page:
-- State:
-- Commit:
-
-## Design preview
-
-<!-- UI decision issues only. Link the candidate or selected design. -->
-
-- Issue:
-- Preview:
-- Review:
-
-## Proof
-
-- Local tests:
-- CI:
-- Real-Mac acceptance:
+|  |  |
 
 ## Risk
 
-<!-- State remaining risks. Write “None” when there are none. -->
+<!-- Write the remaining risk. Write "None" when there is none. -->
 
 Closes #
