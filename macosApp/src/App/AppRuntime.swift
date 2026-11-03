@@ -33,6 +33,12 @@ final class AppRuntime {
     private(set) var isCheckingForUpdates = false
     /// 最近一次成功检查发现的新版本。无更新或尚未检查时为 nil。
     private(set) var availableUpdate: UpdateInfo?
+    /// Root updater 的最近一次状态。
+    private(set) var updaterStatus: UpdaterStatus?
+    /// Root updater 正在执行状态或操作请求。
+    private(set) var updaterBusy = false
+    /// Root updater 不可用。Migration PKG 或 repair PKG 缺失时保持 true。
+    private(set) var updaterUnavailable = false
     /// 首次启动的引导是否可见。
     private(set) var welcomeVisible: Bool
 
@@ -118,6 +124,7 @@ final class AppRuntime {
     private let loginItem: LoginItem
     private let notifier: Notifier
     private let updateChecker: UpdateChecker
+    private let updaterClient: CovioUpdaterClient
     /// 通知开关的持有者。`MacNotifier` 要一个读开关的闭包，
     /// 那个闭包必须在 `self` 建好之前交出去，所以开关放在这个独立对象里。
     private let notificationGate: NotificationGate
@@ -150,6 +157,7 @@ final class AppRuntime {
         loginItem: LoginItem = MacLoginItem(),
         notifier: Notifier? = nil,
         updateChecker: UpdateChecker = GithubUpdateChecker(),
+        updaterClient: CovioUpdaterClient = CovioUpdaterClient(),
         powerObservation: PowerObservationSource? = nil,
         powerHistoryStore: PowerHistoryStore? = nil,
         closedLidBrightnessBackend: ClosedLidBrightnessBackend? = nil,
@@ -205,6 +213,7 @@ final class AppRuntime {
             gate.isEnabled
         }
         self.updateChecker = updateChecker
+        self.updaterClient = updaterClient
 
         // 空语言表示跟随系统。不要把解析出的语言写回配置，否则系统语言以后变化时不再生效。
         var loaded = resolvedStore.load()
@@ -1160,6 +1169,116 @@ final class AppRuntime {
     }
 
     // MARK: - 更新
+
+
+    func refreshUpdaterStatus() {
+        guard !updaterBusy else { return }
+        updaterBusy = true
+        updaterClient.getStatus { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.updaterBusy = false
+                switch result {
+                case .success(let status):
+                    self.updaterStatus = status
+                    self.updaterUnavailable = false
+                case .failure:
+                    self.updaterStatus = nil
+                    self.updaterUnavailable = true
+                }
+            }
+        }
+    }
+
+    func setUpdaterAutomatic(_ enabled: Bool) {
+        guard !updaterBusy else { return }
+        updaterBusy = true
+        updaterClient.setAutomaticUpdates(enabled) { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.updaterBusy = false
+                switch result {
+                case .success:
+                    self.setUpdateChecks(enabled)
+                    self.updaterUnavailable = false
+                    self.refreshUpdaterStatus()
+                case .failure:
+                    self.updaterUnavailable = self.updaterStatus == nil
+                    self.statusMessage = ContractCopy.copyToastError.text(for: self.language)
+                }
+            }
+        }
+    }
+
+    func checkUpdaterNow() {
+        guard !updaterBusy else { return }
+        updaterBusy = true
+        updaterClient.checkNow { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.updaterBusy = false
+                switch result {
+                case .success(let value):
+                    self.updaterUnavailable = false
+                    self.statusMessage = UpdaterSettingsPresentation.stateText(
+                        value.state,
+                        language: self.language
+                    )
+                    self.refreshUpdaterStatus()
+                case .failure:
+                    self.updaterStatus = nil
+                    self.updaterUnavailable = true
+                    self.statusMessage = ContractCopy.copyToastError.text(for: self.language)
+                }
+            }
+        }
+    }
+
+    func installAvailableUpdate() {
+        guard !updaterBusy else { return }
+        updaterBusy = true
+        updaterClient.installAvailable { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.updaterBusy = false
+                switch result {
+                case .success(let value):
+                    self.updaterUnavailable = false
+                    self.statusMessage = UpdaterSettingsPresentation.stateText(
+                        value.state,
+                        language: self.language
+                    )
+                    self.refreshUpdaterStatus()
+                case .failure:
+                    self.updaterUnavailable = true
+                    self.statusMessage = ContractCopy.copyToastError.text(for: self.language)
+                }
+            }
+        }
+    }
+
+    func restartAppForUpdate() {
+        guard !updaterBusy else { return }
+        updaterBusy = true
+        updaterClient.restartApp { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.updaterBusy = false
+                switch result {
+                case .success(let value):
+                    self.updaterUnavailable = false
+                    self.statusMessage = UpdaterSettingsPresentation.stateText(
+                        value.state,
+                        language: self.language
+                    )
+                    self.refreshUpdaterStatus()
+                case .failure:
+                    self.updaterUnavailable = true
+                    self.statusMessage = ContractCopy.copyToastError.text(for: self.language)
+                }
+            }
+        }
+    }
 
     func checkForUpdates(manual: Bool) {
 #if DEBUG

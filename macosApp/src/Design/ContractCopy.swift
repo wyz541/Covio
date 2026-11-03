@@ -335,6 +335,38 @@ enum ContractCopy {
     static let copyGeneralSleepModeFastest = LocalizedCopy(key: "copy/general/sleep-mode/fastest", en: "0 · Fastest", zhHans: "0 · 最快")
     /// `copy/general/sleep-mode/lowest-power`
     static let copyGeneralSleepModeLowestPower = LocalizedCopy(key: "copy/general/sleep-mode/lowest-power", en: "25 · Lowest power", zhHans: "25 · 最省电")
+    /// `copy/general/update/automatic`
+    static let copyGeneralUpdateAutomatic = LocalizedCopy(key: "copy/general/update/automatic", en: "Install updates automatically", zhHans: "自动安装更新")
+    /// `copy/general/update/available-version`
+    static let copyGeneralUpdateAvailableVersion = LocalizedCopy(key: "copy/general/update/available-version", en: "Available version", zhHans: "可用版本")
+    /// `copy/general/update/checking`
+    static let copyGeneralUpdateChecking = LocalizedCopy(key: "copy/general/update/checking", en: "Checking for updates", zhHans: "正在检查更新")
+    /// `copy/general/update/downloading`
+    static let copyGeneralUpdateDownloading = LocalizedCopy(key: "copy/general/update/downloading", en: "Downloading update", zhHans: "正在下载更新")
+    /// `copy/general/update/failed`
+    static let copyGeneralUpdateFailed = LocalizedCopy(key: "copy/general/update/failed", en: "Update failed", zhHans: "更新失败")
+    /// `copy/general/update/install`
+    static let copyGeneralUpdateInstall = LocalizedCopy(key: "copy/general/update/install", en: "Install update", zhHans: "安装更新")
+    /// `copy/general/update/installing`
+    static let copyGeneralUpdateInstalling = LocalizedCopy(key: "copy/general/update/installing", en: "Installing update", zhHans: "正在安装更新")
+    /// `copy/general/update/last-check`
+    static let copyGeneralUpdateLastCheck = LocalizedCopy(key: "copy/general/update/last-check", en: "Last checked", zhHans: "上次检查")
+    /// `copy/general/update/never`
+    static let copyGeneralUpdateNever = LocalizedCopy(key: "copy/general/update/never", en: "Not yet", zhHans: "尚未检查")
+    /// `copy/general/update/not-configured`
+    static let copyGeneralUpdateNotConfigured = LocalizedCopy(key: "copy/general/update/not-configured", en: "Automatic updates are not configured in this build.", zhHans: "此构建尚未配置自动更新。")
+    /// `copy/general/update/ready`
+    static let copyGeneralUpdateReady = LocalizedCopy(key: "copy/general/update/ready", en: "Ready", zhHans: "就绪")
+    /// `copy/general/update/repair-required`
+    static let copyGeneralUpdateRepairRequired = LocalizedCopy(key: "copy/general/update/repair-required", en: "Updater repair required", zhHans: "需要修复更新器")
+    /// `copy/general/update/restart`
+    static let copyGeneralUpdateRestart = LocalizedCopy(key: "copy/general/update/restart", en: "Restart Covio", zhHans: "重启 Covio")
+    /// `copy/general/update/restart-required`
+    static let copyGeneralUpdateRestartRequired = LocalizedCopy(key: "copy/general/update/restart-required", en: "Restart required", zhHans: "需要重启")
+    /// `copy/general/update/status`
+    static let copyGeneralUpdateStatus = LocalizedCopy(key: "copy/general/update/status", en: "Update status", zhHans: "更新状态")
+    /// `copy/general/update/unavailable`
+    static let copyGeneralUpdateUnavailable = LocalizedCopy(key: "copy/general/update/unavailable", en: "Updater is unavailable. Install or repair the current Covio package.", zhHans: "更新器不可用。请安装或修复当前 Covio 安装包。")
     /// `copy/general/version/build`
     static let copyGeneralVersionBuild = LocalizedCopy(key: "copy/general/version/build", en: "Build", zhHans: "构建编号")
     /// `copy/general/version/channel`
@@ -1875,6 +1907,22 @@ enum ContractCopy {
         copyGeneralSleepModeDefault,
         copyGeneralSleepModeFastest,
         copyGeneralSleepModeLowestPower,
+        copyGeneralUpdateAutomatic,
+        copyGeneralUpdateAvailableVersion,
+        copyGeneralUpdateChecking,
+        copyGeneralUpdateDownloading,
+        copyGeneralUpdateFailed,
+        copyGeneralUpdateInstall,
+        copyGeneralUpdateInstalling,
+        copyGeneralUpdateLastCheck,
+        copyGeneralUpdateNever,
+        copyGeneralUpdateNotConfigured,
+        copyGeneralUpdateReady,
+        copyGeneralUpdateRepairRequired,
+        copyGeneralUpdateRestart,
+        copyGeneralUpdateRestartRequired,
+        copyGeneralUpdateStatus,
+        copyGeneralUpdateUnavailable,
         copyGeneralVersionBuild,
         copyGeneralVersionChannel,
         copyGeneralVersionClient,

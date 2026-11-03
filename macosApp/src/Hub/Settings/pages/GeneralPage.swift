@@ -60,24 +60,8 @@ struct GeneralPage: View {
             }
             .settingsRowAnchor(SettingsRowID.generalLogin)
 
-            MacCard {
-                MacSettingRow(title: ContractCopy.copyGeneralCheckUpdates.text(for: runtime.language)) {
-                    HStack(spacing: MacTheme.space2) {
-                        MacSwitch(
-                            label: ContractCopy.copyGeneralCheckUpdates.text(for: runtime.language),
-                            isOn: Binding(
-                                get: { runtime.config.updateCheckEnabled },
-                                set: { runtime.setUpdateChecks($0) }
-                            )
-                        )
-                        MacButton(
-                            title: ContractCopy.copyGeneralCheckUpdates.text(for: runtime.language),
-                            isEnabled: !runtime.busy
-                        ) { runtime.checkForUpdates(manual: true) }
-                    }
-                }
-            }
-            .settingsRowAnchor(SettingsRowID.generalUpdates)
+            UpdaterSettingsCard(runtime: runtime)
+                .settingsRowAnchor(SettingsRowID.generalUpdates)
 
             ReleaseIdentityCard(runtime: runtime)
                 .settingsRowAnchor(SettingsRowID.generalVersion)
