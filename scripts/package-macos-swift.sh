@@ -17,7 +17,6 @@ DERIVED_DATA="${COVIO_RELEASE_DERIVED_DATA:-$ROOT/build/xcode-archive}"
 if [[ "$DERIVED_DATA" != /* ]]; then
   DERIVED_DATA="$ROOT/$DERIVED_DATA"
 fi
-ARCHIVE="$DERIVED_DATA/$SCHEME.xcarchive"
 APP_NAME="Covio"
 APP_ID="com.wyz.covio"
 ICON="$ROOT/macosApp/src/Covio.icns"
@@ -178,7 +177,6 @@ xcodebuild \
   -derivedDataPath "$DERIVED_DATA" \
   -skipMacroValidation \
   -skipPackagePluginValidation \
-  -archivePath "$ARCHIVE" \
   -destination 'generic/platform=macOS' \
   ARCHS=arm64 \
   ONLY_ACTIVE_ARCH=NO \
@@ -189,17 +187,17 @@ xcodebuild \
   COVIO_GIT_COMMIT="$COMMIT" \
   COVIO_RELEASE_ID="$RELEASE_ID" \
   "${XCODE_SIGN_ARGS[@]}" \
-  archive
+  build
 
-ARCHIVED_APP="$ARCHIVE/Products/Applications/$APP_NAME.app"
-if [[ ! -d "$ARCHIVED_APP" ]]; then
-  printf 'Archive has no app bundle: %s\n' "$ARCHIVED_APP" >&2
+BUILT_APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/$APP_NAME.app"
+if [[ ! -d "$BUILT_APP" ]]; then
+  printf 'Release build has no app bundle: %s\n' "$BUILT_APP" >&2
   exit 1
 fi
 
 # ditto 保留符号链接与扩展属性。cp -R 会丢掉 framework 里的版本链接。
-/usr/bin/ditto "$ARCHIVED_APP" "$APP_IMAGE"
-phase_done "xcode archive"
+/usr/bin/ditto "$BUILT_APP" "$APP_IMAGE"
+phase_done "xcode build"
 
 CONFIGURATION=Release \
 CODE_SIGN_IDENTITY="$RELEASE_SIGN_IDENTITY" \

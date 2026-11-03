@@ -68,6 +68,8 @@ bash scripts/package-macos-swift.sh
 The default cache is under the primary checkout at `build/release-xcode-cache`.
 Set `COVIO_RELEASE_DERIVED_DATA` to use another cache directory.
 The packaging job locks the cache, and every release identity and asset check still runs.
+The package script uses `xcodebuild build` and reads `Build/Products/Release/Covio.app`.
+It does not run a fresh Xcode archive for every release.
 
 Internal Release creation requires a stable local signing identity.
 The app and helper must use the same certificate.
