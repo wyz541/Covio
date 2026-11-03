@@ -5,7 +5,7 @@
 - Date：2026-11-03
 - Supersedes：ADR-0020 的常规升级授权部分和自动更新限制（决策 10 的常规升级部分、决策 16）
 - Implements：#553
-- 相关：ADR-0005、ADR-0018、ADR-0020、ADR-0026、Discussion #552
+- 相关：ADR-0005、ADR-0018、ADR-0020、ADR-0026、Discussion #552、#555、#557
 
 ## 背景
 
@@ -65,7 +65,7 @@ ADR-0020 决策 16 禁止自动更新。
 26. Updater 自身使用稳定 launcher 和可替换 engine。LaunchDaemon 指向稳定 launcher，不直接指向版本目录。
 27. 版本目录位于 root-owned `Updater/versions/<releaseId>/`。`current` 指针只由 root updater 原子替换。
 28. 新 updater engine 启动或握手失败时，稳定 launcher 使用 `previous` 指针恢复旧 engine。
-29. 稳定 launcher 自身更新时，updater 备份旧 launcher，原子替换新 launcher，再执行 `launchctl kickstart -k`。新 launcher 不响应时回滚。
+29. 稳定 launcher 自身更新时，updater 备份旧 launcher，原子替换新 launcher，再执行 `launchctl kickstart -k`。新 launcher 不响应时回滚。（由 2026-11-03 补充取代）
 30. 普通 app 只能执行 `status`、`checkNow`、`installAvailable`、`setAutomaticUpdates` 和 `restartApp` 等固定操作。
 31. Updater 不支持调用方指定任意 app、helper、package、shell、命令或 URL。
 32. 本机管理员被视为拥有整机控制权。本 ADR 不防御已取得 root 或本地管理员权限的攻击者。
@@ -247,13 +247,43 @@ App 关闭时，updater 继续按 root-owned 偏好执行检查。
 
 未采纳为当前方案。
 
+## 补充：不可变 launcher 与 NSXPC 审计上下文（2026-11-03）
+
+Research #555 和 #557 收敛了实现边界。本节补充取代决策 29，并解释决策 6 至 8 的实现方式。
+
+1. Stable launcher 是 root-owned 不可变引导程序。正常自动更新不得替换 launcher。
+2. Launcher 只读取 root-owned `current` 指针。指针内容是 release ID，不是任意路径。
+3. Launcher 只启动 `Updater/versions/<releaseId>/CovioUpdater`。
+4. Launcher 验证 engine 的路径、所有权、权限和代码签名。
+5. Launcher 启动 engine 子进程，并读取带 release ID 的 health 标记。
+6. Engine 快速连续启动失败时，launcher 使用 `previous` 指针恢复旧 engine。
+7. Updater 自更新只替换版本化 engine。成功提交后保留 `previous` engine，清理更旧版本。
+8. Launcher 只在 migration PKG 或 repair PKG 中更新。Repair PKG 继续请求最多 1 次管理员授权。
+9. Launcher 不联网、不读取 manifest、不执行 shell，也不接受调用方提供的路径。
+10. Updater XPC listener 在激活前设置 app 的固定代码签名要求。
+11. App 连接到 updater 时也设置 updater 的固定代码签名要求。
+12. Updater 在每次调用中读取 `NSXPCConnection.currentConnection` 的 kernel-provided peer metadata。
+13. Updater 使用 audit session、PID、EUID 和 EGID 做审计与用户上下文处理。
+14. `NSXPCConnection` 不暴露完整 `audit_token_t` 时，上述 audit metadata 是受支持的实现边界。
+15. 代码签名 requirement 决定是否授权。PID、UID 和路径不能单独授权调用方。
+16. 自动更新偏好按调用 UID 保存。Updater 拒绝一个用户修改另一个用户的偏好。
+17. Updater 只重启固定路径的 `/Applications/Covio.app`，并使用调用方的 audit session。
+
+### 后续约束
+
+- Launcher 的不可变边界写入 migration PKG 和 repair PKG 的真机测试。
+- Engine version 指针、health、崩溃计数和回退写入 Task #559。
+- XPC 代码签名要求和负向客户端测试写入 Task #559。
+- Launcher 不参与自动更新，是当前 internal/local 分发的安全取舍。
+- 如果 launcher 需要无凭证自动更新，必须先建立新的 ADR 和独立恢复通道。
+
 ## 未决事项
 
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
 | Manifest 与 update archive 的最终 schema | pending | Research 结论写回 Feature #553 |
-| Updater XPC 调用方的精确签名要求 | pending | 正签名和错误签名客户端测试 |
-| 稳定 launcher 的崩溃检测和 `previous` 回退实现 | pending | 启动失败和连续崩溃真机测试 |
+| Updater XPC requirement 生成和负向客户端测试 | pending | Research #557 的接口合同与真机测试 |
+| Updater engine health、崩溃计数和 `previous` 回退 | pending | Research #555 的状态机与真机测试 |
 | 自动更新的默认检查周期和空闲窗口 | pending | 设置交互与真机验收 |
 | 离线私钥的介质、备份和轮换周期 | pending | 发布运行手册与轮换演练 |
 | `0.0.1.8` 迁移包的 build 和 Release 顺序 | pending | 发布迁移包后执行 N-1 自动更新验收 |
