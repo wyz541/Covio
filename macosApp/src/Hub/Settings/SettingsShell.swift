@@ -20,11 +20,17 @@ struct SettingsTabView: View {
             sectionPicker
 
             ScrollViewReader { proxy in
-                ScrollView {
-                    content
-                        .padding(.horizontal, MacTheme.space4)
-                        .padding(.vertical, MacTheme.space3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                Group {
+                    if section == .general {
+                        GeneralPage(runtime: runtime)
+                    } else {
+                        ScrollView {
+                            content
+                                .padding(.horizontal, MacTheme.space4)
+                                .padding(.vertical, MacTheme.space3)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
                 }
                 // 跳转序号变了才滚，否则同一行连点两次不会重新滚。
                 .onChange(of: chrome.revealCount) {
@@ -67,7 +73,7 @@ struct SettingsTabView: View {
         case .idle: IdlePage(runtime: runtime)
         case .clipboard: ClipboardPage(runtime: runtime)
         case .assistant: AssistantPage(runtime: runtime)
-        case .general: GeneralPage(runtime: runtime)
+        case .general: EmptyView()
         }
     }
 }

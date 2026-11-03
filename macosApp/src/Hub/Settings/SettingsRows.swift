@@ -161,70 +161,26 @@ struct HotKeyRow: View {
     }
 }
 
-/// 深色唤醒的状态行。
-struct DarkWakeStatusView: View {
-    let runtime: AppRuntime
-
-    var body: some View {
-        let status = runtime.appState.darkWake
-        MacSectionTitle(text: ContractCopy.copyGeneralDarkwake.text(for: runtime.language))
-        if status.scanning {
-            MacStatusLine(text: ContractCopy.copyStateLoading.text(for: runtime.language))
-        } else if !status.available {
-            MacStatusLine(text: ContractCopy.copyStateEmpty.text(for: runtime.language))
-        } else {
-            let last = status.lastAtEpochSeconds.map {
-                SettingsFormat.wakeTime(epochSeconds: $0.int64Value)
-            } ?? ContractCopy.copyStateEmpty.text(for: runtime.language)
-            MacStatusLine(text: "\(ContractCopy.copyGeneralDarkwake.text(for: runtime.language)): \(last)")
-            MacStatusLine(text: "\(status.lastReason ?? ContractCopy.copyStateEmpty.text(for: runtime.language))")
-            MacStatusLine(text: "\(status.count24h)")
-        }
-    }
-}
-
 /// 休眠模式。取值来自 Kotlin 的 `SUPPORTED_HIBERNATE_MODES`，不在这里写死。
-struct SleepModeOptions: View {
-    let runtime: AppRuntime
-
-    private static let modes: [Int32] = ModelsKt.SUPPORTED_HIBERNATE_MODES
+enum SleepModeOptions {
+    static let modes: [Int32] = ModelsKt.SUPPORTED_HIBERNATE_MODES
         .map { $0.int32Value }
         .sorted()
-
-    var body: some View {
-        MacSegmented(
-            options: Self.modes.map { SettingsFormat.sleepModeLabel($0, language: runtime.language) },
-            selectedIndex: Self.modes.firstIndex(of: runtime.config.hibernateMode?.int32Value ?? -1) ?? 0
-        ) { index in
-            runtime.setSleepMode(Self.modes[index])
-        }
-    }
 }
 
-/// 界面语言。整组第三项是手动覆盖，第一项重新跟随系统。
-struct LanguageOptions: View {
-    let runtime: AppRuntime
-
-    private static let preferences: [AppLanguagePreference] = [
+/// 界面语言。第一项重新跟随系统。
+enum LanguageOptions {
+    static let preferences: [AppLanguagePreference] = [
         .system,
         .english,
         .simplifiedChinese,
     ]
 
-    var body: some View {
-        MacSegmented(
-            options: Self.preferences.map(title),
-            selectedIndex: Self.preferences.firstIndex(of: runtime.languagePreference) ?? 0
-        ) { index in
-            runtime.setLanguagePreference(Self.preferences[index])
-        }
-    }
-
-    private func title(_ preference: AppLanguagePreference) -> String {
+    static func title(_ preference: AppLanguagePreference, language: AppLanguage) -> String {
         switch preference {
-        case .system: ContractCopy.copyGeneralLanguageSystem.text(for: runtime.language)
-        case .english: ContractCopy.copyGeneralLanguageEnglish.text(for: runtime.language)
-        case .simplifiedChinese: ContractCopy.copyGeneralLanguageChinese.text(for: runtime.language)
+        case .system: ContractCopy.copyGeneralLanguageSystem.text(for: language)
+        case .english: ContractCopy.copyGeneralLanguageEnglish.text(for: language)
+        case .simplifiedChinese: ContractCopy.copyGeneralLanguageChinese.text(for: language)
         }
     }
 }

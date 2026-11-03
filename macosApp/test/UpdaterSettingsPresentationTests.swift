@@ -79,6 +79,32 @@ final class UpdaterSettingsPresentationTests: XCTestCase {
         )
     }
 
+    func testUnavailableUsesAShortStatusLabel() {
+        let value = UpdaterSettingsPresentation(
+            status: nil,
+            busy: false,
+            unavailable: true,
+            language: .simplifiedChinese
+        )
+        XCTAssertEqual(
+            value.stateText,
+            ContractCopy.copyGeneralUpdateUnavailableState.text(for: .simplifiedChinese)
+        )
+    }
+
+    func testNotConfiguredUsesAShortStatusLabel() {
+        let value = UpdaterSettingsPresentation(
+            status: status(state: .notConfigured),
+            busy: false,
+            unavailable: false,
+            language: .english
+        )
+        XCTAssertEqual(
+            value.stateText,
+            ContractCopy.copyGeneralUpdateNotConfiguredState.text(for: .english)
+        )
+    }
+
     func testUnknownLastCheckValueIsPreserved() {
         let value = UpdaterSettingsPresentation(
             status: status(state: .idle, lastCheckAt: "test timestamp"),
