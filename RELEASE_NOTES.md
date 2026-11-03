@@ -35,6 +35,7 @@ Covio 0.0.2.0 是内测版。
 
 ## 验证
 
+- `bash scripts/test-all.sh`：通过。Kotlin 477 个测试通过；macOS XCTest 1054 个测试中 3 个跳过、0 个失败。
 - GitHub Actions 的 Contract、Kotlin 和 macOS SwiftUI：通过。
 - 设置页亮色和深色 Before/After 真机截图：通过。
 - 自动更新 manifest 的签名、摘要、渠道、版本和 URI 校验：通过。
