@@ -16,7 +16,7 @@ struct UpdaterSettingsPresentation: Equatable {
             return ContractCopy.copyGeneralUpdateChecking.text(for: language)
         }
         guard let status else {
-            return ContractCopy.copyGeneralUpdateUnavailable.text(for: language)
+            return ContractCopy.copyGeneralUpdateUnavailableState.text(for: language)
         }
         return Self.stateText(status.state, language: language)
     }
@@ -61,7 +61,7 @@ struct UpdaterSettingsPresentation: Equatable {
     ) -> String {
         switch state {
         case .notConfigured:
-            ContractCopy.copyGeneralUpdateNotConfigured.text(for: language)
+            ContractCopy.copyGeneralUpdateNotConfiguredState.text(for: language)
         case .idle:
             ContractCopy.copyGeneralUpdateReady.text(for: language)
         case .checking:

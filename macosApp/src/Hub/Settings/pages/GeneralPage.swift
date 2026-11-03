@@ -1,88 +1,200 @@
 import AppKit
 import SwiftUI
+import kmpDomain
 
-/// 通用页。
+/// 通用页使用 macOS Settings 的分组表单结构。
 ///
-/// 顺序：深色唤醒、休眠模式、语言、登录项与通知、检查更新、日志与重置。
-/// 助手与模型设置属于助手分节，不在这里重复。
-/// 危险动作排在最后，且用 `.plain` 按钮，与常规开关拉开距离。
+/// 页面按系统设置的习惯组织：
+/// - 行为设置使用原生 Toggle 和 Picker。
+/// - 更新状态使用 LabeledContent，控件在行尾对齐。
+/// - 安装和重启只在对应状态出现。
+/// - 清除配置使用 destructive role，并放在独立分组。
 struct GeneralPage: View {
     let runtime: AppRuntime
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MacTheme.space6) {
-            MacCard {
-                MacSettingRow(title: ContractCopy.copyGeneralDarkwake.text(for: runtime.language)) {
-                    MacSwitch(
-                        label: ContractCopy.copyGeneralDarkwake.text(for: runtime.language),
-                        isOn: Binding(
-                            get: { runtime.config.darkWakeAwarenessEnabled },
-                            set: { runtime.setDarkWakeAwareness($0) }
-                        )
-                    )
-                }
-                DarkWakeStatusView(runtime: runtime)
+        VStack(alignment: .leading, spacing: 0) {
+            GeneralSettingsHeader(language: runtime.language)
+
+            Form {
+                behaviorSection
+                startupSection
+                updateSection
+                versionSection
+                diagnosticsSection
             }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+        .frame(maxWidth: 760, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var behaviorSection: some View {
+        Section {
+            Toggle(
+                isOn: Binding(
+                    get: { runtime.config.darkWakeAwarenessEnabled },
+                    set: { runtime.setDarkWakeAwareness($0) }
+                )
+            ) {
+                Text(ContractCopy.copyGeneralDarkwake.text(for: runtime.language))
+            }
+            .toggleStyle(.switch)
             .settingsRowAnchor(SettingsRowID.generalDarkWake)
 
-            MacCard {
-                MacSectionTitle(text: ContractCopy.copyGeneralSleepMode.text(for: runtime.language))
-                SleepModeOptions(runtime: runtime)
+            darkWakeStatusRows
+
+            Picker(
+                ContractCopy.copyGeneralSleepMode.text(for: runtime.language),
+                selection: Binding(
+                    get: { runtime.config.hibernateMode?.int32Value ?? SleepModeOptions.modes[0] },
+                    set: { runtime.setSleepMode($0) }
+                )
+            ) {
+                ForEach(SleepModeOptions.modes, id: \.self) { mode in
+                    Text(SettingsFormat.sleepModeLabel(mode, language: runtime.language))
+                        .tag(mode)
+                }
             }
+            .pickerStyle(.menu)
             .settingsRowAnchor(SettingsRowID.generalSleepMode)
 
-            MacCard {
-                MacSectionTitle(text: ContractCopy.copyGeneralLanguage.text(for: runtime.language))
-                LanguageOptions(runtime: runtime)
+            Picker(
+                ContractCopy.copyGeneralLanguage.text(for: runtime.language),
+                selection: Binding(
+                    get: { runtime.languagePreference },
+                    set: { runtime.setLanguagePreference($0) }
+                )
+            ) {
+                ForEach(LanguageOptions.preferences, id: \.self) { preference in
+                    Text(LanguageOptions.title(preference, language: runtime.language))
+                        .tag(preference)
+                }
             }
+            .pickerStyle(.menu)
             .settingsRowAnchor(SettingsRowID.generalLanguage)
+        }
+    }
 
-            MacCard {
-                MacSettingRow(title: ContractCopy.copyGeneralLaunchAtLogin.text(for: runtime.language)) {
-                    MacSwitch(
-                        label: ContractCopy.copyGeneralLaunchAtLogin.text(for: runtime.language),
-                        isOn: Binding(
-                            get: { runtime.config.launchAtLogin },
-                            set: { runtime.setLaunchAtLogin($0) }
-                        )
-                    )
-                }
-                MacSettingRow(title: ContractCopy.copyGeneralNotifications.text(for: runtime.language)) {
-                    MacSwitch(
-                        label: ContractCopy.copyGeneralNotifications.text(for: runtime.language),
-                        isOn: Binding(
-                            get: { runtime.config.notificationsEnabled },
-                            set: { runtime.setNotifications($0) }
-                        )
-                    )
-                }
-                .settingsRowAnchor(SettingsRowID.generalNotifications)
+    private var startupSection: some View {
+        Section {
+            Toggle(
+                isOn: Binding(
+                    get: { runtime.config.launchAtLogin },
+                    set: { runtime.setLaunchAtLogin($0) }
+                )
+            ) {
+                Text(ContractCopy.copyGeneralLaunchAtLogin.text(for: runtime.language))
             }
+            .toggleStyle(.switch)
             .settingsRowAnchor(SettingsRowID.generalLogin)
 
-            UpdaterSettingsCard(runtime: runtime)
-                .settingsRowAnchor(SettingsRowID.generalUpdates)
+            Toggle(
+                isOn: Binding(
+                    get: { runtime.config.notificationsEnabled },
+                    set: { runtime.setNotifications($0) }
+                )
+            ) {
+                Text(ContractCopy.copyGeneralNotifications.text(for: runtime.language))
+            }
+            .toggleStyle(.switch)
+            .settingsRowAnchor(SettingsRowID.generalNotifications)
+        }
+    }
 
-            ReleaseIdentityCard(runtime: runtime)
+    private var updateSection: some View {
+        Section {
+            UpdaterSettingsFormContent(
+                presentation: UpdaterSettingsPresentation(
+                    status: runtime.updaterStatus,
+                    busy: runtime.updaterBusy,
+                    unavailable: runtime.updaterUnavailable,
+                    language: runtime.language
+                ),
+                language: runtime.language,
+                onAutomaticUpdates: runtime.setUpdaterAutomatic,
+                onCheck: runtime.checkUpdaterNow,
+                onInstall: runtime.installAvailableUpdate,
+                onRestart: runtime.restartAppForUpdate
+            )
+            .settingsRowAnchor(SettingsRowID.generalUpdates)
+        } header: {
+            Text(ContractCopy.copyGeneralSectionUpdates.text(for: runtime.language))
+        }
+        .onAppear { runtime.refreshUpdaterStatus() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            runtime.refreshUpdaterStatus()
+        }
+    }
+
+    private var versionSection: some View {
+        Section {
+            ReleaseIdentityRows(runtime: runtime)
                 .settingsRowAnchor(SettingsRowID.generalVersion)
+        } header: {
+            Text(ContractCopy.copyGeneralVersionTitle.text(for: runtime.language))
+        }
+    }
 
-            MacCard {
-                HStack(spacing: MacTheme.space2) {
-                    MacButton(title: ContractCopy.copyHubLogView.text(for: runtime.language)) { runtime.viewLog() }
-                    MacButton(title: ContractCopy.copyHubLogExport.text(for: runtime.language)) { runtime.exportLog() }
-                    MacButton(
-                        title: ContractCopy.copyGeneralClearConfig.text(for: runtime.language),
-                        kind: .plain,
-                        isEnabled: !runtime.busy
-                    ) { confirmClearConfig() }
-                    .settingsRowAnchor(SettingsRowID.generalReset)
+    private var diagnosticsSection: some View {
+        Section {
+            HStack(spacing: MacTheme.space3) {
+                Button(ContractCopy.copyHubLogView.text(for: runtime.language)) {
+                    runtime.viewLog()
                 }
-                .settingsRowAnchor(SettingsRowID.generalLogs)
+                Button(ContractCopy.copyHubLogExport.text(for: runtime.language)) {
+                    runtime.exportLog()
+                }
+            }
+            .settingsRowAnchor(SettingsRowID.generalLogs)
+
+            Button(
+                ContractCopy.copyGeneralClearConfig.text(for: runtime.language),
+                role: .destructive
+            ) {
+                confirmClearConfig()
+            }
+            .disabled(runtime.busy)
+            .settingsRowAnchor(SettingsRowID.generalReset)
+        } header: {
+            Text(ContractCopy.copyGeneralSectionDiagnostics.text(for: runtime.language))
+        }
+    }
+
+    private var darkWakeStatusRows: some View {
+        let status = runtime.appState.darkWake
+        return LabeledContent(ContractCopy.copyGeneralDarkwakeLast.text(for: runtime.language)) {
+            HStack(spacing: 6) {
+                if status.scanning {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Text(darkWakeActivityText(status))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
         }
     }
 
-    /// 清除配置不可撤销，所以先弹确认。
+    private func darkWakeActivityText(_ status: DarkWakeStatus) -> String {
+        if status.scanning {
+            return ContractCopy.copyStateLoading.text(for: runtime.language)
+        }
+        guard status.available else {
+            return ContractCopy.copyStateEmpty.text(for: runtime.language)
+        }
+        let last = status.lastAtEpochSeconds.map {
+            SettingsFormat.wakeTime(epochSeconds: $0.int64Value)
+        } ?? ContractCopy.copyStateEmpty.text(for: runtime.language)
+        guard let reason = status.lastReason, !reason.isEmpty else {
+            return last
+        }
+        return "\(last) · \(reason)"
+    }
+
     private func confirmClearConfig() {
         let alert = NSAlert()
         alert.messageText = ContractCopy.copyDialogResetTitle.text(for: runtime.language)
@@ -92,5 +204,63 @@ struct GeneralPage: View {
         alert.alertStyle = .warning
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         runtime.clearConfig()
+    }
+}
+
+struct GeneralSettingsHeader: View {
+    let language: AppLanguage
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: MacTheme.space3) {
+            Text(ContractCopy.copyPageGeneralTitle.text(for: language))
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+            Text(ContractCopy.copyPageGeneralSummary.text(for: language))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+        .padding(.top, MacTheme.space4)
+        .padding(.bottom, MacTheme.space2)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+private struct ReleaseIdentityRows: View {
+    let runtime: AppRuntime
+
+    private var display: ReleaseIdentityDisplay {
+        ReleaseIdentityDisplay.live()
+    }
+
+    var body: some View {
+        LabeledContent(ContractCopy.copyGeneralVersionClient.text(for: runtime.language)) {
+            Text(display.clientVersion)
+                .fontWeight(.medium)
+                .monospacedDigit()
+                .textSelection(.enabled)
+        }
+        LabeledContent(ContractCopy.copyGeneralVersionBuild.text(for: runtime.language)) {
+            Text(display.buildNumber)
+                .monospacedDigit()
+                .textSelection(.enabled)
+        }
+        LabeledContent(ContractCopy.copyGeneralVersionChannel.text(for: runtime.language)) {
+            Text(display.channel)
+                .textSelection(.enabled)
+        }
+        LabeledContent(ContractCopy.copyGeneralVersionGit.text(for: runtime.language)) {
+            Text(display.gitShortSHA)
+                .font(.system(.body, design: .monospaced))
+                .textSelection(.enabled)
+        }
+        LabeledContent(ContractCopy.copyGeneralVersionHelper.text(for: runtime.language)) {
+            Text(display.helperProtocolVersion)
+                .monospacedDigit()
+                .textSelection(.enabled)
+        }
     }
 }

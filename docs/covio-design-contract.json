@@ -4412,6 +4412,26 @@
       "en": "Updater is unavailable. Install or repair the current Covio package.",
       "zh-Hans": "更新器不可用。请安装或修复当前 Covio 安装包。"
     },
+    "copy/general/darkwake/last": {
+      "en": "Last activity",
+      "zh-Hans": "最近活动"
+    },
+    "copy/general/section/diagnostics": {
+      "en": "Diagnostics",
+      "zh-Hans": "诊断"
+    },
+    "copy/general/section/updates": {
+      "en": "Updates",
+      "zh-Hans": "更新"
+    },
+    "copy/general/update/not-configured-state": {
+      "en": "Not configured",
+      "zh-Hans": "未配置"
+    },
+    "copy/general/update/unavailable-state": {
+      "en": "Unavailable",
+      "zh-Hans": "不可用"
+    },
     "copy/general/clear-config": {
       "en": "Clear Configuration…",
       "zh-Hans": "清除配置…"
