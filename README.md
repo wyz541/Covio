@@ -46,17 +46,16 @@ It requires macOS 26 or later on Apple Silicon.
 The default installer does not contain model weights.
 Covio downloads the model after user confirmation.
 This release does not provide an offline model installer.
-Covio 0.0.1.9 is the migration bridge for passwordless internal updates.
+Covio 0.0.2.0 includes the migration for passwordless internal updates.
 Existing 0.0.1.8 users must install the transactional PKG once.
 Later internal updates do not request administrator credentials.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
-- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.1.9-internal/Covio-0.0.1.9.dmg)
-- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.1.9-internal/Covio-0.0.1.9.pkg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.9-internal)
-- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.1.9-internal/checksums.txt)
+- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.0-internal/Covio-0.0.2.0.dmg)
+- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.0-internal/Covio-0.0.2.0.pkg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.0-internal)
+- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.0-internal/checksums.txt)
 - [Covio 0.0.1.8](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.8-internal) is the previous internal test.
-- [Covio 0.0.1.8](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.8-internal) is an older internal test.
 - [Covio 0.0.1.7](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.7-internal) is an older internal test.
 - [Covio 0.6.0 internal build 15](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15) is an older internal test.
 - [Covio 0.6.0 internal build 14](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.14) is an older internal test.
@@ -74,10 +73,10 @@ Validation results are in `docs/research/installer-size-reduction/validation/`.
 
 Install steps:
 
-1. Open `Covio-0.0.1.7.dmg`.
-2. Drag `Covio.app` to `Applications`.
+1. Download `Covio-0.0.2.0.pkg`.
+2. Open the PKG and complete one administrator authorization.
 3. Open `Covio.app`.
-4. Open an AI feature and confirm the model download.
+4. Open Settings and confirm the automatic update state.
 
 Covio uses a clean install.
 Covio does not copy settings from older internal-test builds.
