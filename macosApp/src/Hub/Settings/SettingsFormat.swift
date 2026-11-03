@@ -26,6 +26,16 @@ enum SettingsFormat {
         }
     }
 
+    /// 更新检查时间。无法解析时保留原始值，避免隐藏真实响应。
+    static func updateTime(iso8601 value: String) -> String {
+        guard let date = ISO8601DateFormatter().date(from: value) else {
+            return value
+        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.string(from: date)
+    }
+
     /// 上次 DarkWake 的时间。用系统时区，格式与 Compose 版一致。
     static func wakeTime(epochSeconds: Int64) -> String {
         let formatter = DateFormatter()

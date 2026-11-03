@@ -210,8 +210,11 @@ enum SettingsCatalog {
             rowID: SettingsRowID.generalUpdates,
             section: .general,
             title: ContractCopy.copyGeneralCheckUpdates,
-            summary: nil,
-            keywords: ["update", "version", "release", "更新", "版本", "升级"]
+            summary: ContractCopy.copyGeneralUpdateAutomatic,
+            keywords: [
+                "update", "automatic", "install", "restart", "version", "release",
+                "更新", "自动", "安装", "重启", "版本", "升级",
+            ]
         ),
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalVersion,

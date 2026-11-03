@@ -284,6 +284,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if let path = ProcessInfo.processInfo.environment["COVIO_SETTINGS_UPDATE_RENDER"],
+           !path.isEmpty
+        {
+            Task { @MainActor in
+                exit(await SettingsUpdatePreviewRenderer.render(to: path) ? 0 : 1)
+            }
+            return
+        }
         if let path = ProcessInfo.processInfo.environment["COVIO_FILE_AREA_RENDER"], !path.isEmpty {
             let width = Double(ProcessInfo.processInfo.environment["COVIO_FILE_AREA_WIDTH"] ?? "960") ?? 960
             Task { @MainActor in
