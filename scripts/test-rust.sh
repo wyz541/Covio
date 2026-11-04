@@ -18,3 +18,6 @@ cd "$ROOT/rust"
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  bash "$ROOT/scripts/test-rust-macos-ffi.sh"
+fi

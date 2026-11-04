@@ -5,9 +5,17 @@
 
 #![forbid(unsafe_code)]
 
+mod capabilities;
+mod filesystem;
+#[cfg(target_os = "macos")]
+mod macos_secret;
 mod paths;
 mod secret;
 
+pub use capabilities::{CAPABILITY_KIND_COUNT, CapabilityKind, CapabilityStatus, MacCapabilitySet};
+pub use filesystem::StdFileStore;
+#[cfg(target_os = "macos")]
+pub use macos_secret::KeychainSecretStore;
 pub use paths::{APP_ID, APP_NAME, DataPaths, temporary_path};
 pub use secret::{SecretKey, SecretStore, SecretValue, UnavailableSecretStore};
 
@@ -57,6 +65,12 @@ impl PlatformError {
     #[must_use]
     pub fn invalid_argument(message: impl Into<String>) -> Self {
         Self::new(PlatformErrorCode::InvalidArgument, message, false)
+    }
+
+    /// Creates a permission-denied error.
+    #[must_use]
+    pub fn permission_denied(message: impl Into<String>) -> Self {
+        Self::new(PlatformErrorCode::PermissionDenied, message, false)
     }
 
     /// Creates an I/O error.
