@@ -9,14 +9,16 @@ set -euo pipefail
 # 生成文件与工作树由 release_manifest.py 校验。
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/release-cache.sh
+source "$ROOT/scripts/release-cache.sh"
 DIST="$ROOT/dist"
 PROJECT="$ROOT/macosApp/Covio.xcodeproj"
 SCHEME="Covio"
 CONFIGURATION="Release"
-DERIVED_DATA="${COVIO_RELEASE_DERIVED_DATA:-$ROOT/build/xcode-archive}"
-if [[ "$DERIVED_DATA" != /* ]]; then
-  DERIVED_DATA="$ROOT/$DERIVED_DATA"
-fi
+DERIVED_DATA="$(release_derived_data_path "$ROOT")"
+SOURCE_PACKAGES_DIR="$(release_source_packages_path "$ROOT")"
+KMP_CACHE_DIR="$(release_kmp_cache_path "$ROOT")"
+export COVIO_RELEASE_KMP_CACHE_DIR="$KMP_CACHE_DIR"
 APP_NAME="Covio"
 APP_ID="com.wyz.covio"
 ICON="$ROOT/macosApp/src/Covio.icns"
@@ -39,17 +41,15 @@ phase_done() {
   PHASE_START=$SECONDS
 }
 
-# Release worktrees can share one persistent DerivedData cache.
-# A lock prevents two packaging jobs from corrupting the same archive.
-if [[ -n "${COVIO_RELEASE_DERIVED_DATA:-}" ]]; then
-  mkdir -p "$(dirname "$DERIVED_DATA")"
-  CACHE_LOCK_PATH="$DERIVED_DATA.lock"
-  if ! /usr/bin/shlock -f "$CACHE_LOCK_PATH" -p $$; then
-    printf 'Release build cache is in use: %s\n' "$DERIVED_DATA" >&2
-    exit 1
-  fi
-  CLEANUP_PATHS+=("$CACHE_LOCK_PATH")
+# Release worktrees share DerivedData, SwiftPM checkouts and KMP frameworks.
+# One lock prevents concurrent packaging jobs from changing those caches.
+mkdir -p "$(dirname "$DERIVED_DATA")" "$(dirname "$SOURCE_PACKAGES_DIR")" "$KMP_CACHE_DIR"
+CACHE_LOCK_PATH="$DERIVED_DATA.lock"
+if ! /usr/bin/shlock -f "$CACHE_LOCK_PATH" -p $$; then
+  printf 'Release build cache is in use: %s\n' "$DERIVED_DATA" >&2
+  exit 1
 fi
+CLEANUP_PATHS+=("$CACHE_LOCK_PATH")
 
 cleanup_temporary_paths() {
   local path
@@ -170,22 +170,35 @@ fi
 
 phase_done "setup"
 
+XCODE_COMMON_ARGS=(
+  -project "$PROJECT"
+  -scheme "$SCHEME"
+  -configuration "$CONFIGURATION"
+  -derivedDataPath "$DERIVED_DATA"
+  -clonedSourcePackagesDirPath "$SOURCE_PACKAGES_DIR"
+  -skipMacroValidation
+  -skipPackagePluginValidation
+  -destination 'generic/platform=macOS'
+  ARCHS=arm64
+  ONLY_ACTIVE_ARCH=NO
+)
+
+printf 'Release DerivedData: %s\n' "$DERIVED_DATA"
+printf 'SwiftPM cache:       %s\n' "$SOURCE_PACKAGES_DIR"
+printf 'KMP cache:           %s\n' "$KMP_CACHE_DIR"
+
+xcodebuild "${XCODE_COMMON_ARGS[@]}" -resolvePackageDependencies
+phase_done "package resolve"
+
 xcodebuild \
-  -project "$PROJECT" \
-  -scheme "$SCHEME" \
-  -configuration "$CONFIGURATION" \
-  -derivedDataPath "$DERIVED_DATA" \
-  -skipMacroValidation \
-  -skipPackagePluginValidation \
-  -destination 'generic/platform=macOS' \
-  ARCHS=arm64 \
-  ONLY_ACTIVE_ARCH=NO \
+  "${XCODE_COMMON_ARGS[@]}" \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   COVIO_CLIENT_VERSION="$VERSION" \
   COVIO_PRODUCT_VERSION="$PRODUCT_VERSION" \
   COVIO_GIT_COMMIT="$COMMIT" \
   COVIO_RELEASE_ID="$RELEASE_ID" \
+  COVIO_RELEASE_KMP_CACHE_DIR="$KMP_CACHE_DIR" \
   "${XCODE_SIGN_ARGS[@]}" \
   build
 

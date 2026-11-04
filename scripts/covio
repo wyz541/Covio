@@ -12,6 +12,8 @@ set -euo pipefail
 # 用法见 `scripts/covio help`。设计见 docs/design/release-pipeline.md 的「快捷命令」。
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/release-cache.sh
+source "$ROOT/scripts/release-cache.sh"
 APP_NAME="Covio"
 INSTALLED_APP="/Applications/$APP_NAME.app"
 HELPER_BINARY="/Library/Application Support/Covio/bin/CovioHelper"
@@ -20,13 +22,9 @@ MAIN_BRANCH="${COVIO_MAIN_BRANCH:-main}"
 MAIN_REF="$REMOTE/$MAIN_BRANCH"
 
 # release worktree 与仓库并列放在 _worktrees/<仓库目录名>/ 下。
-COMMON_DIR="$(cd "$ROOT" && cd "$(git rev-parse --git-common-dir)" && pwd)"
-PRIMARY_CHECKOUT="$(dirname "$COMMON_DIR")"
+PRIMARY_CHECKOUT="$(release_primary_checkout "$ROOT")"
 WORKTREE_ROOT="${COVIO_WORKTREE_ROOT:-$(dirname "$PRIMARY_CHECKOUT")/_worktrees/$(basename "$PRIMARY_CHECKOUT")}"
-RELEASE_DERIVED_DATA="${COVIO_RELEASE_DERIVED_DATA:-$PRIMARY_CHECKOUT/build/release-xcode-cache}"
-if [[ "$RELEASE_DERIVED_DATA" != /* ]]; then
-  RELEASE_DERIVED_DATA="$PRIMARY_CHECKOUT/$RELEASE_DERIVED_DATA"
-fi
+RELEASE_DERIVED_DATA="$(release_derived_data_path "$ROOT")"
 
 say() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
