@@ -87,7 +87,9 @@ Installer 不把 staged app 识别为可重定位 bundle。
 6. 新 helper 位于固定 root-owned 路径。
 7. LaunchDaemon plist 指向固定 helper 并声明 XPC Mach service。
 8. 新 helper 与新 app 完成精确握手。
-9. root-owned `installed-release.json` 写入成功。
+9. Updater 布局、launcher、engine、requirements 和 plist 完整。
+10. Updater Launcher 启动匹配 release ID 的 engine，engine 写入 health。
+11. root-owned `installed-release.json` 写入成功。
 
 ## 前置恢复
 
@@ -159,7 +161,7 @@ sudo "/Library/Application Support/Covio/Installer/recover.sh" --manual-rollback
 | 状态恢复失败 | app 和 helper 不变，升级停止 |
 | 降级或混合 release | 所有对象不变，不交换 bundle |
 | helper 首次握手失败 | 恢复旧 app、helper、plist 和记录 |
-| updater 安装或 health 失败 | 恢复旧 app、helper、updater、plist 和记录 |
+| updater 安装、布局校验或 health 失败 | 恢复旧 app、helper、updater、plist 和记录 |
 | 自动更新替换 launcher | 事务拒绝提交 |
 | 自动更新发现损坏的 updater 记录 | 事务拒绝提交 |
 | 安装记录写入失败 | 恢复旧 app、helper、plist 和记录 |

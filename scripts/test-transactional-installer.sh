@@ -196,6 +196,8 @@ static int install_updater(const char *executable) {
     char plist_dir[4096];
     if (bundle_root(bundle, sizeof(bundle), executable) != 0) return 1;
     if (result_file(bundle, "--install-updater-as-root") != 0) return 1;
+    const char *skip_layout = getenv("COVIO_TEST_SKIP_UPDATER_LAYOUT");
+    if (skip_layout != NULL && strcmp(skip_layout, "1") == 0) return 0;
     snprintf(plist_dir, sizeof(plist_dir), "%s", plist);
     char *plist_slash = strrchr(plist_dir, '/');
     if (plist_slash == NULL) return 1;
@@ -525,6 +527,37 @@ assert_eq "$(cat "$FAKE_PGREP_LOG")" "-f -x $TX_APP_PATH/Contents/MacOS/Covio" "
 COVIO_TX_PGREP="$OLD_PGREP"
 TX_TEST_MODE="$OLD_TEST_MODE"
 
+printf 'case: stale updater processes are stopped before bootstrap\n'
+setup_case updater-process-cleanup
+FAKE_PGREP="$CASE_ROOT/fake-pgrep"
+cat > "$FAKE_PGREP" <<'PGGREP'
+#!/bin/bash
+if [[ "$1" == "-x" && "$2" == "CovioUpdater" ]] && \
+   kill -0 "$TEST_PID" 2>/dev/null; then
+  printf '%s\n' "$TEST_PID"
+  exit 0
+fi
+exit 1
+PGGREP
+chmod 0755 "$FAKE_PGREP"
+/bin/sleep 30 &
+TEST_PID=$!
+kill -0 "$TEST_PID" 2>/dev/null || fail "test updater process did not start"
+export TEST_PID
+OLD_PGREP="$COVIO_TX_PGREP"
+OLD_TEST_MODE="$TX_TEST_MODE"
+TX_TRANSACTION_ROOT="$CASE_ROOT/transaction"
+TX_LOG_FILE="$TX_TRANSACTION_ROOT/transaction.log"
+COVIO_TX_PGREP="$FAKE_PGREP"
+TX_TEST_MODE=0
+covio_tx_stop_updater_processes
+wait "$TEST_PID" 2>/dev/null || true
+if kill -0 "$TEST_PID" 2>/dev/null; then
+  fail "stale updater process was not stopped"
+fi
+COVIO_TX_PGREP="$OLD_PGREP"
+TX_TEST_MODE="$OLD_TEST_MODE"
+
 printf 'case: successful upgrade commits app, helper and record\n'
 prepare_case success 0.6.0 16 "$NEW_COMMIT"
 seed_legacy_helper
@@ -612,6 +645,20 @@ if covio_tx_commit; then
 fi
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 15 "invalid signature changed the app"
 assert_json "$TX_REPORT_PATH" result failed
+
+printf 'case: a successful bootstrap without a layout is repaired from the verified app\n'
+prepare_case updater-layout-repair 0.6.0 27 "$NEW_COMMIT"
+seed_legacy_helper
+seed_legacy_release_record
+covio_tx_prepare
+stage_new_app
+COVIO_TEST_SKIP_UPDATER_LAYOUT=1 covio_tx_commit
+assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 27 "layout repair did not install the app"
+assert_app_helper_record_match "$TX_APP_PATH" "0.0.2.7-g$NEW_COMMIT"
+assert_updater_record_match "$TX_APP_PATH" "0.0.2.7-g$NEW_COMMIT"
+assert_eq "$(cat "$COVIO_TX_UPDATER_ROOT/updater-client-requirement")" test-requirement "layout repair client requirement differs"
+[[ -x "$COVIO_TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" ]] || \
+  fail "layout repair did not install the immutable launcher"
 
 printf 'case: updater installation failure rolls back the transaction\n'
 prepare_case updater-failure 0.6.0 26 "$NEW_COMMIT" 1 "" 1 "" legacy modern legacy 0

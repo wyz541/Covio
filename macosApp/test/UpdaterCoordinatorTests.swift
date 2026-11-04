@@ -89,6 +89,71 @@ final class UpdaterCoordinatorTests: XCTestCase {
         XCTAssertEqual(restarted.persistedStatus.availableVersion, "0.0.2.0")
     }
 
+    func testStartupDoesNotRecoverAnActivePKGTransaction() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covio-updater-pkg-recovery-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let paths = UpdaterPaths(root: root.appendingPathComponent("Updater"))
+        let marker = root.appendingPathComponent("recovered")
+        try writeInstallTransaction(paths: paths, mode: "pkg", recoveryMarker: marker)
+        let coordinator = UpdaterCoordinator(
+            paths: paths,
+            currentReleaseId: "0.0.2.0-g" + String(repeating: "a", count: 40),
+            trustedKeys: [:]
+        )
+
+        _ = coordinator.startupStatus()
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    func testStartupRecoversAnInterruptedAutomaticTransaction() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covio-updater-auto-recovery-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let paths = UpdaterPaths(root: root.appendingPathComponent("Updater"))
+        let marker = root.appendingPathComponent("recovered")
+        try writeInstallTransaction(paths: paths, mode: "automatic", recoveryMarker: marker)
+        let coordinator = UpdaterCoordinator(
+            paths: paths,
+            currentReleaseId: "0.0.2.0-g" + String(repeating: "a", count: 40),
+            trustedKeys: [:]
+        )
+
+        _ = coordinator.startupStatus()
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    private func writeInstallTransaction(
+        paths: UpdaterPaths,
+        mode: String,
+        recoveryMarker: URL
+    ) throws {
+        let transaction = paths.transactions.appendingPathComponent("test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: transaction, withIntermediateDirectories: true)
+        try "UPDATE_MODE='\(mode)'\n".write(
+            to: transaction.appendingPathComponent("transaction.env"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try FileManager.default.createDirectory(
+            at: paths.currentInstallTransaction.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try (transaction.path + "\n").write(
+            to: paths.currentInstallTransaction,
+            atomically: true,
+            encoding: .utf8
+        )
+        let script = "#!/bin/sh\nprintf recovered > '\(recoveryMarker.path)'\n"
+        try script.write(to: paths.recoverInstallScript, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755],
+            ofItemAtPath: paths.recoverInstallScript.path
+        )
+    }
+
     private func makeManifest(archiveURL: String) -> UpdateManifest {
         UpdateManifest(
             schemaVersion: 1,
