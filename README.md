@@ -38,6 +38,24 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 
 `main` is the trunk. Changes to `main` go through a pull request.
 
+## Architecture migration
+
+The current product still uses Kotlin Multiplatform for shared logic.
+The target is a Rust core with platform-native UI.
+
+| Platform | Target UI | Rust boundary |
+| --- | --- | --- |
+| Windows | Rust + egui | Same-process Rust call |
+| macOS | SwiftUI + AppKit | C ABI / cinterop |
+| Android | Kotlin Android UI | JNI / NDK |
+
+The current KMP path remains authoritative until each platform cutover.
+The target product will not contain a KMP shared module, a Kotlin JVM product path, or a Windows Compose / JNA path.
+
+- Decision: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
+- Plan: [Rust core migration plan](docs/design/rust-core-migration.md)
+- Tracking: [Feature #595](https://github.com/wyz541/kmp-Covio/issues/595)
+
 ## Download (internal test)
 
 Covio is under internal test.
@@ -333,7 +351,7 @@ The model license and attribution are in `THIRD_PARTY_NOTICES.md`.
 - macOS 26 or later. Covio 0.4.x stays on macOS 12.
 - An Apple Silicon Mac.
 - Xcode 27 to build the SwiftUI host.
-- JDK 25 for the shared layer.
+- JDK 25 for the current transitional shared layer. The final macOS and Windows runtimes do not require a JDK.
 
 ## Build and test
 
@@ -364,8 +382,9 @@ python3 scripts/generate-contract-constants.py  # rewrite the Swift constants
 The SwiftUI host reads its text and its tokens from `ContractCopy.swift` and `ContractTokens.swift`.
 Both files are generated. Do not edit them by hand.
 
-The macOS host is SwiftUI. The shared layer is Kotlin Multiplatform, module `kmpDomain`.
-The host links `kmpDomain.framework`. Open `macosApp/Covio.xcodeproj` to work on the host.
+The macOS host is SwiftUI. The current shared layer is Kotlin Multiplatform, module `kmpDomain`.
+The host links `kmpDomain.framework` during migration. Open `macosApp/Covio.xcodeproj` to work on the host.
+The target path uses a Rust C ABI. See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md).
 
 The project signs ad-hoc by default.
 Ad-hoc signing has no Team ID, so macOS identifies the app by its cdhash.
