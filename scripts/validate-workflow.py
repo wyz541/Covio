@@ -12,6 +12,12 @@ AGENTS = ROOT / "AGENTS.md"
 PR_TEMPLATE = ROOT / ".github" / "pull_request_template.md"
 PREVIEWS = ROOT / "docs" / "design" / "previews" / "README.md"
 ADR = ROOT / "docs" / "adr" / "adr-0028-slim-issue-workflow.md"
+CI = ROOT / ".github" / "workflows" / "ci.yml"
+MACOS_ACCEPTANCE = ROOT / ".github" / "workflows" / "macos-release.yml"
+MANUAL_MACOS_WORKFLOWS = (
+    ROOT / ".github" / "workflows" / "agent-acceptance.yml",
+    ROOT / ".github" / "workflows" / "file-naming-acceptance.yml",
+)
 
 errors: list[str] = []
 
@@ -144,6 +150,31 @@ def main() -> int:
             "## 决策",
         ),
     )
+
+    require(
+        CI,
+        (
+            "pull_request:",
+            "runs-on: ubuntu-latest",
+            "cancel-in-progress: true",
+            "./kotlin test --platform=jvm",
+        ),
+    )
+    forbid(CI, ("  push:", "runs-on: macos-"))
+
+    require(
+        MACOS_ACCEPTANCE,
+        (
+            "workflow_dispatch:",
+            "runs-on: macos-26",
+            "bash scripts/test-all.sh",
+        ),
+    )
+    forbid(MACOS_ACCEPTANCE, ("pull_request:", "push:"))
+
+    for path in MANUAL_MACOS_WORKFLOWS:
+        require(path, ("workflow_dispatch:", "runs-on: macos-26"))
+        forbid(path, ("pull_request:", "push:"))
 
     if errors:
         for error in errors:

@@ -2,96 +2,113 @@ name: CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, "feature/**"]
-    # 构建与测试不读文档目录。全仓库只有注释提到 docs/。
-    # 因此纯文档改动跳过全部作业。同时改代码的 PR 照旧全跑。
-    paths-ignore:
-      - "docs/**"
-      - "*.md"
   pull_request:
     paths-ignore:
+      - "**/*.md"
       - "docs/**"
-      - "*.md"
+      - ".github/ISSUE_TEMPLATE/**"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
-# macOS XCTest runs on the release Mac. GitHub Actions only covers portable checks.
+permissions:
+  contents: read
+  pull-requests: read
+
+# Hosted CI is the portable gate. macOS XCTest and installers run on the release Mac
+# or in the manual "macOS full acceptance" workflow.
 jobs:
-  rust:
-    name: Rust core
-    runs-on: macos-15
+  portable:
+    name: Portable gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - name: Test Rust workspace
-        run: bash scripts/test-rust.sh
+      - uses: actions/checkout@v7
 
-  kotlin:
-    name: Kotlin
-    # 需要 Apple Silicon 与 Xcode 16 以上。macos-15 两者都满足。
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - name: Restore Kotlin caches
-        id: kotlin-cache
-        uses: actions/cache/restore@v4
+      - name: Detect changed areas
+        id: changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
         with:
-          path: |
-            build/
-            ~/.konan
-            ~/Library/Caches/JetBrains/Kotlin
-          key: kotlin-build-v2-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}
-          restore-keys: |
-            kotlin-build-v2-${{ runner.os }}-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml') }}-
-            kotlin-build-v2-${{ runner.os }}-
-      - name: Provision Amper downloads
-        run: bash scripts/provision-amper-github-downloads.sh
-      - name: Build
-        run: /bin/sh ./kotlin build
-      - name: Test
-        run: /bin/sh ./kotlin test
-      - name: Save Kotlin caches
-        if: always() && steps.kotlin-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build/
-            ~/.konan
-            ~/Library/Caches/JetBrains/Kotlin
-          key: ${{ steps.kotlin-cache.outputs.cache-primary-key }}
+          filters: |
+            kotlin:
+              - ".github/workflows/ci.yml"
+              - ".github/workflows/macos-release.yml"
+              - "app/**"
+              - "kmpDomain/**"
+              - "kotlin"
+              - "libs.versions.toml"
+              - "project.yaml"
+              - "scripts/test-all.sh"
+              - "scripts/validate-workflow.py"
+            rust:
+              - ".github/workflows/ci.yml"
+              - ".github/workflows/macos-release.yml"
+              - "rust/**"
+              - "scripts/test-all.sh"
+              - "scripts/test-rust.sh"
+              - "scripts/test-rust-macos-ffi.sh"
+              - "scripts/validate-workflow.py"
 
-  checks:
-    name: Contract and scripts
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      # 发布身份与升级事务属于全量门禁，放在不依赖 Xcode 测试宿主的作业里。
-      - name: Release identity tests
+      - name: Check portable files
         run: |
           python3 -I scripts/release_manifest.py check
           python3 -I scripts/test_release_manifest.py
           python3 -I scripts/test_release_pipeline.py
           python3 -I scripts/test_release_notes.py
-      # 合同常量是生成文件。改了合同忘了重跑生成器时这一步失败。
-      - name: Design contract constants are current
-        run: python3 -I scripts/generate-contract-constants.py --check
-      # schema 表达不了的跨段规则。放在这里是为了不装 Xcode 也能快速失败。
-      - name: Design contract cross-section rules
-        run: python3 -I scripts/validate-contract.py
-      - name: Workflow template rules
-        run: python3 -I scripts/validate-workflow.py
-      - name: Release cache behavior
-        run: bash scripts/test-release-cache.sh
-      # 固定 helper、LaunchDaemon 和身份断言的 selftest 不需要管理员授权。
-      - name: Local helper layout assertions
-        run: bash scripts/verify-helper-cutover.sh selftest
-      - name: Transactional installer
-        run: bash scripts/test-transactional-installer.sh
-      - name: File naming model manifests
-        run: python3 -I scripts/file_naming_model.py verify-all
+          python3 -I scripts/generate-update-trust.py --check
+          python3 -I scripts/test_verify_macos_signing.py
+          python3 -I scripts/generate-contract-constants.py --check
+          python3 -I scripts/validate-contract.py
+          python3 -I scripts/validate-workflow.py
+          python3 -I scripts/file_naming_model.py verify-all
+
+      - name: Set up Java
+        if: github.event_name != 'pull_request' || steps.changes.outputs.kotlin == 'true'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Restore Kotlin cache
+        if: github.event_name != 'pull_request' || steps.changes.outputs.kotlin == 'true'
+        uses: actions/cache@v6
+        with:
+          path: |
+            build/
+            ~/.cache/JetBrains/Kotlin
+            ~/.konan
+          key: kotlin-linux-v1-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml', 'libs.versions.toml') }}
+          restore-keys: |
+            kotlin-linux-v1-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml', 'libs.versions.toml') }}-
+            kotlin-linux-v1-
+
+      - name: Test Kotlin JVM targets
+        if: github.event_name != 'pull_request' || steps.changes.outputs.kotlin == 'true'
+        env:
+          KOTLIN_CLI_NO_WELCOME_BANNER: "1"
+        run: /bin/sh ./kotlin test --platform=jvm
+
+      - name: Install Rust
+        if: github.event_name != 'pull_request' || steps.changes.outputs.rust == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Restore Rust cache
+        if: github.event_name != 'pull_request' || steps.changes.outputs.rust == 'true'
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-linux-v1-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            rust-linux-v1-${{ hashFiles('rust/Cargo.lock') }}-
+            rust-linux-v1-
+
+      - name: Test Rust workspace
+        if: github.event_name != 'pull_request' || steps.changes.outputs.rust == 'true'
+        run: bash scripts/test-rust.sh

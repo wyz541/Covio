@@ -325,7 +325,7 @@ class WorkspaceStoreTest {
     fun `default paths use the app name directory`() {
         val directory = WorkspaceStore.defaultDirectory()
         assertTrue(
-            directory.endsWith("/Library/Application Support/$APP_NAME/Workspace"),
+            directory.endsWith("${AppDirectories.userApplicationSupport}/$APP_NAME/Workspace"),
             "工作区目录不对：$directory",
         )
         assertEquals(directory, defaultWorkspaceDirectory())

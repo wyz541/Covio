@@ -199,7 +199,7 @@ class ClipboardStoreTest {
     fun `default paths use the app name directory`() {
         val path = defaultClipboardPath()
         assertTrue(
-            path.endsWith("/Library/Application Support/$APP_NAME/Clipboard/clipboard.json"),
+            path.endsWith("${AppDirectories.userApplicationSupport}/$APP_NAME/Clipboard/clipboard.json"),
             "剪切板路径不对：$path",
         )
         assertEquals(ClipboardStore.defaultDirectory(), path.removeSuffix("/clipboard.json"))
