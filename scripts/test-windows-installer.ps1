@@ -3,11 +3,23 @@ $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $PreviousDir = Join-Path $Root "build\windows-previous"
 $CurrentDir = Join-Path $Root "build\windows-package"
-$PreviousInstaller = Get-ChildItem $PreviousDir -Filter "Covio-*-setup.exe" | Select-Object -First 1
-$CurrentInstaller = Get-ChildItem $CurrentDir -Filter "Covio-*-setup.exe" | Select-Object -First 1
-if ($null -eq $PreviousInstaller -or $null -eq $CurrentInstaller) {
-    throw "Expected previous and current Windows installers"
+
+function Get-PackagedInstaller {
+    param([string]$Directory, [string]$Label)
+    $manifestPath = Join-Path $Directory "windows-package.json"
+    if (-not (Test-Path $manifestPath)) {
+        throw "Missing $Label package manifest"
+    }
+    $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+    $installerPath = Join-Path $Directory $manifest.artifact
+    if (-not (Test-Path $installerPath)) {
+        throw "Missing $Label installer"
+    }
+    return Get-Item $installerPath
 }
+
+$PreviousInstaller = Get-PackagedInstaller -Directory $PreviousDir -Label "previous"
+$CurrentInstaller = Get-PackagedInstaller -Directory $CurrentDir -Label "current"
 
 $TestRoot = Join-Path $env:RUNNER_TEMP "covio-windows-installer"
 $InstallDir = Join-Path $TestRoot "app"
