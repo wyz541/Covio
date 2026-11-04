@@ -8,6 +8,7 @@
 pub mod clipboard;
 mod config;
 pub mod path_policy;
+pub mod power;
 pub mod shelf;
 pub mod workspace;
 
