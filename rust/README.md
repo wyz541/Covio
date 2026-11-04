@@ -8,7 +8,7 @@
 | --- | --- |
 | `covio-core` | configuration、shelf、clipboard、workspace、generation、revision、request id、deadline 和 typed core error |
 | `covio-bridge` | 版本化 command、response、event、snapshot、cancel 和 shutdown envelope |
-| `covio-platform` | data paths、filesystem、Keychain secure storage 和 capability inventory |
+| `covio-platform` | data paths、atomic filesystem、Keychain、Credential Manager、Windows capability adapter 和 inventory |
 | `covio-ffi` | macOS C ABI、opaque handle、callback、shutdown 和 Swift 可导入 header |
 | `covio-windows` | Windows egui host、托盘、单实例、core worker 和 capability composition |
 
@@ -16,9 +16,10 @@
 Shelf、clipboard 与 workspace 使用同一 filesystem capability，并读取 Kotlin 共用的 durable-state fixture。
 Workspace 使用 SHA-256 内容寻址、bounded range reads、staging、atomic move 和 tombstone。
 
-`covio-platform` 定义 capability。macOS adapter 使用 Security.framework 读写 Keychain，不提供明文 fallback。
-`StdFileStore` 提供 bounded read、atomic write、append 和 move。
-process、socket、notification、power 和 update adapter 在 capability inventory 中保持 unavailable，直到产品 composition 接入真实 adapter。
+`covio-platform` 定义 capability。macOS adapter 使用 Security.framework 读写 Keychain。Windows adapter 使用 Windows Credential Manager，不提供明文 fallback。
+`StdFileStore` 使用同目录替换提供 cross-platform atomic write，并保留 bounded read、append 和 move。
+Windows adapter 提供 clipboard、native file picker、toast notification、current-user startup、screenshot directory discovery 和 updater process handoff。
+Windows 对 socket 与 macOS 专属 power capability 返回 typed unavailable。
 
 `covio-ffi` 暴露版本化 C ABI。Handle 只做 bridge envelope 校验、request tracking、cancel、event / snapshot callback 和 shutdown，不复制业务规则。
 
@@ -52,7 +53,16 @@ cd rust
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo run -p covio-windows -- --headless-smoke
 ```
+
+Windows CI 还运行：
+
+```sh
+bash scripts/test-windows-rust.sh
+```
+
+该脚本执行 Credential Manager round-trip、atomic write、clipboard、startup、updater handoff 和 typed capability smoke。
 
 ## Bridge 规则
 

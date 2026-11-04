@@ -1,6 +1,7 @@
 //! Windows-only egui composition root.
 
 use covio_core::AppConfig;
+use covio_platform::WindowsAppDataDirectory;
 use covio_windows::{
     CloseDisposition, CoreRuntime, HostModel, HostStatus, HostView, ThemePreference,
     WindowsDataPaths, now_epoch_seconds,
@@ -43,7 +44,7 @@ pub fn run() -> Result<(), String> {
         return Ok(());
     }
 
-    let data_root = data_root_from_arguments(&arguments);
+    let data_root = data_root_from_arguments(&arguments)?;
     let core = WindowsDataPaths::new(data_root).app_core();
     let start_hidden = arguments.iter().any(|argument| argument == "--background");
     let initial_theme = theme_from_arguments(&arguments);
@@ -583,19 +584,24 @@ fn theme_from_arguments(arguments: &[String]) -> ThemePreference {
     }
 }
 
-fn data_root_from_arguments(arguments: &[String]) -> PathBuf {
+fn data_root_from_arguments(arguments: &[String]) -> Result<PathBuf, String> {
     if let Some(index) = arguments.iter().position(|value| value == "--data-dir") {
         if let Some(path) = arguments.get(index + 1) {
-            return PathBuf::from(path);
+            let path = PathBuf::from(path);
+            if !path.is_absolute() {
+                return Err("Windows data directory must be absolute".to_owned());
+            }
+            return Ok(path);
         }
     }
     if let Some(path) = std::env::var_os("COVIO_WINDOWS_DATA_ROOT") {
-        return PathBuf::from(path);
+        let path = PathBuf::from(path);
+        if !path.is_absolute() {
+            return Err("Windows data directory must be absolute".to_owned());
+        }
+        return Ok(path);
     }
-    if let Some(path) = std::env::var_os("LOCALAPPDATA") {
-        return PathBuf::from(path).join("Covio");
-    }
-    std::env::temp_dir().join("Covio")
+    WindowsAppDataDirectory::from_environment().map_err(|error| error.message().to_owned())
 }
 
 fn run_single_instance_smoke() -> Result<(), String> {
@@ -738,7 +744,7 @@ mod tests {
         ];
         assert_eq!(
             data_root_from_arguments(&arguments),
-            PathBuf::from("C:\\CovioTest")
+            Ok(PathBuf::from("C:\\CovioTest"))
         );
     }
 

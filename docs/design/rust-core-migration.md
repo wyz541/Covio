@@ -134,6 +134,9 @@ Rust core 接收明确路径，不硬编码 OS 路径。
 | Screenshots | native screenshot directory | Windows screenshot adapter |
 | Update handoff | app / updater XPC | updater process policy |
 
+Windows adapter 使用 Windows Credential Manager 保存 secret。
+Windows adapter 提供 clipboard、file picker、toast notification、current-user startup、screenshot directory discovery 和 updater process handoff。
+Atomic write 使用同目录文件替换。Windows 上覆盖已有目标文件仍保持原子性。
 平台 adapter 对不支持的能力返回 typed unavailable。
 平台 adapter 不返回虚假成功。
 平台 adapter 不在错误消息中写出 secret、文件内容或完整用户路径。
@@ -148,15 +151,15 @@ Rust core 接收明确路径，不硬编码 OS 路径。
 | Parity gate | #604 | Rust 与 KMP 行为及数据兼容证据 |
 | macOS adapter | #603 | C ABI、Keychain 和 bounded boundary |
 | macOS cutover | #605 | SwiftUI 产品切到 Rust |
-| Windows host | #606 | egui、托盘、单实例和 shutdown |
+| Windows host | #606 | egui、托盘、单实例和 shutdown（已合并） |
 | Windows adapter | #607 | Credential Manager 和 Windows capability |
 | Windows cutover | #608 | Rust + egui 产品边界 |
 | Build and release | #612 | Windows 和 macOS CI、安装包与边界检查 |
-| Final verification | rebaseline required | Windows 和 macOS 真实产品验收 |
+| Final verification | #613 | Windows 和 macOS 真实产品验收 |
 
 Android Issue #609 和 #610 不属于本计划。
 KMP removal Issue #611 不属于本计划。
-原三平台 verification Issue #613 必须先重新基线化。
+Verification Issue #613 只覆盖 Windows 和 macOS。
 
 ## 9. Cutover gates
 
