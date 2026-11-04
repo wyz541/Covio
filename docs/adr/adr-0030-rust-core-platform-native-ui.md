@@ -3,6 +3,7 @@
 - Status：accepted
 - Kind：architecture
 - Date：2026-11-04
+- Updated：2026-11-05
 - Supersedes：ADR-0001 的 KMP shared-foundation 决策
 - Superseded by：none
 - Implements：#596
@@ -24,9 +25,9 @@ Android、iOS 和 Web 不在本次迁移范围内。
 
 ## 背景
 
-当前 `main` 已让 macOS 产品使用 Rust core。
+ADR 制订时，`main` 已让 macOS 产品使用 Rust core。
 macOS SwiftUI / AppKit 宿主通过 C ABI 调用 Rust。
-Windows 仍使用迁移期 Kotlin path。
+Windows 当时仍使用迁移期 Kotlin path；PR #635 后续完成 Windows cutover。
 旧版 ADR-0030 把 Android 写成第三个产品边界，这与当前决策不一致。
 
 Windows 和 macOS 需要一套共享业务语义。
@@ -166,7 +167,7 @@ Android 的数据迁移、JNI、Keystore 和 Kotlin UI 也不在本 ADR 范围�
 
 | 项目 | 状态 | 确认方法 |
 | --- | --- | --- |
-| Windows 安装包格式 | proposed | Windows cutover Issue 以 MSI 或等价安装包完成 clean install 验收 |
+| Windows 安装包格式 | resolved | Inno Setup current-user EXE 安装包已由 #635、#636 和 #613 验收 |
 | Android 迁移 | out of scope | 需要独立 ADR 和独立 Feature |
 | iOS 迁移 | out of scope | 需要独立 ADR 和独立 Feature |
 | Web 迁移 | out of scope | 需要独立 ADR 和独立 Feature |
