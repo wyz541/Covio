@@ -13,7 +13,7 @@ final class MacLoginItem: NSObject, LoginItem {
     init(
         plistURL: URL = FileManager.default
             .homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/LaunchAgents/\(ModelsKt.APP_ID).plist"),
+            .appendingPathComponent("Library/LaunchAgents/\(CovioRuntimeConstants.APP_ID).plist"),
         launchctl: @escaping ([String]) -> Bool = MacLoginItem.runLaunchctl
     ) {
         self.plistURL = plistURL
@@ -38,7 +38,7 @@ final class MacLoginItem: NSObject, LoginItem {
             return false
         }
         let domain = "gui/\(MacLoginItem.currentUid())"
-        let target = "\(domain)/\(ModelsKt.APP_ID)"
+        let target = "\(domain)/\(CovioRuntimeConstants.APP_ID)"
         guard launchctl(["enable", target]) else { return false }
         if launchctl(["print", target]) { return true }
         return launchctl(["bootstrap", domain, plistURL.path])
@@ -46,7 +46,7 @@ final class MacLoginItem: NSObject, LoginItem {
 
     func disable() -> Bool {
         try? FileManager.default.removeItem(at: plistURL)
-        return launchctl(["disable", "gui/\(MacLoginItem.currentUid())/\(ModelsKt.APP_ID)"])
+        return launchctl(["disable", "gui/\(MacLoginItem.currentUid())/\(CovioRuntimeConstants.APP_ID)"])
     }
 
     /// 命令行形式的启动命令。用于文档与排查，不参与启动。
@@ -79,7 +79,7 @@ final class MacLoginItem: NSObject, LoginItem {
         <plist version="1.0">
         <dict>
             <key>Label</key>
-            <string>\(ModelsKt.APP_ID)</string>
+            <string>\(CovioRuntimeConstants.APP_ID)</string>
             <key>ProgramArguments</key>
             <array>
         \(values)
@@ -163,7 +163,7 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
         request.httpMethod = "GET"
         request.timeoutInterval = 10
         request.setValue("text/html", forHTTPHeaderField: "Accept")
-        request.setValue("Covio/\(GeneratedReleaseIdentityKt.APP_VERSION)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Covio/\(CovioReleaseIdentity.APP_VERSION)", forHTTPHeaderField: "User-Agent")
 
         // 端口方法不是 async，所以用信号量把异步请求变同步。
         // 请求有 10 秒超时，信号量再兜 15 秒，不会永久阻塞。

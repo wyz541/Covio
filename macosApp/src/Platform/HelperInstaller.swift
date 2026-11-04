@@ -238,7 +238,7 @@ enum HelperInstaller {
     static func installScript(
         executablePath: String,
         uid: String = currentUid(),
-        version: String = GeneratedReleaseIdentityKt.APP_VERSION,
+        version: String = CovioReleaseIdentity.APP_VERSION,
         clientRequirement: String? = nil
     ) -> String {
         HelperInstallScript.shared.installScript(

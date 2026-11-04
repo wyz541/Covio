@@ -97,8 +97,8 @@ final class Fixture {
         config: AppConfig = AppConfigs.defaults,
         clock: @escaping () -> Int64 = Fixture.systemNowMillis,
         wakeLogReader: WakeLogReader = WakeLogStore(nil),
-        wakeScanExecutor: @escaping (@escaping () -> KotlinUnit) -> Void = { $0() },
-        wakeDelay: @escaping (KotlinLong) -> Void = { _ in },
+        wakeScanExecutor: @escaping (@escaping () -> Void) -> Void = { $0() },
+        wakeDelay: @escaping (Int64) -> Void = { _ in },
         wakeCacheNowMillis: @escaping () -> Int64 = Fixture.systemNowMillis
     ) {
         engine = Engine(
@@ -154,11 +154,11 @@ final class WakeLogStore: NSObject, WakeLogReader {
 ///
 /// 用来证明「同时到达的唤醒信号只扫一次日志」。
 final class QueuedExecutor {
-    private var queued: [() -> KotlinUnit] = []
+    private var queued: [() -> Void] = []
 
     var count: Int { queued.count }
 
-    func executor(_ block: @escaping () -> KotlinUnit) {
+    func executor(_ block: @escaping () -> Void) {
         queued.append(block)
     }
 
@@ -319,7 +319,7 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
 
     func status() -> HelperStatus { statusValue }
 
-    func helperVersion() -> String? { GeneratedReleaseIdentityKt.APP_VERSION }
+    func helperVersion() -> String? { CovioReleaseIdentity.APP_VERSION }
 
     func install() -> Bool { installResult }
 
@@ -359,9 +359,9 @@ final class MemoryLogger: NSObject, AppLogger {
 
     func info(message: String) { messages.append(message) }
 
-    func warn(message: String, error: KotlinThrowable?) { messages.append(message) }
+    func warn(message: String, error: Error?) { messages.append(message) }
 
-    func error(message: String, error: KotlinThrowable?) { messages.append(message) }
+    func error(message: String, error: Error?) { messages.append(message) }
 
     func logFile() -> String { "" }
 }

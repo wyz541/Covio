@@ -121,9 +121,9 @@ final class HelperWireParityTests: XCTestCase {
         let reply = HelperWire.shared.versionReply(requestId: "r")
 
         XCTAssertTrue(reply.ok)
-        XCTAssertEqual(reply.result?["version"], GeneratedReleaseIdentityKt.APP_VERSION)
+        XCTAssertEqual(reply.result?["version"], CovioReleaseIdentity.APP_VERSION)
         XCTAssertEqual(reply.result?["protocolVersion"], HelperProtocol.protocolVersion)
-        let expected = "{\"version\":\"\(HelperProtocol.protocolVersion)\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"version\":\"\(GeneratedReleaseIdentityKt.APP_VERSION)\",\"protocolVersion\":\"\(HelperProtocol.protocolVersion)\"}}"
+        let expected = "{\"version\":\"\(HelperProtocol.protocolVersion)\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"version\":\"\(CovioReleaseIdentity.APP_VERSION)\",\"protocolVersion\":\"\(HelperProtocol.protocolVersion)\"}}"
         XCTAssertEqual(
             HelperWire.shared.encodeReply(reply: reply),
             expected

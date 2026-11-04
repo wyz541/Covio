@@ -268,7 +268,7 @@ struct HelperConstants: Sendable {
     }
 }
 
-enum HelperContractKt {
+enum CovioHelperContract {
     static var HELPER_PROTOCOL_VERSION: String { HelperConstants.shared.protocolVersion }
     static var HELPER_ARGUMENT: String { HelperConstants.shared.helperArgument }
     static var HELPER_EXECUTABLE_NAME: String { HelperConstants.shared.helperExecutableName }
@@ -298,13 +298,13 @@ enum HelperContractKt {
     static var HELPER_ALLOWED_COMMANDS: Set<String> { HelperConstants.shared.allowedCommands }
 }
 
-enum ModelsKt {
-    static var SUPPORTED_HIBERNATE_MODES: Set<KotlinInt> {
-        Set([0, 3, 25].map { KotlinInt(int: Int32($0)) })
+enum CovioRuntimeConstants {
+    static var SUPPORTED_HIBERNATE_MODES: Set<Int32> {
+        Set([Int32(0), 3, 25])
     }
 }
 
-enum GeneratedReleaseIdentityKt {
+enum CovioReleaseIdentity {
     static let APP_VERSION = GeneratedReleaseIdentity.clientVersion
     static let APP_PRODUCT_VERSION = GeneratedReleaseIdentity.productVersion
     static let APP_BUILD_NUMBER = Int64(GeneratedReleaseIdentity.buildNumber)
@@ -419,7 +419,7 @@ final class HelperWire: @unchecked Sendable {
                 "helper.versionReply",
                 payload: [
                     "requestId": requestId,
-                    "appVersion": GeneratedReleaseIdentityKt.APP_VERSION,
+                    "appVersion": CovioReleaseIdentity.APP_VERSION,
                 ]
             ) as? [String: Any]
             var reply = try coreDecode(HelperReply.self, from: value?["reply"] ?? [:])

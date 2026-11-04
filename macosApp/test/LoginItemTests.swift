@@ -23,18 +23,18 @@ final class LoginItemTests: XCTestCase {
     }
 
     private var plistURL: URL {
-        directory.appendingPathComponent("\(ModelsKt.APP_ID).plist")
+        directory.appendingPathComponent("\(CovioRuntimeConstants.APP_ID).plist")
     }
 
     private var target: String {
-        "gui/\(MacLoginItem.currentUid())/\(ModelsKt.APP_ID)"
+        "gui/\(MacLoginItem.currentUid())/\(CovioRuntimeConstants.APP_ID)"
     }
 
     // MARK: - plist 文本
 
     func testPlistDeclaresTheAppLabelAndProgram() {
         let text = MacLoginItem.plistText(command: "/Applications/Covio.app", arguments: [])
-        XCTAssertTrue(text.contains("<string>\(ModelsKt.APP_ID)</string>"))
+        XCTAssertTrue(text.contains("<string>\(CovioRuntimeConstants.APP_ID)</string>"))
         XCTAssertTrue(text.contains("<string>/Applications/Covio.app</string>"))
         XCTAssertTrue(text.contains("<key>RunAtLoad</key>"))
         XCTAssertTrue(text.contains("<key>KeepAlive</key>"))
@@ -56,7 +56,7 @@ final class LoginItemTests: XCTestCase {
             options: [],
             format: nil
         ) as? [String: Any]
-        XCTAssertEqual(parsed?["Label"] as? String, ModelsKt.APP_ID)
+        XCTAssertEqual(parsed?["Label"] as? String, CovioRuntimeConstants.APP_ID)
         XCTAssertEqual(parsed?["ProcessType"] as? String, "Interactive")
     }
 

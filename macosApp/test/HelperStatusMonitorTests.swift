@@ -173,7 +173,7 @@ private final class MonitorPrivilegedOps: NSObject, PrivilegedOps, @unchecked Se
     }
 
     func helperVersion() -> String? {
-        GeneratedReleaseIdentityKt.APP_VERSION
+        CovioReleaseIdentity.APP_VERSION
     }
 
     func install() -> Bool { true }

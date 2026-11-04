@@ -107,7 +107,7 @@ final class HelperStatusTests: XCTestCase {
     func testLegacyReplyMeansOutdated() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: GeneratedReleaseIdentityKt.APP_VERSION,
+            version: CovioReleaseIdentity.APP_VERSION,
             protocolVersion: HelperProtocol.protocolVersion
         )
         defer { helper.stop() }
@@ -264,7 +264,7 @@ final class HelperStatusTests: XCTestCase {
     }
 
     func testChargeLimitStatusParsesTheHelperReply() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: GeneratedReleaseIdentityKt.APP_VERSION)
+        let helper = try FakeHelper(socketPath: socketPath, version: CovioReleaseIdentity.APP_VERSION)
         defer { helper.stop() }
 
         let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
@@ -284,7 +284,7 @@ final class HelperStatusTests: XCTestCase {
     }
 
     func testChargeLimitCommandsUseTheWireCommandNames() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: GeneratedReleaseIdentityKt.APP_VERSION)
+        let helper = try FakeHelper(socketPath: socketPath, version: CovioReleaseIdentity.APP_VERSION)
         defer { helper.stop() }
 
         let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
@@ -300,7 +300,7 @@ final class HelperStatusTests: XCTestCase {
     func testChargeLimitCommandsCanOutliveTheDefaultSocketTimeout() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: GeneratedReleaseIdentityKt.APP_VERSION,
+            version: CovioReleaseIdentity.APP_VERSION,
             responseDelayMilliseconds: 500
         )
         defer { helper.stop() }
@@ -518,7 +518,7 @@ private enum FakeHelperError: Error {
 
 private final class SilentLogger: NSObject, AppLogger {
     func info(message: String) {}
-    func warn(message: String, error: KotlinThrowable?) {}
-    func error(message: String, error: KotlinThrowable?) {}
+    func warn(message: String, error: Error?) {}
+    func error(message: String, error: Error?) {}
     func logFile() -> String { "" }
 }

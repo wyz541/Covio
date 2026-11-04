@@ -93,7 +93,7 @@ final class MacPowerObservationSource: NSObject, PowerObservationSource, @unchec
         let callback = stopped ? nil : listener
         lock.unlock()
         guard let callback else { return }
-        let box = KotlinBox(callback)
+        let box = SendableBox(callback)
         DispatchQueue.main.async {
             MainActor.assumeIsolated { box.value() }
         }

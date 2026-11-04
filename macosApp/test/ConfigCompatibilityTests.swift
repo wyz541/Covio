@@ -321,30 +321,30 @@ final class ConfigCompatibilityTests: XCTestCase {
 /// 3. 协议允许的休眠模式确实能通过校验。
 final class HelperContractMirrorTests: XCTestCase {
     func testCommandAllowListComesFromKotlin() {
-        let kotlin = HelperContractKt.HELPER_ALLOWED_COMMANDS
+        let kotlin = CovioHelperContract.HELPER_ALLOWED_COMMANDS
         XCTAssertEqual(HelperProtocol.allowedCommands, kotlin)
         XCTAssertFalse(kotlin.isEmpty, "白名单为空会让所有命令都被拒绝")
     }
 
     func testSupportedHibernateModesComeFromKotlin() {
-        let kotlin = Set(ModelsKt.SUPPORTED_HIBERNATE_MODES.map { Int($0.int32Value) })
+        let kotlin = Set(CovioRuntimeConstants.SUPPORTED_HIBERNATE_MODES.map { Int($0.int32Value) })
         XCTAssertEqual(HelperProtocol.supportedHibernateModes, kotlin)
         XCTAssertFalse(kotlin.isEmpty, "白名单不该为空，否则休眠模式永远设不进去")
     }
 
     func testPathsComeFromKotlin() {
-        XCTAssertEqual(HelperProtocol.socketPath, HelperContractKt.HELPER_SOCKET_PATH)
-        XCTAssertEqual(HelperProtocol.helperDirectory, HelperContractKt.HELPER_DIRECTORY)
-        XCTAssertEqual(HelperProtocol.helperBinaryPath, HelperContractKt.HELPER_BINARY_PATH)
-        XCTAssertEqual(HelperProtocol.chargeLimitStatePath, HelperContractKt.HELPER_CHARGE_LIMIT_STATE_PATH)
-        XCTAssertEqual(HelperProtocol.chargeLimitRuntimePath, HelperContractKt.HELPER_CHARGE_LIMIT_RUNTIME_PATH)
-        XCTAssertEqual(HelperProtocol.versionPath, HelperContractKt.HELPER_VERSION_PATH)
-        XCTAssertEqual(HelperProtocol.allowedUidPath, HelperContractKt.HELPER_ALLOWED_UID_PATH)
-        XCTAssertEqual(HelperProtocol.clientRequirementPath, HelperContractKt.HELPER_CLIENT_REQUIREMENT_PATH)
-        XCTAssertEqual(HelperProtocol.plistPath, HelperContractKt.HELPER_PLIST_PATH)
-        XCTAssertEqual(HelperProtocol.logPath, HelperContractKt.HELPER_LOG_PATH)
-        XCTAssertEqual(HelperProtocol.appPathFile, HelperContractKt.HELPER_APP_PATH_FILE)
-        XCTAssertEqual(HelperProtocol.sleepOwnerPath, HelperContractKt.HELPER_SLEEP_OWNER_PATH)
+        XCTAssertEqual(HelperProtocol.socketPath, CovioHelperContract.HELPER_SOCKET_PATH)
+        XCTAssertEqual(HelperProtocol.helperDirectory, CovioHelperContract.HELPER_DIRECTORY)
+        XCTAssertEqual(HelperProtocol.helperBinaryPath, CovioHelperContract.HELPER_BINARY_PATH)
+        XCTAssertEqual(HelperProtocol.chargeLimitStatePath, CovioHelperContract.HELPER_CHARGE_LIMIT_STATE_PATH)
+        XCTAssertEqual(HelperProtocol.chargeLimitRuntimePath, CovioHelperContract.HELPER_CHARGE_LIMIT_RUNTIME_PATH)
+        XCTAssertEqual(HelperProtocol.versionPath, CovioHelperContract.HELPER_VERSION_PATH)
+        XCTAssertEqual(HelperProtocol.allowedUidPath, CovioHelperContract.HELPER_ALLOWED_UID_PATH)
+        XCTAssertEqual(HelperProtocol.clientRequirementPath, CovioHelperContract.HELPER_CLIENT_REQUIREMENT_PATH)
+        XCTAssertEqual(HelperProtocol.plistPath, CovioHelperContract.HELPER_PLIST_PATH)
+        XCTAssertEqual(HelperProtocol.logPath, CovioHelperContract.HELPER_LOG_PATH)
+        XCTAssertEqual(HelperProtocol.appPathFile, CovioHelperContract.HELPER_APP_PATH_FILE)
+        XCTAssertEqual(HelperProtocol.sleepOwnerPath, CovioHelperContract.HELPER_SLEEP_OWNER_PATH)
         XCTAssertFalse(HelperProtocol.socketPath.isEmpty, "路径为空会让 helper 装到奇怪的位置")
     }
 
@@ -355,7 +355,7 @@ final class HelperContractMirrorTests: XCTestCase {
     }
 
     func testProtocolVersionComesFromKotlin() {
-        XCTAssertEqual(HelperProtocol.protocolVersion, HelperContractKt.HELPER_PROTOCOL_VERSION)
+        XCTAssertEqual(HelperProtocol.protocolVersion, CovioHelperContract.HELPER_PROTOCOL_VERSION)
     }
 
     /// 版本号只有一个来源：`release/release-manifest.json`。
@@ -371,7 +371,7 @@ final class HelperContractMirrorTests: XCTestCase {
             bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
             "包里读不到 CFBundleShortVersionString"
         )
-        XCTAssertEqual(GeneratedReleaseIdentityKt.APP_PRODUCT_VERSION, short)
+        XCTAssertEqual(CovioReleaseIdentity.APP_PRODUCT_VERSION, short)
     }
 
     /// Build number、release ID 和 helper 协议都来自生成的发布身份。
@@ -398,10 +398,10 @@ final class HelperContractMirrorTests: XCTestCase {
             bundle.object(forInfoDictionaryKey: "CovioHelperInstallMode") as? String
         )
 
-        XCTAssertEqual(GeneratedReleaseIdentity.clientVersion, GeneratedReleaseIdentityKt.APP_VERSION)
-        XCTAssertEqual(GeneratedReleaseIdentity.productVersion, GeneratedReleaseIdentityKt.APP_PRODUCT_VERSION)
-        XCTAssertEqual(GeneratedReleaseIdentity.buildNumber, Int(GeneratedReleaseIdentityKt.APP_BUILD_NUMBER))
-        XCTAssertEqual(GeneratedReleaseIdentity.channel, GeneratedReleaseIdentityKt.APP_RELEASE_CHANNEL)
+        XCTAssertEqual(GeneratedReleaseIdentity.clientVersion, CovioReleaseIdentity.APP_VERSION)
+        XCTAssertEqual(GeneratedReleaseIdentity.productVersion, CovioReleaseIdentity.APP_PRODUCT_VERSION)
+        XCTAssertEqual(GeneratedReleaseIdentity.buildNumber, Int(CovioReleaseIdentity.APP_BUILD_NUMBER))
+        XCTAssertEqual(GeneratedReleaseIdentity.channel, CovioReleaseIdentity.APP_RELEASE_CHANNEL)
         XCTAssertEqual(short, GeneratedReleaseIdentity.productVersion)
         XCTAssertEqual(clientVersion, GeneratedReleaseIdentity.clientVersion)
         XCTAssertEqual(productVersion, GeneratedReleaseIdentity.productVersion)
@@ -420,7 +420,7 @@ final class HelperContractMirrorTests: XCTestCase {
         let script = HelperInstaller.installScript(
             executablePath: "/Applications/Covio.app/Contents/MacOS/CovioHelper",
             uid: "501",
-            version: GeneratedReleaseIdentityKt.APP_VERSION
+            version: CovioReleaseIdentity.APP_VERSION
         )
         XCTAssertTrue(
             script.contains("<string>\(HelperProtocol.helperBinaryPath)</string>"),

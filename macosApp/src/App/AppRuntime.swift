@@ -365,9 +365,9 @@ final class AppRuntime {
             clock: { @Sendable in AppRuntime.nowMillis() },
             stateListener: forwarder,
             // 引擎要求这个块跑在别的线程上。Kotlin 的函数类型不是 Sendable，
-            // 用 `KotlinBox` 把「按约定跨线程」这件事写在一处。
+            // 用 `SendableBox` 把「按约定跨线程」这件事写在一处。
             wakeScanExecutor: { @Sendable block in
-                let box = KotlinBox(block)
+                let box = SendableBox(block)
                 DispatchQueue.global(qos: .utility).async { _ = box.value() }
             },
             wakeDelay: { @Sendable millis in
@@ -591,7 +591,7 @@ final class AppRuntime {
     /// 启动引擎与两条后台节奏。可以重复调用，第二次没有副作用。
     func start() {
         guard tickTimer == nil else { return }
-        logger.info(message: "Covio \(GeneratedReleaseIdentityKt.APP_VERSION) starting")
+        logger.info(message: "Covio \(CovioReleaseIdentity.APP_VERSION) starting")
 
         helperServiceState = helperServiceManager.state
         helperMonitor?.requestProbe(force: true)
@@ -1303,7 +1303,7 @@ final class AppRuntime {
             }
             let update = UpdatePolicy.selectUpdate(
                 candidate: release,
-                currentVersion: GeneratedReleaseIdentityKt.APP_VERSION
+                currentVersion: CovioReleaseIdentity.APP_VERSION
             )
             availableUpdate = update
             if let update {
@@ -1327,12 +1327,12 @@ final class AppRuntime {
     ///
     /// `UpdateChecker` 是 ObjC 协议，Swift 看不出实现能不能跨线程。
     /// 唯一的实现 `GithubUpdateChecker` 只持有不可变的 URL 与 URLSession，
-    /// 两者都线程安全，所以用 `KotlinBox` 显式声明。
-    private static func fetchRelease(_ checker: UpdateChecker) async -> KotlinBox<UpdateInfo?> {
-        let boxedChecker = KotlinBox(checker)
+    /// 两者都线程安全，所以用 `SendableBox` 显式声明。
+    private static func fetchRelease(_ checker: UpdateChecker) async -> SendableBox<UpdateInfo?> {
+        let boxedChecker = SendableBox(checker)
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
-                continuation.resume(returning: KotlinBox(boxedChecker.value.latestRelease()))
+                continuation.resume(returning: SendableBox(boxedChecker.value.latestRelease()))
             }
         }
     }
@@ -1677,7 +1677,7 @@ private final class StateForwarder: NSObject, StateListener {
         // 都跨了线程，而它只该带走这一个闭包。
         // 闭包自身标了 `@Sendable`，所以这是允许的。
         guard let handler else { return }
-        let box = KotlinBox(state)
+        let box = SendableBox(state)
         DispatchQueue.main.async {
             MainActor.assumeIsolated { handler(box.value) }
         }
@@ -1689,7 +1689,7 @@ private final class StateForwarder: NSObject, StateListener {
 /// Kotlin 的 data class 导出到 Swift 后字段全只读，跨线程传是安全的，
 /// 但 Swift 看不到这一点。用它把这件事写在一处，
 /// 而不是在每个调用点撒 `@unchecked Sendable`。
-final class KotlinBox<Value>: @unchecked Sendable {
+final class SendableBox<Value>: @unchecked Sendable {
     let value: Value
 
     init(_ value: Value) { self.value = value }

@@ -8,7 +8,7 @@ import Foundation
 final class Engine: @unchecked Sendable {
     private let handle: OpaquePointer
     private let callbacks: EngineCallbackBridge
-    private let wakeScanExecutor: (@escaping () -> KotlinUnit) -> Void
+    private let wakeScanExecutor: (@escaping () -> Void) -> Void
     private let callLock = NSLock()
     private let lifecycleLock = NSLock()
     private let stateLock = NSLock()
@@ -27,8 +27,8 @@ final class Engine: @unchecked Sendable {
         wakeLogReader: WakeLogReader,
         clock: @escaping () -> Int64,
         stateListener: StateListener,
-        wakeScanExecutor: @escaping (@escaping () -> KotlinUnit) -> Void,
-        wakeDelay: @escaping (KotlinLong) -> Void,
+        wakeScanExecutor: @escaping (@escaping () -> Void) -> Void,
+        wakeDelay: @escaping (Int64) -> Void,
         wakeRetryDelayMillis: Int64,
         wakeRetryCount: Int32,
         wakeCacheNowMillis: @escaping () -> Int64
@@ -209,7 +209,7 @@ final class Engine: @unchecked Sendable {
         } catch {
             callbacks.logger.error(
                 message: "Rust engine command \(command) failed",
-                error: KotlinThrowable(message: error.localizedDescription)
+                error: error
             )
             result = nil
         }
@@ -257,10 +257,9 @@ final class Engine: @unchecked Sendable {
     private func drainPendingWakeScans() {
         let pending = callbacks.takePendingWakeScans()
         for initial in pending {
-            let block: () -> KotlinUnit = { [weak self] in
-                guard let self else { return KotlinUnit() }
+            let block: () -> Void = { [weak self] in
+                guard let self else { return }
                 _ = self.perform("runWakeScan", payload: ["initial": initial])
-                return KotlinUnit()
             }
             wakeScanExecutor(block)
         }
@@ -289,7 +288,7 @@ private final class EngineCallbackBridge: @unchecked Sendable {
     let wakeLogReader: WakeLogReader
     let clock: () -> Int64
     let wakeCacheNowMillis: () -> Int64
-    let wakeDelay: (KotlinLong) -> Void
+    let wakeDelay: (Int64) -> Void
     weak var engine: Engine?
     weak var stateListener: StateListener?
 
@@ -307,7 +306,7 @@ private final class EngineCallbackBridge: @unchecked Sendable {
         wakeLogReader: WakeLogReader,
         clock: @escaping () -> Int64,
         wakeCacheNowMillis: @escaping () -> Int64,
-        wakeDelay: @escaping (KotlinLong) -> Void
+        wakeDelay: @escaping (Int64) -> Void
     ) {
         self.power = power
         self.lid = lid
@@ -378,7 +377,7 @@ private final class EngineCallbackBridge: @unchecked Sendable {
             return ["millis": wakeCacheNowMillis()]
         case "wake.delay":
             let millis = (payload["millis"] as? NSNumber)?.int64Value ?? 0
-            wakeDelay(KotlinLong(longLong: millis))
+            wakeDelay(millis)
             return [:]
         case "wake.schedule":
             let initial = payload["initial"] as? Bool ?? false

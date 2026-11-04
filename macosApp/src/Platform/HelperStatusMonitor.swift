@@ -28,7 +28,7 @@ struct HelperStatusSnapshot: @unchecked Sendable {
 /// Only one probe can be active at a time.
 /// Failed probes back off until the helper becomes trusted again.
 final class HelperStatusMonitor: NSObject, PrivilegedOps, @unchecked Sendable {
-    private let upstream: KotlinBox<any PrivilegedOps>
+    private let upstream: SendableBox<any PrivilegedOps>
     private let clock: @Sendable () -> TimeInterval
     private let lock = NSLock()
     private var snapshot = HelperStatusSnapshot.initial()
@@ -43,7 +43,7 @@ final class HelperStatusMonitor: NSObject, PrivilegedOps, @unchecked Sendable {
             Date().timeIntervalSince1970
         }
     ) {
-        self.upstream = KotlinBox(upstream)
+        self.upstream = SendableBox(upstream)
         self.clock = clock
         super.init()
     }

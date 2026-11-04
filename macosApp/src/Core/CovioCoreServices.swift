@@ -1,20 +1,5 @@
 import Foundation
 
-struct KotlinBoolean: Equatable, Sendable {
-    let bool: Bool
-    init(bool: Bool) { self.bool = bool }
-}
-
-struct KotlinInt: Equatable, Hashable, Sendable {
-    let int: Int32
-    init(int: Int32) { self.int = int }
-}
-
-struct KotlinLong: Equatable, Hashable, Sendable {
-    let long: Int64
-    init(long: Int64) { self.long = long }
-}
-
 func coreDecode<T: Decodable>(_ type: T.Type, from value: Any) throws -> T {
     let data = try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed])
     return try JSONDecoder().decode(type, from: data)
@@ -108,9 +93,9 @@ final class ShelfStore: @unchecked Sendable {
         func normalizeItems(
             items: [ShelfItem],
             limit: Int32,
-            exists: (String) -> KotlinBoolean
+            exists: (String) -> Bool
         ) -> [ShelfItem] {
-            let existing = items.map(\.path).filter { exists($0).bool }
+            let existing = items.map(\.path).filter { exists($0) }
             do {
                 let payload: [String: Any] = [
                     "items": try coreEncode(items),
@@ -232,10 +217,10 @@ final class ClipboardLogic: @unchecked Sendable {
         items: [ClipItem],
         policy: ClipPolicy,
         nowEpochSeconds: Int64,
-        exists: (String) -> KotlinBoolean
+        exists: (String) -> Bool
     ) -> [ClipItem] {
         let existing = items.flatMap { item -> [String] in
-            guard !item.filePath.isEmpty, exists(item.filePath).bool else { return [] }
+            guard !item.filePath.isEmpty, exists(item.filePath) else { return [] }
             return [item.filePath]
         }
         do {
@@ -256,7 +241,7 @@ final class ClipboardLogic: @unchecked Sendable {
         }
     }
 
-    func nextPaste(state: ClipboardState) -> KotlinPair<ClipboardState, ClipItem?> {
+    func nextPaste(state: ClipboardState) -> ClipboardNext {
         do {
             let value = try CovioCoreRuntime.shared.call(
                 "clipboard.nextPaste",
@@ -269,9 +254,9 @@ final class ClipboardLogic: @unchecked Sendable {
             } else {
                 nil
             }
-            return KotlinPair(first: next, second: item)
+            return ClipboardNext(first: next, second: item)
         } catch {
-            return KotlinPair(first: state, second: nil)
+            return ClipboardNext(first: state, second: nil)
         }
     }
 
@@ -735,12 +720,12 @@ struct ScreenshotPreferencePolicy {
         return response["value"] as? String
     }
 
-    func parseBoolean(exitCode: Int32, output: String) -> KotlinBoolean? {
+    func parseBoolean(exitCode: Int32, output: String) -> Bool? {
         guard let response = try? CovioCoreRuntime.shared.call(
             "screenshotPreference.parseBoolean",
             payload: ["exitCode": exitCode, "output": output]
         ) as? [String: Any], let value = response["value"] as? Bool else { return nil }
-        return KotlinBoolean(bool: value)
+        return value
     }
 
     func writeArgument(value: String, isString: Bool) -> String {
@@ -1087,9 +1072,6 @@ final class ChargeLimitPolicy: @unchecked Sendable {
     }
 }
 
-extension KotlinBoolean { var boolValue: Bool { bool } }
-extension KotlinInt { var intValue: Int32 { int } }
-extension KotlinLong { var int64Value: Int64 { long } }
 extension Bool { var boolValue: Bool { self } }
 extension Int32 {
     var intValue: Int32 { self }
@@ -1100,16 +1082,9 @@ extension Optional where Wrapped == Bool { var boolValue: Bool? { self } }
 extension Optional where Wrapped == Int32 { var intValue: Int32? { self } }
 extension Optional where Wrapped == Int64 { var int64Value: Int64? { self } }
 
-extension ModelsKt {
+extension CovioRuntimeConstants {
     static var APP_ID: String { "com.wyz.covio" }
     static var APP_NAME: String { "Covio" }
-}
-
-extension KotlinLong {
-    init(longLong: Int64) { self.init(long: longLong) }
-}
-extension KotlinInt {
-    var int32Value: Int32 { int }
 }
 
 extension SleepEvent {
@@ -1385,9 +1360,9 @@ final class WorkbenchStore: @unchecked Sendable {
     }
 }
 
-struct KotlinPair<First, Second>: Sendable where First: Sendable, Second: Sendable {
-    let first: First
-    let second: Second
+struct ClipboardNext: Sendable {
+    let first: ClipboardState
+    let second: ClipItem?
 }
 
 extension ClipboardState {
@@ -1919,7 +1894,7 @@ final class HelperInstallScriptValue: @unchecked Sendable {
     func installScript(
         executablePath: String,
         uid: String,
-        version: String = GeneratedReleaseIdentityKt.APP_VERSION,
+        version: String = CovioReleaseIdentity.APP_VERSION,
         clientRequirement: String? = nil
     ) -> String {
         let directory = shellEscaped(HelperProtocol.helperDirectory)

@@ -423,7 +423,7 @@ final class ClipboardRuntime {
             items: items,
             policy: policy,
             nowEpochSeconds: environment.now(),
-            exists: { path in KotlinBoolean(bool: FileManager.default.fileExists(atPath: path)) }
+            exists: { path in FileManager.default.fileExists(atPath: path) }
         )
         items = pruned
         let live = Set(items.map(\.id))

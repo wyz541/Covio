@@ -1,18 +1,5 @@
 import Foundation
 
-struct KotlinUnit: Sendable {}
-
-final class KotlinThrowable: Error, @unchecked Sendable {
-    let message: String?
-    init(message: String? = nil) { self.message = message }
-    var localizedDescription: String { message ?? "Unknown error" }
-    private var frames: [String] = []
-    func setStackTrace(_ frames: [String]) { self.frames = frames }
-    func stackTraceToString() -> String {
-        ([message ?? "KotlinThrowable"] + frames.map { "\t\($0)" }).joined(separator: "\n")
-    }
-}
-
 protocol StateListener: AnyObject {
     func onState(state: AppState)
 }
@@ -84,8 +71,8 @@ protocol Notifier: AnyObject {
 
 protocol AppLogger: AnyObject {
     func info(message: String)
-    func warn(message: String, error: KotlinThrowable?)
-    func error(message: String, error: KotlinThrowable?)
+    func warn(message: String, error: Error?)
+    func error(message: String, error: Error?)
     func logFile() -> String
 }
 

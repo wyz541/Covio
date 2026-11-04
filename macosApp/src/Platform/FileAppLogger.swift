@@ -23,11 +23,11 @@ final class FileAppLogger: NSObject, AppLogger {
         write(level: "INFO", message: message, error: nil)
     }
 
-    func warn(message: String, error: KotlinThrowable?) {
+    func warn(message: String, error: Error?) {
         write(level: "WARN", message: message, error: error)
     }
 
-    func error(message: String, error: KotlinThrowable?) {
+    func error(message: String, error: Error?) {
         write(level: "ERROR", message: message, error: error)
     }
 
@@ -37,7 +37,7 @@ final class FileAppLogger: NSObject, AppLogger {
 
     // MARK: - 私有
 
-    private func write(level: String, message: String, error: KotlinThrowable?) {
+    private func write(level: String, message: String, error: Error?) {
         lock.lock()
         defer { lock.unlock() }
         rotateIfNeeded()
@@ -48,13 +48,8 @@ final class FileAppLogger: NSObject, AppLogger {
         append(data)
     }
 
-    /// 与 Kotlin 的 `Throwable.stackTraceToString()` 对齐：
-    /// 先写消息，再逐行写栈帧，每行前面加一个制表符。
-    ///
-    /// `KotlinThrowable` 导出到 Swift 后没有 `stackTraceToString()`，
-    /// 只有 `getStackTrace()`。所以这里自己拼。
-    static func describe(_ error: KotlinThrowable) -> String {
-        error.stackTraceToString()
+    static func describe(_ error: Error) -> String {
+        error.localizedDescription
     }
 
     private func append(_ data: Data) {
