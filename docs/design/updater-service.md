@@ -35,6 +35,12 @@
 
 Updater 安装、布局校验或 health 失败时，事务恢复旧 app、helper、updater、plist 和安装记录。
 
+## 启动恢复
+
+Updater engine 只自动恢复 `UPDATE_MODE='automatic'` 的中断事务。
+PKG 事务由 Installer 或修复包处理。
+Updater engine 不接管正在执行的 PKG 事务。
+
 ## 启动流程
 
 ```text

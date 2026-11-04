@@ -727,6 +727,21 @@ final class UpdaterCoordinator: @unchecked Sendable {
         try? FileManager.default.removeItem(at: paths.updateResult)
     }
 
+    private func installTransactionMode(at transaction: URL) -> String? {
+        let environmentPath = transaction.appendingPathComponent("transaction.env")
+        guard let contents = try? String(contentsOf: environmentPath, encoding: .utf8) else {
+            return nil
+        }
+        for line in contents.split(whereSeparator: \.isNewline) {
+            let prefix = "UPDATE_MODE="
+            guard line.hasPrefix(prefix) else { continue }
+            let value = String(line.dropFirst(prefix.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return value.trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
+        }
+        return nil
+    }
+
     private func recoverInterruptedInstallIfNeeded() {
         guard FileManager.default.fileExists(atPath: paths.currentInstallTransaction.path),
               !FileManager.default.fileExists(atPath: paths.updateResult.path)
@@ -737,13 +752,16 @@ final class UpdaterCoordinator: @unchecked Sendable {
             contentsOf: paths.currentInstallTransaction,
             encoding: .utf8
         ))?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let transactionId = transactionPath.map { URL(fileURLWithPath: $0).lastPathComponent }
-        if let transactionId,
-           runToolResult(
-               "/bin/launchctl",
-               arguments: ["print", "system/\(transactionLabel(transactionId))"]
-           )
-        {
+        guard let transactionPath,
+              installTransactionMode(at: URL(fileURLWithPath: transactionPath)) == "automatic"
+        else {
+            return
+        }
+        let transactionId = URL(fileURLWithPath: transactionPath).lastPathComponent
+        if runToolResult(
+            "/bin/launchctl",
+            arguments: ["print", "system/\(transactionLabel(transactionId))"]
+        ) {
             return
         }
         guard FileManager.default.isExecutableFile(atPath: paths.recoverInstallScript.path) else {
