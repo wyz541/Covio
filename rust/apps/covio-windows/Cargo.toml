@@ -19,7 +19,7 @@ serde_json.workspace = true
 dark-light = "1.1.1"
 eframe = { version = "0.32.3", default-features = false, features = ["__screenshot", "accesskit", "default_fonts", "glow"] }
 single-instance = "0.3.3"
-tray-icon = { version = "0.21.2", default-features = false, features = ["common-controls-v6"] }
+tray-icon = { version = "0.21.2", default-features = false }
 
 [lints]
 workspace = true
