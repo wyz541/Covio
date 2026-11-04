@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// `LoginItem` 端口的 macOS 实现。
 ///

@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// `PrivilegedOps` 端口的 macOS 实现。
 ///
@@ -108,7 +107,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
                 leaseId: leaseId,
                 externalDisplayCount: externalDisplays
             )
-            guard status.leaseActive, status.sleepDisabled?.boolValue == true else {
+            guard status.leaseActive, status.sleepDisabled == true else {
                 logger.warn(
                     message: "Privileged helper did not acquire the lid lease: \(status.error ?? "unknown error")",
                     error: nil
@@ -125,7 +124,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         defer { leaseOperationLock.unlock() }
         stateLock.withLock { leaseActive = false }
         let status = client.releaseLidLease(leaseId: leaseId)
-        guard status.error == nil, status.sleepDisabled?.boolValue != true else {
+        guard status.error == nil, status.sleepDisabled != true else {
             logger.warn(
                 message: "Privileged helper did not release the lid lease: \(status.error ?? "SleepDisabled remains set")",
                 error: nil
@@ -143,7 +142,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         return LidLeaseStatus(
             available: remote.available,
             protocolVersion: remote.protocolVersion,
-            sleepDisabled: KotlinBoolean(bool: local),
+            sleepDisabled: local,
             covioOwned: nil,
             activeLeaseCount: remote.activeLeaseCount,
             expiresAtEpochSeconds: remote.expiresAtEpochSeconds,
@@ -205,7 +204,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
             leaseId: leaseId,
             externalDisplayCount: externalDisplays
         )
-        if status.leaseActive, status.sleepDisabled?.boolValue == true {
+        if status.leaseActive, status.sleepDisabled == true {
             return
         }
         logger.warn(
@@ -221,10 +220,10 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         }
     }
 
-    func hibernateMode() -> KotlinInt? {
+    func hibernateMode() -> Int32? {
         guard let mode = PmsetReader.hibernateMode() else { return nil }
         guard HelperProtocol.supportedHibernateModes.contains(mode) else { return nil }
-        return KotlinInt(int: Int32(mode))
+        return Int32(mode)
     }
 
     func setHibernateMode(mode: Int32) -> Bool {
@@ -254,7 +253,7 @@ final class MacPrivilegedOps: NSObject, PrivilegedOps {
         guard stateLock.withLock({ leaseActive }) else { return true }
         stopRenewTimer()
         let status = client.releaseLidLease(leaseId: leaseId)
-        guard status.error == nil, status.sleepDisabled?.boolValue != true else {
+        guard status.error == nil, status.sleepDisabled != true else {
             logger.warn(
                 message: "Cannot release the lid lease before helper change: \(status.error ?? "SleepDisabled remains set")",
                 error: nil

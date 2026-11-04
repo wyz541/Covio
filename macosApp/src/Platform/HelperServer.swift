@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 特权 helper 的请求处理器。
 ///

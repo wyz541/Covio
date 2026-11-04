@@ -1,7 +1,6 @@
 import CryptoKit
 import Darwin
 import Foundation
-import kmpDomain
 
 struct LocalModelPackageFile: Codable, Equatable, Sendable {
     let path: String

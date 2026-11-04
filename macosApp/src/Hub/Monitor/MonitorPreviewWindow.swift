@@ -3,7 +3,6 @@ import AppKit
 import CoreGraphics
 import ScreenCaptureKit
 import SwiftUI
-import kmpDomain
 
 /// 调试构建的独立监控窗口。
 ///
@@ -122,20 +121,20 @@ final class PowerPreviewModel: PowerManagementModel {
         displayConfig = previewDisplay
         closedLidPowerPolicy = previewDisplay.closedLidPowerPolicy
         let sampleObservation = PowerObservation(
-            batteryPercent: KotlinInt(int: 84),
-            hasBattery: KotlinBoolean(bool: true),
+            batteryPercent: 84,
+            hasBattery: true,
             powerState: .acPower,
-            externalDisplayCount: KotlinInt(int: 0),
+            externalDisplayCount: 0,
             lidState: .open,
             thermalState: .nominal,
-            lowPowerModeEnabled: KotlinBoolean(bool: false)
+            lowPowerModeEnabled: false
         )
         observation = sampleObservation
         snapshot = PowerSnapshot(
             observation: sampleObservation,
             helperStatus: .match,
-            sleepDisabled: KotlinBoolean(bool: false),
-            covioOwnsSleepDisabled: KotlinBoolean(bool: false)
+            sleepDisabled: false,
+            covioOwnsSleepDisabled: false
         )
         decision = PowerDecision(
             preventUserIdleSystemSleep: false,

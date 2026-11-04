@@ -1,6 +1,7 @@
 //! Read-only design contract parser and application-side validation.
 
 use covio_platform::FileStore;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::path::Path;
 
@@ -8,7 +9,8 @@ use std::path::Path;
 pub const DEFAULT_CONTRACT_PATH: &str = "docs/covio-design-contract.json";
 
 /// Design contract diagnostic severity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum DesignContractSeverity {
     /// The contract is invalid.
     Error,
@@ -28,7 +30,8 @@ impl DesignContractSeverity {
 }
 
 /// One design contract diagnostic.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesignContractDiagnostic {
     /// Diagnostic severity.
     pub severity: DesignContractSeverity,
@@ -47,7 +50,8 @@ impl DesignContractDiagnostic {
 }
 
 /// Design contract validation result.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesignContractValidationResult {
     /// Parsed contract. This is `None` when any error exists.
     pub contract: Option<DesignContract>,
@@ -94,22 +98,26 @@ impl DesignContractValidationResult {
 }
 
 /// One localized design-contract copy entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesignCopyEntry {
     /// Stable copy key.
     pub key: String,
     /// English copy.
     pub en: String,
     /// Simplified Chinese copy.
+    #[serde(rename = "zhHans")]
     pub zh_hans: String,
 }
 
 /// One design token.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesignToken {
     /// Stable token key.
     pub key: String,
     /// Token type.
+    #[serde(rename = "type")]
     pub token_type: String,
     /// Intended use.
     pub purpose: String,
@@ -155,7 +163,8 @@ impl DesignToken {
 }
 
 /// Read-only design contract model.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesignContract {
     /// Contract schema version.
     pub schema_version: String,

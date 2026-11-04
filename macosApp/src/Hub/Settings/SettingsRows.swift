@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import kmpDomain
 
 /// 一行数字输入。
 ///

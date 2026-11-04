@@ -1,6 +1,5 @@
 import Foundation
 import IOKit.pwr_mgt
-import kmpDomain
 
 /// `SleepController` 端口的 macOS 实现。
 ///
@@ -14,7 +13,7 @@ final class MacSleepController: NSObject, SleepController {
     private var assertion: IOPMAssertionID = 0
     private var assertionPrevention: IdleSleepPrevention = .none
 
-    /// 缓存实现只有一份，在 `kmpDomain` 的 `IdleSleepTimeoutCache` 里。
+    /// 缓存规则的权威实现已迁入 Rust core，Swift 适配器只缓存 OS 读取结果。
     ///
     /// Kotlin 的默认参数值不导出（ADR-001 实测 18），所以 `ttlMillis` 要显式传。
     private let timeoutCache: IdleSleepTimeoutCache
@@ -24,8 +23,8 @@ final class MacSleepController: NSObject, SleepController {
         timeoutReader: @escaping () -> Int64? = { PmsetReader.systemIdleSleepTimeoutSeconds() }
     ) {
         timeoutCache = IdleSleepTimeoutCache(
-            clock: { KotlinLong(longLong: clock()) },
-            timeoutReader: { timeoutReader().map { KotlinLong(longLong: $0) } },
+            clock: clock,
+            timeoutReader: timeoutReader,
             ttlMillis: IdleSleepTimeoutCache.companion.DEFAULT_TTL_MILLIS
         )
         super.init()
@@ -132,7 +131,7 @@ final class MacSleepController: NSObject, SleepController {
         return readAssertionLocked()
     }
 
-    func systemIdleSleepTimeoutSeconds() -> KotlinLong? {
+    func systemIdleSleepTimeoutSeconds() -> Int64? {
         lock.lock()
         let prevention = readAssertionLocked()
         lock.unlock()
@@ -252,12 +251,12 @@ enum PmsetCommand {
 extension PmsetReader {
     /// 读 `pmset -g` 里的 `sleep` 值，单位秒。取最小值，因为输出可能有多段。
     ///
-    /// 解析规则住在 `kmpDomain` 的 `PmsetConfigParser` 里，与 Compose 版共用一份。
+    /// 解析规则住在 Rust core，Swift 适配器只负责执行 `pmset`。
     static func systemIdleSleepTimeoutSeconds() -> Int64? {
         guard let text = readConfiguration() else { return nil }
-        guard let seconds = PmsetConfigParser.shared.sleepTimeoutSeconds(text: text) else {
+        guard let seconds = PmsetConfigParser.sleepTimeoutSeconds(text: text) else {
             return nil
         }
-        return seconds.int64Value
+        return seconds
     }
 }

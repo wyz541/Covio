@@ -1,9 +1,8 @@
 import Foundation
-import kmpDomain
 
 /// 判断一个文件是不是 Covio 该收进截图索引的截图。
 ///
-/// 走 `kmpDomain` 的 `acceptsShelfFile`，与 Compose 版共用同一份判断。
+/// 走 Rust core 的 `accepts_shelf_file`，与其它平台共用同一份判断。
 /// 判断条件包括扩展名、是否在专属目录里、以及系统有没有打上截图标记。
 func hasScreenCaptureAttribute(_ path: String) -> Bool {
     path.withCString { pointer in
@@ -195,11 +194,11 @@ final class ScreenshotWatcher: @unchecked Sendable {
     func isCandidate(_ path: URL) -> Bool {
         let requireAttribute = requireScreenCaptureAttribute
         let reader = attributeReader
-        return ShelfLogicKt.acceptsShelfFile(
+        return ShelfLogic.acceptsShelfFile(
             path: path.path,
             dedicatedDirectory: dedicatedDirectory.path,
             hasScreenCaptureAttribute: { candidate in
-                KotlinBoolean(bool: !requireAttribute || reader(candidate))
+                !requireAttribute || reader(candidate)
             }
         )
     }

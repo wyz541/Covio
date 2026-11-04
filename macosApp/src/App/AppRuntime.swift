@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 
 /// SwiftUI 版的运行时。对应 Compose 版的 `AppRuntime`。
 ///
@@ -363,7 +362,7 @@ final class AppRuntime {
             // 下面这三个闭包由引擎在后台唤醒扫描线程上调用。
             // 标 `@Sendable` 让它们脱离主 actor；不标的话闭包继承 `init` 的隔离，
             // 后台线程一调就撞 `dispatch_assert_queue` 断言。
-            clock: { @Sendable in KotlinLong(longLong: AppRuntime.nowMillis()) },
+            clock: { @Sendable in AppRuntime.nowMillis() },
             stateListener: forwarder,
             // 引擎要求这个块跑在别的线程上。Kotlin 的函数类型不是 Sendable，
             // 用 `KotlinBox` 把「按约定跨线程」这件事写在一处。
@@ -377,7 +376,7 @@ final class AppRuntime {
             },
             wakeRetryDelayMillis: 1_000,
             wakeRetryCount: 3,
-            wakeCacheNowMillis: { @Sendable in KotlinLong(longLong: AppRuntime.nowMillis()) }
+            wakeCacheNowMillis: { @Sendable in AppRuntime.nowMillis() }
         )
         self.engine = engine
         self.powerRuntime = PowerRuntime(
@@ -862,7 +861,7 @@ final class AppRuntime {
         if !enabled { availableUpdate = nil }
         write { $0.updateCheckEnabled = enabled }
     }
-    func setSleepMode(_ mode: Int32) { write { $0.hibernateMode = KotlinInt(int: mode) } }
+    func setSleepMode(_ mode: Int32) { write { $0.hibernateMode = mode } }
 
     /// 设置语言偏好。跟随系统时写入空字符串，保持与旧版配置兼容。
     func setLanguagePreference(_ preference: AppLanguagePreference) {
@@ -1289,7 +1288,7 @@ final class AppRuntime {
         }
 #endif
         let now = AppRuntime.nowEpochSeconds()
-        if !manual && !UpdatePolicy.shared.shouldCheck(config: config, nowEpochSeconds: now) { return }
+        if !manual && !UpdatePolicy.shouldCheck(config: config, nowEpochSeconds: now) { return }
         guard !isCheckingForUpdates else { return }
         isCheckingForUpdates = true
         Task { @MainActor in
@@ -1302,7 +1301,7 @@ final class AppRuntime {
                 }
                 return
             }
-            let update = UpdatePolicy.shared.selectUpdate(
+            let update = UpdatePolicy.selectUpdate(
                 candidate: release,
                 currentVersion: GeneratedReleaseIdentityKt.APP_VERSION
             )
@@ -1501,7 +1500,7 @@ final class AppRuntime {
     private func syncHibernateMode() {
         guard let actual = privileged.hibernateMode() else { return }
         guard actual.int32Value != config.hibernateMode?.int32Value else { return }
-        write { $0.hibernateMode = KotlinInt(int: actual.int32Value) }
+        write { $0.hibernateMode = actual }
     }
 
     /// 引擎启动前的状态。全默认，只有 `enabled` 来自配置。
@@ -1584,7 +1583,7 @@ final class ConfigDraft {
     var updateCheckEnabled: Bool
     var updateCheckIntervalHours: Int32
     var lastUpdateCheckEpochSeconds: Int64
-    var hibernateMode: KotlinInt?
+    var hibernateMode: Int32?
     var firstRun: Bool
     var clipboardEnabled: Bool
     var clipboardPasteStackHotKey: String

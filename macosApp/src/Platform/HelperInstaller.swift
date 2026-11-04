@@ -1,11 +1,10 @@
 import Foundation
-import kmpDomain
 
 /// 安装、迁移与卸载特权 helper。
 ///
 /// 对应 Compose 版的 `app/src/com/wyz/covio/app/helper/HelperInstaller.kt`。
-/// 生成的 shell 脚本与 plist 来自共享模块的 `HelperInstallScript`，
-/// 所以两个宿主使用相同的路径和 plist 契约。
+/// 生成的 shell 脚本与 plist 来自 Rust-core compatibility contract，
+/// 所以 app、helper 和安装事务使用相同的路径与 plist。
 ///
 /// 当前安装路径使用固定 root-owned helper 和 Legacy LaunchDaemon。
 /// `SMAppService` 代码保留为休眠迁移路径，不再作为当前安装门槛。

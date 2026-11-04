@@ -1,6 +1,5 @@
 import CoreGraphics
 import Foundation
-import kmpDomain
 import os
 
 enum ClosedLidZeroBrightnessPhase: Equatable, Sendable {

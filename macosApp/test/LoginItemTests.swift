@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// `MacLoginItem` 的断言。对应 M6 删掉的 `MacLoginItemTest.kt`。

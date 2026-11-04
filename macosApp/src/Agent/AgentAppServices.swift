@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import MLXLMCommon
-import kmpDomain
 
 @MainActor
 enum AgentAppServices {

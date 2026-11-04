@@ -1,6 +1,5 @@
 import Foundation
 import MLXLMCommon
-import kmpDomain
 
 @MainActor
 final class AgentFileNamingService {

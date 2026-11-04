@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 挂帘的工作台状态。
 ///

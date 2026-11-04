@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 
 protocol FileNamingExtracting: Sendable {
     func extract(candidateId: String, fileURL: URL) -> FileNamingExtractionResult

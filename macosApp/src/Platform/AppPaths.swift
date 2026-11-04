@@ -56,7 +56,7 @@ enum AppPaths {
 
     /// 工作台配置。工作区顺序与首页组件都在这里。
     ///
-    /// 权威在 `kmpDomain` 的 `WorkbenchStore.defaultWorkbenchPath()`，这里跟着它走。
+    /// 权威路径由 Rust core 的 data layout 定义，这里跟着它走。
     /// 与 `config.json` 分两个文件：工作台配置损坏时只回退布局，不动用户设置。
     static var workbenchFile: URL {
         supportDirectory.appendingPathComponent("workbench.json")
@@ -116,7 +116,7 @@ enum AppPaths {
     ///
     /// 与截图索引同一个写法：用 `Covio` 而不是 `com.wyz.covio`，
     /// 二进制文件都放在 `~/Library/Application Support/Covio/` 下。
-    /// 权威在 `kmpDomain` 的 `ClipboardStore.defaultDirectory()`，这里跟着它走。
+    /// 权威路径由 Rust core 的 data layout 定义，这里跟着它走。
     static var clipboardDirectory: URL {
         let root = supportDirectory
             .deletingLastPathComponent()

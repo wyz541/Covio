@@ -2,8 +2,8 @@ import Foundation
 
 /// 文件命名前的本地内容类别。
 ///
-/// 这是提取层自己的类别。接模型时再映射到 `kmpDomain.FileNamingKind`，
-/// 这样文件读取不需要依赖 KMP 生成类型。
+/// 这是提取层自己的类别。接模型时再映射到 Covio core 的文件命名类别，
+/// 这样文件读取不需要依赖旧共享模块的生成类型。
 enum FileNamingContentKind: String, Sendable, Equatable {
     case text
     case pdf

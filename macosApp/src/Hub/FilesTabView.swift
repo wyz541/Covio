@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
-import kmpDomain
 
 /// 一次渲染要用的只读文件区快照。
 private struct FileAreaSnapshot {

@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 通过 launchd Mach service 执行一次同步 RPC。
 final class HelperXPCClient: @unchecked Sendable {

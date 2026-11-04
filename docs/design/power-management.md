@@ -43,8 +43,8 @@ Power card 保留空闲睡眠、安全护栏、电池和温度策略。
 | --- | --- | --- |
 | 系统观察 | `MacPowerObservationSource` | IOPS、IOKit、CoreGraphics、`ProcessInfo` |
 | 持久化意图 | `PowerConfig` | `config.json` |
-| 纯策略 | `PowerPolicy` | `kmpDomain` |
-| 运行时租约 | `PowerRuntime` 与 `Engine` | IOKit 电源断言 |
+| 纯策略 | Rust `PowerPolicy` | `covio-core` + C ABI |
+| 运行时租约 | Rust `Engine` + Swift capability adapter | IOKit 电源断言 |
 | 合盖租约 | `PrivilegedOps` | 特权 helper v2 |
 | 浮层动作 | `AppRuntime` | 配置、helper 与运行时动作 |
 

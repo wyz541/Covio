@@ -2,7 +2,6 @@ import AppKit
 import CoreGraphics
 import Foundation
 @preconcurrency import IOKit.ps
-import kmpDomain
 
 /// `PowerObservationSource` 的 macOS 实现。
 ///
@@ -20,13 +19,13 @@ final class MacPowerObservationSource: NSObject, PowerObservationSource, @unchec
         let battery = MacPowerSource.readBatteryReading()
         let provider = Self.readProviderPowerState()
         return PowerObservation(
-            batteryPercent: battery.percent.map { KotlinInt(int: Int32($0)) },
-            hasBattery: battery.hasInternalBattery.map { KotlinBoolean(bool: $0) },
+            batteryPercent: battery.percent.map { Int32($0) },
+            hasBattery: battery.hasInternalBattery,
             powerState: Self.resolvePowerState(provider: provider, battery: battery.state),
-            externalDisplayCount: ExternalDisplayReader.count().map { KotlinInt(int: Int32($0)) },
+            externalDisplayCount: ExternalDisplayReader.count().map { Int32($0) },
             lidState: MacLidSensor.readClamshellState(),
             thermalState: Self.mapThermalState(ProcessInfo.processInfo.thermalState),
-            lowPowerModeEnabled: KotlinBoolean(bool: ProcessInfo.processInfo.isLowPowerModeEnabled)
+            lowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled
         )
     }
 

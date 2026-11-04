@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// `PrivilegedOps.status()` 的完整发布身份握手。
@@ -417,16 +416,16 @@ private final class FakeHelper {
                 || request.command == HelperWire.shared.COMMAND_LID_LEASE_RENEW {
                 reply = HelperWire.shared.leaseStatusReply(
                     requestId: request.requestId,
-                    sleepDisabled: KotlinBoolean(bool: true),
-                    covioOwned: KotlinBoolean(bool: true),
+                    sleepDisabled: true,
+                    covioOwned: true,
                     activeLeaseCount: 1,
-                    expiresAtEpochSeconds: KotlinLong(longLong: 1_000)
+                    expiresAtEpochSeconds: 1_000
                 )
             } else if request.command == HelperWire.shared.COMMAND_LID_LEASE_RELEASE {
                 reply = HelperWire.shared.leaseStatusReply(
                     requestId: request.requestId,
-                    sleepDisabled: KotlinBoolean(bool: false),
-                    covioOwned: KotlinBoolean(bool: false),
+                    sleepDisabled: false,
+                    covioOwned: false,
                     activeLeaseCount: 0,
                     expiresAtEpochSeconds: nil
                 )

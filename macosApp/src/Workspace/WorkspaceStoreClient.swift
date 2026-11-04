@@ -1,10 +1,9 @@
 import Foundation
-import kmpDomain
 
 /// 工作区状态的持久化。
 ///
-/// 对应 `kmpDomain/src/com/wyz/covio/core/WorkspaceStore.kt`。
-/// 实现只有一份，在 `kmpDomain` 里，这里只是把它包成 Swift 用起来顺手的样子。
+/// 对应 Rust core 的 workspace store。
+/// 实现只有一份，在 Rust core 里，这里只是把它包成 Swift 用起来顺手的样子。
 ///
 /// 存储位置是 `<应用数据根>/Covio/Workspace/`。索引与内容都由 Kotlin 那份实现读写，
 /// 不能在 Swift 里另写一套。

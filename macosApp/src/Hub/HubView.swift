@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import kmpDomain
 
 /// Hub 面板的根视图。
 ///

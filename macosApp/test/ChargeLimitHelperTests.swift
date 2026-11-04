@@ -1,6 +1,5 @@
 import Darwin
 import XCTest
-import kmpDomain
 @testable import Covio
 
 final class ChargeLimitHelperTests: XCTestCase {

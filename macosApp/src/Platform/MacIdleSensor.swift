@@ -1,6 +1,5 @@
 import CoreGraphics
 import Foundation
-import kmpDomain
 
 /// `IdleSensor` 端口的 macOS 实现。
 ///

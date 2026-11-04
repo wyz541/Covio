@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 把 helper 线上命令转成持续策略动作。
 ///

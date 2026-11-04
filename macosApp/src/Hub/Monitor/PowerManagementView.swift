@@ -1,5 +1,4 @@
 import SwiftUI
-import kmpDomain
 
 enum PowerSessionPresentation {
     static let availableModes: [PowerRuntime.SessionMode] = [.system, .display]
@@ -630,7 +629,7 @@ struct PowerManagementView: View {
     }
 
     private var batteryPercent: Int? {
-        model.observation.batteryPercent?.intValue
+        model.observation.batteryPercent.map(Int.init)
     }
 
     private var batterySymbol: String {

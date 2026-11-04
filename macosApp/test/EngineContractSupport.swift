@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 @testable import Covio
 
 /// `AppConfig` 的构造助手。
@@ -112,13 +111,13 @@ final class Fixture {
             privileged: privileged,
             logger: logger,
             wakeLogReader: wakeLogReader,
-            clock: { KotlinLong(longLong: clock()) },
+            clock: { clock() },
             stateListener: NoopStateListener(),
             wakeScanExecutor: wakeScanExecutor,
             wakeDelay: { wakeDelay($0) },
             wakeRetryDelayMillis: 1_000,
             wakeRetryCount: 3,
-            wakeCacheNowMillis: { KotlinLong(longLong: wakeCacheNowMillis()) }
+            wakeCacheNowMillis: { wakeCacheNowMillis() }
         )
     }
 
@@ -261,7 +260,7 @@ final class FakeSleepController: NSObject, SleepController {
     var prevention: IdleSleepPrevention = .none
     var failAssertion = false
     var appliedPrevention: [IdleSleepPrevention] = []
-    var timeoutSeconds: KotlinLong? = KotlinLong(longLong: 600)
+    var timeoutSeconds: Int64? = 600
 
     var prevented: Bool {
         prevention == .system || prevention == .systemAndDisplay
@@ -287,7 +286,7 @@ final class FakeSleepController: NSObject, SleepController {
 
     func readIdleSleepPrevention() -> IdleSleepPrevention { prevention }
 
-    func systemIdleSleepTimeoutSeconds() -> KotlinLong? { timeoutSeconds }
+    func systemIdleSleepTimeoutSeconds() -> Int64? { timeoutSeconds }
 }
 
 final class FakeSleepWatcher: NSObject, SleepWatcher {
@@ -326,7 +325,7 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
 
     func uninstall() -> Bool { true }
 
-    func hibernateMode() -> KotlinInt? { nil }
+    func hibernateMode() -> Int32? { nil }
 
     func setHibernateMode(mode: Int32) -> Bool { true }
 
@@ -345,10 +344,10 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
         LidLeaseStatus(
             available: match,
             protocolVersion: match ? HelperProtocol.protocolVersion : nil,
-            sleepDisabled: KotlinBoolean(bool: sleepDisabled),
-            covioOwned: KotlinBoolean(bool: covioOwned ?? sleepDisabled),
+            sleepDisabled: sleepDisabled,
+            covioOwned: covioOwned ?? sleepDisabled,
             activeLeaseCount: sleepDisabled ? 1 : 0,
-            expiresAtEpochSeconds: sleepDisabled ? KotlinLong(longLong: Int64.max) : nil,
+            expiresAtEpochSeconds: sleepDisabled ? Int64.max : nil,
             error: nil
         )
     }

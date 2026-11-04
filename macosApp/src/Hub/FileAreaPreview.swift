@@ -1,7 +1,6 @@
 #if DEBUG
 import AppKit
 import SwiftUI
-import kmpDomain
 
 /// 文件区的确定性调试画面。只用于本地视觉验收，不参与发布构建。
 struct FileAreaShowcaseView: View {

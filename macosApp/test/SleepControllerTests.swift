@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// `IdleSleepTimeoutCache` 的导出断言。
@@ -17,10 +16,10 @@ final class SleepControllerTests: XCTestCase {
         var now: Int64 = 10_000
         var reads = 0
         let cache = IdleSleepTimeoutCache(
-            clock: { KotlinLong(longLong: now) },
+            clock: { now },
             timeoutReader: {
                 reads += 1
-                return KotlinLong(longLong: 120)
+                return 120
             },
             ttlMillis: ttl
         )
@@ -35,10 +34,10 @@ final class SleepControllerTests: XCTestCase {
         var now: Int64 = 10_000
         var reads = 0
         let cache = IdleSleepTimeoutCache(
-            clock: { KotlinLong(longLong: now) },
+            clock: { now },
             timeoutReader: {
                 reads += 1
-                return KotlinLong(longLong: reads == 1 ? 120 : 300)
+                return reads == 1 ? 120 : 300
             },
             ttlMillis: ttl
         )
@@ -52,10 +51,10 @@ final class SleepControllerTests: XCTestCase {
     func testInvalidateForcesTheNextRead() {
         var reads = 0
         let cache = IdleSleepTimeoutCache(
-            clock: { KotlinLong(longLong: 0) },
+            clock: { 0 },
             timeoutReader: {
                 reads += 1
-                return KotlinLong(longLong: Int64(reads) * 60)
+                return Int64(reads * 60)
             },
             ttlMillis: ttl
         )
@@ -98,7 +97,7 @@ final class SleepControllerTests: XCTestCase {
     func testUnavailableTimeoutIsCachedAsUnavailable() {
         var reads = 0
         let cache = IdleSleepTimeoutCache(
-            clock: { KotlinLong(longLong: 0) },
+            clock: { 0 },
             timeoutReader: {
                 reads += 1
                 return nil

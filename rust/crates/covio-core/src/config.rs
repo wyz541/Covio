@@ -6,7 +6,7 @@
 
 use crate::{CoreError, CoreErrorCode};
 use covio_platform::{FileStore, temporary_path};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
 
@@ -38,8 +38,8 @@ pub const DEFAULT_FILE_NAMING_MAX_UTF8_BYTES: i32 = 240;
 pub const DEFAULT_FILE_NAMING_MIN_CONFIDENCE: f64 = 0.65;
 
 /// Power-management preferences.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct PowerConfig {
     /// Whether power rules are enabled.
     pub enabled: bool,
@@ -98,7 +98,7 @@ impl PowerConfig {
 }
 
 /// Power condition used for closed-lid keep-awake.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ClosedLidPowerPolicy {
     /// Sleep when the lid closes.
@@ -155,7 +155,7 @@ impl ClosedLidPowerPolicy {
 }
 
 /// Display behavior during a closed-lid session.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ClosedLidDisplayMode {
     /// Use the system default.
@@ -179,8 +179,8 @@ impl ClosedLidDisplayMode {
 }
 
 /// Display preferences persisted in `config.json`.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct DisplayConfig {
     /// Display schema version.
     pub schema_version: i32,
@@ -236,7 +236,7 @@ impl DisplayConfig {
 }
 
 /// Source used for a file-name date value.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FileNamingDateSource {
     /// Do not use a date.
@@ -260,7 +260,7 @@ impl FileNamingDateSource {
 }
 
 /// Policy used when a prospective file name conflicts.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FileNamingConflictPolicy {
     /// Append a bounded number.
@@ -281,8 +281,8 @@ impl FileNamingConflictPolicy {
 }
 
 /// File auto-naming policy.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct FileNamingPolicy {
     /// Policy schema version.
     pub schema_version: i32,
@@ -505,6 +505,15 @@ impl AppConfig {
         value.charge_limit_percent = normalize_charge_limit(value.charge_limit_percent);
         value.file_naming = value.file_naming.normalized();
         value
+    }
+
+    /// Decodes a JSON value with the same per-field fallback as the file codec.
+    #[must_use]
+    pub fn from_json_value(value: &Value) -> Self {
+        let Value::Object(root) = value else {
+            return Self::default().normalized();
+        };
+        decode_config(root).normalized()
     }
 }
 

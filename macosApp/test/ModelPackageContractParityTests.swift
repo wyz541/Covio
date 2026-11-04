@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 import XCTest
 @testable import Covio
 

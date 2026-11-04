@@ -1,13 +1,12 @@
 import CryptoKit
 import Foundation
-import kmpDomain
 
 /// 读取当前进程可携带的完整发布身份。
 ///
 /// helper 在进程启动时缓存这个值。app 更新磁盘上的文件后，仍在运行的旧 helper
 /// 继续报告启动时的身份，不会把新文件误报成当前进程身份。
 enum HelperReleaseIdentitySource {
-    // KMP data class 在 Swift 侧没有 Sendable 标注。这个值启动后不可变。
+    // 发布身份在启动后不可变。
     nonisolated(unsafe) static let daemonIdentity: HelperReleaseIdentity? = makeIdentity(
         helperExecutablePath: ownExecutablePath
     )

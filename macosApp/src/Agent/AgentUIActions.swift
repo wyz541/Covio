@@ -1,6 +1,5 @@
 import Foundation
 import MLXLMCommon
-import kmpDomain
 
 enum AgentPane: String, CaseIterable, Sendable {
     case now

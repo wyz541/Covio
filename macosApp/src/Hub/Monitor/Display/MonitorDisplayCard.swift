@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import kmpDomain
 
 enum ClosedLidSettingsPresentation {
     static let timeCapOptions = [30, 60, 120, 240, 480, 1_440]

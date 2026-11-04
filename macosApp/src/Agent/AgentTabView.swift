@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import kmpDomain
 
 struct AgentTabView: View {
     @Bindable var agent: AgentChatRuntime

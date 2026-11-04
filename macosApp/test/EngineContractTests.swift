@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 引擎行为基线。
@@ -223,7 +222,7 @@ final class EngineContractTests: XCTestCase {
             config: AppConfigs.make(lidSleepImmediateOnClose: false)
         )
         fixture.privileged.match = true
-        fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
+        fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: 3_600)
         fixture.engine.start()
 
         XCTAssertTrue(fixture.engine.setPowerLidHold(required: true))
@@ -235,7 +234,7 @@ final class EngineContractTests: XCTestCase {
     func testManualLidHoldIsReleasedOnRequest() {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
         fixture.privileged.match = true
-        fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
+        fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: 3_600)
         fixture.engine.start()
 
         fixture.engine.setManualLidSleepAvailable(available: false)
@@ -255,7 +254,7 @@ final class EngineContractTests: XCTestCase {
             )
         )
         fixture.privileged.match = true
-        fixture.power.value = BatteryStatus(percent: 5, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
+        fixture.power.value = BatteryStatus(percent: 5, state: .discharging, remainingSeconds: 3_600)
         fixture.engine.start()
 
         XCTAssertEqual(fixture.sleep.sleepCalls, 1)
@@ -268,7 +267,7 @@ final class EngineContractTests: XCTestCase {
         let fixture = Fixture(config: AppConfigs.make(lidSleepImmediateOnClose: false))
         fixture.privileged.match = true
         fixture.privileged.disableSleepResult = false
-        fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
+        fixture.power.value = BatteryStatus(percent: 80, state: .discharging, remainingSeconds: 3_600)
         fixture.engine.start()
 
         XCTAssertFalse(fixture.engine.setPowerLidHold(required: true))
@@ -289,7 +288,7 @@ final class EngineContractTests: XCTestCase {
     /// 对应 `low remaining time triggers sleep`。
     func testLowRemainingTimeTriggersSleep() {
         let fixture = Fixture(config: AppConfigs.make(lowTimeRemainingMinutes: 10))
-        fixture.power.value = BatteryStatus(percent: 50, state: .discharging, remainingSeconds: KotlinLong(longLong: 600))
+        fixture.power.value = BatteryStatus(percent: 50, state: .discharging, remainingSeconds: 600)
         fixture.engine.start()
         XCTAssertEqual(fixture.sleep.sleepCalls, 1)
     }
@@ -303,7 +302,7 @@ final class EngineContractTests: XCTestCase {
         fixture.engine.start()
         XCTAssertFalse(fixture.engine.currentState.idleSleepAvailable)
 
-        fixture.power.value = BatteryStatus(percent: 75, state: .discharging, remainingSeconds: KotlinLong(longLong: 3_600))
+        fixture.power.value = BatteryStatus(percent: 75, state: .discharging, remainingSeconds: 3_600)
         fixture.power.emit()
         XCTAssertTrue(fixture.engine.currentState.idleSleepAvailable)
     }
@@ -383,7 +382,7 @@ final class EngineContractTests: XCTestCase {
         fixture.power.value = BatteryStatus(percent: 80, state: .charging, remainingSeconds: nil)
         fixture.engine.start()
         _ = fixture.engine.setLidSleepAvailable(available: false)
-        fixture.sleep.timeoutSeconds = KotlinLong(longLong: 60)
+        fixture.sleep.timeoutSeconds = 60
         fixture.idle.seconds = 61
         fixture.engine.tick(nowMillis: fixture.nowMillis())
         XCTAssertEqual(fixture.sleep.sleepCalls, 1)

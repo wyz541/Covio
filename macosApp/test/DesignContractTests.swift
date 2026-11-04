@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 把 Swift 侧的常量与设计合同对起来。

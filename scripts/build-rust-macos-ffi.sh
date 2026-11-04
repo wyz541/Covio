@@ -22,14 +22,16 @@ fi
 
 cd "$ROOT/rust"
 case "$PROFILE" in
-  debug)
+  Debug|debug)
+    CARGO_PROFILE=debug
     cargo build -p covio-ffi
     ;;
-  release)
+  Release|release)
+    CARGO_PROFILE=release
     cargo build -p covio-ffi --release
     ;;
   *)
-    printf 'Usage: %s [debug|release]\n' "$0" >&2
+    printf 'Usage: %s [Debug|Release]\n' "$0" >&2
     exit 2
     ;;
 esac
@@ -41,9 +43,9 @@ mkdir -p "$OUTPUT_DIR/include" "$OUTPUT_DIR/lib"
 
 cp "$ROOT/rust/crates/covio-ffi/include/covio_ffi.h" "$OUTPUT_DIR/include/"
 cp "$ROOT/rust/crates/covio-ffi/include/module.modulemap" "$OUTPUT_DIR/include/"
-cp "$TARGET_DIR/$PROFILE/libcovio_ffi.dylib" "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib"
+cp "$TARGET_DIR/$CARGO_PROFILE/libcovio_ffi.dylib" "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib"
 ln -s libcovio_ffi.1.dylib "$OUTPUT_DIR/lib/libcovio_ffi.dylib"
-cp "$TARGET_DIR/$PROFILE/libcovio_ffi.a" "$OUTPUT_DIR/lib/libcovio_ffi.a"
+cp "$TARGET_DIR/$CARGO_PROFILE/libcovio_ffi.a" "$OUTPUT_DIR/lib/libcovio_ffi.a"
 install_name_tool -id @rpath/libcovio_ffi.1.dylib "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib"
 
 printf 'Built Covio C ABI: %s\n' "$OUTPUT_DIR"

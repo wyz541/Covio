@@ -1,6 +1,5 @@
 import AppKit
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// `NotchShellController` 的端到端状态测试。

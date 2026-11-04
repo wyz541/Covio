@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 工作区页面的种类。
 ///

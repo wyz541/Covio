@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 
 /// 截图库读取外部世界的入口。
 @MainActor

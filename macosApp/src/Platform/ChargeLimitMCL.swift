@@ -1,6 +1,5 @@
 import CoreFoundation
 import Foundation
-import kmpDomain
 
 enum DirectMCLPreference {
     static let domain = "com.apple.smartcharging.topoffprotection"

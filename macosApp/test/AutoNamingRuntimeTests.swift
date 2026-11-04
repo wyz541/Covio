@@ -2,7 +2,6 @@ import AppKit
 import Foundation
 import SwiftUI
 import XCTest
-import kmpDomain
 @testable import Covio
 
 @MainActor

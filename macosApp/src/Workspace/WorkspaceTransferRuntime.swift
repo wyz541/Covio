@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import kmpDomain
 
 /// 传输方向。首版界面只启动下载，上传也保留在模型里供复制引擎接入。
 enum WorkspaceTransferDirection: String, Sendable {

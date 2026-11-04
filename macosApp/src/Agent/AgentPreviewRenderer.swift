@@ -1,7 +1,6 @@
 #if DEBUG
 import AppKit
 import SwiftUI
-import kmpDomain
 
 private struct AgentPreviewRoot: View {
     private let language = AppLanguage.simplifiedChinese

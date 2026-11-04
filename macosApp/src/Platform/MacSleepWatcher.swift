@@ -1,7 +1,6 @@
 import Foundation
 import IOKit
 import IOKit.pwr_mgt
-import kmpDomain
 
 /// `SleepWatcher` 端口的 macOS 实现。
 ///

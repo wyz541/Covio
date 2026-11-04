@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import kmpDomain
 
 private struct FileAreaReduceMotionOverrideKey: EnvironmentKey {
     static let defaultValue: Bool? = nil
@@ -293,7 +292,7 @@ enum FileAreaPresentation {
         return actions.isEmpty ? "\(type), \(subtitle)" : "\(type), \(subtitle), \(actions)"
     }
 
-    /// 搜索同时覆盖名称、来源和类别。筛选仍由 KMP 投影执行。
+    /// 搜索同时覆盖名称、来源和类别。筛选仍由 Rust core 投影执行。
     static func matches(item: FileAreaItem, query: String, language: AppLanguage) -> Bool {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else { return true }

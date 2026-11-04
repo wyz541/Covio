@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// `config.json` 与 0.4.2 的双向兼容。

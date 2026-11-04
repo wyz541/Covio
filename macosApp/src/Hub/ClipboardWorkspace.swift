@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 剪切板内容的显示类型。类型不再决定主列表结构，只用于筛选。
 enum ClipboardWorkspaceKind: String, CaseIterable, Identifiable {

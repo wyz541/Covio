@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 import PDFKit
 
 /// 安装包内的文件自动命名验收器。只在设置验证环境变量时运行。

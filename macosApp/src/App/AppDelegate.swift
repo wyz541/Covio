@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import kmpDomain
 
 /// 应用代理。装配 Notch Shell、菜单栏图标与全局快捷键。
 ///

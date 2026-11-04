@@ -1,6 +1,5 @@
 import Foundation
 import SwiftUI
-import kmpDomain
 
 /// 剪切板页签。
 ///

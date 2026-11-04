@@ -5,16 +5,26 @@
 
 #![forbid(unsafe_code)]
 
+pub mod charge_limit;
 pub mod clipboard;
 mod config;
 pub mod design_contract;
 pub mod path_policy;
 pub mod power;
+pub mod screenshot_preferences;
 pub mod shelf;
 pub mod update;
 pub mod version;
 pub mod workspace;
 
+pub use charge_limit::{
+    CHARGE_LIMIT_HYSTERESIS_PERCENT, CHARGE_LIMIT_MAX_PERCENT, CHARGE_LIMIT_MIN_PERCENT,
+    CHARGE_LIMIT_MIN_RESUME_PERCENT, CHARGE_LIMIT_STEP_PERCENT, ChargeLimitAction,
+    ChargeLimitDecision, ChargeLimitObservation, ChargeLimitPhase, ChargeLimitPolicyState,
+    ChargeLimitSupport, evaluate as evaluate_charge_limit,
+    is_valid_upper_limit as is_valid_charge_limit, normalize_upper_limit as normalize_charge_limit,
+    resume_threshold as charge_limit_resume_threshold,
+};
 pub use config::{
     AppConfig, CONFIG_SCHEMA_VERSION, ClosedLidDisplayMode, ClosedLidPowerPolicy, ConfigLoadResult,
     ConfigLoadSource, ConfigLoadWarning, ConfigStore, DEFAULT_CAPTURE_HOT_KEY,

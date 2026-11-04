@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 一次电量读取。OS 读取留在生产实现，测试替换这个端口。
 struct ChargeLimitPowerReading: Equatable, Sendable {
@@ -391,7 +390,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             enabled: true,
             upperLimitPercent: Int32(state.userLimitPercent),
             adapterConnected: effectiveAdapterConnected,
-            currentPercent: reading.currentPercent.map { KotlinInt(int: Int32($0)) },
+            currentPercent: reading.currentPercent.map { Int32($0) },
             helperInstalled: true,
             support: backend.capability(),
             batteryPresent: reading.batteryPresent,
@@ -400,9 +399,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             systemProtectionActive: reading.systemProtectionActive,
             conflict: backendState != nil && observedTarget != expectedTarget && !targetMayBeReplaced,
             errorMessage: nil,
-            observedTargetPercent: observedTarget.map {
-                KotlinInt(int: Int32($0))
-            },
+            observedTargetPercent: observedTarget.map { Int32($0) },
             writePending: hasPendingTarget,
             bypassEngaged: reading.bypassEngaged,
             activeDischargeEnabled: state.activeDischargeEnabled ?? false,
@@ -431,7 +428,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
             return .failure(.stateWriteFailed)
         }
 
-        if decision.action == .setTarget, let target = decision.targetPercent?.int32Value {
+        if decision.action == .setTarget, let target = decision.targetPercent {
             switch backend.apply(targetPercent: Int(target)) {
             case .success:
                 return markPendingIfNeededLocked(
@@ -452,7 +449,7 @@ final class ChargeLimitRuntimeController: ChargeLimitRuntimeControlling, @unchec
         }
         if backendState == nil,
            decision.action == .none,
-           let target = decision.targetPercent?.int32Value {
+           let target = decision.targetPercent {
             switch backend.apply(targetPercent: Int(target)) {
             case .success:
                 return markPendingIfNeededLocked(

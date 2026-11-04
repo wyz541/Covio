@@ -1,19 +1,18 @@
 import Foundation
-import kmpDomain
 
 /// `pmset -g` 的读取。写操作只由 helper 执行。
 enum PmsetReader {
     /// 读取当前休眠模式。命令失败、超时或输出不含该键时返回 nil。
     static func hibernateMode(timeout: TimeInterval = 5) -> Int? {
         guard let text = readConfiguration(timeout: timeout) else { return nil }
-        guard let mode = PmsetConfigParser.shared.hibernateMode(text: text) else { return nil }
-        return Int(mode.int32Value)
+        guard let mode = PmsetConfigParser.hibernateMode(text: text) else { return nil }
+        return Int(mode)
     }
 
     /// 读当前 `disablesleep`。helper 协议不兼容时由客户端做只读兜底。
     static func sleepDisabled(timeout: TimeInterval = 5) -> Bool? {
         guard let text = readConfiguration(timeout: timeout) else { return nil }
-        return PmsetConfigParser.shared.sleepDisabled(text: text)?.boolValue
+        return PmsetConfigParser.sleepDisabled(text: text)
     }
 
     /// 跑 `pmset -g` 并返回全部输出。命令失败或超时返回 nil。

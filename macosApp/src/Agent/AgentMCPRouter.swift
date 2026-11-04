@@ -1,6 +1,5 @@
 import Foundation
 import MLXLMCommon
-import kmpDomain
 
 struct AgentMCPRequest: Decodable, Sendable {
     let jsonrpc: String

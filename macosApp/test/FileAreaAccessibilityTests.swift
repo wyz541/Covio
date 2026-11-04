@@ -1,6 +1,5 @@
 import SwiftUI
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 文件区的键盘顺序与 VoiceOver 文案。

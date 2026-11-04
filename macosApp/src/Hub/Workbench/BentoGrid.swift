@@ -1,5 +1,4 @@
 import SwiftUI
-import kmpDomain
 
 /// 首页的 bento 网格。合同 `component/bento-grid`，`nativeSize` 是 912 × 420。
 ///

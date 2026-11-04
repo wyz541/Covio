@@ -1,5 +1,4 @@
 import AppKit
-import kmpDomain
 
 /// 菜单栏状态项。它是 Covio 唯一的菜单栏入口。
 ///

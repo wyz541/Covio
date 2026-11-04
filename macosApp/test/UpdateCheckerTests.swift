@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// `GithubUpdateChecker` 的解析与状态判定。

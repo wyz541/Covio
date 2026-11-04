@@ -1,6 +1,5 @@
 import AppKit
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 截图模块的平台叶子：目录监视、系统偏好和剪贴板。
@@ -367,7 +366,7 @@ final class ShelfPlatformTests: XCTestCase {
         let snapshot = ScreenshotInboxSnapshot(
             location: "/Users/someone/Desktop",
             locationScreenshot: nil,
-            showThumbnail: KotlinBoolean(bool: true)
+            showThumbnail: true
         )
 
         XCTAssertTrue(store.restore(snapshot: snapshot))
@@ -397,7 +396,7 @@ final class ShelfPlatformTests: XCTestCase {
         recorder.failWhen = { _ in true }
         let store = MacScreenshotPreferenceStore(runner: recorder.run)
         let snapshot = ScreenshotInboxSnapshot(
-            location: "/tmp", locationScreenshot: "/tmp", showThumbnail: KotlinBoolean(bool: false)
+            location: "/tmp", locationScreenshot: "/tmp", showThumbnail: false
         )
         XCTAssertFalse(store.restore(snapshot: snapshot))
     }

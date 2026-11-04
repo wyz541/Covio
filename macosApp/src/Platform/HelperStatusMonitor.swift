@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 struct HelperStatusSnapshot: @unchecked Sendable {
     let status: HelperStatus
@@ -107,7 +106,7 @@ final class HelperStatusMonitor: NSObject, PrivilegedOps, @unchecked Sendable {
         return accepted
     }
 
-    func hibernateMode() -> KotlinInt? {
+    func hibernateMode() -> Int32? {
         upstream.value.hibernateMode()
     }
 

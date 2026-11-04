@@ -1,7 +1,6 @@
 import Darwin
 import Foundation
 import Security
-import kmpDomain
 
 /// 一次完整握手。调用方只根据返回状态决定是否开放特权写入。
 enum HelperReleaseInspector {

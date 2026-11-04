@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 线上协议的共享语料，在 Swift 侧再跑一遍。

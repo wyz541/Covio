@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 @MainActor
 final class MonitorFanControlModel: ObservableObject {

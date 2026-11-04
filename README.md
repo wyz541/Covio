@@ -40,8 +40,9 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 
 ## Architecture migration
 
-The current product still uses Kotlin Multiplatform for shared logic.
-The target is a Rust core with platform-native UI.
+The macOS product now uses the Rust core with SwiftUI and AppKit.
+The Windows and Android products still use the transitional Kotlin path until their cutovers.
+The target is one Rust core with platform-native UI on all three platforms.
 
 | Platform | Target UI | Rust boundary |
 | --- | --- | --- |
@@ -49,7 +50,7 @@ The target is a Rust core with platform-native UI.
 | macOS | SwiftUI + AppKit | C ABI / cinterop |
 | Android | Kotlin Android UI | JNI / NDK |
 
-The current KMP path remains authoritative until each platform cutover.
+The current KMP path remains authoritative only on platforms that have not cut over.
 The target product will not contain a KMP shared module, a Kotlin JVM product path, or a Windows Compose / JNA path.
 
 - Decision: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
@@ -365,10 +366,9 @@ The script runs the Kotlin tests, checks the design-contract constants, checks t
 Build one side only:
 
 ```sh
-/bin/sh ./kotlin test          # the shared layer, on jvm and macosArm64
-bash scripts/build-kmp-framework.sh   # write build/kmp-framework/kmpDomain.framework
-bash scripts/build-macos-swift.sh     # build the SwiftUI host
-bash scripts/test-macos-swift.sh      # run the SwiftUI host XCTest suite
+/bin/sh ./kotlin test          # the legacy shared layer, on jvm and macosArm64
+bash scripts/build-macos-swift.sh     # build the Rust-core macOS host
+bash scripts/test-macos-swift.sh      # run the host XCTest suite
 ```
 
 Test the Rust core and bridge:
@@ -390,9 +390,10 @@ python3 scripts/generate-contract-constants.py  # rewrite the Swift constants
 The SwiftUI host reads its text and its tokens from `ContractCopy.swift` and `ContractTokens.swift`.
 Both files are generated. Do not edit them by hand.
 
-The macOS host is SwiftUI. The current shared layer is Kotlin Multiplatform, module `kmpDomain`.
-The host links `kmpDomain.framework` during migration. Open `macosApp/Covio.xcodeproj` to work on the host.
-The target path uses a Rust C ABI. See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md).
+The macOS host is SwiftUI and links the Rust core through the C ABI.
+The macOS build does not link or embed a Kotlin framework. Open `macosApp/Covio.xcodeproj` to work on the host.
+The legacy Kotlin shared module remains available to the transitional Android and Windows work until #611.
+See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md).
 
 The project signs ad-hoc by default.
 Ad-hoc signing has no Team ID, so macOS identifies the app by its cdhash.
@@ -508,7 +509,8 @@ The default app downloads model packages through `macosApp/src/Model/LocalModelD
 The downloader uses a fixed manifest revision and stores files under `$HOME/Library/Application Support/com.wyz.covio/Models/`.
 It pauses and resumes through the Hub download cache.
 It verifies the complete package before registering it.
-The manifest, status, registry, and path rules live in `kmpDomain/src/com/wyz/covio/core/ModelPackageContract.kt`.
+The macOS compatibility models and path rules call the Rust application service.
+The legacy Kotlin contract remains for platforms that have not cut over.
 A JVM or Windows host supplies transport and storage adapters. The model runtime remains platform-specific.
 The Windows runtime boundary is recorded in [#391](https://github.com/wyz541/kmp-Covio/issues/391).
 The Agent and file naming views show one shared model setup panel.
@@ -547,7 +549,7 @@ Use `python3 scripts/file_naming_model.py verify-manifest` to validate the fixed
 The icon source is `assets/Covio.iconset`. Run `iconutil --convert icns --output macosApp/src/Covio.icns assets/Covio.iconset` after a change.
 The Xcode target copies `macosApp/src/Covio.icns` into the bundle, so every build carries the icon.
 
-The app is arm64 only. `kmpDomain.framework` has one slice, `macosArm64`.
+The app is arm64 only. The Rust static library and helper are arm64.
 
 ## Real-Mac acceptance checklist
 

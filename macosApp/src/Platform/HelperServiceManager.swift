@@ -1,6 +1,5 @@
 import Foundation
 import ServiceManagement
-import kmpDomain
 
 /// Helper 服务生命周期状态。发布身份握手状态仍由 `HelperStatus` 表示。
 /// `SMAppService` backing 只保留给旧安装迁移和休眠路径。
