@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# 构建独立的最小 root helper。kmpDomain 使用静态 framework 链接，
+# 构建独立的最小 root helper。Rust core 使用静态库链接，
 # 因此 CovioHelper 不依赖 app bundle 内的动态库或可变资源。
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,7 +9,7 @@ CONFIGURATION="${CONFIGURATION:-Debug}"
 OUT_DIR="$ROOT/build/helper"
 INFO_DIR="$ROOT/build/helper-metadata"
 OUTPUT="$OUT_DIR/CovioHelper"
-STATIC_FRAMEWORK="$ROOT/build/kmp-framework-static/kmpDomain.framework"
+RUST_FFI_DIR="$ROOT/build/rust-macos-ffi/$CONFIGURATION"
 HELPER_INFO_SOURCE="$ROOT/macosApp/helper/Info.plist"
 HELPER_INFO="$INFO_DIR/Info.plist"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
@@ -19,10 +19,7 @@ if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   printf 'This script requires an Apple Silicon Mac.\n' >&2
   exit 1
 fi
-if [[ ! -f "$STATIC_FRAMEWORK/kmpDomain" ]]; then
-  printf 'Missing static kmpDomain framework: %s\n' "$STATIC_FRAMEWORK" >&2
-  exit 1
-fi
+bash "$ROOT/scripts/build-rust-macos-ffi.sh" "$CONFIGURATION"
 
 VERSION="${COVIO_CLIENT_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)}"
 PRODUCT_VERSION="${COVIO_PRODUCT_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)}"
@@ -49,6 +46,10 @@ fi
 SOURCES=(
   "$ROOT/macosApp/helper/CovioHelperMain.swift"
   "$ROOT/macosApp/helper/CovioHelperRuntime.swift"
+  "$ROOT/macosApp/src/Core/CovioCoreBridge.swift"
+  "$ROOT/macosApp/src/Core/CovioCoreModels.swift"
+  "$ROOT/macosApp/src/Core/CovioCoreServices.swift"
+  "$ROOT/macosApp/src/Core/CovioHelper.swift"
   "$ROOT/macosApp/src/Design/GeneratedReleaseIdentity.swift"
   "$ROOT/macosApp/src/Design/LocalizedCopy.swift"
   "$ROOT/macosApp/src/Platform/ChargeLimitActiveDischarge.swift"
@@ -79,9 +80,8 @@ SWIFT_FLAGS=(
   -swift-version 6
   -parse-as-library
   -module-name CovioHelper
-  -I "$STATIC_FRAMEWORK/Headers"
-  -F "$(dirname "$STATIC_FRAMEWORK")"
-  -framework kmpDomain
+  -I "$RUST_FFI_DIR/include"
+  "$RUST_FFI_DIR/lib/libcovio_ffi.a"
   -framework Security
   -framework IOKit
   -framework CoreFoundation
@@ -112,7 +112,7 @@ fi
 /usr/bin/codesign --verify --strict "$OUTPUT"
 
 if /usr/bin/otool -L "$OUTPUT" | grep -Fq 'kmpDomain.framework'; then
-  printf 'CovioHelper must not load kmpDomain dynamically.\n' >&2
+  printf 'CovioHelper must not load a Kotlin framework.\n' >&2
   exit 1
 fi
 

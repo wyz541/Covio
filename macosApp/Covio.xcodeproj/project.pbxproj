@@ -9,7 +9,6 @@
 /* Begin PBXFileReference section */
 		C00000000000000000000006 /* Covio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Covio.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C00000000000000000000007 /* CovioTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CovioTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		C0000000000000000000000A /* kmpDomain.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = kmpDomain.framework; path = ../build/kmp-framework/kmpDomain.framework; sourceTree = SOURCE_ROOT; };
 		C00000000000000000000023 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -45,7 +44,6 @@
 			children = (
 				C00000000000000000000008 /* src */,
 				C00000000000000000000009 /* test */,
-				C0000000000000000000000A /* kmpDomain.framework */,
 				C00000000000000000000023 /* Signing.xcconfig */,
 				C00000000000000000000003 /* Products */,
 			);
@@ -63,9 +61,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXBuildFile section */
-		C0000000000000000000000F /* kmpDomain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000A /* kmpDomain.framework */; };
-		C00000000000000000000010 /* kmpDomain.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000A /* kmpDomain.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		C0000000000000000000001E /* kmpDomain.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C0000000000000000000000A /* kmpDomain.framework */; };
 		D00000000000000000000001 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000001 /* MLXLMCommon */; };
 		D00000000000000000000002 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000002 /* MLXVLM */; };
 		D00000000000000000000003 /* MLXGuidedGeneration in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000003 /* MLXGuidedGeneration */; };
@@ -84,17 +79,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		C0000000000000000000000E /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				C00000000000000000000010 /* kmpDomain.framework in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,7 +87,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C0000000000000000000000F /* kmpDomain.framework in Frameworks */,
 				D00000000000000000000001 /* MLXLMCommon in Frameworks */,
 				D00000000000000000000002 /* MLXVLM in Frameworks */,
 				D00000000000000000000003 /* MLXGuidedGeneration in Frameworks */,
@@ -115,7 +99,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C0000000000000000000001E /* kmpDomain.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -139,7 +122,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		C00000000000000000000011 /* Build KMP framework */ = {
+		C00000000000000000000011 /* Build Rust core */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -149,14 +132,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Build KMP framework";
+			name = "Build Rust core";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# kmpDomain.framework 由 konanc 产出，Amper 不做这件事。见 docs/adr/adr-0001-macos-ui-swiftui.md\ncd \"$SRCROOT/..\" || exit 1\nBUILD_TYPE=\"$CONFIGURATION\" bash scripts/build-kmp-framework.sh || exit 1\nbash scripts/build-covio-helper.sh || exit 1\n";
+			shellScript = "cd \"$SRCROOT/..\" || exit 1\nbash scripts/build-rust-macos-ffi.sh \"$CONFIGURATION\" || exit 1\nbash scripts/build-covio-helper.sh || exit 1\n";
 		};
 		C00000000000000000000024 /* Install helper daemon */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -209,11 +192,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C00000000000000000000016 /* Build configuration list for PBXNativeTarget "Covio" */;
 			buildPhases = (
-				C00000000000000000000011 /* Build KMP framework */,
+				C00000000000000000000011 /* Build Rust core */,
 				C0000000000000000000000B /* Sources */,
 				C0000000000000000000000C /* Frameworks */,
 				C0000000000000000000000D /* Resources */,
-				C0000000000000000000000E /* Embed Frameworks */,
 				C00000000000000000000024 /* Install helper daemon */,
 			);
 			buildRules = (
@@ -400,10 +382,15 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
-				FRAMEWORK_SEARCH_PATHS = (
+				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"$(SRCROOT)/../build/kmp-framework",
+					"$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/lib/libcovio_ffi.a",
+					"-framework",
+					Security,
+					"-framework",
+					CoreFoundation,
 				);
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/include";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = src/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -421,10 +408,15 @@
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				FRAMEWORK_SEARCH_PATHS = (
+				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"$(SRCROOT)/../build/kmp-framework",
+					"$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/lib/libcovio_ffi.a",
+					"-framework",
+					Security,
+					"-framework",
+					CoreFoundation,
 				);
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/include";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = src/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -440,16 +432,20 @@
 		C0000000000000000000001C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				FRAMEWORK_SEARCH_PATHS = (
+				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"$(SRCROOT)/../build/kmp-framework",
+					"$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/lib/libcovio_ffi.a",
+					"-framework",
+					Security,
+					"-framework",
+					CoreFoundation,
 				);
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/include";
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@loader_path/../Frameworks",
-					"$(SRCROOT)/../build/kmp-framework",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.wyz.covio.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -461,16 +457,20 @@
 		C0000000000000000000001D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				FRAMEWORK_SEARCH_PATHS = (
+				OTHER_LDFLAGS = (
 					"$(inherited)",
-					"$(SRCROOT)/../build/kmp-framework",
+					"$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/lib/libcovio_ffi.a",
+					"-framework",
+					Security,
+					"-framework",
+					CoreFoundation,
 				);
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/include";
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@loader_path/../Frameworks",
-					"$(SRCROOT)/../build/kmp-framework",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.wyz.covio.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";

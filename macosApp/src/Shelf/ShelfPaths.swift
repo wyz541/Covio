@@ -2,7 +2,7 @@ import Foundation
 
 /// 截图库用到的路径。
 ///
-/// 与 `kmpDomain/src/com/wyz/covio/core/AppDirectories.kt` 一致。
+/// 与 Rust core 的 Apple data layout 一致。
 ///
 /// 注意应用数据目录用的是应用名 `Covio`，配置目录用的是 bundle id `com.wyz.covio`。
 /// 两者不同，这是 0.4.2 的既有布局，不能改，否则老用户的截图索引会找不到。

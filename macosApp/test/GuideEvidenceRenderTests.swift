@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 为项目说明书生成真实 SwiftUI 组件的证据图。

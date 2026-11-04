@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 protocol FanControlTemperatureReading {
     func read(sensorKeys: Set<String>?) -> SMCFanReadingSnapshot

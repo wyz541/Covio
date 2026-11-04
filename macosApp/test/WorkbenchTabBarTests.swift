@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 顶栏与编辑模式的形态。

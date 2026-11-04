@@ -40,6 +40,8 @@ pub struct EngineDependencies {
     pub now_millis: Box<dyn Fn() -> i64>,
     /// Delay used between wake-log retries.
     pub wake_delay: Box<dyn Fn(i64)>,
+    /// Optional host executor for one wake-log scan.
+    pub wake_scan_executor: Option<Box<dyn Fn(bool)>>,
     /// Delay between wake-log retries.
     pub wake_retry_delay_millis: i64,
     /// Number of wake-log retries.
@@ -77,6 +79,7 @@ pub struct Engine {
     state_listener: Box<dyn StateListener>,
     now_millis: Box<dyn Fn() -> i64>,
     wake_delay: Box<dyn Fn(i64)>,
+    wake_scan_executor: Option<Box<dyn Fn(bool)>>,
     wake_retry_delay_millis: i64,
     wake_retry_count: usize,
     wake_cache_now_millis: Box<dyn Fn() -> i64>,
@@ -119,6 +122,7 @@ impl Engine {
             state_listener: dependencies.state_listener,
             now_millis: dependencies.now_millis,
             wake_delay: dependencies.wake_delay,
+            wake_scan_executor: dependencies.wake_scan_executor,
             wake_retry_delay_millis: dependencies.wake_retry_delay_millis,
             wake_retry_count: dependencies.wake_retry_count,
             wake_cache_now_millis: dependencies.wake_cache_now_millis,
@@ -221,7 +225,11 @@ impl Engine {
 
     /// Advances timers and refreshes helper state.
     pub fn tick(&mut self) {
-        let now = (self.now_millis)();
+        self.tick_at((self.now_millis)());
+    }
+
+    /// Advances timers using an explicit wall-clock value in Unix milliseconds.
+    pub fn tick_at(&mut self, now: i64) {
         if self
             .restore_due_at_millis
             .is_some_and(|deadline| deadline <= now)
@@ -818,7 +826,11 @@ impl Engine {
         self.wake_scan_scheduled = true;
         self.state.dark_wake.scanning = true;
         self.publish();
-        self.run_wake_scan(initial);
+        if let Some(executor) = &self.wake_scan_executor {
+            executor(initial);
+        } else {
+            self.run_wake_scan(initial);
+        }
     }
 
     fn start_initial_wake_scan(&mut self) {
@@ -1349,6 +1361,7 @@ mod tests {
                     wake_delay: Box::new(move |_| {
                         delay_counter.fetch_add(1, Ordering::SeqCst);
                     }),
+                    wake_scan_executor: None,
                     wake_retry_delay_millis: 1_000,
                     wake_retry_count: 3,
                     wake_cache_now_millis: Box::new(move || *cache_dep.lock().unwrap()),

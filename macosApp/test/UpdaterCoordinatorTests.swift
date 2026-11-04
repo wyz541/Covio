@@ -10,17 +10,24 @@ final class UpdaterCoordinatorTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let paths = UpdaterPaths(root: root)
         let currentReleaseId = "0.6.0-internal.23-g" + String(repeating: "a", count: 40)
+        let nextBuild = GeneratedReleaseIdentity.buildNumber + 1
+        let nextClientVersion = "0.6.0-internal.\(nextBuild)"
+        let releaseTag = "v\(nextClientVersion)"
         let signingKey = Curve25519.Signing.PrivateKey()
         let manifestURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.25/CovioUpdate-0.6.0-internal.25.json"
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).json"
         ))
         let signatureURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.25/CovioUpdate-0.6.0-internal.25.sig.json"
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).sig.json"
         ))
         let archiveURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.25/CovioUpdate-0.6.0-internal.25.zip"
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).zip"
         ))
-        let manifest = makeManifest(archiveURL: archiveURL.absoluteString)
+        let manifest = makeManifest(
+            archiveURL: archiveURL.absoluteString,
+            clientVersion: nextClientVersion,
+            buildNumber: nextBuild
+        )
         let manifestData = try JSONEncoder().encode(manifest)
         let signature = try signingKey.signature(for: manifestData)
         let signatureData = try JSONEncoder().encode(
@@ -47,8 +54,8 @@ final class UpdaterCoordinatorTests: XCTestCase {
         let feed = FixedUpdaterFeed(
             releases: [
                 UpdaterReleaseCandidate(
-                    tagName: "v0.6.0-internal.25",
-                    clientVersion: "0.6.0-internal.25",
+                    tagName: releaseTag,
+                    clientVersion: nextClientVersion,
                     manifestURL: manifestURL,
                     signatureURL: signatureURL,
                     archiveURL: archiveURL,
@@ -73,7 +80,7 @@ final class UpdaterCoordinatorTests: XCTestCase {
         }
         wait(for: [finished], timeout: 5)
         XCTAssertEqual(result?.state, .available)
-        XCTAssertEqual(result?.availableVersion, "0.6.0-internal.25")
+        XCTAssertEqual(result?.availableVersion, nextClientVersion)
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.candidateManifest.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.candidateSignature.path))
         XCTAssertEqual(coordinator.persistedStatus.state, .available)
@@ -86,7 +93,7 @@ final class UpdaterCoordinatorTests: XCTestCase {
             session: session,
             environment: ["COVIO_UPDATER_TEST_MODE": "1"]
         )
-        XCTAssertEqual(restarted.persistedStatus.availableVersion, "0.6.0-internal.25")
+        XCTAssertEqual(restarted.persistedStatus.availableVersion, nextClientVersion)
     }
 
     func testStartupDoesNotRecoverAnActivePKGTransaction() throws {
@@ -154,16 +161,20 @@ final class UpdaterCoordinatorTests: XCTestCase {
         )
     }
 
-    private func makeManifest(archiveURL: String) -> UpdateManifest {
+    private func makeManifest(
+        archiveURL: String,
+        clientVersion: String,
+        buildNumber: Int
+    ) -> UpdateManifest {
         UpdateManifest(
             schemaVersion: 2,
             keyId: "test-key",
             channel: "internal",
-            productVersion: "0.6.0",
-            clientVersion: "0.6.0-internal.25",
-            buildNumber: 25,
+            productVersion: GeneratedReleaseIdentity.productVersion,
+            clientVersion: clientVersion,
+            buildNumber: buildNumber,
             gitCommit: String(repeating: "b", count: 40),
-            releaseId: "0.6.0-internal.25-g" + String(repeating: "b", count: 40),
+            releaseId: "\(clientVersion)-g" + String(repeating: "b", count: 40),
             helperProtocolVersion: GeneratedReleaseIdentity.helperProtocolVersion,
             updaterProtocolVersion: UpdaterContract.protocolVersion,
             minimumMacOSVersion: "14.0",

@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 @MainActor
@@ -174,7 +173,7 @@ private final class MonitorPrivilegedOps: NSObject, PrivilegedOps, @unchecked Se
     }
 
     func helperVersion() -> String? {
-        GeneratedReleaseIdentityKt.APP_VERSION
+        CovioReleaseIdentity.APP_VERSION
     }
 
     func install() -> Bool { true }
@@ -186,7 +185,7 @@ private final class MonitorPrivilegedOps: NSObject, PrivilegedOps, @unchecked Se
         return true
     }
 
-    func hibernateMode() -> KotlinInt? { nil }
+    func hibernateMode() -> Int32? { nil }
 
     func setHibernateMode(mode: Int32) -> Bool { true }
 
@@ -198,10 +197,10 @@ private final class MonitorPrivilegedOps: NSObject, PrivilegedOps, @unchecked Se
         return LidLeaseStatus(
             available: state.0 == .match,
             protocolVersion: state.0 == .match ? HelperProtocol.protocolVersion : nil,
-            sleepDisabled: KotlinBoolean(bool: state.1),
-            covioOwned: KotlinBoolean(bool: state.1),
+            sleepDisabled: state.1,
+            covioOwned: state.1,
             activeLeaseCount: state.1 ? 1 : 0,
-            expiresAtEpochSeconds: state.1 ? KotlinLong(longLong: Int64.max) : nil,
+            expiresAtEpochSeconds: state.1 ? Int64.max : nil,
             error: nil
         )
     }

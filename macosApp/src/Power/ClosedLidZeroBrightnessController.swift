@@ -1,6 +1,5 @@
 import CoreGraphics
 import Foundation
-import kmpDomain
 import os
 
 enum ClosedLidZeroBrightnessPhase: Equatable, Sendable {
@@ -31,7 +30,7 @@ final class ClosedLidZeroBrightnessController {
     private let backend: ClosedLidBrightnessBackend
     private let store: ClosedLidBrightnessRecoveryStoring
     private let nowEpochSeconds: () -> Int64
-    private let logger = Logger(subsystem: ModelsKt.APP_ID, category: "ClosedLidDisplay")
+    private let logger = Logger(subsystem: CovioRuntimeConstants.APP_ID, category: "ClosedLidDisplay")
 
     private(set) var phase: ClosedLidZeroBrightnessPhase = .disabled
     private(set) var lastError: String?

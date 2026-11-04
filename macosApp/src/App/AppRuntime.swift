@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 
 /// SwiftUI 版的运行时。对应 Compose 版的 `AppRuntime`。
 ///
@@ -363,12 +362,12 @@ final class AppRuntime {
             // 下面这三个闭包由引擎在后台唤醒扫描线程上调用。
             // 标 `@Sendable` 让它们脱离主 actor；不标的话闭包继承 `init` 的隔离，
             // 后台线程一调就撞 `dispatch_assert_queue` 断言。
-            clock: { @Sendable in KotlinLong(longLong: AppRuntime.nowMillis()) },
+            clock: { @Sendable in AppRuntime.nowMillis() },
             stateListener: forwarder,
             // 引擎要求这个块跑在别的线程上。Kotlin 的函数类型不是 Sendable，
-            // 用 `KotlinBox` 把「按约定跨线程」这件事写在一处。
+            // 用 `SendableBox` 把「按约定跨线程」这件事写在一处。
             wakeScanExecutor: { @Sendable block in
-                let box = KotlinBox(block)
+                let box = SendableBox(block)
                 DispatchQueue.global(qos: .utility).async { _ = box.value() }
             },
             wakeDelay: { @Sendable millis in
@@ -377,7 +376,7 @@ final class AppRuntime {
             },
             wakeRetryDelayMillis: 1_000,
             wakeRetryCount: 3,
-            wakeCacheNowMillis: { @Sendable in KotlinLong(longLong: AppRuntime.nowMillis()) }
+            wakeCacheNowMillis: { @Sendable in AppRuntime.nowMillis() }
         )
         self.engine = engine
         self.powerRuntime = PowerRuntime(
@@ -592,7 +591,7 @@ final class AppRuntime {
     /// 启动引擎与两条后台节奏。可以重复调用，第二次没有副作用。
     func start() {
         guard tickTimer == nil else { return }
-        logger.info(message: "Covio \(GeneratedReleaseIdentityKt.APP_VERSION) starting")
+        logger.info(message: "Covio \(CovioReleaseIdentity.APP_VERSION) starting")
 
         helperServiceState = helperServiceManager.state
         helperMonitor?.requestProbe(force: true)
@@ -862,7 +861,7 @@ final class AppRuntime {
         if !enabled { availableUpdate = nil }
         write { $0.updateCheckEnabled = enabled }
     }
-    func setSleepMode(_ mode: Int32) { write { $0.hibernateMode = KotlinInt(int: mode) } }
+    func setSleepMode(_ mode: Int32) { write { $0.hibernateMode = mode } }
 
     /// 设置语言偏好。跟随系统时写入空字符串，保持与旧版配置兼容。
     func setLanguagePreference(_ preference: AppLanguagePreference) {
@@ -1289,7 +1288,7 @@ final class AppRuntime {
         }
 #endif
         let now = AppRuntime.nowEpochSeconds()
-        if !manual && !UpdatePolicy.shared.shouldCheck(config: config, nowEpochSeconds: now) { return }
+        if !manual && !UpdatePolicy.shouldCheck(config: config, nowEpochSeconds: now) { return }
         guard !isCheckingForUpdates else { return }
         isCheckingForUpdates = true
         Task { @MainActor in
@@ -1302,9 +1301,9 @@ final class AppRuntime {
                 }
                 return
             }
-            let update = UpdatePolicy.shared.selectUpdate(
+            let update = UpdatePolicy.selectUpdate(
                 candidate: release,
-                currentVersion: GeneratedReleaseIdentityKt.APP_VERSION
+                currentVersion: CovioReleaseIdentity.APP_VERSION
             )
             availableUpdate = update
             if let update {
@@ -1328,12 +1327,12 @@ final class AppRuntime {
     ///
     /// `UpdateChecker` 是 ObjC 协议，Swift 看不出实现能不能跨线程。
     /// 唯一的实现 `GithubUpdateChecker` 只持有不可变的 URL 与 URLSession，
-    /// 两者都线程安全，所以用 `KotlinBox` 显式声明。
-    private static func fetchRelease(_ checker: UpdateChecker) async -> KotlinBox<UpdateInfo?> {
-        let boxedChecker = KotlinBox(checker)
+    /// 两者都线程安全，所以用 `SendableBox` 显式声明。
+    private static func fetchRelease(_ checker: UpdateChecker) async -> SendableBox<UpdateInfo?> {
+        let boxedChecker = SendableBox(checker)
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
-                continuation.resume(returning: KotlinBox(boxedChecker.value.latestRelease()))
+                continuation.resume(returning: SendableBox(boxedChecker.value.latestRelease()))
             }
         }
     }
@@ -1501,7 +1500,7 @@ final class AppRuntime {
     private func syncHibernateMode() {
         guard let actual = privileged.hibernateMode() else { return }
         guard actual.int32Value != config.hibernateMode?.int32Value else { return }
-        write { $0.hibernateMode = KotlinInt(int: actual.int32Value) }
+        write { $0.hibernateMode = actual }
     }
 
     /// 引擎启动前的状态。全默认，只有 `enabled` 来自配置。
@@ -1584,7 +1583,7 @@ final class ConfigDraft {
     var updateCheckEnabled: Bool
     var updateCheckIntervalHours: Int32
     var lastUpdateCheckEpochSeconds: Int64
-    var hibernateMode: KotlinInt?
+    var hibernateMode: Int32?
     var firstRun: Bool
     var clipboardEnabled: Bool
     var clipboardPasteStackHotKey: String
@@ -1678,7 +1677,7 @@ private final class StateForwarder: NSObject, StateListener {
         // 都跨了线程，而它只该带走这一个闭包。
         // 闭包自身标了 `@Sendable`，所以这是允许的。
         guard let handler else { return }
-        let box = KotlinBox(state)
+        let box = SendableBox(state)
         DispatchQueue.main.async {
             MainActor.assumeIsolated { handler(box.value) }
         }
@@ -1690,7 +1689,7 @@ private final class StateForwarder: NSObject, StateListener {
 /// Kotlin 的 data class 导出到 Swift 后字段全只读，跨线程传是安全的，
 /// 但 Swift 看不到这一点。用它把这件事写在一处，
 /// 而不是在每个调用点撒 `@unchecked Sendable`。
-final class KotlinBox<Value>: @unchecked Sendable {
+final class SendableBox<Value>: @unchecked Sendable {
     let value: Value
 
     init(_ value: Value) { self.value = value }

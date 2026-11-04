@@ -521,9 +521,12 @@ impl<F: FileStore> WorkspaceStore<F> {
                             persisted: true,
                         }
                     }
-                    Err(_) => {
-                        WorkspacePutResult::rejected(state.clone(), WorkspaceAdmission::Failed)
-                    }
+                    Err(_) => WorkspacePutResult {
+                        state: state.clone(),
+                        entry: None,
+                        admission: WorkspaceAdmission::Accepted,
+                        persisted: false,
+                    },
                 }
             }
             WorkspaceAdmission::Duplicate => {

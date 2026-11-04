@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 统一文件区的几何、动作顺序和无障碍文案。

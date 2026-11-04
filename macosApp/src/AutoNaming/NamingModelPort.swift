@@ -1,6 +1,5 @@
 import Darwin
 import Foundation
-import kmpDomain
 
 /// 模型错误码。UI 与测试只看错误码，不解析底层错误文本。
 enum NamingModelErrorCode: String, Error, Sendable, Equatable {

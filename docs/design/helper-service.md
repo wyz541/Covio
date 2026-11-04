@@ -57,8 +57,8 @@ helper 对每个 XPC 客户端检查代码签名要求。
 
 ## 自包含边界
 
-`CovioHelper` 静态链接 `kmpDomain`。
-`CovioHelper` 不加载 app 内的 `kmpDomain.framework`。
+`CovioHelper` 静态链接 Rust core。
+`CovioHelper` 不加载 app 内的共享 framework。
 `CovioHelper` 不链接 SwiftUI、AppKit、Vision、AVFoundation 或模型运行库。
 
 ## 身份握手

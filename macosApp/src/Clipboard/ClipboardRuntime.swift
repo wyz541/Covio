@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 
 /// 剪切板里可以改键的两个动作。
 ///
@@ -267,7 +266,7 @@ final class ClipboardRuntime {
         // Kotlin 的 `Pair` 到 Swift 是类，不能按元组解构。
         // `first` 是剩下的栈，`second` 是队首。
         let next = ClipboardLogic.shared.nextPaste(state: currentState())
-        pasteStack = next.first?.pasteStack ?? []
+        pasteStack = next.first.pasteStack
         save()
         guard let item = next.second else { return false }
         return paste(item.id)
@@ -424,7 +423,7 @@ final class ClipboardRuntime {
             items: items,
             policy: policy,
             nowEpochSeconds: environment.now(),
-            exists: { path in KotlinBoolean(bool: FileManager.default.fileExists(atPath: path)) }
+            exists: { path in FileManager.default.fileExists(atPath: path) }
         )
         items = pruned
         let live = Set(items.map(\.id))

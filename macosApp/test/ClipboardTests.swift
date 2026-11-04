@@ -1,7 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 假的快捷键注册表。

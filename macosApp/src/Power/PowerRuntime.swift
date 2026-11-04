@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import SwiftUI
-import kmpDomain
 
 extension ClosedLidPowerPolicy {
     var stableID: String {
@@ -206,9 +205,9 @@ final class PowerRuntime {
         let capEnd = lease.createdAtEpochSeconds + Int64(config.closedLidTimeCapMinutes) * 60
         let end: Int64?
         if lease.level == .closedLid {
-            end = lease.expiresAtEpochSeconds.map { min($0.int64Value, capEnd) } ?? capEnd
+            end = lease.expiresAtEpochSeconds.map { min($0, capEnd) } ?? capEnd
         } else {
-            end = lease.expiresAtEpochSeconds?.int64Value
+            end = lease.expiresAtEpochSeconds
         }
         return end.map { max(0, $0 - nowEpochSeconds()) }
     }
@@ -307,7 +306,7 @@ final class PowerRuntime {
             source: .manual,
             reason: Self.sessionReason,
             createdAtEpochSeconds: now,
-            expiresAtEpochSeconds: duration.seconds.map { KotlinLong(longLong: now + $0) }
+            expiresAtEpochSeconds: duration.seconds.map { now + $0 }
         )
         leases.removeAll { $0.source == .manual && $0.reason == Self.sessionReason }
         leases.append(lease)
@@ -321,8 +320,8 @@ final class PowerRuntime {
         }
         let lidVerified = mode != .lid || (
             decision.preventLidSleep &&
-                latestLidStatus.sleepDisabled?.boolValue == true &&
-                latestLidStatus.covioOwned?.boolValue == true
+                latestLidStatus.sleepDisabled == true &&
+                latestLidStatus.covioOwned == true
         )
         let failureReason = mode == .lid && acted && !lidVerified
             ? Self.lidNotAppliedError
@@ -522,7 +521,7 @@ final class PowerRuntime {
                     source: .rule,
                     reason: Self.automaticClosedLidReason,
                     createdAtEpochSeconds: capStart,
-                    expiresAtEpochSeconds: KotlinLong(longLong: capEnd)
+                    expiresAtEpochSeconds: capEnd
                 )
             )
             recordHistory(.holdStarted, detail: lease.detail, at: now)
@@ -691,7 +690,7 @@ final class PowerRuntime {
     private func applyClosedLidZeroBrightness(decision: PowerDecision) {
         let blackScreenRequested = displayConfig.closedLidDisplayMode == .blackScreenPipeline
         let wantsPrivatePath = blackScreenRequested && decision.preventLidSleep
-        let externalDisplayCount = observation.externalDisplayCount?.intValue
+        let externalDisplayCount = observation.externalDisplayCount.map(Int.init)
         let canOwnDisplay = wantsPrivatePath &&
             closedLidZeroBrightnessAvailability.isAvailable &&
             externalDisplayCount == 0 &&

@@ -1,7 +1,6 @@
 import AppKit
 import Combine
 import SwiftUI
-import kmpDomain
 
 /// 一行数字输入。
 ///
@@ -163,7 +162,7 @@ struct HotKeyRow: View {
 
 /// 休眠模式。取值来自 Kotlin 的 `SUPPORTED_HIBERNATE_MODES`，不在这里写死。
 enum SleepModeOptions {
-    static let modes: [Int32] = ModelsKt.SUPPORTED_HIBERNATE_MODES
+    static let modes: [Int32] = CovioRuntimeConstants.SUPPORTED_HIBERNATE_MODES
         .map { $0.int32Value }
         .sorted()
 }

@@ -195,21 +195,18 @@ release clean     删除已发布 tag 的 release worktree
 因此 Release 的 commit 就是 bump PR 合并后的 main，不是本地分支。
 `release draft` 和直接 Release 打包复用主 checkout 的持久缓存。
 缓存只减少重复编译。缓存不改变 release identity、签名或资产验证。
-打包任务锁定全部缓存。缓存路径如下：
+打包任务锁定 macOS 构建缓存。缓存路径如下：
 
 - `build/release-xcode-cache`：DerivedData。
 - `build/release-source-packages`：Swift Package checkout。
-- `build/release-kmp-cache`：KMP 动态和静态 Framework。
 
-设置 `COVIO_RELEASE_DERIVED_DATA`、`COVIO_RELEASE_SOURCE_PACKAGES` 或 `COVIO_RELEASE_KMP_CACHE_DIR` 可以改缓存位置。
+设置 `COVIO_RELEASE_DERIVED_DATA` 或 `COVIO_RELEASE_SOURCE_PACKAGES` 可以改缓存位置。
 Release 使用普通 `xcodebuild build`。
 打包输入是 `Build/Products/Release/Covio.app`。
 共享缓存因此可以复用未变化的 MLX 和 SwiftPM 构建产物。
 Package 解析单独运行并记录 `package resolve` 阶段耗时。
-KMP 缓存键覆盖源码、依赖 klib、konanc 与 Java 版本和链接参数。
-KMP 输入未变化时，动态和静态 Framework 都跳过链接。
-任一链接失败时，脚本不替换原有 Framework，也不更新缓存戳。
-共享 KMP 缓存只供 Release 打包使用。Debug 构建继续使用 worktree 内的 Framework。
+macOS 包不嵌入 KMP Framework。app 和 helper 都静态链接 Rust core。
+KMP 缓存测试仍保留到 #611 删除 shared module 为止，但 macOS 打包路径不调用它。
 GitHub Actions 不运行 macOS SwiftUI 作业。
 macOS 测试和 Release 构建由发布 Mac 负责。
 创建 Draft 前，维护者必须在本机运行 `bash scripts/test-all.sh`。

@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 内置组件的种类。
 ///

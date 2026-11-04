@@ -1,6 +1,5 @@
 import CoreGraphics
 import XCTest
-import kmpDomain
 @testable import Covio
 
 @MainActor

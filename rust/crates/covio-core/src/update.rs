@@ -1,9 +1,11 @@
 //! Update selection and update-check timing.
 
 use crate::{AppConfig, version::is_newer_version, version::is_stable_version};
+use serde::{Deserialize, Serialize};
 
 /// One release candidate returned by an update source.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     /// Release version.
     pub version: String,

@@ -1,6 +1,7 @@
 use covio_core::workspace::{
-    WorkspaceAvailability, WorkspaceEntry, WorkspaceErrorCode, WorkspaceKind, WorkspacePolicy,
-    WorkspaceState, WorkspaceStore, WorkspaceTombstone, WorkspaceTransferEngine, WorkspaceWire,
+    WorkspaceAdmission, WorkspaceAvailability, WorkspaceEntry, WorkspaceErrorCode, WorkspaceKind,
+    WorkspacePolicy, WorkspaceState, WorkspaceStore, WorkspaceTombstone, WorkspaceTransferEngine,
+    WorkspaceWire,
 };
 use covio_platform::{FileStore, PlatformError};
 use serde_json::Value;
@@ -22,6 +23,7 @@ const RESPONSE_FIXTURE: &str = include_str!("fixtures/workspace-response.json");
 struct MemoryInner {
     files: RefCell<BTreeMap<PathBuf, Vec<u8>>>,
     fail_write: RefCell<bool>,
+    fail_write_path: RefCell<Option<PathBuf>>,
 }
 
 #[derive(Clone, Default)]
@@ -81,7 +83,7 @@ impl FileStore for MemoryFiles {
     }
 
     fn write_atomic(&self, path: &Path, contents: &[u8]) -> Result<(), PlatformError> {
-        if *self.0.fail_write.borrow() {
+        if *self.0.fail_write.borrow() || self.0.fail_write_path.borrow().as_deref() == Some(path) {
             return Err(PlatformError::io("write failed", false));
         }
         self.0
@@ -242,6 +244,22 @@ fn put_file_reads_and_commits_content_through_the_filesystem_port() {
         store.read_content(&entry.entry_id).as_deref(),
         Some(b"file content".as_slice())
     );
+}
+
+#[test]
+fn failed_index_write_keeps_the_accepted_result_without_persisting_it() {
+    let source = "/tmp/covio/index-failure-source.txt";
+    let files = MemoryFiles::with_file(source, "file content");
+    *files.0.fail_write_path.borrow_mut() = Some(PathBuf::from(INDEX_PATH));
+    let store = WorkspaceStore::new(WORKSPACE_DIR, files);
+    let state = WorkspaceState::default();
+
+    let result = store.put_file(&state, source, "source.txt", "text/plain", "device-a", 10);
+
+    assert_eq!(result.admission, WorkspaceAdmission::Accepted);
+    assert!(!result.persisted);
+    assert!(result.entry.is_none());
+    assert_eq!(result.state, state);
 }
 
 #[test]

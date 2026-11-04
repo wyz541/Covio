@@ -1,5 +1,4 @@
 import SwiftUI
-import kmpDomain
 
 /// 应用入口。
 ///

@@ -75,6 +75,7 @@ dependencies = [
  "covio-bridge",
  "covio-core",
  "covio-platform",
+ "serde",
  "serde_json",
 ]
 

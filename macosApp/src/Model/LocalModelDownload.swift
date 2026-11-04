@@ -1,6 +1,5 @@
 import Foundation
 import Hub
-import kmpDomain
 
 enum LocalModelDownloadPhase: String, Codable, Sendable, Equatable {
     case notDownloaded

@@ -56,7 +56,7 @@ Do not edit generated files by hand.
 
 The source manifest contains the release inputs.
 The artifact manifest adds `gitCommit`, `releaseId`, `helperSHA256`, both installer identities and the model identity.
-`CovioHelper` statically links `kmpDomain`; the app bundle must not supply its runtime dependencies.
+`CovioHelper` statically links the Rust core; the app bundle must not supply its runtime dependencies.
 
 Build the default slim app:
 
@@ -66,18 +66,14 @@ bash scripts/package-macos-swift.sh
 ```
 
 `scripts/covio release draft` and direct Release packaging reuse persistent caches outside the clean release worktree.
-The packaging job locks all three caches, and every release identity and asset check still runs.
+The packaging job locks the macOS build caches, and every release identity and asset check still runs.
 
 - DerivedData defaults to the primary checkout at `build/release-xcode-cache`.
 - Swift Package checkout defaults to the primary checkout at `build/release-source-packages`.
-- KMP frameworks default to the primary checkout at `build/release-kmp-cache`.
-
-Set `COVIO_RELEASE_DERIVED_DATA`, `COVIO_RELEASE_SOURCE_PACKAGES` or `COVIO_RELEASE_KMP_CACHE_DIR` to use another cache directory.
+Set `COVIO_RELEASE_DERIVED_DATA` or `COVIO_RELEASE_SOURCE_PACKAGES` to use another cache directory.
 The package script uses `xcodebuild build` and reads `Build/Products/Release/Covio.app`.
 It does not run a fresh Xcode archive for every release.
-The KMP cache key covers KMP sources, dependency klibs, konanc and Java versions, and link flags.
-An unchanged KMP input skips both dynamic and static framework links.
-Only Release packaging uses the shared KMP cache. Debug builds keep their frameworks inside the worktree.
+The macOS package embeds no KMP framework. It links the Rust static library into the app and helper.
 
 Internal Release creation requires a stable local signing identity.
 The app and helper must use the same certificate.

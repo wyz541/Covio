@@ -1,6 +1,5 @@
 import Foundation
 import MLXLMCommon
-import kmpDomain
 
 struct AgentMCPRequest: Decodable, Sendable {
     let jsonrpc: String
@@ -82,7 +81,7 @@ actor AgentMCPRouter {
             ]),
             "serverInfo": .object([
                 "name": .string("Covio"),
-                "version": .string(GeneratedReleaseIdentityKt.APP_VERSION),
+                "version": .string(CovioReleaseIdentity.APP_VERSION),
             ]),
             "instructions": .string(
                 "Covio local services. Side effects require confirmation in the Covio app."

@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// helper 的合盖租约协调器。
 ///
@@ -248,7 +247,7 @@ final class HelperLeaseCoordinator: @unchecked Sendable {
         guard let expiresAt = current.expiresAtEpochSeconds else { return }
         expiryGeneration += 1
         let generation = expiryGeneration
-        let delay = max(1, expiresAt.int64Value - environment.nowEpochSeconds())
+        let delay = max(1, expiresAt - environment.nowEpochSeconds())
         environment.schedule(delay) { [weak self] in
             guard let self else { return }
             self.queue.async {
@@ -265,8 +264,8 @@ final class HelperLeaseCoordinator: @unchecked Sendable {
         let owner = environment.readOwner()
         let status = HelperWire.shared.leaseStatusReply(
             requestId: requestId,
-            sleepDisabled: disabled.map { KotlinBoolean(bool: $0) },
-            covioOwned: owner.map { KotlinBoolean(bool: $0 == HelperProtocol.sleepOwnerValue) },
+            sleepDisabled: disabled,
+            covioOwned: owner.map { $0 == HelperProtocol.sleepOwnerValue },
             activeLeaseCount: Int32(snapshot.activeCount),
             expiresAtEpochSeconds: snapshot.expiresAtEpochSeconds
         )
@@ -281,7 +280,7 @@ extension HelperLeaseCoordinator.Environment {
             nowEpochSeconds: { Int64(Date().timeIntervalSince1970) },
             readSleepDisabled: {
                 guard let text = PmsetReader.readConfiguration() else { return nil }
-                return PmsetConfigParser.shared.sleepDisabled(text: text)?.boolValue
+                return PmsetConfigParser.sleepDisabled(text: text)
             },
             writeSleepDisabled: { disabled in
                 runPmset(HelperWire.shared.disableSleepArguments(disabled: disabled))

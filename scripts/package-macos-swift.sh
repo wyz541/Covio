@@ -17,8 +17,6 @@ SCHEME="Covio"
 CONFIGURATION="Release"
 DERIVED_DATA="$(release_derived_data_path "$ROOT")"
 SOURCE_PACKAGES_DIR="$(release_source_packages_path "$ROOT")"
-KMP_CACHE_DIR="$(release_kmp_cache_path "$ROOT")"
-export COVIO_RELEASE_KMP_CACHE_DIR="$KMP_CACHE_DIR"
 APP_NAME="Covio"
 APP_ID="com.wyz.covio"
 ICON="$ROOT/macosApp/src/Covio.icns"
@@ -41,9 +39,9 @@ phase_done() {
   PHASE_START=$SECONDS
 }
 
-# Release worktrees share DerivedData, SwiftPM checkouts and KMP frameworks.
+# Release worktrees share DerivedData and SwiftPM checkouts.
 # One lock prevents concurrent packaging jobs from changing those caches.
-mkdir -p "$(dirname "$DERIVED_DATA")" "$(dirname "$SOURCE_PACKAGES_DIR")" "$KMP_CACHE_DIR"
+mkdir -p "$(dirname "$DERIVED_DATA")" "$(dirname "$SOURCE_PACKAGES_DIR")"
 CACHE_LOCK_PATH="$DERIVED_DATA.lock"
 if ! /usr/bin/shlock -f "$CACHE_LOCK_PATH" -p $$; then
   printf 'Release build cache is in use: %s\n' "$DERIVED_DATA" >&2
@@ -153,7 +151,7 @@ mkdir -p "$DIST"
 
 cd "$ROOT"
 
-# ARCHS 在工程里也写死为 arm64：kmpDomain.framework 只有 macosArm64 一个切片。
+# ARCHS 在工程里也写死为 arm64：Rust core 和 helper 都只产出 arm64。
 # 这里再传一次，任何人从命令行归档都得到同样的结果。
 XCODE_SIGN_ARGS=()
 if [[ -n "$RELEASE_SIGN_IDENTITY" && "$RELEASE_SIGN_IDENTITY" != "-" ]]; then
@@ -185,7 +183,6 @@ XCODE_COMMON_ARGS=(
 
 printf 'Release DerivedData: %s\n' "$DERIVED_DATA"
 printf 'SwiftPM cache:       %s\n' "$SOURCE_PACKAGES_DIR"
-printf 'KMP cache:           %s\n' "$KMP_CACHE_DIR"
 
 xcodebuild "${XCODE_COMMON_ARGS[@]}" -resolvePackageDependencies
 phase_done "package resolve"
@@ -198,7 +195,6 @@ xcodebuild \
   COVIO_PRODUCT_VERSION="$PRODUCT_VERSION" \
   COVIO_GIT_COMMIT="$COMMIT" \
   COVIO_RELEASE_ID="$RELEASE_ID" \
-  COVIO_RELEASE_KMP_CACHE_DIR="$KMP_CACHE_DIR" \
   "${XCODE_SIGN_ARGS[@]}" \
   build
 
@@ -309,8 +305,8 @@ if [[ ! -f "$APP_IMAGE/Contents/Resources/$APP_NAME.icns" ]]; then
 fi
 require_plist CFBundleIconFile "$APP_NAME.icns"
 
-if [[ ! -d "$APP_IMAGE/Contents/Frameworks/kmpDomain.framework" ]]; then
-  printf 'Missing embedded framework: %s\n' "$APP_IMAGE/Contents/Frameworks/kmpDomain.framework" >&2
+if find "$APP_IMAGE" -name 'kmpDomain.framework' -print -quit | grep -q .; then
+  printf 'KMP framework must not be embedded in the Rust-core app bundle.\n' >&2
   exit 1
 fi
 

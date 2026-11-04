@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 工作区用到的路径。
 ///

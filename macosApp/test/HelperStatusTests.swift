@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// `PrivilegedOps.status()` 的完整发布身份握手。
@@ -108,7 +107,7 @@ final class HelperStatusTests: XCTestCase {
     func testLegacyReplyMeansOutdated() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: GeneratedReleaseIdentityKt.APP_VERSION,
+            version: CovioReleaseIdentity.APP_VERSION,
             protocolVersion: HelperProtocol.protocolVersion
         )
         defer { helper.stop() }
@@ -265,7 +264,7 @@ final class HelperStatusTests: XCTestCase {
     }
 
     func testChargeLimitStatusParsesTheHelperReply() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: GeneratedReleaseIdentityKt.APP_VERSION)
+        let helper = try FakeHelper(socketPath: socketPath, version: CovioReleaseIdentity.APP_VERSION)
         defer { helper.stop() }
 
         let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
@@ -285,7 +284,7 @@ final class HelperStatusTests: XCTestCase {
     }
 
     func testChargeLimitCommandsUseTheWireCommandNames() throws {
-        let helper = try FakeHelper(socketPath: socketPath, version: GeneratedReleaseIdentityKt.APP_VERSION)
+        let helper = try FakeHelper(socketPath: socketPath, version: CovioReleaseIdentity.APP_VERSION)
         defer { helper.stop() }
 
         let client = HelperClient(socketPath: socketPath, timeoutMillis: 1_000)
@@ -301,7 +300,7 @@ final class HelperStatusTests: XCTestCase {
     func testChargeLimitCommandsCanOutliveTheDefaultSocketTimeout() throws {
         let helper = try FakeHelper(
             socketPath: socketPath,
-            version: GeneratedReleaseIdentityKt.APP_VERSION,
+            version: CovioReleaseIdentity.APP_VERSION,
             responseDelayMilliseconds: 500
         )
         defer { helper.stop() }
@@ -417,16 +416,16 @@ private final class FakeHelper {
                 || request.command == HelperWire.shared.COMMAND_LID_LEASE_RENEW {
                 reply = HelperWire.shared.leaseStatusReply(
                     requestId: request.requestId,
-                    sleepDisabled: KotlinBoolean(bool: true),
-                    covioOwned: KotlinBoolean(bool: true),
+                    sleepDisabled: true,
+                    covioOwned: true,
                     activeLeaseCount: 1,
-                    expiresAtEpochSeconds: KotlinLong(longLong: 1_000)
+                    expiresAtEpochSeconds: 1_000
                 )
             } else if request.command == HelperWire.shared.COMMAND_LID_LEASE_RELEASE {
                 reply = HelperWire.shared.leaseStatusReply(
                     requestId: request.requestId,
-                    sleepDisabled: KotlinBoolean(bool: false),
-                    covioOwned: KotlinBoolean(bool: false),
+                    sleepDisabled: false,
+                    covioOwned: false,
                     activeLeaseCount: 0,
                     expiresAtEpochSeconds: nil
                 )
@@ -519,7 +518,7 @@ private enum FakeHelperError: Error {
 
 private final class SilentLogger: NSObject, AppLogger {
     func info(message: String) {}
-    func warn(message: String, error: KotlinThrowable?) {}
-    func error(message: String, error: KotlinThrowable?) {}
+    func warn(message: String, error: Error?) {}
+    func error(message: String, error: Error?) {}
     func logFile() -> String { "" }
 }

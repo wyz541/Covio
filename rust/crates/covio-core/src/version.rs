@@ -1,6 +1,7 @@
 //! Covio client and semantic version rules.
 
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
 use std::sync::OnceLock;
@@ -9,7 +10,8 @@ use std::sync::OnceLock;
 ///
 /// This type reads old install records and helper identities. New product
 /// versions use [`SemanticVersion`].
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ClientVersion {
     /// First digit.
     pub thousands: u8,
@@ -62,7 +64,8 @@ impl fmt::Display for ClientVersion {
 }
 
 /// Semantic Versioning 2.0.0 version.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SemanticVersion {
     /// Major number.
     pub major: u32,

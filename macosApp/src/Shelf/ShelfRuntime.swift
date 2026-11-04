@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 
 /// 截图库读取外部世界的入口。
 @MainActor
@@ -133,7 +132,7 @@ final class ShelfRuntime {
         let updated = ShelfStore.companion.normalizeItems(
             items: kept + [item],
             limit: Int32(ShelfStoreClient.maxItems),
-            exists: { _ in KotlinBoolean(bool: true) }
+            exists: { _ in true }
         )
         guard updated.map(\.path) != items.map(\.path) else { return }
         items = updated
@@ -152,7 +151,7 @@ final class ShelfRuntime {
             let trimmed = ShelfStore.companion.normalizeItems(
                 items: items,
                 limit: Int32(ShelfStoreClient.maxItems),
-                exists: { surviving.contains($0) ? KotlinBoolean(bool: true) : KotlinBoolean(bool: false) }
+                exists: { surviving.contains($0) }
             )
             guard trimmed.map(\.path) != items.map(\.path) else { return }
             items = trimmed

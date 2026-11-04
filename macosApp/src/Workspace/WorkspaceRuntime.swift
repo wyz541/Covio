@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import UniformTypeIdentifiers
-import kmpDomain
 
 /// 工作区运行时要用的外部能力。测试传假的。
 @MainActor
@@ -29,7 +28,7 @@ struct WorkspaceEnvironment {
 /// - 放入文件、置顶、删除、清理过期。
 /// - 取出内容给默认应用打开，或在访达里显示。
 ///
-/// 索引与内容的读写全在 `kmpDomain` 的 `WorkspaceStore` 里，这里只管状态与提示。
+/// 索引与内容的读写全在 Rust core 的 `WorkspaceStore` 里，这里只管状态与提示。
 /// 只跑在主线程。
 @MainActor
 @Observable

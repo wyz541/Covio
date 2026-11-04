@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// `AppLogger` 端口的 macOS 实现。
 ///
@@ -24,11 +23,11 @@ final class FileAppLogger: NSObject, AppLogger {
         write(level: "INFO", message: message, error: nil)
     }
 
-    func warn(message: String, error: KotlinThrowable?) {
+    func warn(message: String, error: Error?) {
         write(level: "WARN", message: message, error: error)
     }
 
-    func error(message: String, error: KotlinThrowable?) {
+    func error(message: String, error: Error?) {
         write(level: "ERROR", message: message, error: error)
     }
 
@@ -38,7 +37,7 @@ final class FileAppLogger: NSObject, AppLogger {
 
     // MARK: - 私有
 
-    private func write(level: String, message: String, error: KotlinThrowable?) {
+    private func write(level: String, message: String, error: Error?) {
         lock.lock()
         defer { lock.unlock() }
         rotateIfNeeded()
@@ -49,20 +48,8 @@ final class FileAppLogger: NSObject, AppLogger {
         append(data)
     }
 
-    /// 与 Kotlin 的 `Throwable.stackTraceToString()` 对齐：
-    /// 先写消息，再逐行写栈帧，每行前面加一个制表符。
-    ///
-    /// `KotlinThrowable` 导出到 Swift 后没有 `stackTraceToString()`，
-    /// 只有 `getStackTrace()`。所以这里自己拼。
-    static func describe(_ error: KotlinThrowable) -> String {
-        var text = error.message ?? "KotlinThrowable"
-        // `KotlinArray` 不是 Swift 数组，只能按下标读。
-        let frames = error.getStackTrace()
-        for index in 0..<Int(frames.size) {
-            guard let frame = frames.get(index: Int32(index)) else { continue }
-            text += "\n\t\(frame)"
-        }
-        return text
+    static func describe(_ error: Error) -> String {
+        error.localizedDescription
     }
 
     private func append(_ data: Data) {
@@ -120,7 +107,7 @@ final class PmsetWakeLogReader: NSObject, WakeLogReader {
     func read() -> WakeLogSnapshot? {
         guard timeout > 0 else { return nil }
         guard let text = PmsetWakeLogReader.runPmsetLog(timeout: timeout) else { return nil }
-        return PmsetWakeLogParser.shared.parse(text: text, nowEpochSeconds: nowEpochSeconds())
+        return PmsetWakeLogParser.parse(text: text, nowEpochSeconds: nowEpochSeconds())
     }
 
     /// 跑 `pmset -g log`。超时或非零退出返回 nil。

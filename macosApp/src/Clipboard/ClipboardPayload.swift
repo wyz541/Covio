@@ -1,9 +1,8 @@
 import AppKit
-import kmpDomain
 
 /// 从系统剪贴板读出来的一条内容。
 ///
-/// 是 [ClipItem] 的「还没分配 id 与时间」版本。分类由 `kmpDomain` 的
+/// 是 [ClipItem] 的「还没分配 id 与时间」版本。分类由 Rust core 的
 /// `ClipboardLogic.classify` 判定，判定结果放在 [kind]。
 struct ClipboardPayload: Equatable {
     var kind: ClipKind

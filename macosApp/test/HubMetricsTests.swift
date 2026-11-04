@@ -1,6 +1,5 @@
 import SwiftUI
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// Hub 面板的几何。

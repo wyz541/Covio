@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 
 /// 特权 helper 客户端。
 ///
@@ -180,10 +179,10 @@ final class HelperClient: @unchecked Sendable {
         return LidLeaseStatus(
             available: true,
             protocolVersion: result["protocolVersion"] ?? HelperProtocol.protocolVersion,
-            sleepDisabled: boolValue(result["sleepDisabled"]).map { KotlinBoolean(bool: $0) },
-            covioOwned: boolValue(result["covioOwned"]).map { KotlinBoolean(bool: $0) },
+            sleepDisabled: boolValue(result["sleepDisabled"]),
+            covioOwned: boolValue(result["covioOwned"]),
             activeLeaseCount: Int32(result["activeLeaseCount"] ?? "0") ?? 0,
-            expiresAtEpochSeconds: Int64(result["expiresAtEpochSeconds"] ?? "").map { KotlinLong(longLong: $0) },
+            expiresAtEpochSeconds: Int64(result["expiresAtEpochSeconds"] ?? ""),
             error: nil
         )
     }

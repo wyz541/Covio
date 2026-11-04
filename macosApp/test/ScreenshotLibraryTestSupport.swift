@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 @testable import Covio
 
 final class FakeLegacyScreenshotPreferences: LegacyScreenshotPreferenceRestoring, @unchecked Sendable {

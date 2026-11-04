@@ -1,10 +1,9 @@
 import Foundation
-import kmpDomain
 
 /// 截图索引状态的持久化。
 ///
-/// 对应 Compose 版的 `kmpDomain/src/com/wyz/covio/core/ShelfStore.kt`。
-/// 实现只有一份，在 `kmpDomain` 里，这里只是把它包成 Swift 用起来顺手的样子。
+/// 对应 Rust core 的 shelf store。
+/// 实现只有一份，在 Rust core 里，这里只是把它包成 Swift 用起来顺手的样子。
 ///
 /// 存储位置是 `~/Library/Application Support/Covio/Screenshots/shelf.json`。
 /// 两版共用这一个文件，所以读写都要走 Kotlin 那份实现，不能在 Swift 里另写一套序列化。

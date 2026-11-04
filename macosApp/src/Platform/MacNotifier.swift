@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 @preconcurrency import UserNotifications
 
 /// `Notifier` 端口的 macOS 实现。

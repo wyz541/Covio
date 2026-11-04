@@ -1,6 +1,5 @@
 import Foundation
 import XCTest
-import kmpDomain
 @testable import Covio
 
 @MainActor
@@ -74,7 +73,7 @@ final class ShelfRuntimeTests: XCTestCase {
         let snapshot = ScreenshotInboxSnapshot(
             location: "/tmp/original",
             locationScreenshot: "/tmp/original-shot",
-            showThumbnail: KotlinBoolean(bool: true)
+            showThumbnail: true
         )
         store.save(
             ShelfStoreState.companion.defaults().doCopy(

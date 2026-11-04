@@ -4,7 +4,6 @@ import Foundation
 @preconcurrency import CoreFoundation
 @preconcurrency import IOKit
 @preconcurrency import IOKit.ps
-import kmpDomain
 
 /// `PowerSource` 端口的 macOS 实现。
 ///
@@ -160,7 +159,7 @@ final class MacPowerSource: NSObject, PowerSource, @unchecked Sendable {
 
             let minutesKey = state == .discharging ? "Time to Empty" : "Time to Full Charge"
             let minutes = description[minutesKey] as? Int
-            let remaining = (minutes ?? 0) > 0 ? KotlinLong(longLong: Int64(minutes!) * 60) : nil
+            let remaining = (minutes ?? 0) > 0 ? Int64(minutes!) * 60 : nil
             let status = percent.map {
                 BatteryStatus(
                     percent: Int32(min(max($0, 0), 100)),

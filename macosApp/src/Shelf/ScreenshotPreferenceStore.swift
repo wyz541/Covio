@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 一条 `defaults` 命令的结果。
 struct PreferenceCommandResult: Equatable, Sendable {
@@ -50,7 +49,6 @@ final class MacScreenshotPreferenceStore: ScreenshotPreferenceStore, @unchecked 
             location: readString(ScreenshotPreferencePolicy.shared.KEY_LOCATION),
             locationScreenshot: readString(ScreenshotPreferencePolicy.shared.KEY_LOCATION_SCREENSHOT),
             showThumbnail: readBoolean(ScreenshotPreferencePolicy.shared.KEY_SHOW_THUMBNAIL)
-                .map { KotlinBoolean(bool: $0) }
         )
     }
 
@@ -95,7 +93,7 @@ final class MacScreenshotPreferenceStore: ScreenshotPreferenceStore, @unchecked 
 
     /// 读取一个字符串键。键不存在或输出为空时返回空。
     ///
-    /// 引号、空串和退出码的判定规则住在 `kmpDomain` 的 `ScreenshotPreferencePolicy` 里。
+    /// 引号、空串和退出码的判定规则住在 Rust core 的 screenshot preference policy 里。
     func readString(_ key: String) -> String? {
         let result = runner(["/usr/bin/defaults", "read", domain, key])
         return ScreenshotPreferencePolicy.shared.parseString(
@@ -124,7 +122,7 @@ final class MacScreenshotPreferenceStore: ScreenshotPreferenceStore, @unchecked 
     /// 把键还原成快照里的值。快照里没有这个键就删掉它。
     ///
     /// 「值换成哪个字面量」和「删键算不算成功」两条规则住在
-    /// `kmpDomain` 的 `ScreenshotPreferencePolicy` 里。
+    /// Rust core 的 screenshot preference policy 里。
     private func restoreValue(_ key: String, value: String?, isString: Bool) -> Bool {
         if let value {
             let argument = ScreenshotPreferencePolicy.shared.writeArgument(

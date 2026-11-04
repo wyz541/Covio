@@ -171,7 +171,8 @@ impl WorkspaceTombstone {
 }
 
 /// Admission result for a put operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum WorkspaceAdmission {
     /// The entry was accepted.
     Accepted,
@@ -188,7 +189,8 @@ pub enum WorkspaceAdmission {
 }
 
 /// Result of one put operation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspacePutResult {
     /// State to use after the operation.
     pub state: WorkspaceState,
@@ -220,7 +222,8 @@ impl WorkspacePutResult {
 }
 
 /// Result of applying retention and eviction.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspacePlan {
     /// Entries retained in the index.
     pub kept: Vec<WorkspaceEntry>,

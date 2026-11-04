@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// `CovioHelper` 命令行的运行入口。只启动 XPC listener，不暴露 legacy socket。
 enum CovioHelperRuntime {

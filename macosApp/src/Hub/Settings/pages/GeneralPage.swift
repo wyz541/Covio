@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import kmpDomain
 
 /// 通用页使用 macOS Settings 的分组表单结构。
 ///

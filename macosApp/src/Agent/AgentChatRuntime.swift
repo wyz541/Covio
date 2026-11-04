@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 enum AgentChatRole: Sendable, Equatable {
     case user

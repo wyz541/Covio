@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 工作台模型：目的地、页签、首页组件与编辑模式。

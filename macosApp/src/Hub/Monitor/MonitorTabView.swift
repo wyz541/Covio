@@ -1,5 +1,4 @@
 import SwiftUI
-import kmpDomain
 
 /// Stats 风格的实时监控页。
 ///
@@ -1249,7 +1248,7 @@ private struct MonitorPowerChargeLimitControls: View {
         _pendingLimit = State(
             initialValue: Double(
                 runtime?.config.chargeLimitPercent
-                    ?? ChargeLimitPolicyKt.DEFAULT_CHARGE_LIMIT_PERCENT
+                    ?? DEFAULT_CHARGE_LIMIT_PERCENT
             )
         )
         _pendingActiveDischarge = State(

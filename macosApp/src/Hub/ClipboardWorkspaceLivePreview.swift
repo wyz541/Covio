@@ -1,7 +1,6 @@
 #if DEBUG
 import AppKit
 import Foundation
-import kmpDomain
 
 /// 为真实应用窗口准备隔离的剪切板与截图数据。
 ///

@@ -82,8 +82,80 @@ guard covio_capability_status(0, &capabilityError) == 0 else {
 guard covio_capability_status(4, &capabilityError) == 12 else {
     fail("unwired power capability did not return unavailable")
 }
+
+let keychainService = Array("com.wyz.covio.ffi.swift-smoke.\(UUID().uuidString)".utf8)
+let keychainKey = Array("smoke-token".utf8)
+let keychainValue = Array("swift-value".utf8)
+var keychainError = CovioError(code: 0, message: CovioOwnedBytes(data: nil, len: 0, capacity: 0))
+let deleteStatus = keychainService.withUnsafeBufferPointer { service in
+    keychainKey.withUnsafeBufferPointer { key in
+        covio_keychain_delete_with_service(
+            service.baseAddress,
+            service.count,
+            key.baseAddress,
+            key.count,
+            &keychainError
+        )
+    }
+}
+guard deleteStatus == 0 else {
+    fail("stale keychain delete failed: \(errorText(keychainError))")
+}
+let writeStatus = keychainService.withUnsafeBufferPointer { service in
+    keychainKey.withUnsafeBufferPointer { key in
+        keychainValue.withUnsafeBufferPointer { value in
+            covio_keychain_write_with_service(
+                service.baseAddress,
+                service.count,
+                key.baseAddress,
+                key.count,
+                value.baseAddress,
+                value.count,
+                &keychainError
+            )
+        }
+    }
+}
+guard writeStatus == 0 else {
+    fail("keychain write failed: \(errorText(keychainError))")
+}
+var keychainOutput = CovioOwnedBytes(data: nil, len: 0, capacity: 0)
+let readStatus = keychainService.withUnsafeBufferPointer { service in
+    keychainKey.withUnsafeBufferPointer { key in
+        covio_keychain_read_with_service(
+            service.baseAddress,
+            service.count,
+            key.baseAddress,
+            key.count,
+            &keychainOutput,
+            &keychainError
+        )
+    }
+}
+guard readStatus == 0,
+      let outputData = keychainOutput.data,
+      String(decoding: UnsafeBufferPointer(start: outputData, count: keychainOutput.len), as: UTF8.self) == "swift-value"
+else {
+    fail("keychain read failed: \(errorText(keychainError))")
+}
+covio_owned_bytes_free(&keychainOutput)
+let cleanupStatus = keychainService.withUnsafeBufferPointer { service in
+    keychainKey.withUnsafeBufferPointer { key in
+        covio_keychain_delete_with_service(
+            service.baseAddress,
+            service.count,
+            key.baseAddress,
+            key.count,
+            &keychainError
+        )
+    }
+}
+guard cleanupStatus == 0 else {
+    fail("keychain cleanup failed: \(errorText(keychainError))")
+}
 covio_error_free(&cancelError)
 covio_error_free(&shutdownError)
 covio_error_free(&capabilityError)
+covio_error_free(&keychainError)
 
 print("Covio C ABI Swift smoke passed")

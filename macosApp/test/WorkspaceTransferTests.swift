@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 文件区短期传输任务与工作区状态的衔接。

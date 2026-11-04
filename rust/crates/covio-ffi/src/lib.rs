@@ -4,6 +4,7 @@
 //! policies remain in `covio-core` and `covio-platform`.
 
 #![allow(unsafe_code)]
+#![recursion_limit = "256"]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 use covio_bridge::{
@@ -13,6 +14,11 @@ use covio_bridge::{
 };
 use covio_core::{Deadline, Generation, RequestId, Revision};
 use covio_platform::{CapabilityKind, MacCapabilitySet, SecretKey, SecretValue};
+
+mod app_api;
+mod engine_api;
+pub use app_api::AppCore;
+pub use engine_api::CovioEngineHandle;
 use std::collections::BTreeSet;
 use std::ffi::c_void;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -302,6 +308,18 @@ impl CovioOwnedBytes {
     };
 }
 
+impl CovioOwnedBytes {
+    pub(crate) unsafe fn take_bytes(self) -> Result<Vec<u8>, ()> {
+        if self.data.is_null() {
+            return Ok(Vec::new());
+        }
+        if self.capacity < self.len {
+            return Err(());
+        }
+        Ok(unsafe { Vec::from_raw_parts(self.data, self.len, self.capacity) })
+    }
+}
+
 /// Error returned across the C ABI.
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -312,6 +330,17 @@ pub struct CovioError {
     pub message: CovioOwnedBytes,
 }
 
+impl CovioError {
+    pub(crate) unsafe fn free_message(&mut self) {
+        if !self.message.data.is_null() && self.message.capacity >= self.message.len {
+            drop(unsafe {
+                Vec::from_raw_parts(self.message.data, self.message.len, self.message.capacity)
+            });
+        }
+        self.message = CovioOwnedBytes::EMPTY;
+    }
+}
+
 /// Callback for core events and snapshots.
 pub type CovioEventCallback = extern "C-unwind" fn(*mut c_void, *const u8, usize);
 
@@ -320,6 +349,11 @@ pub struct CovioHandle {
     session: BridgeSession,
     callback: Option<CovioEventCallback>,
     context: *mut c_void,
+}
+
+/// Opaque application service handle.
+pub struct CovioAppHandle {
+    core: AppCore,
 }
 
 /// macOS adapter composition used before the product host wires all capabilities.
@@ -342,6 +376,126 @@ impl Default for MacPlatformAdapters {
             capabilities: MacCapabilitySet::default(),
         }
     }
+}
+
+/// Creates one application service handle for a data root.
+///
+/// # Safety
+///
+/// The data-root byte range must describe valid readable memory.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_app_create(
+    data_root: *const u8,
+    data_root_len: usize,
+    error: *mut CovioError,
+) -> *mut CovioAppHandle {
+    let result = ffi_guard(error, || {
+        let data_root = unsafe { copy_utf8(data_root, data_root_len, "data root") }?;
+        Ok(Box::into_raw(Box::new(CovioAppHandle {
+            core: AppCore::new(data_root),
+        })))
+    });
+    result.unwrap_or(ptr::null_mut())
+}
+
+/// Creates one application service handle with explicit compatibility paths.
+///
+/// # Safety
+///
+/// Every path byte range must describe valid readable memory.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn covio_app_create_with_paths(
+    config_path: *const u8,
+    config_len: usize,
+    shelf_path: *const u8,
+    shelf_len: usize,
+    clipboard_path: *const u8,
+    clipboard_len: usize,
+    workspace_path: *const u8,
+    workspace_len: usize,
+    error: *mut CovioError,
+) -> *mut CovioAppHandle {
+    let result = ffi_guard(error, || {
+        let config_path = unsafe { copy_utf8(config_path, config_len, "config path") }?;
+        let shelf_path = unsafe { copy_utf8(shelf_path, shelf_len, "shelf path") }?;
+        let clipboard_path = unsafe { copy_utf8(clipboard_path, clipboard_len, "clipboard path") }?;
+        let workspace_path = unsafe { copy_utf8(workspace_path, workspace_len, "workspace path") }?;
+        Ok(Box::into_raw(Box::new(CovioAppHandle {
+            core: AppCore::with_paths(config_path, shelf_path, clipboard_path, workspace_path),
+        })))
+    });
+    result.unwrap_or(ptr::null_mut())
+}
+
+/// Releases one application service handle.
+///
+/// # Safety
+///
+/// `handle` must be a pointer returned by [`covio_app_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_app_release(handle: *mut CovioAppHandle) {
+    if handle.is_null() {
+        return;
+    }
+    let _ = catch_unwind(AssertUnwindSafe(|| unsafe {
+        drop(Box::from_raw(handle));
+    }));
+}
+
+/// Executes one application command.
+///
+/// # Safety
+///
+/// Pointer and length pairs must describe valid readable memory. `out_data`
+/// must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_app_call(
+    handle: *mut CovioAppHandle,
+    command: *const u8,
+    command_len: usize,
+    payload: *const u8,
+    payload_len: usize,
+    now_epoch_seconds: i64,
+    out_data: *mut CovioOwnedBytes,
+    error: *mut CovioError,
+) -> u32 {
+    if !out_data.is_null() {
+        unsafe { out_data.write(CovioOwnedBytes::EMPTY) };
+    }
+    let result = ffi_guard(error, || {
+        let handle = unsafe { handle.as_ref() }.ok_or_else(|| {
+            FfiFailure::new(CovioStatusCode::InvalidArgument, "app handle is null")
+        })?;
+        if out_data.is_null() {
+            return Err(FfiFailure::new(
+                CovioStatusCode::InvalidArgument,
+                "output buffer is null",
+            ));
+        }
+        let command = unsafe { copy_utf8(command, command_len, "command") }?;
+        let payload_bytes = unsafe { copy_input(payload, payload_len) }?;
+        let payload: serde_json::Value = if payload_bytes.is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_slice(&payload_bytes).map_err(|_| {
+                FfiFailure::new(
+                    CovioStatusCode::MalformedMessage,
+                    "payload is not valid JSON",
+                )
+            })?
+        };
+        let value = handle
+            .core
+            .call(&command, &payload, now_epoch_seconds)
+            .map_err(|message| FfiFailure::new(CovioStatusCode::InvalidArgument, message))?;
+        let bytes = serde_json::to_vec(&value).map_err(|_| {
+            FfiFailure::new(CovioStatusCode::Internal, "response serialization failed")
+        })?;
+        unsafe { out_data.write(owned_bytes(bytes)) };
+        Ok(())
+    });
+    result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
 }
 
 /// Returns the ABI version for runtime loader checks.
@@ -632,6 +786,92 @@ pub unsafe extern "C" fn covio_keychain_delete(
     result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
 }
 
+/// Reads one secret from a named macOS Keychain service.
+///
+/// # Safety
+///
+/// Pointer and length pairs must describe valid readable memory. `out_value`
+/// must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_keychain_read_with_service(
+    service: *const u8,
+    service_len: usize,
+    key: *const u8,
+    key_len: usize,
+    out_value: *mut CovioOwnedBytes,
+    error: *mut CovioError,
+) -> u32 {
+    if !out_value.is_null() {
+        unsafe { out_value.write(CovioOwnedBytes::EMPTY) };
+    }
+    let result = ffi_guard(error, || {
+        if out_value.is_null() {
+            return Err(FfiFailure::new(
+                CovioStatusCode::InvalidArgument,
+                "output buffer is null",
+            ));
+        }
+        let service = unsafe { copy_keychain_service(service, service_len) }?;
+        let key = unsafe { copy_secret_key(key, key_len) }?;
+        match read_platform_secret_from(&service, &key)? {
+            Some(value) => {
+                unsafe { out_value.write(owned_bytes(value)) };
+                Ok(())
+            }
+            None => Err(FfiFailure::new(
+                CovioStatusCode::NotFound,
+                "secret was not found",
+            )),
+        }
+    });
+    result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
+}
+
+/// Writes or replaces one secret in a named macOS Keychain service.
+///
+/// # Safety
+///
+/// Pointer and length pairs must describe valid readable memory.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_keychain_write_with_service(
+    service: *const u8,
+    service_len: usize,
+    key: *const u8,
+    key_len: usize,
+    value: *const u8,
+    value_len: usize,
+    error: *mut CovioError,
+) -> u32 {
+    let result = ffi_guard(error, || {
+        let service = unsafe { copy_keychain_service(service, service_len) }?;
+        let key = unsafe { copy_secret_key(key, key_len) }?;
+        let value = unsafe { copy_input(value, value_len) }?;
+        write_platform_secret_from(&service, &key, &SecretValue::new(value))
+    });
+    result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
+}
+
+/// Deletes one secret from a named macOS Keychain service.
+///
+/// # Safety
+///
+/// The service and key byte ranges must describe valid readable memory.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_keychain_delete_with_service(
+    service: *const u8,
+    service_len: usize,
+    key: *const u8,
+    key_len: usize,
+    error: *mut CovioError,
+) -> u32 {
+    let result = ffi_guard(error, || {
+        let service = unsafe { copy_keychain_service(service, service_len) }?;
+        let key = unsafe { copy_secret_key(key, key_len) }?;
+        delete_platform_secret_from(&service, &key)
+    });
+    result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
+}
+
 /// Probes one capability. Unsupported adapters return `Unsupported`.
 #[unsafe(no_mangle)]
 pub extern "C" fn covio_capability_status(capability: u32, error: *mut CovioError) -> u32 {
@@ -815,6 +1055,83 @@ fn delete_platform_secret(key: &SecretKey) -> Result<(), FfiFailure> {
 #[cfg(not(target_os = "macos"))]
 fn delete_platform_secret(_key: &SecretKey) -> Result<(), FfiFailure> {
     Err(unsupported_secret_storage())
+}
+
+#[cfg(target_os = "macos")]
+fn read_platform_secret_from(
+    service: &str,
+    key: &SecretKey,
+) -> Result<Option<Vec<u8>>, FfiFailure> {
+    use covio_platform::{KeychainSecretStore, SecretStore};
+    KeychainSecretStore::new(service)
+        .read(key)
+        .map(|value| value.map(|value| value.expose().to_vec()))
+        .map_err(platform_failure)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn read_platform_secret_from(
+    _service: &str,
+    _key: &SecretKey,
+) -> Result<Option<Vec<u8>>, FfiFailure> {
+    Err(unsupported_secret_storage())
+}
+
+#[cfg(target_os = "macos")]
+fn write_platform_secret_from(
+    service: &str,
+    key: &SecretKey,
+    value: &SecretValue,
+) -> Result<(), FfiFailure> {
+    use covio_platform::{KeychainSecretStore, SecretStore};
+    KeychainSecretStore::new(service)
+        .write(key, value)
+        .map_err(platform_failure)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn write_platform_secret_from(
+    _service: &str,
+    _key: &SecretKey,
+    _value: &SecretValue,
+) -> Result<(), FfiFailure> {
+    Err(unsupported_secret_storage())
+}
+
+#[cfg(target_os = "macos")]
+fn delete_platform_secret_from(service: &str, key: &SecretKey) -> Result<(), FfiFailure> {
+    use covio_platform::{KeychainSecretStore, SecretStore};
+    KeychainSecretStore::new(service)
+        .delete(key)
+        .map_err(platform_failure)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn delete_platform_secret_from(_service: &str, _key: &SecretKey) -> Result<(), FfiFailure> {
+    Err(unsupported_secret_storage())
+}
+
+unsafe fn copy_keychain_service(
+    service: *const u8,
+    service_len: usize,
+) -> Result<String, FfiFailure> {
+    let service = unsafe { copy_utf8(service, service_len, "keychain service") }?;
+    if service.is_empty()
+        || service.len() > 255
+        || !service.bytes().all(|byte| byte.is_ascii_graphic())
+    {
+        return Err(FfiFailure::new(
+            CovioStatusCode::InvalidArgument,
+            "keychain service is invalid",
+        ));
+    }
+    Ok(service)
+}
+
+unsafe fn copy_secret_key(key: *const u8, key_len: usize) -> Result<SecretKey, FfiFailure> {
+    let key = unsafe { copy_utf8(key, key_len, "secret key") }?;
+    SecretKey::try_new(key)
+        .map_err(|_| FfiFailure::new(CovioStatusCode::InvalidArgument, "secret key is invalid"))
 }
 
 #[cfg(target_os = "macos")]
@@ -1180,21 +1497,30 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn c_keychain_wrappers_read_write_replace_and_delete() {
+    fn c_keychain_service_wrappers_read_write_replace_and_delete() {
         use std::time::{SystemTime, UNIX_EPOCH};
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
+        let service = format!("com.wyz.covio.ffi.test.{}.{nonce}", std::process::id());
         let key = format!("ffi-test-{}-{nonce}", std::process::id());
         let mut error = empty_error();
         unsafe {
             assert_eq!(
-                covio_keychain_delete(key.as_ptr(), key.len(), &mut error),
+                covio_keychain_delete_with_service(
+                    service.as_ptr(),
+                    service.len(),
+                    key.as_ptr(),
+                    key.len(),
+                    &mut error,
+                ),
                 CovioStatusCode::Ok as u32
             );
             assert_eq!(
-                covio_keychain_write(
+                covio_keychain_write_with_service(
+                    service.as_ptr(),
+                    service.len(),
                     key.as_ptr(),
                     key.len(),
                     b"first".as_ptr(),
@@ -1206,7 +1532,16 @@ mod tests {
         }
         let mut value = empty_bytes();
         assert_eq!(
-            unsafe { covio_keychain_read(key.as_ptr(), key.len(), &mut value, &mut error) },
+            unsafe {
+                covio_keychain_read_with_service(
+                    service.as_ptr(),
+                    service.len(),
+                    key.as_ptr(),
+                    key.len(),
+                    &mut value,
+                    &mut error,
+                )
+            },
             CovioStatusCode::Ok as u32
         );
         let first = unsafe { slice::from_raw_parts(value.data, value.len) }.to_vec();
@@ -1215,7 +1550,9 @@ mod tests {
 
         assert_eq!(
             unsafe {
-                covio_keychain_write(
+                covio_keychain_write_with_service(
+                    service.as_ptr(),
+                    service.len(),
                     key.as_ptr(),
                     key.len(),
                     b"second".as_ptr(),
@@ -1226,7 +1563,16 @@ mod tests {
             CovioStatusCode::Ok as u32
         );
         assert_eq!(
-            unsafe { covio_keychain_read(key.as_ptr(), key.len(), &mut value, &mut error) },
+            unsafe {
+                covio_keychain_read_with_service(
+                    service.as_ptr(),
+                    service.len(),
+                    key.as_ptr(),
+                    key.len(),
+                    &mut value,
+                    &mut error,
+                )
+            },
             CovioStatusCode::Ok as u32
         );
         let second = unsafe { slice::from_raw_parts(value.data, value.len) }.to_vec();
@@ -1234,11 +1580,28 @@ mod tests {
         unsafe { covio_owned_bytes_free(&mut value) };
 
         assert_eq!(
-            unsafe { covio_keychain_delete(key.as_ptr(), key.len(), &mut error) },
+            unsafe {
+                covio_keychain_delete_with_service(
+                    service.as_ptr(),
+                    service.len(),
+                    key.as_ptr(),
+                    key.len(),
+                    &mut error,
+                )
+            },
             CovioStatusCode::Ok as u32
         );
         assert_eq!(
-            unsafe { covio_keychain_read(key.as_ptr(), key.len(), &mut value, &mut error) },
+            unsafe {
+                covio_keychain_read_with_service(
+                    service.as_ptr(),
+                    service.len(),
+                    key.as_ptr(),
+                    key.len(),
+                    &mut value,
+                    &mut error,
+                )
+            },
             CovioStatusCode::NotFound as u32
         );
         unsafe { covio_error_free(&mut error) };

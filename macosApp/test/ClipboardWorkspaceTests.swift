@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 final class ClipboardWorkspaceTests: XCTestCase {

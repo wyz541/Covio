@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 @MainActor
@@ -688,13 +687,13 @@ final class PowerRuntimeTests: XCTestCase {
         externalDisplayCount: Int = 0
     ) -> PowerObservation {
         PowerObservation(
-            batteryPercent: KotlinInt(int: Int32(batteryPercent)),
-            hasBattery: KotlinBoolean(bool: hasBattery),
+            batteryPercent: Int32(batteryPercent),
+            hasBattery: hasBattery,
             powerState: powerState,
-            externalDisplayCount: KotlinInt(int: Int32(externalDisplayCount)),
+            externalDisplayCount: Int32(externalDisplayCount),
             lidState: lidState,
             thermalState: thermalState,
-            lowPowerModeEnabled: KotlinBoolean(bool: false)
+            lowPowerModeEnabled: false
         )
     }
 

@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 线上协议的共享语料，在 Swift 侧再跑一遍。
@@ -122,13 +121,33 @@ final class HelperWireParityTests: XCTestCase {
         let reply = HelperWire.shared.versionReply(requestId: "r")
 
         XCTAssertTrue(reply.ok)
-        XCTAssertEqual(reply.result?["version"], GeneratedReleaseIdentityKt.APP_VERSION)
+        XCTAssertEqual(reply.result?["version"], CovioReleaseIdentity.APP_VERSION)
         XCTAssertEqual(reply.result?["protocolVersion"], HelperProtocol.protocolVersion)
-        let expected = "{\"version\":\"\(HelperProtocol.protocolVersion)\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"version\":\"\(GeneratedReleaseIdentityKt.APP_VERSION)\",\"protocolVersion\":\"\(HelperProtocol.protocolVersion)\"}}"
+        let expected = "{\"version\":\"\(HelperProtocol.protocolVersion)\",\"requestId\":\"r\",\"ok\":true,\"result\":{\"version\":\"\(CovioReleaseIdentity.APP_VERSION)\",\"protocolVersion\":\"\(HelperProtocol.protocolVersion)\"}}"
         XCTAssertEqual(
             HelperWire.shared.encodeReply(reply: reply),
             expected
         )
+    }
+
+    func testIdentityVersionReplyKeepsTheLegacyVersionField() {
+        let identity = HelperReleaseIdentity(
+            releaseId: "0.6.0-internal.24-g0123456789abcdef0123456789abcdef01234567",
+            clientVersion: "0.6.0-internal.24",
+            productVersion: "0.6.0",
+            buildNumber: "24",
+            gitCommit: "0123456789abcdef0123456789abcdef01234567",
+            protocolVersion: "10",
+            helperSHA256: String(repeating: "a", count: 64),
+            channel: "internal"
+        )
+
+        let reply = HelperWire.shared.versionReply(requestId: "r", identity: identity)
+
+        XCTAssertTrue(reply.ok)
+        XCTAssertEqual(reply.result?["version"], identity.clientVersion)
+        XCTAssertEqual(reply.result?["clientVersion"], identity.clientVersion)
+        XCTAssertEqual(reply.result?["helperSHA256"], identity.helperSHA256)
     }
 
     /// 字节上限与 socket 权限位也来自共享层，不在这里另写一份。

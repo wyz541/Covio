@@ -3,8 +3,8 @@ set -euo pipefail
 
 # 构建 macOS SwiftUI 宿主。
 #
-# kmpDomain.framework 由 Xcode 工程里的 "Build KMP framework" 脚本阶段产出，
-# 本脚本只负责调用 xcodebuild。
+# Rust core 由 Xcode 工程里的 "Build Rust core" 脚本阶段产出。
+# 本脚本负责调用 xcodebuild。
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-Debug}"

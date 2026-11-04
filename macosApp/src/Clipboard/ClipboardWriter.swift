@@ -1,5 +1,4 @@
 import AppKit
-import kmpDomain
 
 /// 把一条剪切板记录写回系统剪贴板。
 ///

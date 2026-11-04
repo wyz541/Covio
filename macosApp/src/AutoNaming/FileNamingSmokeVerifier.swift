@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import kmpDomain
 
 /// 发布包内的自动命名烟雾测试。只在设置了验证环境变量时运行。
 enum FileNamingSmokeVerifier {

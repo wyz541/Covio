@@ -12,6 +12,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 covio-bridge = { path = "../covio-bridge" }
 covio-core = { path = "../covio-core" }
 covio-platform = { path = "../covio-platform" }
+serde.workspace = true
 serde_json.workspace = true
 
 [lints]

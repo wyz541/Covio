@@ -1,9 +1,11 @@
 //! Power, sleep, wake, lease, and engine state models.
 
 use crate::AppConfig;
+use serde::{Deserialize, Serialize};
 
 /// Battery power state.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum PowerState {
     /// Running on battery.
     Discharging,
@@ -27,7 +29,8 @@ impl PowerState {
 }
 
 /// Battery observation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BatteryStatus {
     /// Battery percentage.
     pub percent: i32,
@@ -46,7 +49,8 @@ impl BatteryStatus {
 }
 
 /// Lid state.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum LidState {
     /// State is unknown.
     #[default]
@@ -58,7 +62,8 @@ pub enum LidState {
 }
 
 /// App and helper release identity status.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum HelperStatus {
     /// App and helper identities match.
     Match,
@@ -82,7 +87,8 @@ impl HelperStatus {
 }
 
 /// Sleep lifecycle event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum SleepEvent {
     /// System is about to sleep.
     WillSleep,
@@ -91,7 +97,8 @@ pub enum SleepEvent {
 }
 
 /// Wake event kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum WakeKind {
     /// DarkWake event.
     Dark,
@@ -100,7 +107,8 @@ pub enum WakeKind {
 }
 
 /// One parsed wake event.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WakeEvent {
     /// Event kind.
     pub kind: WakeKind,
@@ -111,7 +119,8 @@ pub struct WakeEvent {
 }
 
 /// Parsed wake log.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct WakeLogSnapshot {
     /// Events in chronological order.
     pub events: Vec<WakeEvent>,
@@ -128,7 +137,8 @@ impl WakeLogSnapshot {
 }
 
 /// DarkWake status exposed by the engine.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct DarkWakeStatus {
     /// Whether the wake log is available.
     pub available: bool,
@@ -145,7 +155,8 @@ pub struct DarkWakeStatus {
 }
 
 /// Thermal state.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ThermalState {
     /// Nominal.
     Nominal,
@@ -161,7 +172,8 @@ pub enum ThermalState {
 }
 
 /// One power observation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct PowerObservation {
     /// Battery percentage.
     pub battery_percent: Option<i32>,
@@ -210,7 +222,8 @@ impl PowerObservation {
 }
 
 /// Complete policy input.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct PowerSnapshot {
     /// OS observation.
     pub observation: PowerObservation,
@@ -234,7 +247,8 @@ impl PowerSnapshot {
 }
 
 /// Lease source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum HoldLeaseSource {
     /// Manual user action.
     Manual,
@@ -249,7 +263,8 @@ pub enum HoldLeaseSource {
 }
 
 /// Lease strength.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum HoldLeaseLevel {
     /// System idle sleep prevention.
     System,
@@ -260,7 +275,8 @@ pub enum HoldLeaseLevel {
 }
 
 /// One runtime hold lease.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HoldLease {
     /// Lease id.
     pub id: String,
@@ -277,7 +293,8 @@ pub struct HoldLease {
 }
 
 /// Covio idle-sleep assertion.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum IdleSleepPrevention {
     /// Readback unknown.
     #[default]
@@ -299,7 +316,8 @@ impl IdleSleepPrevention {
 }
 
 /// Result of applying one idle-sleep assertion.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IdleSleepAssertionResult {
     /// Requested assertion.
     pub requested: IdleSleepPrevention,
@@ -312,7 +330,8 @@ pub struct IdleSleepAssertionResult {
 }
 
 /// Complete hold-lease manager snapshot.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct HoldLeaseSnapshot {
     /// Active leases sorted by creation time and id.
     pub leases: Vec<HoldLease>,
@@ -327,7 +346,8 @@ pub struct HoldLeaseSnapshot {
 }
 
 /// Helper lid-lease status.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct LidLeaseStatus {
     /// Whether helper status is available.
     pub available: bool,
@@ -354,7 +374,8 @@ impl LidLeaseStatus {
 }
 
 /// Safety reason that blocks a power decision.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum SafetyVeto {
     /// Power management is disabled.
     PowerDisabled,
@@ -387,7 +408,8 @@ pub enum SafetyVeto {
 }
 
 /// One pure power-policy decision.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct PowerDecision {
     /// Prevent system idle sleep.
     pub prevent_user_idle_system_sleep: bool,
@@ -418,7 +440,8 @@ impl PowerDecision {
 }
 
 /// Runtime state exposed by the engine.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct AppState {
     /// Last battery reading.
     pub battery: Option<BatteryStatus>,

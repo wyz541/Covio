@@ -1,6 +1,5 @@
 import Foundation
 @preconcurrency import IOKit
-import kmpDomain
 
 /// `LidSensor` 端口的 macOS 实现。
 ///

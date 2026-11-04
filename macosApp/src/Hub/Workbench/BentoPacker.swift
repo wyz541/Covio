@@ -1,5 +1,4 @@
 import Foundation
-import kmpDomain
 
 /// 网格上的一个格子。
 struct BentoCell: Hashable {

@@ -1,5 +1,4 @@
 import XCTest
-import kmpDomain
 @testable import Covio
 
 /// 生成的合同常量与合同本身是否一致。
@@ -252,7 +251,7 @@ final class ContractConstantsTests: XCTestCase {
     }
 
     /// 合同声明已落地的接口，实现文件要真的在。
-    func testImplementedKotlinInterfacesExist() throws {
+    func testImplementedInt32erfacesExist() throws {
         let metadata = try XCTUnwrap(try contract()["metadata"] as? [String: Any])
         let interfaces = try XCTUnwrap(metadata["kotlinInterfaces"] as? [[String: String]])
         XCTAssertEqual(interfaces.count, 4, "接口数量被改动了")
@@ -459,7 +458,7 @@ final class SettingsFormatTests: XCTestCase {
 
     /// 三种休眠模式都要有名字，且随语言变化。
     func testSleepModeLabelsCoverEverySupportedMode() {
-        for mode in ModelsKt.SUPPORTED_HIBERNATE_MODES {
+        for mode in CovioRuntimeConstants.SUPPORTED_HIBERNATE_MODES {
             let english = SettingsFormat.sleepModeLabel(mode.int32Value, language: .english)
             let chinese = SettingsFormat.sleepModeLabel(mode.int32Value, language: .simplifiedChinese)
             XCTAssertFalse(english.isEmpty)
