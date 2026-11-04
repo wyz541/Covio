@@ -1,6 +1,6 @@
 # ADR-0033：所有 macOS 验证只在本地运行
 
-- Status：proposed
+- Status：accepted
 - Kind：architecture
 - Date：2026-11-04
 - Supersedes：ADR-0032
