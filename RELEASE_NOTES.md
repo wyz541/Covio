@@ -1,8 +1,8 @@
-# Covio 0.0.2.2
+# Covio 0.0.2.3
 
 Covio 0.0.2.2 是内测版。
 此版本修复应用菜单无法打开设置的问题。
-此版本包含 0.0.2.1 的风扇预设和 Liquid Glass 更新。
+此版本包含 0.0.2.3 的风扇预设和 Liquid Glass 更新。
 此版本不用于公开分发。
 
 ## 系统要求
@@ -21,21 +21,16 @@ Covio 0.0.2.2 是内测版。
 只安装 DMG 不会安装 root updater。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.0.2.1 到 0.0.2.2 的变化
+## 从 0.0.2.1 到 0.0.2.3 的变化
 
-- `Covio > Settings…` 和 `⌘,` 现在打开工作台中的真实设置页。
-- 应用菜单不再显示空白的 SwiftUI Settings 窗口。
-- 菜单打开设置后，工作台保持展开。
-- 菜单栏状态项菜单使用同一个可靠的打开路径。
-- 用户可以从“通用”页执行更新检查。
+<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+
+- Fix first updater installation during PKG upgrade（#593）
+- Fix blank Settings window from the app menu（#590）
 
 ## 验证
 
-- `bash scripts/test-all.sh`：通过。Kotlin 477 个测试通过；macOS XCTest 1067 个测试中 3 个跳过、0 个失败。
-- GitHub Actions 的 Kotlin、Contract and scripts 检查：通过。
-- MacBookPro18,2、macOS 27.0.1：应用菜单 `Settings…` 打开真实“通用”设置页。
-- 菜单打开设置后，工作台保持展开。
-- release 脚本会再次校验 app、helper、updater、安装包、摘要和发布身份。
+<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
 
 ## 安装
 
