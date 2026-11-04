@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-host-${{ matrix.label }}-${{ github.run_id }}
-          path: build/covio-windows-host.png
+          path: build/windows-host-screenshots/*.png
           if-no-files-found: error
           retention-days: 30
 

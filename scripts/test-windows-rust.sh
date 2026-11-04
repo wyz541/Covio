@@ -27,14 +27,22 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
   trap 'find "$smoke_dir" -depth -delete' EXIT
   cargo run -p covio-windows -- --window-smoke --data-dir "$smoke_dir"
 
-  screenshot_path="$ROOT/build/covio-windows-host.png"
-  screenshot_env_path="$screenshot_path"
+  screenshot_dir="$ROOT/build/windows-host-screenshots"
+  light_screenshot="$screenshot_dir/light.png"
+  dark_screenshot="$screenshot_dir/dark.png"
+  mkdir -p "$screenshot_dir"
+  light_screenshot_env_path="$light_screenshot"
+  dark_screenshot_env_path="$dark_screenshot"
   if command -v cygpath >/dev/null 2>&1; then
-    screenshot_env_path="$(cygpath -w "$screenshot_env_path")"
+    light_screenshot_env_path="$(cygpath -w "$light_screenshot_env_path")"
+    dark_screenshot_env_path="$(cygpath -w "$dark_screenshot_env_path")"
   fi
   cargo run -p covio-windows -- \
-    --screenshot "$screenshot_env_path" --data-dir "$smoke_dir"
-  test -s "$screenshot_path"
+    --screenshot "$light_screenshot_env_path" --theme light --data-dir "$smoke_dir"
+  cargo run -p covio-windows -- \
+    --screenshot "$dark_screenshot_env_path" --theme dark --data-dir "$smoke_dir"
+  test -s "$light_screenshot"
+  test -s "$dark_screenshot"
 elif rustup target list --installed | grep -qx 'x86_64-pc-windows-gnu'; then
   cargo check -p covio-windows --target x86_64-pc-windows-gnu --all-targets
 else

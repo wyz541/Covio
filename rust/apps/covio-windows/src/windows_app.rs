@@ -46,6 +46,7 @@ pub fn run() -> Result<(), String> {
     let data_root = data_root_from_arguments(&arguments);
     let core = WindowsDataPaths::new(data_root).app_core();
     let start_hidden = arguments.iter().any(|argument| argument == "--background");
+    let initial_theme = theme_from_arguments(&arguments);
     let screenshot_path = screenshot_path_from_arguments(&arguments);
     let auto_exit_frames = arguments
         .iter()
@@ -71,6 +72,7 @@ pub fn run() -> Result<(), String> {
                 core,
                 start_hidden,
                 auto_exit_frames,
+                initial_theme,
                 screenshot_path,
             )))
         }),
@@ -97,9 +99,10 @@ impl CovioWindowsApp {
         core: covio_ffi::AppCore,
         start_hidden: bool,
         auto_exit_frames: Option<u32>,
+        initial_theme: ThemePreference,
         screenshot_path: Option<PathBuf>,
     ) -> Self {
-        let mut model = HostModel::new(ThemePreference::System, false);
+        let mut model = HostModel::new(initial_theme, false);
         if start_hidden {
             model.hide();
         }
@@ -567,6 +570,19 @@ fn screenshot_path_from_arguments(arguments: &[String]) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
+fn theme_from_arguments(arguments: &[String]) -> ThemePreference {
+    let value = arguments
+        .iter()
+        .position(|argument| argument == "--theme")
+        .and_then(|index| arguments.get(index + 1))
+        .map(String::as_str);
+    match value {
+        Some("light") => ThemePreference::Light,
+        Some("dark") => ThemePreference::Dark,
+        _ => ThemePreference::System,
+    }
+}
+
 fn data_root_from_arguments(arguments: &[String]) -> PathBuf {
     if let Some(index) = arguments.iter().position(|value| value == "--data-dir") {
         if let Some(path) = arguments.get(index + 1) {
@@ -724,5 +740,21 @@ mod tests {
             data_root_from_arguments(&arguments),
             PathBuf::from("C:\\CovioTest")
         );
+    }
+
+    #[test]
+    fn theme_argument_accepts_light_and_dark() {
+        let light = vec![
+            "covio-windows.exe".to_owned(),
+            "--theme".to_owned(),
+            "light".to_owned(),
+        ];
+        let dark = vec![
+            "covio-windows.exe".to_owned(),
+            "--theme".to_owned(),
+            "dark".to_owned(),
+        ];
+        assert_eq!(theme_from_arguments(&light), ThemePreference::Light);
+        assert_eq!(theme_from_arguments(&dark), ThemePreference::Dark);
     }
 }
