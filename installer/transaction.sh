@@ -645,11 +645,39 @@ covio_tx_remove_local_helper() {
     done
 }
 
+covio_tx_stop_updater_processes() {
+    local name pid attempt remaining
+    if [[ "$TX_TEST_MODE" == "1" ]]; then
+        return 0
+    fi
+    for name in CovioUpdaterLauncher CovioUpdater; do
+        for pid in $("$COVIO_TX_PGREP" -x "$name" 2>/dev/null || true); do
+            covio_tx_log "Stopping stale $name process $pid"
+            kill -TERM "$pid" >/dev/null 2>&1 || true
+        done
+    done
+    for attempt in $(seq 1 20); do
+        remaining=0
+        for name in CovioUpdaterLauncher CovioUpdater; do
+            if "$COVIO_TX_PGREP" -x "$name" >/dev/null 2>&1; then
+                remaining=1
+                break
+            fi
+        done
+        [[ "$remaining" == "0" ]] && return 0
+        sleep 0.1
+    done
+    for name in CovioUpdaterLauncher CovioUpdater; do
+        /usr/bin/pkill -KILL -x "$name" >/dev/null 2>&1 || true
+    done
+}
+
 covio_tx_bootout_local_updater() {
     if [[ "$TX_TEST_MODE" == "1" ]]; then
         return 0
     fi
     "$COVIO_TX_LAUNCHCTL" bootout system/com.wyz.covio.updater >/dev/null 2>&1 || true
+    covio_tx_stop_updater_processes
 }
 
 covio_tx_backup_updater() {
@@ -1172,7 +1200,7 @@ covio_tx_start_and_verify_updater() {
     if [[ "$TX_TEST_MODE" == "1" ]]; then
         return 0
     fi
-    "$COVIO_TX_LAUNCHCTL" bootout "system/com.wyz.covio.updater" >/dev/null 2>&1 || true
+    covio_tx_bootout_local_updater
     if ! "$COVIO_TX_LAUNCHCTL" bootstrap system "$TX_UPDATER_LAUNCHD_PATH"; then
         covio_tx_log "Cannot bootstrap CovioUpdater"
         return 1
@@ -1223,6 +1251,7 @@ covio_tx_register_and_verify_updater() {
         fi
         NEW_UPDATER_LAUNCHER_SHA256="$launcher_sha"
     else
+        covio_tx_bootout_local_updater
         if ! COVIO_UPDATER_ROOT="$TX_UPDATER_ROOT" \
              COVIO_UPDATER_LAUNCHD_PATH="$TX_UPDATER_LAUNCHD_PATH" \
              COVIO_UPDATER_RELEASE_ID="$(covio_tx_identity_value "$prefix" RELEASE_ID)" \

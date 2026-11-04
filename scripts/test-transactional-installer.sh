@@ -527,6 +527,37 @@ assert_eq "$(cat "$FAKE_PGREP_LOG")" "-f -x $TX_APP_PATH/Contents/MacOS/Covio" "
 COVIO_TX_PGREP="$OLD_PGREP"
 TX_TEST_MODE="$OLD_TEST_MODE"
 
+printf 'case: stale updater processes are stopped before bootstrap\n'
+setup_case updater-process-cleanup
+FAKE_PGREP="$CASE_ROOT/fake-pgrep"
+cat > "$FAKE_PGREP" <<'PGGREP'
+#!/bin/bash
+if [[ "$1" == "-x" && "$2" == "CovioUpdater" ]] && \
+   kill -0 "$TEST_PID" 2>/dev/null; then
+  printf '%s\n' "$TEST_PID"
+  exit 0
+fi
+exit 1
+PGGREP
+chmod 0755 "$FAKE_PGREP"
+/bin/sleep 30 &
+TEST_PID=$!
+kill -0 "$TEST_PID" 2>/dev/null || fail "test updater process did not start"
+export TEST_PID
+OLD_PGREP="$COVIO_TX_PGREP"
+OLD_TEST_MODE="$TX_TEST_MODE"
+TX_TRANSACTION_ROOT="$CASE_ROOT/transaction"
+TX_LOG_FILE="$TX_TRANSACTION_ROOT/transaction.log"
+COVIO_TX_PGREP="$FAKE_PGREP"
+TX_TEST_MODE=0
+covio_tx_stop_updater_processes
+wait "$TEST_PID" 2>/dev/null || true
+if kill -0 "$TEST_PID" 2>/dev/null; then
+  fail "stale updater process was not stopped"
+fi
+COVIO_TX_PGREP="$OLD_PGREP"
+TX_TEST_MODE="$OLD_TEST_MODE"
+
 printf 'case: successful upgrade commits app, helper and record\n'
 prepare_case success 0.6.0 16 "$NEW_COMMIT"
 seed_legacy_helper
