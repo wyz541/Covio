@@ -51,12 +51,11 @@ Existing 0.0.1.8 users must install the transactional PKG once.
 Later internal updates do not request administrator credentials.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
-- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.2-internal/Covio-0.0.2.2.dmg)
-- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.2-internal/Covio-0.0.2.2.pkg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.2-internal)
-- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.2-internal/checksums.txt)
+- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.3-internal/Covio-0.0.2.3.dmg)
+- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.3-internal/Covio-0.0.2.3.pkg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.3-internal)
+- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.3-internal/checksums.txt)
 - [Covio 0.0.2.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.1-internal) is the previous internal test.
-- [Covio 0.0.2.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.1-internal) is an older internal test.
 - [Covio 0.0.2.0](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.0-internal) is an older internal test.
 - [Covio 0.0.1.8](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.8-internal) is an older internal test.
 - [Covio 0.0.1.7](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.7-internal) is an older internal test.
