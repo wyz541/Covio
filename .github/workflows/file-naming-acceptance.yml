@@ -21,7 +21,7 @@ jobs:
       COVIO_FILE_NAMING_MODEL_DIR: ${{ github.workspace }}/build/file-naming-model
       COVIO_FILE_NAMING_ACCEPTANCE_MIN_MEMORY_BYTES: "7516192768"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Record hardware
         run: |
@@ -55,7 +55,7 @@ jobs:
 
       - name: Upload the acceptance log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: file-naming-acceptance-${{ github.run_id }}
           path: ${{ runner.temp }}/file-naming-acceptance.log
