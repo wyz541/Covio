@@ -1,6 +1,7 @@
 //! Standard filesystem implementation of the bounded file capability.
 
 use crate::{FileStore, PlatformError};
+#[cfg(target_os = "windows")]
 use atomic_write_file::AtomicWriteFile;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -76,11 +77,32 @@ impl FileStore for StdFileStore {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|_| io_error())?;
         }
-        let mut file = AtomicWriteFile::options()
-            .open(path)
-            .map_err(|_| io_error())?;
-        file.write_all(contents).map_err(|_| io_error())?;
-        file.commit().map_err(|_| io_error())
+        #[cfg(target_os = "windows")]
+        {
+            let mut file = AtomicWriteFile::options()
+                .open(path)
+                .map_err(|_| io_error())?;
+            file.write_all(contents).map_err(|_| io_error())?;
+            file.commit().map_err(|_| io_error())
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let temporary = crate::temporary_path(path);
+            {
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .truncate(true)
+                    .write(true)
+                    .open(&temporary)
+                    .map_err(|_| io_error())?;
+                file.write_all(contents).map_err(|_| io_error())?;
+                file.sync_all().map_err(|_| io_error())?;
+            }
+            fs::rename(&temporary, path).map_err(|_| {
+                let _ = fs::remove_file(&temporary);
+                io_error()
+            })
+        }
     }
 
     fn append(&self, path: &Path, contents: &[u8]) -> Result<u64, PlatformError> {
