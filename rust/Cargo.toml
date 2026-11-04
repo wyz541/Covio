@@ -4,6 +4,7 @@ members = [
     "crates/covio-core",
     "crates/covio-bridge",
     "crates/covio-platform",
+    "crates/covio-ffi",
 ]
 
 [workspace.package]
@@ -19,4 +20,4 @@ sha2 = "0.10"
 regex = "1"
 
 [workspace.lints.rust]
-unsafe_code = "forbid"
+unsafe_code = "deny"

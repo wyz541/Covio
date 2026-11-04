@@ -1,0 +1,18 @@
+[package]
+name = "covio-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+covio-bridge = { path = "../covio-bridge" }
+covio-core = { path = "../covio-core" }
+covio-platform = { path = "../covio-platform" }
+serde_json.workspace = true
+
+[lints]
+workspace = true

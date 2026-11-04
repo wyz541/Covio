@@ -1,0 +1,4 @@
+module CovioFFI [system] {
+    header "covio_ffi.h"
+    export *
+}

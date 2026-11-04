@@ -8,13 +8,18 @@
 | --- | --- |
 | `covio-core` | configuration、shelf、clipboard、workspace、generation、revision、request id、deadline 和 typed core error |
 | `covio-bridge` | 版本化 command、response、event、snapshot、cancel 和 shutdown envelope |
-| `covio-platform` | data paths、filesystem capability 和 secure-storage port |
+| `covio-platform` | data paths、filesystem、Keychain secure storage 和 capability inventory |
+| `covio-ffi` | macOS C ABI、opaque handle、callback、shutdown 和 Swift 可导入 header |
 
 `covio-core` 的配置 codec 读取 Kotlin 生成的 fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
 Shelf、clipboard 与 workspace 使用同一 filesystem capability，并读取 Kotlin 共用的 durable-state fixture。
 Workspace 使用 SHA-256 内容寻址、bounded range reads、staging、atomic move 和 tombstone。
 
-`covio-platform` 只定义 capability。没有 native adapter 时，secret access 返回 `Unavailable`，不提供明文 fallback。
+`covio-platform` 定义 capability。macOS adapter 使用 Security.framework 读写 Keychain，不提供明文 fallback。
+`StdFileStore` 提供 bounded read、atomic write、append 和 move。
+process、socket、notification、power 和 update adapter 在 capability inventory 中保持 unavailable，直到产品 composition 接入真实 adapter。
+
+`covio-ffi` 暴露版本化 C ABI。Handle 只做 bridge envelope 校验、request tracking、cancel、event / snapshot callback 和 shutdown，不复制业务规则。
 
 后续 crate 按 [迁移计划](../docs/design/rust-core-migration.md) 增加。
 
@@ -22,6 +27,14 @@ Workspace 使用 SHA-256 内容寻址、bounded range reads、staging、atomic m
 
 ```sh
 bash scripts/test-rust.sh
+```
+
+脚本还会在 macOS 上构建 `build/rust-macos-ffi/debug/lib/libcovio_ffi.dylib`，并用 `swiftc` 编译和运行 C ABI smoke test。
+
+单独构建 C ABI：
+
+```sh
+bash scripts/build-rust-macos-ffi.sh release
 ```
 
 脚本要求 `cargo`、`rustfmt` 和 Clippy 可用。
