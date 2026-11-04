@@ -29,7 +29,7 @@ $LogDir = Join-Path $TestRoot "logs"
 New-Item -ItemType Directory -Force -Path $TestRoot, $LogDir | Out-Null
 
 function Invoke-Installer {
-    param([string]$Installer, [string]$Label)
+    param([System.IO.FileInfo]$Installer, [string]$Label)
     $log = Join-Path $LogDir "$Label.log"
     $process = Start-Process -FilePath $Installer.FullName -ArgumentList @(
         "/VERYSILENT",
