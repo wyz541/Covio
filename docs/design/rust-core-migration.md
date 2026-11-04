@@ -236,3 +236,78 @@ Verification Issue #613 只覆盖 Windows 和 macOS。
 
 仓库级 KMP 删除需要单独 ADR。
 Android、iOS 和 Web 的迁移需要单独 ADR 和 Feature。
+
+## 14. 最终验收记录
+
+- 结论：通过。
+- 日期：2026-11-05。
+- 基线：`main@92457c1c50f79b169516264bd59cc85c5edcb431`。
+- 范围：Windows 和 macOS。Android、iOS 和 Web 不在本次验收范围。
+
+### 14.1 macOS
+
+| 检查 | 结果 | 证据 |
+| --- | --- | --- |
+| 全量测试 | 通过 | [macOS full acceptance run](https://github.com/wyz541/kmp-Covio/actions/runs/41861580963) |
+| 最终包构建 | 通过 | `Covio-0.6.0-internal.25.app.zip`、DMG、PKG 和 updater ZIP |
+| Clean install、upgrade、rollback | 通过 | `bash scripts/test-transactional-installer.sh` |
+| Keychain | 通过 | 当前 `main` 的 C ABI Swift smoke |
+| 睡眠、helper 和重启恢复 | 通过 | [PR #626](https://github.com/wyz541/kmp-Covio/pull/626) 的真机证据 |
+| Artifact boundary | 通过 | 57 个 app 文件、8 个 Mach-O 文件；未发现 KMP、JVM、Kotlin、Compose 或 JNA |
+
+真机证据来自 MacBook Pro `MacBookPro18,2`，Apple M1 Max，macOS 27.0.1。
+该轮 UI、睡眠、helper 和重启证据的产品提交是 `811c92d`。
+当前 `main` 的 C ABI 和 Keychain smoke 在同一台真机通过。
+
+最终包摘要：
+
+| 文件 | SHA-256 |
+| --- | --- |
+| `Covio-0.6.0-internal.25.dmg` | `67d9400a09b990d1ef3eae6dbbac8b4da44a65a9240b698cd1740bb1dae365a1` |
+| `Covio-0.6.0-internal.25.pkg` | `b0cb9362fac7ef8395a21be486a28a5294bf65ddb1ccbde95199b0cf498add7e` |
+
+macOS 视觉证据：
+
+| Light | Dark |
+| --- | --- |
+| ![macOS Light](previews/605-hub-monitor-light-current-1.png) | ![macOS Dark](previews/605-hub-home-dark-current-1.png) |
+
+### 14.2 Windows
+
+| 检查 | 结果 | 证据 |
+| --- | --- | --- |
+| 全量测试和最终包 | 通过 | [Windows package run](https://github.com/wyz541/kmp-Covio/actions/runs/41861581262) |
+| Clean install、upgrade、rollback、uninstall | 通过 | [CI installer proof](https://github.com/wyz541/kmp-Covio/actions/runs/41861581262) |
+| Crash recovery 和 DPI 1.5 | 通过 | 同上 |
+| Credential Manager、clipboard、startup、notification、file picker、updater handoff | 通过 | Windows 11 ARM64 用户会话 capability smoke |
+| 单实例、窗口和托盘 | 通过 | `window-smoke` exit 0 |
+| 旧数据迁移 | 通过 | shelf 1、clipboard 2、workspace 2；unknown keys 保留 |
+| 多显示器 | 通过 | [Windows multi-monitor run](https://github.com/wyz541/kmp-Covio/actions/runs/41870873498) |
+| Artifact boundary | 通过 | 488 个 dependency packages；未发现 JVM、Kotlin、Compose 或 JNA |
+
+Windows 运行验收使用 QEMU Windows 11 ARM64 虚拟机，OS build 26300。
+运行进程未加载 JVM、Java、Kotlin 或 JNA module。
+最终 installer SHA-256 是 `790838b9cfbc1384a29fc920df5e3a0153063b408a2bb1e1b035c03a20280ee8`。
+Installer 摘要：
+
+```json
+{"cleanInstall":true,"upgrade":true,"crashRecovery":true,"rollback":true,"uninstall":true,"dpiScale":1.5}
+```
+
+多显示器验收使用 Windows Server 2025 Datacenter x64 runner 和 Parsec VDD。
+系统报告两块显示器：`DISPLAY1` 是 `1024x768`，`DISPLAY2` 是 `1920x1080`。
+Covio 窗口位于第二块显示器，窗口边界是 `1064,40` 到 `2060,799`。
+`intersectsSecondary=true`。
+
+Windows 视觉证据：
+
+| Light | Dark | Multi-monitor |
+| --- | --- | --- |
+| ![Windows Light](previews/613-workspace-light-current-1.png) | ![Windows Dark](previews/613-workspace-dark-current-1.png) | ![Windows Multi-monitor](previews/613-workspace-multimonitor-light-current-1.png) |
+
+### 14.3 剩余范围
+
+- Windows 运行验收使用虚拟机和 hosted runner，不是物理 Windows 硬件记录。
+- macOS 最终 `main` 包由 CI 构建并扫描。真机完整 UI、睡眠和 helper 证据来自 `811c92d`。
+- Android、iOS 和 Web 不在本计划范围。
+- `kmpDomain` 的仓库级删除仍需要单独 ADR。
