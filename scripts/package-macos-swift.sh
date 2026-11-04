@@ -536,6 +536,13 @@ if [[ -n "$NOTARY_PROFILE" ]]; then
 fi
 phase_done "notarization"
 
+bash "$ROOT/scripts/verify-macos-artifact.sh" \
+  "$APP_IMAGE" \
+  "$DMG_PATH" \
+  "$PKG_PATH" \
+  "$DIST/macos-artifact-boundary.txt"
+phase_done "artifact boundary"
+
 if [[ ! -f "$APP_ZIP" || ! -f "$UPDATE_ZIP" || ! -f "$PKG_PATH" ]]; then
   printf 'Packaging did not create the expected app zips or PKG.\n' >&2
   exit 1

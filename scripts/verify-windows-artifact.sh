@@ -12,11 +12,15 @@ if [[ ! -s "$EXE" ]]; then
   exit 1
 fi
 
-TREE_ARGS=(-p covio-windows --edges normal --prefix none)
-if [[ -n "$TARGET" ]]; then
-  TREE_ARGS+=(--target "$TARGET")
+if [[ -n "${COVIO_WINDOWS_DEPENDENCY_TREE:-}" ]]; then
+  DEPENDENCIES="$COVIO_WINDOWS_DEPENDENCY_TREE"
+else
+  TREE_ARGS=(-p covio-windows --edges normal --prefix none)
+  if [[ -n "$TARGET" ]]; then
+    TREE_ARGS+=(--target "$TARGET")
+  fi
+  DEPENDENCIES="$(cargo tree --manifest-path "$ROOT/rust/Cargo.toml" "${TREE_ARGS[@]}")"
 fi
-DEPENDENCIES="$(cargo tree --manifest-path "$ROOT/rust/Cargo.toml" "${TREE_ARGS[@]}")"
 if printf '%s\n' "$DEPENDENCIES" | grep -Eqi '(^|[ /])(jna|kotlin|compose|jvm)(@|[ /]|$)'; then
   printf 'Forbidden JVM/Kotlin/Compose/JNA dependency found.\n' >&2
   exit 1

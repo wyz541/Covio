@@ -151,12 +151,15 @@ jobs:
               - "installer/windows/**"
               - "rust/**"
               - "scripts/package-windows.sh"
+              - "scripts/test-verify-macos-artifact.sh"
+              - "scripts/test-verify-windows-artifact.sh"
               - "scripts/test-windows-installer.ps1"
               - "scripts/test-all.sh"
               - "scripts/test-rust.sh"
               - "scripts/test-rust-macos-ffi.sh"
               - "scripts/test-windows-rust.sh"
               - "scripts/verify-windows-artifact.sh"
+              - "scripts/verify-macos-artifact.sh"
               - "scripts/validate-workflow.py"
 
       - name: Check portable files

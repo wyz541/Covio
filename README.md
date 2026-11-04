@@ -558,6 +558,10 @@ Publish the verified Draft with:
 bash scripts/publish-release.sh v<clientVersion>
 ```
 
+The Windows package job uploads `Covio-<clientVersion>-windows-x64-setup.exe` with its checksum, package manifest, boundary scan, and installer test report.
+The manual `macOS full acceptance` workflow runs the full gate, builds the macOS package, and uploads the DMG, PKG, app zip, update zip, and boundary scan.
+Hosted artifacts prove build and installer behavior. Physical Windows and macOS acceptance remains #613.
+
 `.pkg` is the transactional install and upgrade entry.
 The PKG stages the new app, exchanges the app bundle atomically, and validates the new helper handshake before writing the installed release record.
 Recover an interrupted install transaction:
