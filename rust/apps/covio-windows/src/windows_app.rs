@@ -507,6 +507,12 @@ impl CovioWindowsApp {
         for pixel in &image.pixels {
             rgba.extend_from_slice(&pixel.to_array());
         }
+        if let Some(parent) = path.parent() {
+            if let Err(error) = std::fs::create_dir_all(parent) {
+                eprintln!("Cannot create Windows screenshot directory: {error}");
+                std::process::exit(1);
+            }
+        }
         if let Err(error) = image::save_buffer(path, &rgba, width, height, image::ColorType::Rgba8)
         {
             eprintln!("Cannot save Windows host screenshot: {error}");
