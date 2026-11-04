@@ -15,8 +15,14 @@ dependencies = [
 name = "covio-core"
 version = "0.1.0"
 dependencies = [
+ "covio-platform",
  "serde",
+ "serde_json",
 ]
+
+[[package]]
+name = "covio-platform"
+version = "0.1.0"
 
 [[package]]
 name = "itoa"
