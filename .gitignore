@@ -20,3 +20,6 @@ macosApp/Signing.local.xcconfig
 release/update-private-keys/
 *.update-private.json
 CovioUpdatePrivate-*.json
+
+# Rust
+rust/target/

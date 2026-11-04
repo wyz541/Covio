@@ -372,6 +372,15 @@ bash scripts/build-macos-swift.sh     # build the SwiftUI host
 bash scripts/test-macos-swift.sh      # run the SwiftUI host XCTest suite
 ```
 
+Test the Rust core and bridge:
+
+```sh
+bash scripts/test-rust.sh
+```
+
+The Rust script runs `cargo fmt --check`, Clippy with warnings denied, and the workspace tests.
+CI runs the same script in the `Rust core` job.
+
 After you change the design contract, run these two:
 
 ```sh
