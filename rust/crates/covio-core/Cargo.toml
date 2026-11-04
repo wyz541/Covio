@@ -6,7 +6,9 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+covio-platform = { path = "../covio-platform" }
 serde.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

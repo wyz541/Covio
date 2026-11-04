@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "crates/covio-core",
     "crates/covio-bridge",
+    "crates/covio-platform",
 ]
 
 [workspace.package]

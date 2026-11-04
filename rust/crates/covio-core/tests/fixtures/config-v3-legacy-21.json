@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 3,
+  "language": "zh-Hans",
+  "enabled": false,
+  "launchAtLogin": true,
+  "lowBatteryCapacitySleep": false,
+  "lowBatteryCapacity": 15,
+  "lowTimeRemaining": 25,
+  "disableIdleSleepInCharging": true,
+  "disableLidSleepInCharging": true,
+  "disableLidSleepOnBattery": true,
+  "darkWakeAwarenessEnabled": false,
+  "lidSleepImmediateOnClose": false,
+  "notificationsEnabled": false,
+  "updateCheckEnabled": false,
+  "updateCheckIntervalHours": 12,
+  "lastUpdateCheckEpochSeconds": 1700000000,
+  "hibernateMode": 3,
+  "firstRun": false,
+  "shelfEnabled": false,
+  "screenshotInboxEnabled": false,
+  "shelfSoundsEnabled": false
+}

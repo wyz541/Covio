@@ -5,6 +5,18 @@
 
 #![forbid(unsafe_code)]
 
+mod config;
+
+pub use config::{
+    AppConfig, CONFIG_SCHEMA_VERSION, ClosedLidDisplayMode, ClosedLidPowerPolicy, ConfigLoadResult,
+    ConfigLoadSource, ConfigLoadWarning, ConfigStore, DEFAULT_CAPTURE_HOT_KEY,
+    DEFAULT_CHARGE_LIMIT_PERCENT, DEFAULT_FILE_NAMING_MAX_UTF8_BYTES,
+    DEFAULT_FILE_NAMING_MIN_CONFIDENCE, DEFAULT_FILE_NAMING_TEMPLATE, DEFAULT_PASTE_STACK_HOT_KEY,
+    DisplayConfig, FILE_NAMING_SCHEMA_VERSION, FileNamingConflictPolicy, FileNamingDateSource,
+    FileNamingPolicy, PowerConfig, SUPPORTED_HIBERNATE_MODES,
+};
+
+use covio_platform::{PlatformError, PlatformErrorCode};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
@@ -225,6 +237,23 @@ impl fmt::Display for CoreError {
 }
 
 impl Error for CoreError {}
+
+impl From<PlatformError> for CoreError {
+    fn from(error: PlatformError) -> Self {
+        let code = match error.code() {
+            PlatformErrorCode::Unavailable => CoreErrorCode::Unsupported,
+            PlatformErrorCode::InvalidArgument => CoreErrorCode::InvalidArgument,
+            PlatformErrorCode::PermissionDenied | PlatformErrorCode::Io => CoreErrorCode::Io,
+        };
+        let message = match code {
+            CoreErrorCode::Unsupported => "platform capability is unavailable",
+            CoreErrorCode::InvalidArgument => "platform input is invalid",
+            CoreErrorCode::Io => "platform capability failed",
+            _ => "platform capability failed",
+        };
+        Self::new(code, message)
+    }
+}
 
 #[cfg(test)]
 mod tests {

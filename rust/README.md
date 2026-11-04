@@ -6,8 +6,13 @@
 
 | Crate | 责任 |
 | --- | --- |
-| `covio-core` | generation、revision、request id、deadline 和 typed core error |
+| `covio-core` | configuration、generation、revision、request id、deadline 和 typed core error |
 | `covio-bridge` | 版本化 command、response、event、snapshot、cancel 和 shutdown envelope |
+| `covio-platform` | data paths、filesystem capability 和 secure-storage port |
+
+`covio-core` 的配置 codec 读取 Kotlin 生成的 fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
+
+`covio-platform` 只定义 capability。没有 native adapter 时，secret access 返回 `Unavailable`，不提供明文 fallback。
 
 后续 crate 按 [迁移计划](../docs/design/rust-core-migration.md) 增加。
 
