@@ -1,4 +1,4 @@
-# Covio Rust core 与平台原生 UI 迁移计划
+# Covio Windows 与 macOS Rust core 迁移计划
 
 - 状态：accepted
 - 日期：2026-11-04
@@ -7,38 +7,39 @@
 
 ## 1. 结论
 
-Covio 的最终产品使用 Rust core。
+本次迁移只覆盖 Windows 和 macOS。
 Windows 使用 Rust + egui。
 macOS 使用 SwiftUI + AppKit。
-Android 使用 Kotlin UI 和 JNI 调用壳。
-最终产品删除 KMP shared module、Kotlin JVM 产品路径和 Windows Compose 路径。
+Android、iOS 和 Web 不在本次迁移范围内。
 
-迁移期间，现有 KMP path 继续服务当前产品。
-每个平台只有通过数据兼容、行为 parity 和真实 artifact 验收后，才执行 cutover。
+Windows 和 macOS 迁移后，产品核心使用 Rust。
+两个平台不保留 KMP shared module、Kotlin framework、JVM、Compose 或 JNA。
+
+KMP 的仓库级删除不属于本计划。
+Android、iOS 或 Web 的迁移需要独立 ADR 和独立 Feature。
 
 ## 2. 当前状态与目标状态
 
 | 项目 | 当前状态 | 目标状态 |
 | --- | --- | --- |
-| 业务规则 | macOS 使用 `covio-core` Rust；其它平台在 cutover 前保留 Kotlin | `covio-core` Rust |
-| Durable state | macOS 使用 Rust + filesystem adapter；其它平台在 cutover 前保留 Kotlin | Rust + platform filesystem adapter |
+| 业务规则 | macOS 使用 `covio-core` Rust；Windows 使用迁移期 Kotlin path | Windows 和 macOS 使用 `covio-core` Rust |
+| Durable state | macOS 使用 Rust + filesystem adapter；Windows 使用迁移期 path | Rust + platform filesystem adapter |
 | macOS bridge | C ABI / cinterop | C ABI / cinterop |
 | macOS UI | SwiftUI + AppKit | SwiftUI + AppKit |
 | Windows UI | Compose Multiplatform 计划 | Rust + egui |
 | Windows bridge | JVM / JNA 计划 | 同一 Rust 进程直接调用 |
-| Android UI | 尚未建立正式产品路径 | Kotlin Android UI |
-| Android bridge | 无 | JNI / NDK |
-| Secrets | macOS 产品通过 C ABI 使用 Rust Keychain adapter；其它平台待 cutover | Keychain、Credential Manager、Keystore |
-| 最终 artifact | macOS 不含 KMP；其它平台待 cutover | 不含 KMP |
+| macOS secret | 产品通过 C ABI 使用 Rust Keychain adapter | Keychain |
+| Windows secret | 待实现 | Windows Credential Manager |
+| 最终 artifact | macOS 不含 KMP；Windows 待 cutover | Windows 和 macOS 均不含 KMP fallback |
+| Android、iOS、Web | 不在本次迁移范围 | 需要独立 ADR |
 
 ## 3. Ownership
 
 | 层 | 拥有 | 不拥有 |
 | --- | --- | --- |
-| Rust core | 业务规则、状态机、durable state、网络、存储策略、更新、版本、bridge contract | 窗口、绘制、输入、OS UI lifecycle |
-| Windows egui | 窗口、输入、绘制、焦点、托盘、菜单、ephemeral widget state | 业务状态机、持久化、跨平台协议 |
-| macOS SwiftUI / AppKit | 窗口、菜单、selection panel、accessibility、app lifecycle | 业务规则、durable state、secret 规则 |
-| Android Kotlin UI | Activity、UI、input、accessibility、permission UI、Android build | shared KMP business logic |
+| Rust core | 业务规则、状态机、durable state、网络、存储策略、更新、版本和 bridge contract | 窗口、绘制、输入、OS UI lifecycle |
+| Windows egui | 窗口、输入、绘制、焦点、托盘、菜单和 ephemeral widget state | 业务状态机、持久化、跨平台协议 |
+| macOS SwiftUI / AppKit | 窗口、菜单、selection panel、accessibility 和 app lifecycle | 业务规则、durable state、secret 规则 |
 | Platform adapters | OS capability 和 bounded boundary | 业务规则、状态副本、无关 OS 扩展 |
 
 ## 4. Rust workspace
@@ -50,8 +51,7 @@ rust/
 │   ├── covio-core/
 │   ├── covio-bridge/
 │   ├── covio-platform/
-│   ├── covio-ffi/
-│   └── covio-jni/
+│   └── covio-ffi/
 └── apps/
     └── covio-windows/
 ```
@@ -62,16 +62,14 @@ rust/
 | --- | --- |
 | `covio-core` | 领域模型、状态机、策略、持久化规则和 typed errors |
 | `covio-bridge` | 版本化 envelope、payload bounds、generation、cancellation 和 shutdown |
-| `covio-platform` | filesystem、process、secret、power、notification 和 update ports |
-| `covio-ffi` | macOS C ABI、opaque handle、callback、panic containment |
-| `covio-jni` | Android JNI / NDK 入口和 Java VM bridge |
-| `covio-windows` | Windows egui composition root 和 OS adapter composition |
+| `covio-platform` | filesystem、process、secret、notification、power 和 update ports |
+| `covio-ffi` | macOS C ABI、opaque handle、callback 和 panic containment |
+| `covio-windows` | Windows egui host、托盘和同进程 composition root |
 
 `covio-core` 不依赖 UI crate。
-后续字典、媒体、搜索和阅读能力直接进入 Rust core。
-本次迁移不实现这些能力的完整产品功能。
-`covio-ffi` 和 `covio-jni` 只做边界转换。
-`covio-ffi` 和 `covio-jni` 不复制业务规则。
+Windows host 直接调用 Rust API。
+macOS host 通过 C ABI 调用同一个 Rust core。
+平台 adapter 不复制业务规则。
 
 ## 5. Bridge 合同
 
@@ -94,46 +92,29 @@ rust/
 | --- | --- | --- | --- |
 | Windows | Rust public API | 同一进程 | egui main thread + bounded worker pool |
 | macOS | C ABI | 同一进程 | SwiftUI actor/main + core worker |
-| Android | JNI / NDK | 同一进程 | UI thread + core worker + callback dispatch |
 
 Windows 不通过 JNA 调用 Rust。
 Windows 不启动 JVM。
 macOS 不加载 KMP framework。
-Android 不加载 shared KMP module。
 
 ## 6. Durable state 与数据兼容
 
-### 6.1 不变的文件布局
+### 6.1 数据边界
 
-| 数据 | 路径或规则 |
+| 平台 | 配置 | 其它 durable state |
+| --- | --- | --- |
+| Windows | Windows app data path | shelf、clipboard、workspace |
+| macOS | `~/Library/Application Support/com.wyz.covio/config.json` | shelf、clipboard、workspace |
+
+Windows 和 macOS 必须保留本平台现有数据布局。
+路径差异由 platform adapter 提供。
+Rust core 接收明确路径，不硬编码 OS 路径。
+
+### 6.2 兼容矩阵
+
+| 数据 | 通过条件 |
 | --- | --- |
-| 配置 | `~/Library/Application Support/com.wyz.covio/config.json` |
-| 晾衣线 | `~/Library/Application Support/Covio/Screenshots/shelf.json` |
-| 剪贴板 | `~/Library/Application Support/Covio/Clipboard/` |
-| 工作区 | `~/Library/Application Support/Covio/Workspace/` |
-| 工作区索引 | `Workspace/index.json` |
-| 工作区内容 | `Workspace/objects/<sha256>` |
-| 工作区临时内容 | `Workspace/incoming/<sha256>` |
-| 删除标记 | `Workspace/tombstones.json` |
-
-### 6.2 兼容规则
-
-1. Rust reader 必须读取现有 Kotlin writer 的 fixture。
-2. Rust writer 必须保留未知 JSON 键。
-3. 单个字段损坏时，只回退该字段。
-4. 原子写入使用同目录 `.tmp` 文件和 rename。
-5. 写入失败返回 typed error。平台 adapter 不得吞掉失败。
-6. 迁移不删除旧文件。
-7. 新版本只能删除用户数据，当用户明确执行清理动作。
-8. 每个平台保留旧 artifact，直到回滚验收通过。
-
-### 6.3 兼容验收
-
-| Fixture | 验收 |
-| --- | --- |
-| 默认配置 | 字段、顺序和默认值一致 |
-| 未知配置键 | 保存后仍然存在 |
-| 单键类型损坏 | 只有该键回退 |
+| `config.json` | 未知键保留；单键损坏只回退该键；原子保存 |
 | 旧 `shelf.json` | 条目、路径和顺序一致 |
 | 损坏剪贴板 JSON | 回退空状态且不崩溃 |
 | 工作区索引 | SHA-256、配额、tombstone 和错误码一致 |
@@ -143,15 +124,15 @@ Android 不加载 shared KMP module。
 
 ## 7. Platform adapter 合同
 
-| Adapter | macOS | Windows | Android |
-| --- | --- | --- | --- |
-| Secret | Keychain | Credential Manager | Keystore |
-| Filesystem | Foundation / POSIX | Win32 / std | ContentResolver / std |
-| Process | Foundation / POSIX | Win32 | Android process APIs |
-| Notifications | UserNotifications | Win32 toast policy | Android notification API |
-| Clipboard | NSPasteboard | Win32 clipboard | Android clipboard |
-| Screenshots | native screenshot directory | Windows screenshot adapter | Android media adapter |
-| Update handoff | app / updater XPC | updater process policy | Play or local installer policy |
+| Adapter | macOS | Windows |
+| --- | --- | --- |
+| Secret | Keychain | Credential Manager |
+| Filesystem | Foundation / POSIX | Win32 / std |
+| Process | Foundation / POSIX | Win32 |
+| Notifications | UserNotifications | Win32 toast policy |
+| Clipboard | NSPasteboard | Win32 clipboard |
+| Screenshots | native screenshot directory | Windows screenshot adapter |
+| Update handoff | app / updater XPC | updater process policy |
 
 平台 adapter 对不支持的能力返回 typed unavailable。
 平台 adapter 不返回虚假成功。
@@ -161,17 +142,21 @@ Android 不加载 shared KMP module。
 
 | 阶段 | Issue | 结果 |
 | --- | --- | --- |
-| 决策 | #596 | ADR 与迁移计划 |
+| 决策 | #596 | 修正 ADR 与迁移计划 |
 | Rust foundation | #597 | workspace 与 bridge |
 | Core state | #598–#602 | 配置、数据、电源、helper、更新与合同规则 |
 | Parity gate | #604 | Rust 与 KMP 行为及数据兼容证据 |
 | macOS adapter | #603 | C ABI、Keychain 和 bounded boundary |
 | macOS cutover | #605 | SwiftUI 产品切到 Rust |
-| Windows host | #606–#608 | egui、Credential Manager 和产品 cutover |
-| Android path | #609–#610 | JNI / Keystore 和 Kotlin UI |
-| KMP removal | #611 | 删除 shared module 与旧产品路径 |
-| Build and release | #612 | CI、安装包和 artifact checks |
-| Final verification | #613 | 三平台真实产品边界 |
+| Windows host | #606 | egui、托盘、单实例和 shutdown |
+| Windows adapter | #607 | Credential Manager 和 Windows capability |
+| Windows cutover | #608 | Rust + egui 产品边界 |
+| Build and release | #612 | Windows 和 macOS CI、安装包与边界检查 |
+| Final verification | rebaseline required | Windows 和 macOS 真实产品验收 |
+
+Android Issue #609 和 #610 不属于本计划。
+KMP removal Issue #611 不属于本计划。
+原三平台 verification Issue #613 必须先重新基线化。
 
 ## 9. Cutover gates
 
@@ -189,35 +174,34 @@ Android 不加载 shared KMP module。
 | --- | --- |
 | macOS | clean install、Keychain、睡眠、helper、升级和回滚 |
 | Windows | clean install、Credential Manager、托盘、升级和卸载 |
-| Android | clean install、Keystore、process death 和 JNI restart |
 
 ### 9.3 Artifact gates
 
 - macOS app bundle 不含 Kotlin framework 或 KMP code。
 - Windows artifact 不含 JVM、Kotlin、Compose 或 JNA。
-- Android APK 不含 shared KMP business logic。
-- Release workflow 只构建 Rust core 和平台 native UI。
-- 仓库搜索、dependency graph 和 artifact scan 证明没有 KMP fallback。
+- Windows 和 macOS release workflow 只构建 Rust core 和平台 native UI。
+- Windows 和 macOS artifact scan 证明没有 KMP fallback。
+- Android、iOS 和 Web artifact 不在本计划验收范围。
 
 ## 10. 回滚
 
-1. 每个平台保留 pre-cutover artifact。
+1. Windows 和 macOS 各自保留 pre-cutover artifact。
 2. Feature flag 选择旧 path 或 Rust path。
 3. 数据文件保持向后可读。
 4. 回滚不删除新文件。
 5. 回滚后旧版本仍能读取迁移后的共享字段。
-6. 回滚失败时停止 cutover，不继续删除 KMP。
+6. 回滚失败时停止该平台 cutover。
+7. 本计划不授权删除 KMP module。
 
 ## 11. 测试与证据
 
 | 层 | 证据 |
 | --- | --- |
 | Rust unit / integration | `cargo fmt --check`、Clippy、workspace tests |
-| Bridge | C header、JNI contract、round-trip、cancellation 和 payload tests |
-| Data compatibility | Kotlin fixture 与 Rust output 对照 |
+| Bridge | C header、round-trip、cancellation 和 payload tests |
+| Data compatibility | KMP fixture 与 Rust output 对照 |
 | macOS | Swift tests、Keychain、真机流程、artifact scan |
 | Windows | egui tests、Credential Manager、Windows 11 artifact 验收 |
-| Android | Android build、JNI tests、Keystore、process death 验收 |
 | Release | clean install、upgrade、rollback、dependency graph 和 bundle scan |
 
 仓库测试不等于真实产品验收。
@@ -225,26 +209,27 @@ Android 不加载 shared KMP module。
 
 ## 12. 文档更新
 
-迁移期间需要同步更新以下文档。
-
 | 文档 | 要求 |
 | --- | --- |
-| `README.md` | 区分当前 KMP path 和 Rust 目标 path |
-| `AGENTS.md` | 迁移完成后删除 KMP 构建约束 |
-| `docs/design/workbench-architecture.md` | UI 行为不变，只更新 host ownership 引用 |
-| `docs/adr/adr-0030-rust-core-platform-native-ui.md` | 记录决策和 cutover 门槛 |
+| `README.md` | 只承诺 Windows 和 macOS 的 Rust 迁移 |
+| `AGENTS.md` | 保留当前 KMP 构建约束，直到单独决策 |
+| `docs/design/workbench-architecture.md` | 更新 host ownership 引用 |
+| `docs/adr/adr-0030-rust-core-platform-native-ui.md` | 记录 Windows 和 macOS 决策 |
 | `docs/design/rust-core-migration.md` | 更新阶段、完成状态和证据 |
-| 平台发布文档 | 更新构建、签名、安装和回滚命令 |
+| 平台发布文档 | 更新 Windows 和 macOS 的构建、签名、安装和回滚命令 |
 
 ## 13. 完成定义
 
-Feature #595 只有满足以下条件才能关闭。
+本 ADR 的范围只有满足以下条件才能关闭。
 
-1. #596–#613 完成或有明确的 out-of-scope 决议。
-2. Rust core 是三个平台的唯一业务逻辑来源。
-3. 三个平台完成真实 artifact 验收。
-4. Keychain、Credential Manager 和 Keystore 通过 secret 验收。
-5. 现有用户数据无损迁移。
-6. KMP module、Kotlin JVM / Compose 产品路径和 KMP build scripts 删除。
-7. CI 和 release 只构建 Rust core 与平台 native UI。
+1. Windows 和 macOS 使用 Rust 作为唯一业务逻辑来源。
+2. Windows 和 macOS 完成真实 artifact 验收。
+3. Keychain 和 Windows Credential Manager 通过 secret 验收。
+4. Windows 和 macOS 的现有用户数据无损迁移。
+5. Windows artifact 不含 JVM、Kotlin、Compose 或 JNA。
+6. macOS artifact 不含 Kotlin framework 或 KMP shared module。
+7. Windows 和 macOS 的 CI 与 release 只构建 Rust core 与平台 native UI。
 8. README、ADR、迁移计划和发布文档与现实一致。
+
+仓库级 KMP 删除需要单独 ADR。
+Android、iOS 和 Web 的迁移需要单独 ADR 和 Feature。
