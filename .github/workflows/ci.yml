@@ -19,6 +19,57 @@ permissions:
 # Hosted CI is the portable gate. macOS XCTest and installers run on the release Mac
 # or in the manual "macOS full acceptance" workflow.
 jobs:
+  windows-host:
+    name: Windows host (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-11-arm
+            label: windows-11-arm64
+          - runner: windows-2025
+            label: windows-2025-x64
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Record Windows environment
+        shell: pwsh
+        run: |
+          Get-ComputerInfo |
+            Select-Object WindowsProductName, WindowsVersion, OsBuildNumber, OsArchitecture |
+            Format-List
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Restore Rust cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-windows-v1-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            rust-windows-v1-${{ hashFiles('rust/Cargo.lock') }}-
+            rust-windows-v1-
+
+      - name: Test Windows host
+        shell: bash
+        run: bash scripts/test-windows-rust.sh
+
+      - name: Upload Windows host screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-host-${{ matrix.label }}-${{ github.run_id }}
+          path: build/windows-host-screenshots/*.png
+          if-no-files-found: error
+          retention-days: 30
+
   portable:
     name: Portable gate
     runs-on: ubuntu-latest
@@ -49,6 +100,7 @@ jobs:
               - "scripts/test-all.sh"
               - "scripts/test-rust.sh"
               - "scripts/test-rust-macos-ffi.sh"
+              - "scripts/test-windows-rust.sh"
               - "scripts/validate-workflow.py"
 
       - name: Check portable files

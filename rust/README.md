@@ -10,6 +10,7 @@
 | `covio-bridge` | 版本化 command、response、event、snapshot、cancel 和 shutdown envelope |
 | `covio-platform` | data paths、filesystem、Keychain secure storage 和 capability inventory |
 | `covio-ffi` | macOS C ABI、opaque handle、callback、shutdown 和 Swift 可导入 header |
+| `covio-windows` | Windows egui host、托盘、单实例、core worker 和 capability composition |
 
 `covio-core` 的配置 codec 读取 Kotlin 生成的 fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
 Shelf、clipboard 与 workspace 使用同一 filesystem capability，并读取 Kotlin 共用的 durable-state fixture。
@@ -21,12 +22,16 @@ process、socket、notification、power 和 update adapter 在 capability invent
 
 `covio-ffi` 暴露版本化 C ABI。Handle 只做 bridge envelope 校验、request tracking、cancel、event / snapshot callback 和 shutdown，不复制业务规则。
 
+`covio-windows` 在 Windows 上使用 Rust + egui。Windows host 直接持有 core worker，不启动 JVM。
+macOS、Android、iOS 和 Web 不是这个 host 的目标。
+
 后续 crate 按 [迁移计划](../docs/design/rust-core-migration.md) 增加。
 
 ## 测试
 
 ```sh
 bash scripts/test-rust.sh
+bash scripts/test-windows-rust.sh
 ```
 
 脚本还会在 macOS 上构建 `build/rust-macos-ffi/debug/lib/libcovio_ffi.dylib`，并用 `swiftc` 编译和运行 C ABI smoke test。

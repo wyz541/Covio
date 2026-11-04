@@ -36,6 +36,9 @@ python3 -I "$ROOT/scripts/test_verify_macos_signing.py"
 step "Rust core"
 bash "$ROOT/scripts/test-rust.sh"
 
+step "Windows host"
+bash "$ROOT/scripts/test-windows-rust.sh"
+
 step "Kotlin 共享层"
 bash "$ROOT/scripts/provision-amper-github-downloads.sh"
 /bin/sh ./kotlin test

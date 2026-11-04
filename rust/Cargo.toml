@@ -5,6 +5,7 @@ members = [
     "crates/covio-bridge",
     "crates/covio-platform",
     "crates/covio-ffi",
+    "apps/covio-windows",
 ]
 
 [workspace.package]
