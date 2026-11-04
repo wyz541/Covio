@@ -1,12 +1,11 @@
 name: Agent acceptance
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/agent-acceptance.yml"
-      - "macosApp/src/Agent/AgentAcceptanceVerifier.swift"
-      - "scripts/verify-agent-bundle.sh"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

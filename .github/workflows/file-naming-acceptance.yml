@@ -1,12 +1,11 @@
 name: File naming hardware acceptance
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/file-naming-acceptance.yml"
-      - "macosApp/src/AutoNaming/FileNamingAcceptanceVerifier.swift"
-      - "scripts/verify-file-naming-bundle.sh"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
