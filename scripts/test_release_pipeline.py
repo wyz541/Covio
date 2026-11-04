@@ -115,6 +115,23 @@ class ReleasePipelineTests(unittest.TestCase):
                 self.assertIn('if [[ "$CHANNEL" == "public" ]]; then', script)
                 self.assertNotIn("SIGN_RUNTIME_FLAGS", script)
 
+    def test_release_package_uses_shared_package_and_kmp_caches(self):
+        script = SCRIPT.with_name("package-macos-swift.sh").read_text(encoding="utf-8")
+        self.assertIn('source "$ROOT/scripts/release-cache.sh"', script)
+        self.assertIn('DERIVED_DATA="$(release_derived_data_path "$ROOT")', script)
+        self.assertIn('SOURCE_PACKAGES_DIR="$(release_source_packages_path "$ROOT")', script)
+        self.assertIn('KMP_CACHE_DIR="$(release_kmp_cache_path "$ROOT")', script)
+        self.assertIn('export COVIO_RELEASE_KMP_CACHE_DIR="$KMP_CACHE_DIR"', script)
+        self.assertIn('-clonedSourcePackagesDirPath', script)
+        self.assertIn('-resolvePackageDependencies', script)
+        self.assertIn('phase_done "package resolve"', script)
+        self.assertIn('COVIO_RELEASE_KMP_CACHE_DIR="$KMP_CACHE_DIR"', script)
+
+    def test_release_cli_and_package_use_the_same_cache_resolver(self):
+        cli = SCRIPT.with_name("covio").read_text(encoding="utf-8")
+        self.assertIn('source "$ROOT/scripts/release-cache.sh"', cli)
+        self.assertIn('RELEASE_DERIVED_DATA="$(release_derived_data_path "$ROOT")', cli)
+
     def test_internal_signature_allows_adhoc_without_stable_requirement(self):
         self.assertEqual(
             pipeline.signature_errors("Signature=adhoc", "Signature=adhoc", "", "", "internal"),

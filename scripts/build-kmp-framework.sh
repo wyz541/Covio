@@ -17,12 +17,25 @@ PLATFORM_ID="$(printf '%s' "$PLATFORM" | cut -c1 | tr '[:lower:]' '[:upper:]')$(
 TARGET="macos_arm64"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 SHARED_CACHE="${KOTLIN_SHARED_CACHE_DIR:-$HOME/Library/Caches/JetBrains/Kotlin}"
-OUT_DIR="$ROOT/build/kmp-framework"
+LOCAL_OUT_ROOT="$ROOT/build"
+if [[ "$BUILD_TYPE" == "Release" && -n "${COVIO_RELEASE_KMP_CACHE_DIR:-}" ]]; then
+  CACHE_OUT_ROOT="$COVIO_RELEASE_KMP_CACHE_DIR"
+  if [[ "$CACHE_OUT_ROOT" != /* ]]; then
+    CACHE_OUT_ROOT="$ROOT/$CACHE_OUT_ROOT"
+  fi
+else
+  CACHE_OUT_ROOT="$LOCAL_OUT_ROOT"
+fi
+OUT_DIR="$CACHE_OUT_ROOT/kmp-framework"
 FRAMEWORK="$OUT_DIR/$MODULE.framework"
-STATIC_OUT_DIR="$ROOT/build/kmp-framework-static"
+STATIC_OUT_DIR="$CACHE_OUT_ROOT/kmp-framework-static"
 STATIC_FRAMEWORK="$STATIC_OUT_DIR/$MODULE.framework"
+PUBLIC_OUT_DIR="$LOCAL_OUT_ROOT/kmp-framework"
+PUBLIC_STATIC_OUT_DIR="$LOCAL_OUT_ROOT/kmp-framework-static"
+CACHE_STAMP="$CACHE_OUT_ROOT/kmp-frameworks.stamp"
 KLIB="$ROOT/build/tasks/_${MODULE}_compile${PLATFORM_ID}${BUILD_TYPE}/${MODULE}.klib"
 BUNDLE_ID="com.wyz.covio.$MODULE"
+TEMP_PATHS=()
 
 if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   printf 'This script requires an Apple Silicon Mac.\n' >&2
@@ -33,6 +46,32 @@ if [[ "$BUILD_TYPE" != "Debug" && "$BUILD_TYPE" != "Release" ]]; then
   printf 'BUILD_TYPE must be Debug or Release, got: %s\n' "$BUILD_TYPE" >&2
   exit 1
 fi
+
+remove_path() {
+  local path="$1"
+  if [[ -d "$path" && ! -L "$path" ]]; then
+    find "$path" -depth -delete
+  elif [[ -e "$path" || -L "$path" ]]; then
+    unlink "$path"
+  fi
+}
+
+remove_path_if_symlink() {
+  local path="$1"
+  if [[ -L "$path" ]]; then
+    remove_path "$path"
+  fi
+}
+
+cleanup_temporary_paths() {
+  local path
+  for path in "${TEMP_PATHS[@]:-}"; do
+    if [[ -n "$path" && -e "$path" ]]; then
+      find "$path" -depth -delete
+    fi
+  done
+}
+trap cleanup_temporary_paths EXIT
 
 # konanc 的路径随 Amper 版本变化，必须发现，不能写死。
 find_konanc() {
@@ -132,6 +171,7 @@ if [[ ! -f "$KLIB" ]]; then
 fi
 
 LIB_ARGS=()
+DEP_KLIB_PATHS=()
 while read -r coord; do
   [[ -z "$coord" ]] && continue
   dep_klib="$(klib_path_for "$coord")"
@@ -141,6 +181,7 @@ while read -r coord; do
   fi
   printf 'linking %s\n' "$coord"
   LIB_ARGS+=(-library "$dep_klib")
+  DEP_KLIB_PATHS+=("$dep_klib")
 done < <(resolve_dep_klibs)
 
 LINK_FLAGS=(-produce framework -target "$TARGET" -Xbinary=bundleId="$BUNDLE_ID")
@@ -150,8 +191,158 @@ else
   LINK_FLAGS+=(-g)
 fi
 
-rm -rf "$FRAMEWORK" "$FRAMEWORK.dSYM" "$STATIC_FRAMEWORK" "$STATIC_FRAMEWORK.dSYM"
+artifact_hash() {
+  local framework="$1"
+  {
+    shasum -a 256 "$framework/$MODULE" | awk '{print $1}'
+    shasum -a 256 "$framework/Headers/$MODULE.h" | awk '{print $1}'
+  } | shasum -a 256 | awk '{print $1}'
+}
+
+cache_fingerprint() {
+  python3 -I - \
+    "$ROOT" \
+    "$BUILD_TYPE" \
+    "$TARGET" \
+    "$BUNDLE_ID" \
+    "${LINK_FLAGS[*]}" \
+    "$KONANC_BIN" \
+    "$JAVA_HOME_DIR" \
+    "${DEP_KLIB_PATHS[@]}" <<'PY'
+import hashlib
+import pathlib
+import subprocess
+import sys
+
+root = pathlib.Path(sys.argv[1])
+build_type, target, bundle_id, link_flags = sys.argv[2:6]
+konanc = sys.argv[6]
+java_home = pathlib.Path(sys.argv[7])
+dependencies = [pathlib.Path(value) for value in sys.argv[8:]]
+digest = hashlib.sha256()
+
+
+def add(label, value):
+    encoded = value if isinstance(value, bytes) else value.encode("utf-8")
+    digest.update(label.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(len(encoded).to_bytes(8, "big"))
+    digest.update(encoded)
+
+
+def add_file(label, path):
+    add(label, path.read_bytes())
+
+
+def command_output(command):
+    result = subprocess.run(
+        command,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=30,
+    )
+    return f"exit={result.returncode}\n".encode("utf-8") + result.stdout
+
+
+add("schema", "covio-kmp-framework-cache-v1")
+add("buildType", build_type)
+add("target", target)
+add("bundleId", bundle_id)
+add("linkFlags", link_flags)
+add("konanc", command_output([konanc, "-version"]))
+add("java", command_output([str(java_home / "bin" / "java"), "-version"]))
+
+fixed_inputs = (
+    root / "project.yaml",
+    root / "libs.versions.toml",
+    root / "kmpDomain" / "module.yaml",
+    root / "scripts" / "build-kmp-framework.sh",
+    root / "kotlin",
+)
+for path in fixed_inputs:
+    add_file(path.relative_to(root).as_posix(), path)
+
+source_root = root / "kmpDomain" / "src"
+for path in sorted(item for item in source_root.rglob("*") if item.is_file()):
+    add_file(path.relative_to(root).as_posix(), path)
+
+for index, path in enumerate(dependencies):
+    add_file(f"dependency-{index}", path)
+
+print(digest.hexdigest())
+PY
+}
+
+cache_is_valid() {
+  local expected_fingerprint="$1"
+  [[ -f "$CACHE_STAMP" ]] || return 1
+  [[ -f "$FRAMEWORK/$MODULE" ]] || return 1
+  [[ -f "$FRAMEWORK/Headers/$MODULE.h" ]] || return 1
+  [[ -d "$FRAMEWORK.dSYM" ]] || return 1
+  [[ -f "$STATIC_FRAMEWORK/$MODULE" ]] || return 1
+  [[ -f "$STATIC_FRAMEWORK/Headers/$MODULE.h" ]] || return 1
+  [[ "$(sed -n 's/^fingerprint=//p' "$CACHE_STAMP")" == "$expected_fingerprint" ]] || return 1
+  [[ "$(sed -n 's/^dynamic=//p' "$CACHE_STAMP")" == "$(artifact_hash "$FRAMEWORK")" ]] || return 1
+  [[ "$(sed -n 's/^static=//p' "$CACHE_STAMP")" == "$(artifact_hash "$STATIC_FRAMEWORK")" ]] || return 1
+}
+
+ensure_public_link() {
+  local cache_dir="$1" public_dir="$2"
+  [[ "$cache_dir" == "$public_dir" ]] && return 0
+  if [[ -L "$public_dir" && "$(readlink "$public_dir")" == "$cache_dir" ]]; then
+    return 0
+  fi
+  remove_path "$public_dir"
+  ln -s "$cache_dir" "$public_dir"
+}
+
+replace_framework() {
+  local source="$1" target="$2"
+  remove_path "$target"
+  remove_path "$target.dSYM"
+  mv "$source" "$target"
+  if [[ -d "$source.dSYM" ]]; then
+    mv "$source.dSYM" "$target.dSYM"
+  fi
+}
+
+write_cache_stamp() {
+  local fingerprint="$1" temporary="$CACHE_STAMP.tmp.$$"
+  TEMP_PATHS+=("$temporary")
+  {
+    printf 'schema=1\n'
+    printf 'fingerprint=%s\n' "$fingerprint"
+    printf 'dynamic=%s\n' "$(artifact_hash "$FRAMEWORK")"
+    printf 'static=%s\n' "$(artifact_hash "$STATIC_FRAMEWORK")"
+  } >"$temporary"
+  mv "$temporary" "$CACHE_STAMP"
+}
+
+FINGERPRINT="$(cache_fingerprint)"
+mkdir -p "$CACHE_OUT_ROOT"
+if [[ "$CACHE_OUT_ROOT" != "$LOCAL_OUT_ROOT" ]]; then
+  KMP_CACHE_LOCK="$CACHE_OUT_ROOT.lock"
+  if ! /usr/bin/shlock -f "$KMP_CACHE_LOCK" -p $$; then
+    printf 'KMP framework cache is in use: %s\n' "$CACHE_OUT_ROOT" >&2
+    exit 1
+  fi
+  TEMP_PATHS+=("$KMP_CACHE_LOCK")
+fi
+remove_path_if_symlink "$OUT_DIR"
+remove_path_if_symlink "$STATIC_OUT_DIR"
 mkdir -p "$OUT_DIR" "$STATIC_OUT_DIR"
+
+if cache_is_valid "$FINGERPRINT"; then
+  ensure_public_link "$OUT_DIR" "$PUBLIC_OUT_DIR"
+  ensure_public_link "$STATIC_OUT_DIR" "$PUBLIC_STATIC_OUT_DIR"
+  printf 'KMP cache hit: %s [%s]\n' "$MODULE" "$BUILD_TYPE"
+  exit 0
+fi
+
+DYNAMIC_TEMP_ROOT="$(mktemp -d "$CACHE_OUT_ROOT/.kmp-dynamic.XXXXXX")"
+STATIC_TEMP_ROOT="$(mktemp -d "$CACHE_OUT_ROOT/.kmp-static.XXXXXX")"
+TEMP_PATHS+=("$DYNAMIC_TEMP_ROOT" "$STATIC_TEMP_ROOT")
 
 # -Xinclude 把 Amper 编好的 klib 当作源码处理。
 # 只用 -library 会报 `you have not specified any compilation arguments`。
@@ -160,25 +351,22 @@ if ! "$KONANC_BIN" \
   "${LINK_FLAGS[@]}" \
   -Xinclude="$KLIB" \
   ${LIB_ARGS[@]+"${LIB_ARGS[@]}"} \
-  -o "$OUT_DIR/$MODULE" \
+  -o "$DYNAMIC_TEMP_ROOT/$MODULE" \
   >"$LINK_LOG" 2>&1; then
   grep -v '^WARNING: ' "$LINK_LOG" >&2 || true
   printf 'konanc failed. Full log: %s\n' "$LINK_LOG" >&2
   exit 1
 fi
 
-if [[ ! -f "$FRAMEWORK/$MODULE" ]]; then
+if [[ ! -f "$DYNAMIC_TEMP_ROOT/$MODULE.framework/$MODULE" ]]; then
   printf 'Framework was not produced: %s\n' "$FRAMEWORK" >&2
   exit 1
 fi
 
-if [[ ! -f "$FRAMEWORK/Headers/$MODULE.h" ]]; then
+if [[ ! -f "$DYNAMIC_TEMP_ROOT/$MODULE.framework/Headers/$MODULE.h" ]]; then
   printf 'Framework has no header: %s/Headers/%s.h\n' "$FRAMEWORK" "$MODULE" >&2
   exit 1
 fi
-
-printf 'Built %s\n' "$FRAMEWORK"
-file "$FRAMEWORK/$MODULE"
 
 STATIC_LINK_LOG="$STATIC_OUT_DIR/link.log"
 if ! "$KONANC_BIN" \
@@ -186,22 +374,31 @@ if ! "$KONANC_BIN" \
   -Xstatic-framework \
   -Xinclude="$KLIB" \
   ${LIB_ARGS[@]+"${LIB_ARGS[@]}"} \
-  -o "$STATIC_OUT_DIR/$MODULE" \
+  -o "$STATIC_TEMP_ROOT/$MODULE" \
   >"$STATIC_LINK_LOG" 2>&1; then
   grep -v '^WARNING: ' "$STATIC_LINK_LOG" >&2 || true
   printf 'konanc static link failed. Full log: %s\n' "$STATIC_LINK_LOG" >&2
   exit 1
 fi
 
-if [[ ! -f "$STATIC_FRAMEWORK/$MODULE" ]]; then
+if [[ ! -f "$STATIC_TEMP_ROOT/$MODULE.framework/$MODULE" ]]; then
   printf 'Static framework was not produced: %s\n' "$STATIC_FRAMEWORK" >&2
   exit 1
 fi
 
-if [[ ! -f "$STATIC_FRAMEWORK/Headers/$MODULE.h" ]]; then
+if [[ ! -f "$STATIC_TEMP_ROOT/$MODULE.framework/Headers/$MODULE.h" ]]; then
   printf 'Static framework has no header: %s/Headers/%s.h\n' "$STATIC_FRAMEWORK" "$MODULE" >&2
   exit 1
 fi
 
+remove_path "$CACHE_STAMP"
+replace_framework "$DYNAMIC_TEMP_ROOT/$MODULE.framework" "$FRAMEWORK"
+replace_framework "$STATIC_TEMP_ROOT/$MODULE.framework" "$STATIC_FRAMEWORK"
+ensure_public_link "$OUT_DIR" "$PUBLIC_OUT_DIR"
+ensure_public_link "$STATIC_OUT_DIR" "$PUBLIC_STATIC_OUT_DIR"
+write_cache_stamp "$FINGERPRINT"
+
+printf 'Built %s\n' "$FRAMEWORK"
+file "$FRAMEWORK/$MODULE"
 printf 'Built %s\n' "$STATIC_FRAMEWORK"
 file "$STATIC_FRAMEWORK/$MODULE"

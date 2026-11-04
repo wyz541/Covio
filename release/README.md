@@ -64,12 +64,19 @@ bash scripts/setup-local-signing.sh
 bash scripts/package-macos-swift.sh
 ```
 
-`scripts/covio release draft` reuses a persistent DerivedData cache outside the clean release worktree.
-The default cache is under the primary checkout at `build/release-xcode-cache`.
-Set `COVIO_RELEASE_DERIVED_DATA` to use another cache directory.
-The packaging job locks the cache, and every release identity and asset check still runs.
+`scripts/covio release draft` and direct Release packaging reuse persistent caches outside the clean release worktree.
+The packaging job locks all three caches, and every release identity and asset check still runs.
+
+- DerivedData defaults to the primary checkout at `build/release-xcode-cache`.
+- Swift Package checkout defaults to the primary checkout at `build/release-source-packages`.
+- KMP frameworks default to the primary checkout at `build/release-kmp-cache`.
+
+Set `COVIO_RELEASE_DERIVED_DATA`, `COVIO_RELEASE_SOURCE_PACKAGES` or `COVIO_RELEASE_KMP_CACHE_DIR` to use another cache directory.
 The package script uses `xcodebuild build` and reads `Build/Products/Release/Covio.app`.
 It does not run a fresh Xcode archive for every release.
+The KMP cache key covers KMP sources, dependency klibs, konanc and Java versions, and link flags.
+An unchanged KMP input skips both dynamic and static framework links.
+Only Release packaging uses the shared KMP cache. Debug builds keep their frameworks inside the worktree.
 
 Internal Release creation requires a stable local signing identity.
 The app and helper must use the same certificate.
