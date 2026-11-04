@@ -6,12 +6,13 @@
 
 | Crate | 责任 |
 | --- | --- |
-| `covio-core` | configuration、shelf、clipboard、generation、revision、request id、deadline 和 typed core error |
+| `covio-core` | configuration、shelf、clipboard、workspace、generation、revision、request id、deadline 和 typed core error |
 | `covio-bridge` | 版本化 command、response、event、snapshot、cancel 和 shutdown envelope |
 | `covio-platform` | data paths、filesystem capability 和 secure-storage port |
 
 `covio-core` 的配置 codec 读取 Kotlin 生成的 fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
-Shelf 与 clipboard 使用同一 filesystem capability，并读取 Kotlin 共用的 durable-state fixture。
+Shelf、clipboard 与 workspace 使用同一 filesystem capability，并读取 Kotlin 共用的 durable-state fixture。
+Workspace 使用 SHA-256 内容寻址、bounded range reads、staging、atomic move 和 tombstone。
 
 `covio-platform` 只定义 capability。没有 native adapter 时，secret access 返回 `Unavailable`，不提供明文 fallback。
 

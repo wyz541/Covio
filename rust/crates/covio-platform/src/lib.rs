@@ -105,14 +105,64 @@ pub trait FileStore {
         self.read(path).map(|contents| contents.is_some())
     }
 
+    /// Returns the file size. A missing file returns `Ok(None)`.
+    ///
+    /// Native adapters should override this with an OS metadata call.
+    fn metadata_size(&self, path: &Path) -> Result<Option<u64>, PlatformError> {
+        Ok(self.read(path)?.map(|contents| contents.len() as u64))
+    }
+
+    /// Reads a bounded byte range. A missing file returns `Ok(None)`.
+    ///
+    /// Native adapters should override this to avoid reading the full file.
+    fn read_range(
+        &self,
+        path: &Path,
+        offset: u64,
+        length: usize,
+    ) -> Result<Option<Vec<u8>>, PlatformError> {
+        Ok(self.read(path)?.map(|contents| {
+            let start = usize::try_from(offset)
+                .unwrap_or(usize::MAX)
+                .min(contents.len());
+            let end = start.saturating_add(length).min(contents.len());
+            contents[start..end].to_vec()
+        }))
+    }
+
     /// Creates a directory and its parents.
     fn create_dir_all(&self, path: &Path) -> Result<(), PlatformError>;
 
     /// Writes through a same-directory temporary file and atomic rename.
     fn write_atomic(&self, path: &Path, contents: &[u8]) -> Result<(), PlatformError>;
 
+    /// Appends bytes and returns the resulting file size.
+    ///
+    /// Native adapters should override this with an append-only file handle.
+    fn append(&self, path: &Path, contents: &[u8]) -> Result<u64, PlatformError> {
+        let mut existing = self.read(path)?.unwrap_or_default();
+        existing.extend_from_slice(contents);
+        self.write_atomic(path, &existing)?;
+        Ok(existing.len() as u64)
+    }
+
+    /// Atomically moves one file over another path.
+    ///
+    /// Native adapters should override this with an OS atomic rename.
+    fn atomic_move(&self, source: &Path, target: &Path) -> Result<(), PlatformError> {
+        let contents = self
+            .read(source)?
+            .ok_or_else(|| PlatformError::io("source file is missing", false))?;
+        self.write_atomic(target, &contents)?;
+        self.remove_file(source)?;
+        Ok(())
+    }
+
     /// Removes a file. A missing file returns `Ok(false)`.
     fn remove_file(&self, path: &Path) -> Result<bool, PlatformError>;
+
+    /// Removes a directory tree. A missing directory is a successful no-op.
+    fn remove_tree(&self, path: &Path) -> Result<(), PlatformError>;
 }
 
 #[cfg(test)]

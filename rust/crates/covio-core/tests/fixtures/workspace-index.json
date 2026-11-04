@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "entryId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "kind": "IMAGE",
+      "displayName": "first.png",
+      "byteSize": 128,
+      "contentType": "image/png",
+      "createdAtEpochSeconds": 100,
+      "originDeviceId": "device-a",
+      "expiresAtEpochSeconds": 200,
+      "availability": "LOCAL",
+      "pinned": false
+    },
+    {
+      "entryId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "kind": "TEXT",
+      "displayName": "notes.txt",
+      "byteSize": 32,
+      "contentType": "text/plain",
+      "createdAtEpochSeconds": 200,
+      "originDeviceId": "device-b",
+      "expiresAtEpochSeconds": 0,
+      "availability": "REMOTE",
+      "pinned": true
+    }
+  ],
+  "policy": {
+    "maxTotalBytes": 5368709120,
+    "maxEntryBytes": 2147483648,
+    "retentionDays": 30,
+    "lazyFetchThresholdBytes": 52428800
+  }
+}
