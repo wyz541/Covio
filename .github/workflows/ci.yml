@@ -20,11 +20,26 @@ permissions:
 # or in the manual "macOS full acceptance" workflow.
 jobs:
   windows-host:
-    name: Windows host
-    runs-on: windows-latest
+    name: Windows host (${{ matrix.label }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-11-arm
+            label: windows-11-arm64
+          - runner: windows-2025
+            label: windows-2025-x64
     steps:
       - uses: actions/checkout@v7
+
+      - name: Record Windows environment
+        shell: pwsh
+        run: |
+          Get-ComputerInfo |
+            Select-Object WindowsProductName, WindowsVersion, OsBuildNumber, OsArchitecture |
+            Format-List
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -50,7 +65,7 @@ jobs:
       - name: Upload Windows host screenshot
         uses: actions/upload-artifact@v4
         with:
-          name: windows-host-${{ github.run_id }}
+          name: windows-host-${{ matrix.label }}-${{ github.run_id }}
           path: build/covio-windows-host.png
           if-no-files-found: error
           retention-days: 30
