@@ -87,6 +87,18 @@ impl FileStore for MemoryFiles {
         self.0.existing.borrow_mut().remove(path);
         Ok(removed)
     }
+
+    fn remove_tree(&self, path: &Path) -> Result<(), PlatformError> {
+        self.0
+            .files
+            .borrow_mut()
+            .retain(|candidate, _| !candidate.starts_with(path));
+        self.0
+            .existing
+            .borrow_mut()
+            .retain(|candidate| !candidate.starts_with(path));
+        Ok(())
+    }
 }
 
 fn normalise_shelf_fixture(text: &str, screenshot_path: &str) -> Value {

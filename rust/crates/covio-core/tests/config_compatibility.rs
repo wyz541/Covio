@@ -89,6 +89,14 @@ impl FileStore for MemoryFiles {
     fn remove_file(&self, path: &Path) -> Result<bool, PlatformError> {
         Ok(self.0.files.borrow_mut().remove(path).is_some())
     }
+
+    fn remove_tree(&self, path: &Path) -> Result<(), PlatformError> {
+        self.0
+            .files
+            .borrow_mut()
+            .retain(|candidate, _| !candidate.starts_with(path));
+        Ok(())
+    }
 }
 
 fn store_with_fixture(fixture: &str) -> (ConfigStore<MemoryFiles>, MemoryFiles) {
