@@ -46,6 +46,12 @@ impl DataPaths {
             workspace_directory: app_directory.join("Workspace"),
         }
     }
+
+    /// Returns the existing clipboard state file.
+    #[must_use]
+    pub fn clipboard_file(&self) -> PathBuf {
+        self.clipboard_directory.join("clipboard.json")
+    }
 }
 
 /// Appends the legacy `.tmp` suffix without replacing the original extension.

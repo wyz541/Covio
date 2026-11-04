@@ -5,7 +5,10 @@
 
 #![forbid(unsafe_code)]
 
+pub mod clipboard;
 mod config;
+pub mod path_policy;
+pub mod shelf;
 
 pub use config::{
     AppConfig, CONFIG_SCHEMA_VERSION, ClosedLidDisplayMode, ClosedLidPowerPolicy, ConfigLoadResult,

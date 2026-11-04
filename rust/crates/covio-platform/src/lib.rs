@@ -97,6 +97,14 @@ pub trait FileStore {
     /// Reads a file. A missing file returns `Ok(None)`.
     fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, PlatformError>;
 
+    /// Returns whether a file exists.
+    ///
+    /// Implementations should override this when they can check existence
+    /// without reading the whole file.
+    fn exists(&self, path: &Path) -> Result<bool, PlatformError> {
+        self.read(path).map(|contents| contents.is_some())
+    }
+
     /// Creates a directory and its parents.
     fn create_dir_all(&self, path: &Path) -> Result<(), PlatformError>;
 

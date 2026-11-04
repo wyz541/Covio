@@ -1,0 +1,34 @@
+{
+  "items": [
+    {
+      "id": "a",
+      "kind": "TEXT",
+      "text": "hello",
+      "filePath": "",
+      "byteSize": 0,
+      "createdAtEpochSeconds": 5,
+      "pinned": false,
+      "sourceBundleId": ""
+    },
+    {
+      "id": "b",
+      "kind": "IMAGE",
+      "text": "",
+      "filePath": "/tmp/example.png",
+      "byteSize": 50,
+      "createdAtEpochSeconds": 6,
+      "pinned": true,
+      "sourceBundleId": "com.example"
+    }
+  ],
+  "pasteStack": [
+    "a",
+    "b"
+  ],
+  "paused": true,
+  "policy": {
+    "maxItems": 3,
+    "maxAgeDays": 7,
+    "maxTotalBytes": 209715200
+  }
+}
