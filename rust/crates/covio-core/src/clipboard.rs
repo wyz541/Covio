@@ -4,6 +4,7 @@ use crate::CoreError;
 use crate::path_policy::canonical_path;
 use covio_platform::{FileStore, temporary_path};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -342,6 +343,59 @@ pub fn push_paste_stack(stack: &[String], id: &str) -> Vec<String> {
     result
 }
 
+/// Adds one text value to clipboard history and applies retention rules.
+#[must_use]
+pub fn capture_text(
+    state: &ClipboardState,
+    text: &str,
+    source_bundle_id: &str,
+    now_epoch_seconds: i64,
+    mut exists: impl FnMut(&str) -> bool,
+) -> ClipboardState {
+    if text.trim().is_empty() {
+        return state.clone();
+    }
+    let mut next = state.clone();
+    let digest = Sha256::digest(format!("{now_epoch_seconds}\0{text}").as_bytes());
+    let id = digest
+        .iter()
+        .fold(String::with_capacity(64), |mut value, byte| {
+            use std::fmt::Write;
+            write!(&mut value, "{byte:02x}").expect("writing to a string cannot fail");
+            value
+        });
+    next.items.push(ClipItem {
+        id,
+        kind: classify(text),
+        text: text.to_owned(),
+        byte_size: i64::try_from(text.len()).unwrap_or(i64::MAX),
+        created_at_epoch_seconds: now_epoch_seconds.max(0),
+        source_bundle_id: source_bundle_id.to_owned(),
+        ..ClipItem::default()
+    });
+    next.items = prune(&next.items, &next.policy, now_epoch_seconds, &mut exists);
+    next
+}
+
+/// Sets the pinned flag on one clipboard entry.
+#[must_use]
+pub fn set_pinned(state: &ClipboardState, id: &str, pinned: bool) -> ClipboardState {
+    let mut next = state.clone();
+    if let Some(item) = next.items.iter_mut().find(|item| item.id == id) {
+        item.pinned = pinned;
+    }
+    next
+}
+
+/// Removes one clipboard entry and all paste-stack references to it.
+#[must_use]
+pub fn remove_item(state: &ClipboardState, id: &str) -> ClipboardState {
+    let mut next = state.clone();
+    next.items.retain(|item| item.id != id);
+    next.paste_stack.retain(|entry_id| entry_id != id);
+    next
+}
+
 /// Returns the files behind one clipboard item.
 #[must_use]
 pub fn import_paths(item: &ClipItem) -> Vec<String> {
@@ -469,6 +523,35 @@ mod tests {
             push_paste_stack(&["a".to_owned(), "b".to_owned()], "a"),
             vec!["b".to_owned(), "a".to_owned()]
         );
+    }
+
+    #[test]
+    fn capture_text_classifies_deduplicates_and_retains() {
+        let first = capture_text(&ClipboardState::default(), "hello", "test", 10, |_| true);
+        assert_eq!(first.items.len(), 1);
+        assert_eq!(first.items[0].kind, ClipKind::Text);
+        let link = capture_text(&first, "https://example.com", "test", 11, |_| true);
+        assert_eq!(link.items.len(), 2);
+        assert_eq!(link.items[0].kind, ClipKind::Link);
+        let duplicate = capture_text(&link, "hello", "test", 12, |_| true);
+        assert_eq!(duplicate.items.len(), 2);
+        assert_eq!(duplicate.items[0].text, "hello");
+        assert_ne!(duplicate.items[0].id, first.items[0].id);
+    }
+
+    #[test]
+    fn pinned_and_removed_items_update_related_state() {
+        let state = capture_text(&ClipboardState::default(), "hello", "test", 10, |_| true);
+        let id = state.items[0].id.clone();
+        let pinned = set_pinned(&state, &id, true);
+        assert!(pinned.items[0].pinned);
+        let with_stack = ClipboardState {
+            paste_stack: vec![id.clone()],
+            ..pinned
+        };
+        let removed = remove_item(&with_stack, &id);
+        assert!(removed.items.is_empty());
+        assert!(removed.paste_stack.is_empty());
     }
 
     #[test]

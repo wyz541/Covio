@@ -26,11 +26,21 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
 
   smoke_dir="$(mktemp -d "${TMPDIR:-/tmp}/covio-windows-window-smoke.XXXXXX")"
   trap 'find "$smoke_dir" -depth -delete' EXIT
-  cargo run -p covio-windows -- --window-smoke --data-dir "$smoke_dir"
+  cargo run -p covio-windows -- \
+    --window-smoke --ui-scale 1.5 --window-position 0,0 --data-dir "$smoke_dir"
+
+  crash_dir="$(mktemp -d "${TMPDIR:-/tmp}/covio-windows-crash-smoke.XXXXXX")"
+  set +e
+  cargo run -p covio-windows -- --crash-recovery-smoke --data-dir "$crash_dir"
+  crash_status=$?
+  set -e
+  test "$crash_status" -eq 23
+  cargo run -p covio-windows -- --headless-smoke --data-dir "$crash_dir"
+  find "$crash_dir" -depth -delete
 
   screenshot_dir="$ROOT/build/windows-host-screenshots"
-  light_screenshot="$screenshot_dir/light.png"
-  dark_screenshot="$screenshot_dir/dark.png"
+  light_screenshot="$screenshot_dir/workspace-light.png"
+  dark_screenshot="$screenshot_dir/workspace-dark.png"
   mkdir -p "$screenshot_dir"
   light_screenshot_env_path="$light_screenshot"
   dark_screenshot_env_path="$dark_screenshot"
@@ -39,9 +49,11 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
     dark_screenshot_env_path="$(cygpath -w "$dark_screenshot_env_path")"
   fi
   cargo run -p covio-windows -- \
-    --screenshot "$light_screenshot_env_path" --theme light --data-dir "$smoke_dir"
+    --screenshot "$light_screenshot_env_path" --theme light --view workspace \
+    --seed-smoke-data --ui-scale 1.5 --data-dir "$smoke_dir"
   cargo run -p covio-windows -- \
-    --screenshot "$dark_screenshot_env_path" --theme dark --data-dir "$smoke_dir"
+    --screenshot "$dark_screenshot_env_path" --theme dark --view workspace \
+    --seed-smoke-data --ui-scale 1.5 --data-dir "$smoke_dir"
   test -s "$light_screenshot"
   test -s "$dark_screenshot"
 elif rustup target list --installed | grep -qx 'x86_64-pc-windows-gnu'; then

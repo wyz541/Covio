@@ -10,7 +10,7 @@
 | `covio-bridge` | 版本化 command、response、event、snapshot、cancel 和 shutdown envelope |
 | `covio-platform` | data paths、atomic filesystem、Keychain、Credential Manager、Windows capability adapter 和 inventory |
 | `covio-ffi` | macOS C ABI、opaque handle、callback、shutdown 和 Swift 可导入 header |
-| `covio-windows` | Windows egui host、托盘、单实例、core worker 和 capability composition |
+| `covio-windows` | Windows egui product host、托盘、单实例、core worker、capability composition 和 installer smoke |
 
 `covio-core` 的配置 codec 读取 Kotlin 生成的 fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
 Shelf、clipboard 与 workspace 使用同一 filesystem capability，并读取 Kotlin 共用的 durable-state fixture。
@@ -24,6 +24,8 @@ Windows 对 socket 与 macOS 专属 power capability 返回 typed unavailable。
 `covio-ffi` 暴露版本化 C ABI。Handle 只做 bridge envelope 校验、request tracking、cancel、event / snapshot callback 和 shutdown，不复制业务规则。
 
 `covio-windows` 在 Windows 上使用 Rust + egui。Windows host 直接持有 core worker，不启动 JVM。
+Host 提供 Screenshot shelf、clipboard history、workspace、settings 和 update handoff UI。
+Installer 使用 Inno Setup，安装到 `%LOCALAPPDATA%\Programs\Covio`，不要求管理员权限。
 macOS、Android、iOS 和 Web 不是这个 host 的目标。
 
 后续 crate 按 [迁移计划](../docs/design/rust-core-migration.md) 增加。
@@ -33,6 +35,11 @@ macOS、Android、iOS 和 Web 不是这个 host 的目标。
 ```sh
 bash scripts/test-rust.sh
 bash scripts/test-windows-rust.sh
+COVIO_WINDOWS_BUILD_NUMBER=24 COVIO_WINDOWS_APP_VERSION=0.6.0-internal.24 \
+  COVIO_WINDOWS_OUTPUT_DIR=build/windows-previous bash scripts/package-windows.sh
+bash scripts/package-windows.sh
+bash scripts/verify-windows-artifact.sh rust/target/release/covio-windows.exe
+pwsh -NoProfile -File scripts/test-windows-installer.ps1
 ```
 
 脚本还会在 macOS 上构建 `build/rust-macos-ffi/debug/lib/libcovio_ffi.dylib`，并用 `swiftc` 编译和运行 C ABI smoke test。

@@ -56,9 +56,33 @@ fn main() {
 
     if arguments
         .iter()
+        .any(|argument| argument == "--crash-recovery-smoke")
+    {
+        let root = match data_directory_from_arguments(&arguments) {
+            Ok(root) => root,
+            Err(error) => {
+                eprintln!("Crash recovery smoke failed: {error}");
+                std::process::exit(1);
+            }
+        };
+        if let Err(error) = covio_windows::run_headless_smoke_at(&root) {
+            eprintln!("Crash recovery smoke setup failed: {error}");
+            std::process::exit(1);
+        }
+        std::process::exit(23);
+    }
+
+    if arguments
+        .iter()
         .any(|argument| argument == "--headless-smoke")
     {
-        match covio_windows::run_headless_smoke() {
+        let result = if arguments.iter().any(|argument| argument == "--data-dir") {
+            data_directory_from_arguments(&arguments)
+                .and_then(|root| covio_windows::run_headless_smoke_at(&root))
+        } else {
+            covio_windows::run_headless_smoke()
+        };
+        match result {
             Ok(report) => {
                 match serde_json::to_string_pretty(&report) {
                     Ok(output) => println!("{output}"),
@@ -93,4 +117,17 @@ fn main() {
         eprintln!("covio-windows must run on Windows 11.");
         std::process::exit(1);
     }
+}
+
+fn data_directory_from_arguments(arguments: &[String]) -> Result<std::path::PathBuf, String> {
+    if let Some(index) = arguments
+        .iter()
+        .position(|argument| argument == "--data-dir")
+    {
+        let path = arguments
+            .get(index + 1)
+            .ok_or_else(|| "--data-dir requires a path".to_owned())?;
+        return Ok(std::path::PathBuf::from(path));
+    }
+    Err("missing data directory".to_owned())
 }

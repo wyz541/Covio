@@ -846,6 +846,7 @@ dependencies = [
  "serde_json",
  "single-instance",
  "tray-icon",
+ "webbrowser",
  "wgpu",
 ]
 

@@ -87,7 +87,7 @@
       },
       {
         "area": "macOS runtime",
-        "difference": "The macOS host is SwiftUI and AppKit. It is not Compose Multiplatform. The Compose host stays for future Windows and Android targets. The visual result and the copy are unchanged.",
+        "difference": "The macOS host is SwiftUI and AppKit. The Windows host is Rust and egui. Neither product uses Compose Multiplatform. The visual result and the copy are unchanged.",
         "status": "accepted-platform-change"
       },
       {
@@ -2643,7 +2643,7 @@
       ],
       "composeMapping": {
         "target": "MaterialSurface",
-        "behavior": "Compose uses drawable translucent fills, borders, and shadows that preserve the static Figma structure."
+        "behavior": "egui uses drawable translucent fills, borders, and shadows that preserve the static Figma structure."
       },
       "nativeSize": {
         "width": 200,
@@ -2780,7 +2780,7 @@
       ],
       "composeMapping": {
         "target": "MacToolbar",
-        "behavior": "Use density and state rules from the contract. Compose keeps system commands in the native menu when possible."
+        "behavior": "Use density and state rules from the contract. The Windows host keeps system commands in the native tray and window menus when possible."
       },
       "nativeSize": {
         "width": 320,
@@ -3804,7 +3804,7 @@
           "covioTarget": "component/tray-menu-item",
           "adoptionResult": "adapt",
           "contractKey": "platform/menu-item",
-          "rationale": "Adapt hierarchy, shortcut alignment, and hover feedback. Use drawable Compose surfaces instead of system menu material.",
+          "rationale": "Adapt hierarchy, shortcut alignment, and hover feedback. Use drawable egui surfaces instead of system menu material.",
           "evidence": "Static hierarchy comparison. The static menu hierarchy is present. component/tray-menu-item.",
           "verificationStatus": "verified-static"
         },
@@ -7778,14 +7778,14 @@
     },
     "platform/system/materials": {
       "componentKey": "platform/material/inner-shadow",
-      "runtimeTarget": "Compose drawable surfaces",
-      "behavior": "Figma uses native macOS 27 material layers. Compose uses drawable approximations.",
+      "runtimeTarget": "egui drawable surfaces",
+      "behavior": "Figma uses native macOS 27 material layers. egui uses drawable approximations.",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "MacTheme"
     },
     "platform/system/accessibility": {
       "componentKey": "platform/system/accessibility",
-      "runtimeTarget": "Compose semantics and macOS accessibility bridge",
+      "runtimeTarget": "egui accessibility semantics and macOS accessibility bridge",
       "behavior": "Keep focus, names, values, and reduced-motion behavior available to assistive technology.",
       "status": "native-source-mapped",
       "swiftRuntimeTarget": "ClipboardPaste"
