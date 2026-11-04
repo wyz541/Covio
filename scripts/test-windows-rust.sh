@@ -32,8 +32,8 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
   if command -v cygpath >/dev/null 2>&1; then
     screenshot_env_path="$(cygpath -w "$screenshot_env_path")"
   fi
-  EFRAME_SCREENSHOT_TO="$screenshot_env_path" \
-    cargo run -p covio-windows -- --data-dir "$smoke_dir"
+  cargo run -p covio-windows -- \
+    --screenshot "$screenshot_env_path" --data-dir "$smoke_dir"
   test -s "$screenshot_path"
 elif rustup target list --installed | grep -qx 'x86_64-pc-windows-gnu'; then
   cargo check -p covio-windows --target x86_64-pc-windows-gnu --all-targets

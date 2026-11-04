@@ -6,9 +6,12 @@ use covio_windows::{
     WindowsDataPaths, now_epoch_seconds,
 };
 use eframe::egui;
+use eframe::egui_wgpu::{WgpuConfiguration, WgpuSetup, WgpuSetupCreateNew};
+use eframe::wgpu;
 use serde_json::json;
 use single_instance::SingleInstance;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 use tray_icon::menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -43,6 +46,7 @@ pub fn run() -> Result<(), String> {
     let data_root = data_root_from_arguments(&arguments);
     let core = WindowsDataPaths::new(data_root).app_core();
     let start_hidden = arguments.iter().any(|argument| argument == "--background");
+    let screenshot_path = screenshot_path_from_arguments(&arguments);
     let auto_exit_frames = arguments
         .iter()
         .any(|argument| argument == "--window-smoke")
@@ -53,7 +57,8 @@ pub fn run() -> Result<(), String> {
             .with_inner_size([980.0, 720.0])
             .with_min_inner_size([640.0, 480.0])
             .with_visible(!start_hidden),
-        renderer: eframe::Renderer::Glow,
+        renderer: eframe::Renderer::Wgpu,
+        wgpu_options: wgpu_configuration(),
         ..Default::default()
     };
 
@@ -66,6 +71,7 @@ pub fn run() -> Result<(), String> {
                 core,
                 start_hidden,
                 auto_exit_frames,
+                screenshot_path,
             )))
         }),
     )
@@ -80,6 +86,8 @@ struct CovioWindowsApp {
     draft_config: Option<AppConfig>,
     needs_refresh: bool,
     auto_exit_frames: Option<u32>,
+    screenshot_path: Option<PathBuf>,
+    screenshot_requested: bool,
     rendered_frames: u32,
 }
 
@@ -89,6 +97,7 @@ impl CovioWindowsApp {
         core: covio_ffi::AppCore,
         start_hidden: bool,
         auto_exit_frames: Option<u32>,
+        screenshot_path: Option<PathBuf>,
     ) -> Self {
         let mut model = HostModel::new(ThemePreference::System, false);
         if start_hidden {
@@ -106,6 +115,8 @@ impl CovioWindowsApp {
             draft_config: None,
             needs_refresh: true,
             auto_exit_frames,
+            screenshot_path,
+            screenshot_requested: false,
             rendered_frames: 0,
         };
         app.apply_visuals(&creation_context.egui_ctx);
@@ -386,6 +397,9 @@ impl CovioWindowsApp {
 impl eframe::App for CovioWindowsApp {
     fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
         self.rendered_frames = self.rendered_frames.saturating_add(1);
+        if self.capture_screenshot(context) {
+            return;
+        }
         if self
             .auto_exit_frames
             .is_some_and(|limit| self.rendered_frames >= limit)
@@ -454,10 +468,55 @@ impl eframe::App for CovioWindowsApp {
                 self.model.select_view(HostView::Home);
             }
         }
+
+        if self.screenshot_path.is_some()
+            && !self.screenshot_requested
+            && self.rendered_frames >= 3
+            && self.model.snapshot().is_some()
+        {
+            self.screenshot_requested = true;
+            context.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
+        }
     }
 
-    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+    fn on_exit(&mut self) {
         self.core.shutdown();
+    }
+}
+
+impl CovioWindowsApp {
+    fn capture_screenshot(&mut self, context: &egui::Context) -> bool {
+        let Some(path) = &self.screenshot_path else {
+            return false;
+        };
+        let screenshot = context.input(|input| {
+            input.events.iter().find_map(|event| {
+                if let egui::Event::Screenshot { image, .. } = event {
+                    Some(Arc::clone(image))
+                } else {
+                    None
+                }
+            })
+        });
+        let Some(image) = screenshot else {
+            return false;
+        };
+        let width = image.size[0] as u32;
+        let height = image.size[1] as u32;
+        let mut rgba = Vec::with_capacity(image.pixels.len() * 4);
+        for pixel in &image.pixels {
+            rgba.extend_from_slice(&pixel.to_array());
+        }
+        if let Err(error) = image::save_buffer(path, &rgba, width, height, image::ColorType::Rgba8)
+        {
+            eprintln!("Cannot save Windows host screenshot: {error}");
+            std::process::exit(1);
+        }
+        println!("Windows host screenshot saved.");
+        self.model.begin_exit();
+        self.core.shutdown();
+        context.send_viewport_cmd(egui::ViewportCommand::Close);
+        true
     }
 }
 
@@ -468,6 +527,38 @@ fn show_window(context: &egui::Context) {
 
 fn hide_window(context: &egui::Context) {
     context.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+}
+
+fn wgpu_configuration() -> WgpuConfiguration {
+    let mut setup = WgpuSetupCreateNew::default();
+    setup.instance_descriptor.backends = wgpu::Backends::DX12;
+    setup.native_adapter_selector = Some(Arc::new(|adapters, surface| {
+        adapters
+            .iter()
+            .find(|adapter| {
+                adapter.get_info().device_type == wgpu::DeviceType::Cpu
+                    && surface.is_none_or(|surface| adapter.is_surface_supported(surface))
+            })
+            .or_else(|| {
+                adapters.iter().find(|adapter| {
+                    surface.is_none_or(|surface| adapter.is_surface_supported(surface))
+                })
+            })
+            .cloned()
+            .ok_or_else(|| "no DX12 surface-compatible adapter".to_owned())
+    }));
+    WgpuConfiguration {
+        wgpu_setup: WgpuSetup::CreateNew(setup),
+        ..Default::default()
+    }
+}
+
+fn screenshot_path_from_arguments(arguments: &[String]) -> Option<PathBuf> {
+    arguments
+        .iter()
+        .position(|argument| argument == "--screenshot")
+        .and_then(|index| arguments.get(index + 1))
+        .map(PathBuf::from)
 }
 
 fn data_root_from_arguments(arguments: &[String]) -> PathBuf {
