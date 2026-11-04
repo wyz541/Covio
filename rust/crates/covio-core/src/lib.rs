@@ -7,9 +7,12 @@
 
 pub mod clipboard;
 mod config;
+pub mod design_contract;
 pub mod path_policy;
 pub mod power;
 pub mod shelf;
+pub mod update;
+pub mod version;
 pub mod workspace;
 
 pub use config::{
@@ -19,6 +22,16 @@ pub use config::{
     DEFAULT_FILE_NAMING_MIN_CONFIDENCE, DEFAULT_FILE_NAMING_TEMPLATE, DEFAULT_PASTE_STACK_HOT_KEY,
     DisplayConfig, FILE_NAMING_SCHEMA_VERSION, FileNamingConflictPolicy, FileNamingDateSource,
     FileNamingPolicy, PowerConfig, SUPPORTED_HIBERNATE_MODES,
+};
+
+pub use design_contract::{
+    DesignContract, DesignContractDiagnostic, DesignContractReader, DesignContractSeverity,
+    DesignContractValidationResult, DesignCopyEntry, DesignToken,
+};
+pub use update::{UpdateInfo, select_update, should_check};
+pub use version::{
+    ClientVersion, SemanticVersion, is_newer_client_version, is_newer_version,
+    is_stable_client_version, is_stable_version,
 };
 
 use covio_platform::{PlatformError, PlatformErrorCode};
