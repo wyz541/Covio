@@ -4,20 +4,23 @@ set -euo pipefail
 # 全量测试入口。跨模块、协议、发布和 CI 门禁排障时使用。
 # 日常迭代按 `docs/process/workflow.md` 的「测试门禁」运行相关测试。
 #
-# 十一步，任一步失败就停：
-#   1. Rust core 与 bridge 的 fmt、Clippy 和测试。
-#   2. 共享层的 Kotlin 测试。两个平台都跑，macosArm64 也在内。
-#   3. 合同常量有没有漂移。
-#   4. 合同的跨段规则。schema 表达不了的那些。
-#   5. Issue 与 PR 模板是否把视觉证据放在正确对象。
-#   6. Release 缓存路径、KMP 缓存命中和失败回滚。
-#   7. 割接脚本的断言。
-#   8. 本机 app-helper 升级与回滚事务。
-#   9. Updater launcher、XPC engine 和回退状态机。
-#   10. 文件自动命名模型清单。
-#   11. macOS SwiftUI 宿主的 XCTest。
+# 十四步，任一步失败就停：
+#   1. 发布身份与脚本检查。
+#   2. Rust core 与 bridge 的 fmt、Clippy 和测试。
+#   3. Windows host、installer 和 capability smoke。
+#   4. macOS 与 Windows artifact boundary checker。
+#   5. 共享层的 Kotlin 测试。两个平台都跑，macosArm64 也在内。
+#   6. 合同常量有没有漂移。
+#   7. 合同的跨段规则。schema 表达不了的那些。
+#   8. Issue 与 PR 模板是否把视觉证据放在正确对象。
+#   9. Release 缓存路径、KMP 缓存命中和失败回滚。
+#   10. 割接脚本的断言。
+#   11. 本机 app-helper 升级与回滚事务。
+#   12. Updater launcher、XPC engine 和回退状态机。
+#   13. 文件自动命名模型清单。
+#   14. macOS SwiftUI 宿主的 XCTest。
 #
-# 第 8 步自己也会跑第 3、4 步。分开列是为了让它们单独报错，一眼能看出问题在哪。
+# 安装事务步骤也会跑合同检查。分开列是为了让它们单独报错。
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -38,6 +41,10 @@ bash "$ROOT/scripts/test-rust.sh"
 
 step "Windows host"
 bash "$ROOT/scripts/test-windows-rust.sh"
+
+step "Artifact boundary scripts"
+bash "$ROOT/scripts/test-verify-macos-artifact.sh"
+bash "$ROOT/scripts/test-verify-windows-artifact.sh"
 
 step "Kotlin 共享层"
 bash "$ROOT/scripts/provision-amper-github-downloads.sh"

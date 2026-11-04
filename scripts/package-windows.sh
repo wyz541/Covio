@@ -18,7 +18,7 @@ BUILD_NUMBER="${COVIO_WINDOWS_BUILD_NUMBER:-$(python3 -I "$ROOT/scripts/release_
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 RELEASE_ID="${COVIO_WINDOWS_RELEASE_ID:-$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")}"
 INSTALLER_VERSION="$PRODUCT_VERSION.$BUILD_NUMBER"
-OUTPUT_BASENAME="Covio-$INSTALLER_VERSION-setup"
+OUTPUT_BASENAME="Covio-$APP_VERSION-windows-x64-setup"
 TARGET_DIR="$ROOT/rust/target"
 
 if [[ "${OS:-}" != "Windows_NT" ]]; then
@@ -75,6 +75,9 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 find "$OUTPUT_DIR" -mindepth 1 -depth -delete
+COVIO_WINDOWS_TARGET="$TARGET" bash "$ROOT/scripts/verify-windows-artifact.sh" \
+  "$SOURCE_EXE" \
+  "$OUTPUT_DIR/artifact-boundary.txt"
 BUILD_INFO="$OUTPUT_DIR/build-info.txt"
 printf 'releaseId=%s\nclientVersion=%s\nproductVersion=%s\nbuildNumber=%s\ncommit=%s\n' \
   "$RELEASE_ID" "$APP_VERSION" "$PRODUCT_VERSION" "$BUILD_NUMBER" "$COMMIT" >"$BUILD_INFO"

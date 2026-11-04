@@ -16,6 +16,20 @@
 只有全部验证通过后，维护者才能显式发布。
 任一步失败时，Draft 保持未发布状态。
 
+## 平台门禁
+
+| 门禁 | 执行位置 | 产物 |
+| --- | --- | --- |
+| Portable tests | `ci.yml` 的 Ubuntu job | Rust、Kotlin JVM、合同和发布脚本测试结果 |
+| Windows host | `ci.yml` 的 Windows ARM64 和 x64 jobs | host tests、screenshots、capability smoke |
+| Windows package | `ci.yml` 的 Windows package job | Inno Setup installer、checksum、artifact boundary、installer test report |
+| macOS package | `macos-release.yml` 的手动 job | DMG、PKG、app zip、update zip、artifact boundary |
+| Runtime acceptance | #613 的 Windows 和 macOS 真实设备 | 日期、设备、OS、artifact、commit 和结果 |
+
+Hosted tests 只证明构建和仓库行为。
+Hosted installer tests 只证明安装事务。
+真实设备验收和最终 artifact proof 必须分别记录。
+
 
 ## 版本身份
 
@@ -57,6 +71,27 @@ release-evidence.json
 release-notes.generated.md
 release-operation.json
 ```
+
+Windows 发布产物使用独立名称：
+
+```text
+Covio-<clientVersion>-windows-x64-setup.exe
+Covio-<clientVersion>-windows-x64-setup.exe.sha256
+windows-package.json
+artifact-boundary.txt
+installer-test.json
+```
+
+Windows job 运行 `scripts/package-windows.sh`。
+安装包使用当前用户安装，不要求管理员权限。
+`scripts/verify-windows-artifact.sh` 在依赖图或 artifact 中发现 JVM、Kotlin、Compose 或 JNA 时失败。
+`scripts/test-windows-installer.ps1` 验证 clean install、upgrade、crash recovery、rollback 和 uninstall。
+
+macOS job 运行 `scripts/package-macos-swift.sh`。
+打包完成后，`scripts/verify-macos-artifact.sh` 检查 app、DMG 和 PKG。
+检查范围包括文件名、Mach-O 动态依赖和 code signature。
+发现 KMP、JVM、Kotlin、Compose 或 JNA 时，打包失败。
+`test-all.sh` 会先测试两个 boundary checker 的正例和反例。
 
 `release-evidence.json` 记录全部资产摘要、releaseId、commit、协议和验证结果。
 `CovioUpdate-<clientVersion>.zip` 只包含根级 `Covio.app`。
