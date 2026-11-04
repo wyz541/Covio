@@ -90,7 +90,7 @@ BUILD_INFO_WIN="$(win_path "$BUILD_INFO")"
 OUTPUT_WIN="$(win_path "$OUTPUT_DIR")"
 SCRIPT_WIN="$(win_path "$SCRIPT")"
 
-"$ISCC" \
+MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$ISCC" \
   "/DAppVersion=$APP_VERSION" \
   "/DInstallerVersion=$INSTALLER_VERSION" \
   "/DSourceExe=$SOURCE_WIN" \
