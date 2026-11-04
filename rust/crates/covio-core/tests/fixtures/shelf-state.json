@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "path": "__SCREENSHOT_PATH__",
+      "addedAtEpochSeconds": 12
+    }
+  ],
+  "revealed": false,
+  "preferenceSnapshot": {
+    "location": "/tmp",
+    "locationScreenshot": null,
+    "showThumbnail": true
+  }
+}
