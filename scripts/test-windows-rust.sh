@@ -15,11 +15,12 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 cd "$ROOT/rust"
-cargo fmt --check -p covio-windows
-cargo test -p covio-windows --all-targets
+cargo fmt --check --all
+cargo test -p covio-platform -p covio-windows --all-targets
 
 if [[ "${OS:-}" == "Windows_NT" ]]; then
-  cargo clippy -p covio-windows --all-targets -- -D warnings
+  cargo clippy -p covio-platform -p covio-windows --all-targets -- -D warnings
+  cargo run -p covio-windows -- --capability-smoke
   cargo run -p covio-windows -- --headless-smoke
   cargo run -p covio-windows -- --single-instance-smoke
 

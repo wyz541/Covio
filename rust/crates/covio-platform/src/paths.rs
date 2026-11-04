@@ -1,5 +1,6 @@
 //! User-data path policies shared by platform adapters.
 
+use crate::PlatformError;
 use std::path::{Path, PathBuf};
 
 /// Stable application identifier.
@@ -47,10 +48,52 @@ impl DataPaths {
         }
     }
 
+    /// Builds the Windows data layout under one application directory.
+    ///
+    /// The caller supplies the complete `%LOCALAPPDATA%\\Covio` directory.
+    /// Configuration remains at the root. Screenshot, clipboard, and
+    /// workspace data remain in their existing child directories.
+    #[must_use]
+    pub fn windows(app_directory: impl Into<PathBuf>) -> Self {
+        let app_directory = app_directory.into();
+        let screenshot_directory = app_directory.join("Screenshots");
+        Self {
+            user_application_support: app_directory.clone(),
+            config_directory: app_directory.clone(),
+            config_file: app_directory.join("config.json"),
+            shelf_file: screenshot_directory.join("shelf.json"),
+            clipboard_directory: app_directory.join("Clipboard"),
+            workspace_directory: app_directory.join("Workspace"),
+        }
+    }
+
     /// Returns the existing clipboard state file.
     #[must_use]
     pub fn clipboard_file(&self) -> PathBuf {
         self.clipboard_directory.join("clipboard.json")
+    }
+}
+
+/// Resolves the stable Windows current-user application directory.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct WindowsAppDataDirectory;
+
+impl WindowsAppDataDirectory {
+    /// Returns `%LOCALAPPDATA%\\Covio` without reading the environment.
+    #[must_use]
+    pub fn app_directory(local_app_data: impl AsRef<Path>) -> PathBuf {
+        local_app_data.as_ref().join(APP_NAME)
+    }
+
+    /// Reads `%LOCALAPPDATA%` and returns its Covio application directory.
+    ///
+    /// A missing or empty variable returns a typed unavailable error. The
+    /// adapter does not fall back to the current directory or a temp directory.
+    pub fn from_environment() -> Result<PathBuf, PlatformError> {
+        let root = std::env::var_os("LOCALAPPDATA")
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| PlatformError::unavailable("Windows app data is unavailable"))?;
+        Ok(Self::app_directory(root))
     }
 }
 
@@ -75,5 +118,22 @@ mod tests {
         assert_eq!(paths.clipboard_directory, root.join("Covio/Clipboard"));
         assert_eq!(paths.workspace_directory, root.join("Covio/Workspace"));
         assert_ne!(paths.config_directory, root.join("Covio"));
+    }
+
+    #[test]
+    fn windows_layout_keeps_the_existing_app_directory() {
+        let root = Path::new("/tmp/LocalAppData/Covio");
+        let paths = DataPaths::windows(root);
+        assert_eq!(paths.config_file, root.join("config.json"));
+        assert_eq!(paths.shelf_file, root.join("Screenshots/shelf.json"));
+        assert_eq!(
+            paths.clipboard_file(),
+            root.join("Clipboard/clipboard.json")
+        );
+        assert_eq!(paths.workspace_directory, root.join("Workspace"));
+        assert_eq!(
+            WindowsAppDataDirectory::app_directory("/tmp/LocalAppData"),
+            root
+        );
     }
 }

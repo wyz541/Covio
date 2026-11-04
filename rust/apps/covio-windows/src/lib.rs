@@ -12,6 +12,7 @@ pub use host_model::{CloseDisposition, HostModel, HostStatus, HostView, ThemePre
 
 use covio_core::AppConfig;
 use covio_ffi::AppCore;
+use covio_platform::DataPaths;
 use serde::Serialize;
 use serde_json::json;
 use std::path::{Path, PathBuf};
@@ -20,29 +21,15 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// Paths used by the Windows host before the capability adapter is installed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WindowsDataPaths {
-    /// The root of the Windows application data directory.
-    pub root: PathBuf,
-    /// The configuration file.
-    pub config_file: PathBuf,
-    /// The screenshot shelf file.
-    pub shelf_file: PathBuf,
-    /// The clipboard state file.
-    pub clipboard_file: PathBuf,
-    /// The workspace directory.
-    pub workspace_directory: PathBuf,
+    paths: DataPaths,
 }
 
 impl WindowsDataPaths {
     /// Builds the Windows data layout under one root.
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {
-        let root = root.into();
         Self {
-            config_file: root.join("config.json"),
-            shelf_file: root.join("Screenshots").join("shelf.json"),
-            clipboard_file: root.join("Clipboard").join("clipboard.json"),
-            workspace_directory: root.join("Workspace"),
-            root,
+            paths: DataPaths::windows(root),
         }
     }
 
@@ -50,10 +37,10 @@ impl WindowsDataPaths {
     #[must_use]
     pub fn app_core(&self) -> AppCore {
         AppCore::with_paths(
-            self.config_file.clone(),
-            self.shelf_file.clone(),
-            self.clipboard_file.clone(),
-            self.workspace_directory.clone(),
+            self.paths.config_file.clone(),
+            self.paths.shelf_file.clone(),
+            self.paths.clipboard_file(),
+            self.paths.workspace_directory.clone(),
         )
     }
 }
@@ -74,12 +61,240 @@ pub struct HeadlessSmokeReport {
     pub shutdown_closed_submissions: bool,
 }
 
+/// Result written by the Windows capability smoke command.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CapabilitySmokeReport {
+    /// The Windows app-data directory was resolved from the environment.
+    pub app_data_available: bool,
+    /// An existing file was atomically replaced and read back.
+    pub atomic_write: bool,
+    /// Credential Manager write, read, replace, and delete all succeeded.
+    pub credential_manager: bool,
+    /// Clipboard text round-tripped and the previous value was restored.
+    pub clipboard: bool,
+    /// Current-user startup registration enabled, reported enabled, and disabled.
+    pub startup: bool,
+    /// A screenshot directory was discovered.
+    pub screenshot_directory: bool,
+    /// File-picker request validation succeeded.
+    pub file_picker: bool,
+    /// Notification request validation succeeded.
+    pub notification: bool,
+    /// A copied updater executable started and produced a marker.
+    pub update_handoff: bool,
+    /// Power capability returned a typed unavailable error.
+    pub power_unavailable: bool,
+}
+
 /// Runs a core restart smoke without opening a GUI.
 pub fn run_headless_smoke() -> Result<HeadlessSmokeReport, String> {
     let root = smoke_root();
     let result = run_headless_smoke_at(&root);
     let _ = std::fs::remove_dir_all(&root);
     result
+}
+
+/// Runs the native Windows capability smoke without opening a GUI.
+#[cfg(target_os = "windows")]
+pub fn run_capability_smoke() -> Result<CapabilitySmokeReport, String> {
+    let root = smoke_root();
+    let result = run_capability_smoke_at(&root);
+    let _ = std::fs::remove_dir_all(&root);
+    result
+}
+
+/// Rejects the Windows capability smoke on non-Windows hosts.
+#[cfg(not(target_os = "windows"))]
+pub fn run_capability_smoke() -> Result<CapabilitySmokeReport, String> {
+    Err("Windows capability smoke requires Windows".to_owned())
+}
+
+#[cfg(target_os = "windows")]
+fn run_capability_smoke_at(root: &Path) -> Result<CapabilitySmokeReport, String> {
+    use covio_platform::{
+        CapabilityKind, Clipboard, FilePickerRequest, FileStore, NotificationRequest,
+        ScreenshotDirectory, SecretKey, SecretStore, SecretValue, StartupRegistration, StartupSpec,
+        UpdateHandoff, UpdateHandoffRequest, WindowsAppDataDirectory, WindowsPlatformAdapters,
+    };
+
+    let adapters = WindowsPlatformAdapters::default();
+    for kind in [
+        CapabilityKind::Filesystem,
+        CapabilityKind::Process,
+        CapabilityKind::Notification,
+        CapabilityKind::Update,
+        CapabilityKind::SecureStorage,
+        CapabilityKind::Clipboard,
+        CapabilityKind::Screenshot,
+        CapabilityKind::Startup,
+        CapabilityKind::FilePicker,
+    ] {
+        adapters
+            .capabilities
+            .status(kind)
+            .require()
+            .map_err(|error| error.message().to_owned())?;
+    }
+    let power_error = adapters
+        .capabilities
+        .status(CapabilityKind::Power)
+        .require()
+        .expect_err("Windows must not claim macOS power capability");
+    let power_unavailable = power_error.code() == covio_platform::PlatformErrorCode::Unavailable;
+
+    let app_data =
+        WindowsAppDataDirectory::from_environment().map_err(|error| error.message().to_owned())?;
+    let app_data_available = app_data
+        .file_name()
+        .is_some_and(|name| name == covio_platform::APP_NAME);
+
+    let state_file = root.join("capability/state.json");
+    adapters
+        .filesystem
+        .write_atomic(&state_file, b"first")
+        .map_err(|error| error.message().to_owned())?;
+    adapters
+        .filesystem
+        .write_atomic(&state_file, b"second")
+        .map_err(|error| error.message().to_owned())?;
+    let atomic_write = adapters
+        .filesystem
+        .read(&state_file)
+        .map_err(|error| error.message().to_owned())?
+        .is_some_and(|value| value == b"second");
+
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| "system clock is before the Unix epoch".to_owned())?
+        .as_nanos();
+    let secret_key = SecretKey::try_new(format!("capability-smoke-{}-{nonce}", std::process::id()))
+        .map_err(|error| error.message().to_owned())?;
+    adapters
+        .credentials
+        .write(&secret_key, &SecretValue::new(b"first-secret".to_vec()))
+        .map_err(|error| error.message().to_owned())?;
+    let credential_written = adapters
+        .credentials
+        .read(&secret_key)
+        .map_err(|error| error.message().to_owned())?
+        .is_some_and(|value| value.expose() == b"first-secret");
+    adapters
+        .credentials
+        .write(&secret_key, &SecretValue::new(b"second-secret".to_vec()))
+        .map_err(|error| error.message().to_owned())?;
+    let credential_replaced = adapters
+        .credentials
+        .read(&secret_key)
+        .map_err(|error| error.message().to_owned())?
+        .is_some_and(|value| value.expose() == b"second-secret");
+    adapters
+        .credentials
+        .delete(&secret_key)
+        .map_err(|error| error.message().to_owned())?;
+    let credential_deleted = adapters
+        .credentials
+        .read(&secret_key)
+        .map_err(|error| error.message().to_owned())?
+        .is_none();
+    let credential_manager = credential_written && credential_replaced && credential_deleted;
+
+    let previous_clipboard = adapters
+        .clipboard
+        .read_text()
+        .map_err(|error| error.message().to_owned())?;
+    let clipboard_marker = format!("Covio capability smoke {nonce}");
+    adapters
+        .clipboard
+        .write_text(&clipboard_marker)
+        .map_err(|error| error.message().to_owned())?;
+    let clipboard_round_trip = adapters
+        .clipboard
+        .read_text()
+        .map_err(|error| error.message().to_owned())?
+        .is_some_and(|value| value == clipboard_marker);
+    if let Some(previous) = previous_clipboard {
+        adapters
+            .clipboard
+            .write_text(&previous)
+            .map_err(|error| error.message().to_owned())?;
+    } else {
+        adapters
+            .clipboard
+            .clear()
+            .map_err(|error| error.message().to_owned())?;
+    }
+
+    let executable =
+        std::env::current_exe().map_err(|_| "current executable is unavailable".to_owned())?;
+    let startup_spec = StartupSpec::new(
+        format!("CovioCapabilitySmoke-{}", std::process::id()),
+        executable,
+    )
+    .with_arguments(["--background"]);
+    adapters
+        .startup
+        .enable(&startup_spec)
+        .map_err(|error| error.message().to_owned())?;
+    let startup_enabled = adapters
+        .startup
+        .is_enabled(&startup_spec)
+        .map_err(|error| error.message().to_owned());
+    let startup_disabled = adapters
+        .startup
+        .disable(&startup_spec)
+        .map_err(|error| error.message().to_owned());
+    let startup = startup_enabled? && startup_disabled.is_ok();
+
+    let screenshot_candidate = root.join("Screenshots");
+    std::fs::create_dir_all(&screenshot_candidate)
+        .map_err(|_| "cannot create the screenshot smoke directory".to_owned())?;
+    let screenshot_directory =
+        covio_platform::WindowsScreenshotDirectory::with_candidates([screenshot_candidate])
+            .directory()
+            .is_ok();
+    let file_picker = FilePickerRequest::new("Open file")
+        .with_extensions(["png", "jpg"])
+        .multiple(true)
+        .validate()
+        .is_ok();
+    let notification = NotificationRequest::new("Covio", "Capability smoke")
+        .validate()
+        .is_ok();
+
+    let updater = root.join("CovioUpdater.exe");
+    std::fs::copy(
+        &std::env::current_exe().map_err(|_| "current executable is unavailable".to_owned())?,
+        &updater,
+    )
+    .map_err(|_| "cannot stage the updater smoke executable".to_owned())?;
+    let marker = root.join("update-handoff.marker");
+    let update_request = UpdateHandoffRequest::new(&updater).with_arguments([
+        "--capability-smoke-helper".to_owned(),
+        marker.to_string_lossy().into_owned(),
+    ]);
+    adapters
+        .update_handoff
+        .launch(&update_request)
+        .map_err(|error| error.message().to_owned())?;
+    let update_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while std::time::Instant::now() < update_deadline && !marker.is_file() {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let update_handoff = marker.is_file();
+
+    Ok(CapabilitySmokeReport {
+        app_data_available,
+        atomic_write,
+        credential_manager,
+        clipboard: clipboard_round_trip,
+        startup,
+        screenshot_directory,
+        file_picker,
+        notification,
+        update_handoff,
+        power_unavailable,
+    })
 }
 
 fn run_headless_smoke_at(root: &Path) -> Result<HeadlessSmokeReport, String> {

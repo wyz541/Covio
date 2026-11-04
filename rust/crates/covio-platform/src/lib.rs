@@ -11,13 +11,34 @@ mod filesystem;
 mod macos_secret;
 mod paths;
 mod secret;
+mod windows_adapters;
+mod windows_credentials;
 
-pub use capabilities::{CAPABILITY_KIND_COUNT, CapabilityKind, CapabilityStatus, MacCapabilitySet};
+pub use capabilities::{
+    CAPABILITY_KIND_COUNT, CapabilityKind, CapabilityStatus, MacCapabilitySet, WindowsCapabilitySet,
+};
 pub use filesystem::StdFileStore;
 #[cfg(target_os = "macos")]
 pub use macos_secret::KeychainSecretStore;
-pub use paths::{APP_ID, APP_NAME, DataPaths, temporary_path};
+pub use paths::{APP_ID, APP_NAME, DataPaths, WindowsAppDataDirectory, temporary_path};
 pub use secret::{SecretKey, SecretStore, SecretValue, UnavailableSecretStore};
+pub use windows_adapters::{
+    Clipboard, FilePicker, FilePickerRequest, MAX_CLIPBOARD_TEXT_BYTES,
+    MAX_NOTIFICATION_BODY_BYTES, MAX_NOTIFICATION_TITLE_BYTES, MAX_PICKED_FILES,
+    MAX_STARTUP_NAME_BYTES, NotificationRequest, Notifier, ScreenshotDirectory,
+    StartupRegistration, StartupSpec, UnavailablePlatformAdapter, UpdateHandoff,
+    UpdateHandoffRequest, WindowsScreenshotDirectory,
+};
+#[cfg(target_os = "windows")]
+pub use windows_adapters::{
+    WindowsClipboard, WindowsFilePicker, WindowsPlatformAdapters, WindowsStartupRegistration,
+    WindowsToastNotifier, WindowsUpdateHandoff,
+};
+pub use windows_credentials::{
+    CredentialBackend, CredentialStore, WINDOWS_SECRET_BLOB_LIMIT, WINDOWS_SECRET_SERVICE,
+};
+#[cfg(target_os = "windows")]
+pub use windows_credentials::{WindowsCredentialBackend, WindowsCredentialStore};
 
 use std::error::Error;
 use std::fmt;

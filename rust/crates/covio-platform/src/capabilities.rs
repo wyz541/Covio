@@ -1,7 +1,9 @@
 //! Stable capability inventory shared by platform adapters and bridge hosts.
 
+use crate::PlatformError;
+
 /// Number of capability kinds in [`CapabilityKind`].
-pub const CAPABILITY_KIND_COUNT: usize = 7;
+pub const CAPABILITY_KIND_COUNT: usize = 11;
 
 /// One platform capability that the core can require.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,6 +23,14 @@ pub enum CapabilityKind {
     Update = 5,
     /// Secret storage.
     SecureStorage = 6,
+    /// System clipboard access.
+    Clipboard = 7,
+    /// Screenshot source discovery.
+    Screenshot = 8,
+    /// Current-user startup registration.
+    Startup = 9,
+    /// Native file picker access.
+    FilePicker = 10,
 }
 
 impl CapabilityKind {
@@ -35,6 +45,10 @@ impl CapabilityKind {
             4 => Some(Self::Power),
             5 => Some(Self::Update),
             6 => Some(Self::SecureStorage),
+            7 => Some(Self::Clipboard),
+            8 => Some(Self::Screenshot),
+            9 => Some(Self::Startup),
+            10 => Some(Self::FilePicker),
             _ => None,
         }
     }
@@ -67,6 +81,17 @@ impl CapabilityStatus {
             available: false,
         }
     }
+
+    /// Requires the capability to be available.
+    pub fn require(self) -> Result<(), PlatformError> {
+        if self.available {
+            Ok(())
+        } else {
+            Err(PlatformError::unavailable(
+                "platform capability is unavailable",
+            ))
+        }
+    }
 }
 
 /// Capability inventory for the native macOS adapter composition.
@@ -90,8 +115,55 @@ impl Default for MacCapabilitySet {
                 CapabilityStatus::unavailable(CapabilityKind::Power),
                 CapabilityStatus::unavailable(CapabilityKind::Update),
                 CapabilityStatus::available(CapabilityKind::SecureStorage),
+                CapabilityStatus::unavailable(CapabilityKind::Clipboard),
+                CapabilityStatus::unavailable(CapabilityKind::Screenshot),
+                CapabilityStatus::unavailable(CapabilityKind::Startup),
+                CapabilityStatus::unavailable(CapabilityKind::FilePicker),
             ],
         }
+    }
+}
+
+/// Capability inventory for the native Windows adapter composition.
+///
+/// Socket and power remain unavailable. The Windows product does not claim a
+/// macOS helper, lid, or sleep capability through this adapter set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WindowsCapabilitySet {
+    statuses: [CapabilityStatus; CAPABILITY_KIND_COUNT],
+}
+
+impl Default for WindowsCapabilitySet {
+    fn default() -> Self {
+        Self {
+            statuses: [
+                CapabilityStatus::available(CapabilityKind::Filesystem),
+                CapabilityStatus::available(CapabilityKind::Process),
+                CapabilityStatus::unavailable(CapabilityKind::Socket),
+                CapabilityStatus::available(CapabilityKind::Notification),
+                CapabilityStatus::unavailable(CapabilityKind::Power),
+                CapabilityStatus::available(CapabilityKind::Update),
+                CapabilityStatus::available(CapabilityKind::SecureStorage),
+                CapabilityStatus::available(CapabilityKind::Clipboard),
+                CapabilityStatus::available(CapabilityKind::Screenshot),
+                CapabilityStatus::available(CapabilityKind::Startup),
+                CapabilityStatus::available(CapabilityKind::FilePicker),
+            ],
+        }
+    }
+}
+
+impl WindowsCapabilitySet {
+    /// Returns one capability status.
+    #[must_use]
+    pub const fn status(self, kind: CapabilityKind) -> CapabilityStatus {
+        self.statuses[kind as usize]
+    }
+
+    /// Returns every capability status.
+    #[must_use]
+    pub const fn statuses(self) -> [CapabilityStatus; CAPABILITY_KIND_COUNT] {
+        self.statuses
     }
 }
 
@@ -133,8 +205,40 @@ mod tests {
             CapabilityKind::Notification,
             CapabilityKind::Power,
             CapabilityKind::Update,
+            CapabilityKind::Clipboard,
+            CapabilityKind::Screenshot,
+            CapabilityKind::Startup,
+            CapabilityKind::FilePicker,
         ] {
             assert!(!capabilities.status(kind).available, "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn windows_inventory_exposes_native_adapters_and_typed_unavailability() {
+        let capabilities = WindowsCapabilitySet::default();
+        for kind in [
+            CapabilityKind::Filesystem,
+            CapabilityKind::Process,
+            CapabilityKind::Notification,
+            CapabilityKind::Update,
+            CapabilityKind::SecureStorage,
+            CapabilityKind::Clipboard,
+            CapabilityKind::Screenshot,
+            CapabilityKind::Startup,
+            CapabilityKind::FilePicker,
+        ] {
+            capabilities
+                .status(kind)
+                .require()
+                .unwrap_or_else(|_| panic!("{kind:?} should be available"));
+        }
+        for kind in [CapabilityKind::Socket, CapabilityKind::Power] {
+            let error = capabilities
+                .status(kind)
+                .require()
+                .expect_err("capability should be unavailable");
+            assert_eq!(error.code(), crate::PlatformErrorCode::Unavailable);
         }
     }
 }

@@ -1,6 +1,7 @@
 //! Standard filesystem implementation of the bounded file capability.
 
 use crate::{FileStore, PlatformError};
+use atomic_write_file::AtomicWriteFile;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -75,21 +76,11 @@ impl FileStore for StdFileStore {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|_| io_error())?;
         }
-        let temporary = crate::temporary_path(path);
-        {
-            let mut file = OpenOptions::new()
-                .create(true)
-                .truncate(true)
-                .write(true)
-                .open(&temporary)
-                .map_err(|_| io_error())?;
-            file.write_all(contents).map_err(|_| io_error())?;
-            file.sync_all().map_err(|_| io_error())?;
-        }
-        fs::rename(&temporary, path).map_err(|_| {
-            let _ = fs::remove_file(&temporary);
-            io_error()
-        })
+        let mut file = AtomicWriteFile::options()
+            .open(path)
+            .map_err(|_| io_error())?;
+        file.write_all(contents).map_err(|_| io_error())?;
+        file.commit().map_err(|_| io_error())
     }
 
     fn append(&self, path: &Path, contents: &[u8]) -> Result<u64, PlatformError> {
@@ -137,14 +128,21 @@ fn io_error() -> PlatformError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    static NEXT_TEMPORARY_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
     fn temporary_directory() -> std::path::PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        std::env::temp_dir().join(format!("covio-std-files-{}-{nonce}", std::process::id()))
+        let sequence = NEXT_TEMPORARY_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "covio-std-files-{}-{nonce}-{sequence}",
+            std::process::id()
+        ))
     }
 
     #[test]
@@ -156,12 +154,17 @@ mod tests {
         assert_eq!(store.read(&file).expect("read missing"), None);
         store.write_atomic(&file, b"abcdef").expect("write");
         assert_eq!(store.read(&file).expect("read"), Some(b"abcdef".to_vec()));
-        assert_eq!(store.metadata_size(&file).expect("size"), Some(6));
+        store.write_atomic(&file, b"replacement").expect("replace");
+        assert_eq!(
+            store.read(&file).expect("read replaced"),
+            Some(b"replacement".to_vec())
+        );
+        assert_eq!(store.metadata_size(&file).expect("size"), Some(11));
         assert_eq!(
             store.read_range(&file, 2, 3).expect("range"),
-            Some(b"cde".to_vec())
+            Some(b"pla".to_vec())
         );
-        assert_eq!(store.append(&file, b"g").expect("append"), 7);
+        assert_eq!(store.append(&file, b"g").expect("append"), 12);
         let target = root.join("moved.json");
         store.atomic_move(&file, &target).expect("move");
         assert!(!store.exists(&file).expect("source missing"));
