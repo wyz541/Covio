@@ -7,6 +7,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT="$ROOT/installer/windows/Covio.iss"
 ICON="$ROOT/assets/windows/Covio.ico"
 OUTPUT_DIR="${COVIO_WINDOWS_OUTPUT_DIR:-$ROOT/build/windows-package}"
+if [[ "$OUTPUT_DIR" != /* && ! "$OUTPUT_DIR" =~ ^[A-Za-z]:[\\/] ]]; then
+  OUTPUT_DIR="$ROOT/$OUTPUT_DIR"
+fi
 TARGET="${COVIO_WINDOWS_TARGET:-}"
 PRODUCT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 CLIENT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
