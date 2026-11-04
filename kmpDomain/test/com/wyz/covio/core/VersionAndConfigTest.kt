@@ -521,15 +521,15 @@ class VersionAndConfigTest {
 
     /// 默认路径必须与 0.4.2 完全一致，否则老用户的设置会丢。
     @Test
-    fun `default paths match the older release layout`() {
+    fun `default paths use the platform data root`() {
         val config = defaultConfigPath()
         assertTrue(
-            config.endsWith("/Library/Application Support/$APP_ID/config.json"),
+            config.endsWith("${AppDirectories.userApplicationSupport}/$APP_ID/config.json"),
             "配置路径不对：$config",
         )
         val shelf = defaultShelfPath()
         assertTrue(
-            shelf.endsWith("/Library/Application Support/$APP_NAME/Screenshots/shelf.json"),
+            shelf.endsWith("${AppDirectories.userApplicationSupport}/$APP_NAME/Screenshots/shelf.json"),
             "晾衣线路径不对：$shelf",
         )
         assertTrue(config.toPath().isAbsolute)

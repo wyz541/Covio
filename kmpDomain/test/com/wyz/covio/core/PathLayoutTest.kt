@@ -7,25 +7,14 @@ import kotlin.test.assertTrue
 /**
  * 目录布局的钉子。
  *
- * 这几个路径是 0.4.2 的既有布局。改了会让老用户找不到自己的设置。
- * 用例同时跑 jvm 与 macosArm64，所以缝在两个真实目标上都验过。
- *
- * 断言写成「以某段字面量结尾」，不拿实现自己的插值互相比。
- * 这样 actual 里换掉字面量时用例会红。
+ * 平台数据根由 `PlatformDataRootTest` 覆盖。
+ * 这里验证应用名和子目录在真实目标上的拼接。
  */
 class PathLayoutTest {
     @Test
-    fun `the user data root keeps the apple layout`() {
-        assertTrue(
-            AppDirectories.userApplicationSupport.endsWith("/Library/Application Support"),
-            "实际值：${AppDirectories.userApplicationSupport}",
-        )
-    }
-
-    @Test
     fun `the config directory uses the application id`() {
         assertTrue(
-            defaultConfigPath().endsWith("/Library/Application Support/$APP_ID/config.json"),
+            defaultConfigPath().endsWith("${AppDirectories.userApplicationSupport}/$APP_ID/config.json"),
             "实际值：${defaultConfigPath()}",
         )
     }
@@ -34,7 +23,7 @@ class PathLayoutTest {
     @Test
     fun `the workbench config sits next to the app config`() {
         assertTrue(
-            defaultWorkbenchPath().endsWith("/Library/Application Support/$APP_ID/workbench.json"),
+            defaultWorkbenchPath().endsWith("${AppDirectories.userApplicationSupport}/$APP_ID/workbench.json"),
             "实际值：${defaultWorkbenchPath()}",
         )
         assertNotEquals(
@@ -47,7 +36,7 @@ class PathLayoutTest {
     @Test
     fun `the shelf directory uses the application name`() {
         assertTrue(
-            defaultShelfPath().endsWith("/Library/Application Support/$APP_NAME/Screenshots/shelf.json"),
+            defaultShelfPath().endsWith("${AppDirectories.userApplicationSupport}/$APP_NAME/Screenshots/shelf.json"),
             "实际值：${defaultShelfPath()}",
         )
     }
@@ -55,7 +44,7 @@ class PathLayoutTest {
     @Test
     fun `the clipboard directory uses the application name`() {
         assertTrue(
-            ClipboardStore.defaultDirectory().endsWith("/Library/Application Support/$APP_NAME/Clipboard"),
+            ClipboardStore.defaultDirectory().endsWith("${AppDirectories.userApplicationSupport}/$APP_NAME/Clipboard"),
             "实际值：${ClipboardStore.defaultDirectory()}",
         )
     }
@@ -63,7 +52,7 @@ class PathLayoutTest {
     @Test
     fun `the workspace directory uses the application name`() {
         assertTrue(
-            WorkspaceStore.defaultDirectory().endsWith("/Library/Application Support/$APP_NAME/Workspace"),
+            WorkspaceStore.defaultDirectory().endsWith("${AppDirectories.userApplicationSupport}/$APP_NAME/Workspace"),
             "实际值：${WorkspaceStore.defaultDirectory()}",
         )
     }

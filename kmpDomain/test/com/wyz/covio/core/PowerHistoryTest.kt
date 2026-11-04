@@ -113,7 +113,7 @@ class PowerHistoryTest {
     @Test
     fun `default path sits next to the shared config`() {
         assertTrue(
-            defaultPowerHistoryPath().endsWith("/Library/Application Support/$APP_ID/Power/history.json"),
+            defaultPowerHistoryPath().endsWith("${AppDirectories.userApplicationSupport}/$APP_ID/Power/history.json"),
             "实际值：${defaultPowerHistoryPath()}",
         )
     }
