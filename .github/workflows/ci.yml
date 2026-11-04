@@ -70,6 +70,57 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  windows-package:
+    name: Windows package and installer
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Rust cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-windows-package-v1-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            rust-windows-package-v1-${{ hashFiles('rust/Cargo.lock') }}-
+            rust-windows-package-v1-
+
+      - name: Build previous installer
+        shell: bash
+        env:
+          COVIO_WINDOWS_BUILD_NUMBER: "24"
+          COVIO_WINDOWS_APP_VERSION: "0.6.0-internal.24"
+          COVIO_WINDOWS_RELEASE_ID: "windows-installer-previous-24"
+          COVIO_WINDOWS_OUTPUT_DIR: "build/windows-previous"
+        run: bash scripts/package-windows.sh
+
+      - name: Build current installer
+        shell: bash
+        run: bash scripts/package-windows.sh
+
+      - name: Verify Windows artifact boundary
+        shell: bash
+        run: bash scripts/verify-windows-artifact.sh rust/target/release/covio-windows.exe
+
+      - name: Test clean install, upgrade, crash recovery, rollback, and uninstall
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/test-windows-installer.ps1
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package-${{ github.run_id }}
+          path: build/windows-package/*
+          if-no-files-found: error
+          retention-days: 30
+
   portable:
     name: Portable gate
     runs-on: ubuntu-latest
@@ -96,11 +147,16 @@ jobs:
             rust:
               - ".github/workflows/ci.yml"
               - ".github/workflows/macos-release.yml"
+              - "assets/windows/**"
+              - "installer/windows/**"
               - "rust/**"
+              - "scripts/package-windows.sh"
+              - "scripts/test-windows-installer.ps1"
               - "scripts/test-all.sh"
               - "scripts/test-rust.sh"
               - "scripts/test-rust-macos-ffi.sh"
               - "scripts/test-windows-rust.sh"
+              - "scripts/verify-windows-artifact.sh"
               - "scripts/validate-workflow.py"
 
       - name: Check portable files

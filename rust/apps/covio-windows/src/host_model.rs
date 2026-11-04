@@ -9,6 +9,12 @@ use serde::{Deserialize, Serialize};
 pub enum HostView {
     /// Dashboard and core state counts.
     Home,
+    /// Screenshot shelf.
+    Shelf,
+    /// Clipboard history.
+    Clipboard,
+    /// Workspace entries.
+    Workspace,
     /// Host and core settings.
     Settings,
 }
@@ -249,6 +255,7 @@ mod tests {
                 clipboard_item_count: 2,
                 workspace_entry_count: 3,
                 loaded_at_epoch_seconds: 4,
+                ..HostSnapshot::default()
             })
             .expect("snapshot JSON"),
             error: None,

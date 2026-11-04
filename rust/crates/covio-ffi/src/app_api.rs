@@ -8,8 +8,8 @@ use covio_core::charge_limit::{
     is_valid_upper_limit, normalize_upper_limit, resume_threshold,
 };
 use covio_core::clipboard::{
-    ClipItem, ClipPolicy, ClipboardState, ClipboardStore, classify, next_paste, prune,
-    push_paste_stack,
+    ClipItem, ClipPolicy, ClipboardState, ClipboardStore, capture_text, classify, next_paste,
+    prune, push_paste_stack, remove_item, set_pinned as set_clipboard_pinned,
 };
 use covio_core::path_policy::canonical_path;
 use covio_core::power::helper_release::{HelperReleaseHandshake, HelperReleaseIdentity};
@@ -148,6 +148,19 @@ impl AppCore {
                     |_| boolean_field(payload, "hasScreenCaptureAttribute").unwrap_or(false),
                 )
             })),
+            "shelf.addPaths" => {
+                let paths: Vec<String> = decode_field(payload, "paths")?;
+                let store = ShelfStore::new(self.shelf_file.clone(), self.files);
+                let mut state = store.load();
+                state.items.extend(paths.into_iter().map(|path| ShelfItem {
+                    path,
+                    added_at_epoch_seconds: now_epoch_seconds,
+                }));
+                let saved = store
+                    .save(&state)
+                    .map_err(|error| error.message().to_owned())?;
+                Ok(json!({"state": saved}))
+            }
             "shelf.load" => {
                 let state = ShelfStore::new(self.shelf_file.clone(), self.files).load();
                 Ok(json!({"state": state}))
@@ -215,6 +228,56 @@ impl AppCore {
                     "stack": push_paste_stack(&stack, string_field(payload, "id")?)
                 }))
             }
+            "clipboard.captureText" => {
+                let store = ClipboardStore::new(self.clipboard_file.clone(), self.files);
+                let state = store.load();
+                let source = payload
+                    .get("sourceBundleId")
+                    .and_then(Value::as_str)
+                    .unwrap_or("windows.clipboard");
+                let next = capture_text(
+                    &state,
+                    string_field(payload, "text")?,
+                    source,
+                    now_epoch_seconds,
+                    |path| Path::new(path).is_file(),
+                );
+                let saved = store
+                    .save(&next)
+                    .map_err(|error| error.message().to_owned())?;
+                Ok(json!({"state": saved}))
+            }
+            "clipboard.setPinned" => {
+                let store = ClipboardStore::new(self.clipboard_file.clone(), self.files);
+                let pinned = payload
+                    .get("pinned")
+                    .and_then(Value::as_bool)
+                    .ok_or_else(|| "pinned must be a bool".to_owned())?;
+                let next =
+                    set_clipboard_pinned(&store.load(), string_field(payload, "id")?, pinned);
+                let saved = store
+                    .save(&next)
+                    .map_err(|error| error.message().to_owned())?;
+                Ok(json!({"state": saved}))
+            }
+            "clipboard.remove" => {
+                let store = ClipboardStore::new(self.clipboard_file.clone(), self.files);
+                let next = remove_item(&store.load(), string_field(payload, "id")?);
+                let saved = store
+                    .save(&next)
+                    .map_err(|error| error.message().to_owned())?;
+                Ok(json!({"state": saved}))
+            }
+            "clipboard.markPaste" => {
+                let store = ClipboardStore::new(self.clipboard_file.clone(), self.files);
+                let mut next = store.load();
+                next.paste_stack =
+                    push_paste_stack(&next.paste_stack, string_field(payload, "id")?);
+                let saved = store
+                    .save(&next)
+                    .map_err(|error| error.message().to_owned())?;
+                Ok(json!({"state": saved}))
+            }
             "clipboard.load" => {
                 let state = ClipboardStore::new(self.clipboard_file.clone(), self.files).load();
                 Ok(json!({"state": state}))
@@ -261,6 +324,35 @@ impl AppCore {
                         now_epoch_seconds,
                     );
                 Ok(json!(result))
+            }
+            "workspace.importFiles" => {
+                let mut state: WorkspaceState = decode_field(payload, "state")?;
+                let paths: Vec<String> = decode_field(payload, "paths")?;
+                let origin_device_id = string_field(payload, "originDeviceId")?;
+                let store = WorkspaceStore::new(self.workspace_directory.clone(), self.files);
+                let mut imported = 0_u64;
+                let mut admissions = Vec::with_capacity(paths.len());
+                for (index, source_path) in paths.into_iter().enumerate() {
+                    let display_name = Path::new(&source_path)
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("file")
+                        .to_owned();
+                    let result = store.put_file(
+                        &state,
+                        &source_path,
+                        &display_name,
+                        "",
+                        origin_device_id,
+                        now_epoch_seconds.saturating_add(i64::try_from(index).unwrap_or(0)),
+                    );
+                    if result.accepted() {
+                        imported = imported.saturating_add(1);
+                    }
+                    admissions.push(result.admission);
+                    state = result.state;
+                }
+                Ok(json!({"state": state, "imported": imported, "admissions": admissions}))
             }
             "workspace.putText" => {
                 let state: WorkspaceState = decode_field(payload, "state")?;
@@ -693,4 +785,85 @@ fn decode_field<T: DeserializeOwned>(payload: &Value, key: &str) -> Result<T, St
             .ok_or_else(|| format!("{key} is required"))?,
     )
     .map_err(|_| format!("{key} is invalid"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+
+    fn core_at_temporary_paths() -> (AppCore, std::path::PathBuf) {
+        let sequence = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+        let root =
+            std::env::temp_dir().join(format!("covio-app-api-{}-{sequence}", std::process::id()));
+        let core = AppCore::with_paths(
+            root.join("config.json"),
+            root.join("Screenshots/shelf.json"),
+            root.join("Clipboard/clipboard.json"),
+            root.join("Workspace"),
+        );
+        (core, root)
+    }
+
+    #[test]
+    fn capture_text_uses_clipboard_rules_and_persists() {
+        let (core, root) = core_at_temporary_paths();
+        let result = core
+            .call("clipboard.captureText", &json!({"text": "hello"}), 10)
+            .expect("capture");
+        assert_eq!(result["state"]["items"].as_array().map(Vec::len), Some(1));
+        let loaded = core
+            .call("clipboard.load", &json!({}), 10)
+            .expect("load clipboard");
+        assert_eq!(loaded["state"]["items"][0]["text"], "hello");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn shelf_add_paths_persists_existing_files() {
+        let (core, root) = core_at_temporary_paths();
+        std::fs::create_dir_all(&root).expect("root");
+        let screenshot = root.join("screen.png");
+        std::fs::write(&screenshot, b"png").expect("screenshot");
+        let result = core
+            .call(
+                "shelf.addPaths",
+                &json!({"paths": [screenshot.to_string_lossy()]}),
+                10,
+            )
+            .expect("add screenshot");
+        assert_eq!(result["state"]["items"].as_array().map(Vec::len), Some(1));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn workspace_import_files_uses_core_classification_and_content_store() {
+        let (core, root) = core_at_temporary_paths();
+        std::fs::create_dir_all(&root).expect("root");
+        let source = root.join("note.txt");
+        std::fs::write(&source, b"hello workspace").expect("source file");
+        let result = core
+            .call(
+                "workspace.importFiles",
+                &json!({
+                    "state": WorkspaceState::default(),
+                    "paths": [source.to_string_lossy()],
+                    "originDeviceId": "windows:test",
+                }),
+                10,
+            )
+            .expect("import file");
+        assert_eq!(result["imported"], 1);
+        assert_eq!(result["state"]["entries"][0]["kind"], "TEXT");
+        let entry_id = result["state"]["entries"][0]["entryId"]
+            .as_str()
+            .expect("entry id");
+        let content = WorkspaceStore::new(root.join("Workspace"), StdFileStore::new())
+            .read_content(entry_id)
+            .expect("workspace content");
+        assert_eq!(content, b"hello workspace");
+        let _ = std::fs::remove_dir_all(root);
+    }
 }

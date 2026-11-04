@@ -11,8 +11,9 @@ pub use core_runtime::{
 pub use host_model::{CloseDisposition, HostModel, HostStatus, HostView, ThemePreference};
 
 use covio_core::AppConfig;
+use covio_core::workspace::WorkspaceStore;
 use covio_ffi::AppCore;
-use covio_platform::DataPaths;
+use covio_platform::{DataPaths, StdFileStore};
 use serde::Serialize;
 use serde_json::json;
 use std::path::{Path, PathBuf};
@@ -42,6 +43,13 @@ impl WindowsDataPaths {
             self.paths.clipboard_file(),
             self.paths.workspace_directory.clone(),
         )
+    }
+
+    /// Returns the local content path for one workspace entry.
+    #[must_use]
+    pub fn workspace_content_path(&self, entry_id: &str) -> Option<PathBuf> {
+        WorkspaceStore::new(self.paths.workspace_directory.clone(), StdFileStore::new())
+            .content_path(entry_id)
     }
 }
 
@@ -85,6 +93,72 @@ pub struct CapabilitySmokeReport {
     pub update_handoff: bool,
     /// Power capability returned a typed unavailable error.
     pub power_unavailable: bool,
+}
+
+/// Seeds bounded demo state for Windows screenshot smoke runs.
+pub fn seed_screenshot_smoke_data(root: &Path) -> Result<(), String> {
+    use covio_core::clipboard::{ClipItem, ClipKind, ClipboardState};
+    use covio_core::shelf::{ShelfItem, ShelfStoreState};
+    use covio_core::workspace::WorkspaceState;
+
+    let paths = WindowsDataPaths::new(root);
+    let core = paths.app_core();
+    let now = now_epoch_seconds();
+    let screenshot = root.join("Screenshots").join("Covio demo.png");
+    if let Some(parent) = screenshot.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|_| "cannot create screenshot smoke data".to_owned())?;
+    }
+    std::fs::write(&screenshot, b"png")
+        .map_err(|_| "cannot write screenshot smoke data".to_owned())?;
+    let shelf = ShelfStoreState {
+        items: vec![ShelfItem {
+            path: screenshot.to_string_lossy().into_owned(),
+            added_at_epoch_seconds: now,
+        }],
+        ..ShelfStoreState::default()
+    };
+    core.call("shelf.save", &json!({"state": shelf}), now)
+        .map_err(|error| format!("cannot seed shelf smoke data: {error}"))?;
+
+    let clipboard = ClipboardState {
+        items: vec![
+            ClipItem {
+                id: "smoke-text".to_owned(),
+                kind: ClipKind::Text,
+                text: "A captured note".to_owned(),
+                byte_size: 15,
+                created_at_epoch_seconds: now,
+                source_bundle_id: "windows.smoke".to_owned(),
+                ..ClipItem::default()
+            },
+            ClipItem {
+                id: "smoke-link".to_owned(),
+                kind: ClipKind::Link,
+                text: "https://github.com/wyz541/kmp-Covio".to_owned(),
+                byte_size: 36,
+                created_at_epoch_seconds: now.saturating_sub(1),
+                source_bundle_id: "windows.smoke".to_owned(),
+                ..ClipItem::default()
+            },
+        ],
+        ..ClipboardState::default()
+    };
+    core.call("clipboard.save", &json!({"state": clipboard}), now)
+        .map_err(|error| format!("cannot seed clipboard smoke data: {error}"))?;
+    core.call(
+        "workspace.putText",
+        &json!({
+            "state": WorkspaceState::default(),
+            "text": "Workspace smoke note",
+            "displayName": "Screenshot notes.txt",
+            "contentType": "text/plain",
+            "originDeviceId": "windows:smoke",
+        }),
+        now,
+    )
+    .map_err(|error| format!("cannot seed workspace smoke data: {error}"))?;
+    Ok(())
 }
 
 /// Runs a core restart smoke without opening a GUI.
@@ -297,7 +371,8 @@ fn run_capability_smoke_at(root: &Path) -> Result<CapabilitySmokeReport, String>
     })
 }
 
-fn run_headless_smoke_at(root: &Path) -> Result<HeadlessSmokeReport, String> {
+/// Runs the core restart smoke at one explicit data root.
+pub fn run_headless_smoke_at(root: &Path) -> Result<HeadlessSmokeReport, String> {
     let paths = WindowsDataPaths::new(root);
     let mut runtime = CoreRuntime::new(paths.app_core());
     let initial_id = runtime.request_snapshot(now_epoch_seconds())?;

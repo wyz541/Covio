@@ -41,7 +41,7 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 ## Architecture migration
 
 The macOS product now uses the Rust core with SwiftUI and AppKit.
-The Windows product still uses the transitional Kotlin path.
+The Windows product uses the same Rust core with egui.
 The migration scope is Windows and macOS. Android, iOS, and Web need separate decisions.
 
 | Platform | Target UI | Rust boundary |
@@ -49,8 +49,7 @@ The migration scope is Windows and macOS. Android, iOS, and Web need separate de
 | Windows | Rust + egui | Same-process Rust call |
 | macOS | SwiftUI + AppKit | C ABI / cinterop |
 
-The current KMP path remains authoritative on Windows until its cutover.
-The Windows and macOS target products will not contain a KMP fallback, a Kotlin JVM product path, or a Windows Compose / JNA path.
+The Windows and macOS products do not contain a KMP fallback, a Kotlin JVM product path, or a Windows Compose / JNA path.
 Repository-wide KMP removal needs a separate decision.
 
 - Decision: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
@@ -351,7 +350,8 @@ The model license and attribution are in `THIRD_PARTY_NOTICES.md`.
 - macOS 26 or later. Covio 0.4.x stays on macOS 12.
 - An Apple Silicon Mac.
 - Xcode 27 to build the SwiftUI host.
-- JDK 25 for the current transitional shared layer. The final macOS and Windows runtimes do not require a JDK.
+- Windows 11 x64 for the Windows installer.
+- JDK 25 only for the remaining Kotlin shared checks. The macOS and Windows products do not require a JDK.
 
 ## Build and test
 
@@ -369,6 +369,8 @@ Build one side only:
 /bin/sh ./kotlin test          # the legacy shared layer, on jvm and macosArm64
 bash scripts/build-macos-swift.sh     # build the Rust-core macOS host
 bash scripts/test-macos-swift.sh      # run the host XCTest suite
+bash scripts/package-windows.sh       # build the Windows installer on Windows
+bash scripts/test-windows-rust.sh     # run the Windows host and capability checks
 ```
 
 Test the Rust core and bridge:
@@ -393,9 +395,28 @@ Both files are generated. Do not edit them by hand.
 The macOS host is SwiftUI and links the Rust core through the C ABI.
 The external Agent token uses the Rust Keychain adapter through the same C ABI.
 The macOS build does not link or embed a Kotlin framework. Open `macosApp/Covio.xcodeproj` to work on the host.
-The legacy Kotlin shared module remains available to the transitional Windows work.
-Repository-wide KMP removal is not part of ADR-0030.
+The Windows product does not link the Kotlin shared module.
+Repository-wide KMP removal is still a separate decision.
 See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md).
+
+### Windows package
+
+Run these commands on Windows 11:
+
+```sh
+bash scripts/test-windows-rust.sh
+bash scripts/package-windows.sh
+```
+
+The package script builds `covio-windows.exe` and a current-user Inno Setup installer.
+The installer writes under `%LOCALAPPDATA%\Programs\Covio`.
+It does not require elevation.
+It registers the `com.wyz.covio` AppUserModelID for Start Menu shortcuts.
+The Rust host stores durable state under `%LOCALAPPDATA%\Covio`.
+Secrets use Windows Credential Manager.
+
+CI installs a previous build, upgrades to the current build, checks crash recovery, rolls back to the previous build, and uninstalls.
+CI also rejects JVM, Kotlin, Compose, and JNA dependencies or artifact files.
 
 The project signs ad-hoc by default.
 Ad-hoc signing has no Team ID, so macOS identifies the app by its cdhash.
@@ -512,8 +533,8 @@ The downloader uses a fixed manifest revision and stores files under `$HOME/Libr
 It pauses and resumes through the Hub download cache.
 It verifies the complete package before registering it.
 The macOS compatibility models and path rules call the Rust application service.
-The legacy Kotlin contract remains for platforms that have not cut over.
-A JVM or Windows host supplies transport and storage adapters. The model runtime remains platform-specific.
+The legacy Kotlin contract remains for out-of-scope platforms and repository checks.
+The Windows product supplies transport and storage adapters through the Rust host. The model runtime remains platform-specific.
 The Windows runtime boundary is recorded in [#391](https://github.com/wyz541/kmp-Covio/issues/391).
 The Agent and file naming views show one shared model setup panel.
 The panel shows model size, license, network need, progress, failures, import, and removal.

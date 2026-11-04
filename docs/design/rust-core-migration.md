@@ -22,15 +22,15 @@ Android、iOS 或 Web 的迁移需要独立 ADR 和独立 Feature。
 
 | 项目 | 当前状态 | 目标状态 |
 | --- | --- | --- |
-| 业务规则 | macOS 使用 `covio-core` Rust；Windows 使用迁移期 Kotlin path | Windows 和 macOS 使用 `covio-core` Rust |
-| Durable state | macOS 使用 Rust + filesystem adapter；Windows 使用迁移期 path | Rust + platform filesystem adapter |
+| 业务规则 | Windows 和 macOS 使用 `covio-core` Rust | Windows 和 macOS 使用 `covio-core` Rust |
+| Durable state | Windows 和 macOS 使用 Rust + platform filesystem adapter | Rust + platform filesystem adapter |
 | macOS bridge | C ABI / cinterop | C ABI / cinterop |
 | macOS UI | SwiftUI + AppKit | SwiftUI + AppKit |
-| Windows UI | Compose Multiplatform 计划 | Rust + egui |
-| Windows bridge | JVM / JNA 计划 | 同一 Rust 进程直接调用 |
+| Windows UI | Rust + egui | Rust + egui |
+| Windows bridge | 同一 Rust 进程直接调用 | 同一 Rust 进程直接调用 |
 | macOS secret | 产品通过 C ABI 使用 Rust Keychain adapter | Keychain |
-| Windows secret | 待实现 | Windows Credential Manager |
-| 最终 artifact | macOS 不含 KMP；Windows 待 cutover | Windows 和 macOS 均不含 KMP fallback |
+| Windows secret | Windows Credential Manager | Windows Credential Manager |
+| 最终 artifact | macOS 不含 KMP；Windows installer 不含 JVM、Kotlin、Compose 或 JNA | Windows 和 macOS 均不含 KMP fallback |
 | Android、iOS、Web | 不在本次迁移范围 | 需要独立 ADR |
 
 ## 3. Ownership
@@ -152,8 +152,8 @@ Atomic write 使用同目录文件替换。Windows 上覆盖已有目标文件�
 | macOS adapter | #603 | C ABI、Keychain 和 bounded boundary |
 | macOS cutover | #605 | SwiftUI 产品切到 Rust |
 | Windows host | #606 | egui、托盘、单实例和 shutdown（已合并） |
-| Windows adapter | #607 | Credential Manager 和 Windows capability |
-| Windows cutover | #608 | Rust + egui 产品边界 |
+| Windows adapter | #607 | Credential Manager 和 Windows capability（已合并） |
+| Windows cutover | #608 | Rust + egui 产品边界和 current-user installer |
 | Build and release | #612 | Windows 和 macOS CI、安装包与边界检查 |
 | Final verification | #613 | Windows 和 macOS 真实产品验收 |
 
@@ -204,7 +204,7 @@ Verification Issue #613 只覆盖 Windows 和 macOS。
 | Bridge | C header、round-trip、cancellation 和 payload tests |
 | Data compatibility | KMP fixture 与 Rust output 对照 |
 | macOS | Swift tests、Keychain、真机流程、artifact scan |
-| Windows | egui tests、Credential Manager、Windows 11 artifact 验收 |
+| Windows | egui tests、Credential Manager、安装／升级／回滚／卸载 smoke、Windows 11 artifact 验收 |
 | Release | clean install、upgrade、rollback、dependency graph 和 bundle scan |
 
 仓库测试不等于真实产品验收。

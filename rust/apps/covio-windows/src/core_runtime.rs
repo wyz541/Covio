@@ -1,5 +1,8 @@
 //! Bounded worker for Rust application commands.
 
+use covio_core::clipboard::ClipboardState;
+use covio_core::shelf::ShelfStoreState;
+use covio_core::workspace::WorkspaceState;
 use covio_ffi::AppCore;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -50,7 +53,7 @@ pub struct CoreResponse {
 }
 
 /// Snapshot displayed by the Windows host.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HostSnapshot {
     /// Raw configuration object.
@@ -61,6 +64,12 @@ pub struct HostSnapshot {
     pub clipboard_item_count: usize,
     /// Number of workspace entries.
     pub workspace_entry_count: usize,
+    /// Screenshot shelf state.
+    pub shelf: ShelfStoreState,
+    /// Clipboard history state.
+    pub clipboard: ClipboardState,
+    /// Workspace state.
+    pub workspace: WorkspaceState,
     /// Time at which the worker loaded the snapshot.
     pub loaded_at_epoch_seconds: i64,
 }
@@ -366,6 +375,9 @@ fn build_snapshot(core: &AppCore, now_epoch_seconds: i64) -> Result<Value, HostC
         "shelfItemCount": nested_array_len(&shelf, &["state", "items"]),
         "clipboardItemCount": nested_array_len(&clipboard, &["state", "items"]),
         "workspaceEntryCount": nested_array_len(&workspace, &["state", "entries"]),
+        "shelf": shelf.get("state").cloned().unwrap_or_else(|| json!(ShelfStoreState::default())),
+        "clipboard": clipboard.get("state").cloned().unwrap_or_else(|| json!(ClipboardState::default())),
+        "workspace": workspace.get("state").cloned().unwrap_or_else(|| json!(WorkspaceState::default())),
         "loadedAtEpochSeconds": now_epoch_seconds,
     }))
 }
@@ -424,6 +436,9 @@ mod tests {
         assert_eq!(snapshot.shelf_item_count, 0);
         assert_eq!(snapshot.clipboard_item_count, 0);
         assert_eq!(snapshot.workspace_entry_count, 0);
+        assert!(snapshot.shelf.items.is_empty());
+        assert!(snapshot.clipboard.items.is_empty());
+        assert!(snapshot.workspace.entries.is_empty());
         assert_eq!(snapshot.loaded_at_epoch_seconds, 42);
         runtime.shutdown();
         let _ = std::fs::remove_dir_all(root);

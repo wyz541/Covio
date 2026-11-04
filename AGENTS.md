@@ -3,10 +3,10 @@
 本文件是 agent 的强制契约。Codex 直接读本文件。Claude Code 通过 `CLAUDE.md` 导入。
 
 ## 1. 项目基线
-- Covio 是 macOS 菜单栏应用。
-- 界面使用 SwiftUI，代码在 `macosApp/`。
-- 共享领域逻辑使用 KMP，代码在 `kmpDomain/`。
-- 构建系统是 Amper 0.12.1，不是 Gradle。
+- Covio 交付 Windows 和 macOS。macOS UI 在 `macosApp/`，Windows UI 在 `rust/apps/covio-windows/`。
+- 共享逻辑是 Rust core，代码在 `rust/crates/`。`kmpDomain/` 只保留给未迁移平台和仓库检查。
+- 仓库级 KMP 删除需要独立决定。
+- Amper 0.12.1 仍管理 KMP 检查，不是 Gradle。
 - 主干是 `main`。
 - 项目版本遵循 Semantic Versioning 2.0.0。权威规则见 `docs/process/versioning.md`。
 
