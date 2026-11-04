@@ -41,17 +41,17 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 ## Architecture migration
 
 The macOS product now uses the Rust core with SwiftUI and AppKit.
-The Windows and Android products still use the transitional Kotlin path until their cutovers.
-The target is one Rust core with platform-native UI on all three platforms.
+The Windows product still uses the transitional Kotlin path.
+The migration scope is Windows and macOS. Android, iOS, and Web need separate decisions.
 
 | Platform | Target UI | Rust boundary |
 | --- | --- | --- |
 | Windows | Rust + egui | Same-process Rust call |
 | macOS | SwiftUI + AppKit | C ABI / cinterop |
-| Android | Kotlin Android UI | JNI / NDK |
 
-The current KMP path remains authoritative only on platforms that have not cut over.
-The target product will not contain a KMP shared module, a Kotlin JVM product path, or a Windows Compose / JNA path.
+The current KMP path remains authoritative on Windows until its cutover.
+The Windows and macOS target products will not contain a KMP fallback, a Kotlin JVM product path, or a Windows Compose / JNA path.
+Repository-wide KMP removal needs a separate decision.
 
 - Decision: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
 - Plan: [Rust core migration plan](docs/design/rust-core-migration.md)
@@ -393,7 +393,8 @@ Both files are generated. Do not edit them by hand.
 The macOS host is SwiftUI and links the Rust core through the C ABI.
 The external Agent token uses the Rust Keychain adapter through the same C ABI.
 The macOS build does not link or embed a Kotlin framework. Open `macosApp/Covio.xcodeproj` to work on the host.
-The legacy Kotlin shared module remains available to the transitional Android and Windows work until #611.
+The legacy Kotlin shared module remains available to the transitional Windows work.
+Repository-wide KMP removal is not part of ADR-0030.
 See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md).
 
 The project signs ad-hoc by default.
