@@ -437,7 +437,9 @@ final class HelperWire: @unchecked Sendable {
     }
 
     func versionReply(requestId: String, identity: HelperReleaseIdentity) -> HelperReply {
-        success(requestId: requestId, result: identity.resultMap)
+        var result = identity.resultMap
+        result["version"] = identity.clientVersion
+        return success(requestId: requestId, result: result)
     }
 
     func leaseStatusReply(

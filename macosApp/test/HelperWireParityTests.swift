@@ -130,6 +130,26 @@ final class HelperWireParityTests: XCTestCase {
         )
     }
 
+    func testIdentityVersionReplyKeepsTheLegacyVersionField() {
+        let identity = HelperReleaseIdentity(
+            releaseId: "0.6.0-internal.24-g0123456789abcdef0123456789abcdef01234567",
+            clientVersion: "0.6.0-internal.24",
+            productVersion: "0.6.0",
+            buildNumber: "24",
+            gitCommit: "0123456789abcdef0123456789abcdef01234567",
+            protocolVersion: "10",
+            helperSHA256: String(repeating: "a", count: 64),
+            channel: "internal"
+        )
+
+        let reply = HelperWire.shared.versionReply(requestId: "r", identity: identity)
+
+        XCTAssertTrue(reply.ok)
+        XCTAssertEqual(reply.result?["version"], identity.clientVersion)
+        XCTAssertEqual(reply.result?["clientVersion"], identity.clientVersion)
+        XCTAssertEqual(reply.result?["helperSHA256"], identity.helperSHA256)
+    }
+
     /// 字节上限与 socket 权限位也来自共享层，不在这里另写一份。
     func testTheWireLimitsComeFromKotlin() {
         XCTAssertEqual(Int(HelperWire.shared.MAX_REQUEST_BYTES), 64 * 1024)
