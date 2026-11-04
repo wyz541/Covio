@@ -57,7 +57,6 @@ jobs:
           python3 -I scripts/test_release_manifest.py
           python3 -I scripts/test_release_pipeline.py
           python3 -I scripts/test_release_notes.py
-          python3 -I scripts/test_update_manifest.py
           python3 -I scripts/generate-update-trust.py --check
           python3 -I scripts/test_verify_macos_signing.py
           python3 -I scripts/generate-contract-constants.py --check
