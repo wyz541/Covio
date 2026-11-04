@@ -17,7 +17,7 @@ if [[ -n "$TARGET" ]]; then
   TREE_ARGS+=(--target "$TARGET")
 fi
 DEPENDENCIES="$(cargo tree --manifest-path "$ROOT/rust/Cargo.toml" "${TREE_ARGS[@]}")"
-if printf '%s\n' "$DEPENDENCIES" | rg -qi '(^|[ /])(jna|kotlin|compose|jvm)(@|[ /]|$)'; then
+if printf '%s\n' "$DEPENDENCIES" | grep -Eqi '(^|[ /])(jna|kotlin|compose|jvm)(@|[ /]|$)'; then
   printf 'Forbidden JVM/Kotlin/Compose/JNA dependency found.\n' >&2
   exit 1
 fi
