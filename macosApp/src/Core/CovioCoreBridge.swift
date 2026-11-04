@@ -115,15 +115,15 @@ final class CovioCoreClient: @unchecked Sendable {
         return try JSONDecoder().decode(type, from: data)
     }
 
-    private static func emptyBytes() -> CovioOwnedBytes {
+    static func emptyBytes() -> CovioOwnedBytes {
         CovioOwnedBytes(data: nil, len: 0, capacity: 0)
     }
 
-    private static func emptyError() -> CovioError {
+    static func emptyError() -> CovioError {
         CovioError(code: 0, message: emptyBytes())
     }
 
-    private static func error(_ error: CovioError) -> CovioCoreError {
+    static func error(_ error: CovioError) -> CovioCoreError {
         let message: String
         if let data = error.message.data, error.message.len > 0 {
             message = String(
@@ -134,6 +134,94 @@ final class CovioCoreClient: @unchecked Sendable {
             message = "Covio core request failed"
         }
         return CovioCoreError(code: error.code, message: message)
+    }
+}
+
+/// Keychain access through the Rust platform adapter.
+enum CovioKeychain {
+    static func read(service: String, key: String) throws -> String? {
+        let serviceBytes = Array(service.utf8)
+        let keyBytes = Array(key.utf8)
+        var output = CovioCoreClient.emptyBytes()
+        var error = CovioCoreClient.emptyError()
+        let status = serviceBytes.withUnsafeBufferPointer { serviceBuffer in
+            keyBytes.withUnsafeBufferPointer { keyBuffer in
+                covio_keychain_read_with_service(
+                    serviceBuffer.baseAddress,
+                    serviceBuffer.count,
+                    keyBuffer.baseAddress,
+                    keyBuffer.count,
+                    &output,
+                    &error
+                )
+            }
+        }
+        defer {
+            covio_owned_bytes_free(&output)
+            covio_error_free(&error)
+        }
+        if status == UInt32(COVIO_STATUS_NOT_FOUND.rawValue) {
+            return nil
+        }
+        guard status == UInt32(COVIO_STATUS_OK.rawValue) else {
+            throw CovioCoreClient.error(error)
+        }
+        guard output.len > 0 else { return "" }
+        guard let data = output.data else {
+            throw CovioCoreError(code: UInt32(COVIO_STATUS_INTERNAL.rawValue), message: "Keychain returned no data.")
+        }
+        let value = Data(bytes: data, count: output.len)
+        guard let string = String(data: value, encoding: .utf8) else {
+            throw CovioCoreError(code: UInt32(COVIO_STATUS_INVALID_UTF8.rawValue), message: "Keychain value is not UTF-8.")
+        }
+        return string
+    }
+
+    static func write(service: String, key: String, value: String) throws {
+        let serviceBytes = Array(service.utf8)
+        let keyBytes = Array(key.utf8)
+        let valueBytes = Array(value.utf8)
+        var error = CovioCoreClient.emptyError()
+        let status = serviceBytes.withUnsafeBufferPointer { serviceBuffer in
+            keyBytes.withUnsafeBufferPointer { keyBuffer in
+                valueBytes.withUnsafeBufferPointer { valueBuffer in
+                    covio_keychain_write_with_service(
+                        serviceBuffer.baseAddress,
+                        serviceBuffer.count,
+                        keyBuffer.baseAddress,
+                        keyBuffer.count,
+                        valueBuffer.baseAddress,
+                        valueBuffer.count,
+                        &error
+                    )
+                }
+            }
+        }
+        defer { covio_error_free(&error) }
+        guard status == UInt32(COVIO_STATUS_OK.rawValue) else {
+            throw CovioCoreClient.error(error)
+        }
+    }
+
+    static func delete(service: String, key: String) throws {
+        let serviceBytes = Array(service.utf8)
+        let keyBytes = Array(key.utf8)
+        var error = CovioCoreClient.emptyError()
+        let status = serviceBytes.withUnsafeBufferPointer { serviceBuffer in
+            keyBytes.withUnsafeBufferPointer { keyBuffer in
+                covio_keychain_delete_with_service(
+                    serviceBuffer.baseAddress,
+                    serviceBuffer.count,
+                    keyBuffer.baseAddress,
+                    keyBuffer.count,
+                    &error
+                )
+            }
+        }
+        defer { covio_error_free(&error) }
+        guard status == UInt32(COVIO_STATUS_OK.rawValue) else {
+            throw CovioCoreClient.error(error)
+        }
     }
 }
 

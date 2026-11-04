@@ -28,7 +28,7 @@ Android 使用 Kotlin UI 和 JNI 调用壳。
 | Windows bridge | JVM / JNA 计划 | 同一 Rust 进程直接调用 |
 | Android UI | 尚未建立正式产品路径 | Kotlin Android UI |
 | Android bridge | 无 | JNI / NDK |
-| Secrets | macOS Keychain adapter 已实现；其它平台待 cutover | Keychain、Credential Manager、Keystore |
+| Secrets | macOS 产品通过 C ABI 使用 Rust Keychain adapter；其它平台待 cutover | Keychain、Credential Manager、Keystore |
 | 最终 artifact | macOS 不含 KMP；其它平台待 cutover | 不含 KMP |
 
 ## 3. Ownership

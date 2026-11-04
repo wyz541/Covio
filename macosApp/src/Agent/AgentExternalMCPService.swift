@@ -5,12 +5,12 @@ import Security
 
 enum AgentExternalTokenError: Error, LocalizedError {
     case randomGenerationFailed
-    case keychain(OSStatus)
+    case keychain(CovioCoreError)
 
     var errorDescription: String? {
         switch self {
         case .randomGenerationFailed: "Could not generate an external Agent token."
-        case .keychain(let status): "Keychain error \(status)."
+        case .keychain(let error): error.localizedDescription
         }
     }
 }
@@ -41,44 +41,29 @@ struct AgentExternalTokenStore: Sendable {
     }
 
     private func load() throws -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess else { throw AgentExternalTokenError.keychain(status) }
-        guard let data = result as? Data,
-              let token = String(data: data, encoding: .utf8),
-              !token.isEmpty
-        else { return nil }
-        return token
+        do {
+            guard let token = try CovioKeychain.read(service: service, key: account),
+                  !token.isEmpty
+            else { return nil }
+            return token
+        } catch let error as CovioCoreError {
+            throw AgentExternalTokenError.keychain(error)
+        }
     }
 
     private func save(_ token: String) throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        let attributes: [String: Any] = [
-            kSecValueData as String: Data(token.utf8),
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-        ]
-        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if updateStatus == errSecSuccess { return }
-        guard updateStatus == errSecItemNotFound else {
-            throw AgentExternalTokenError.keychain(updateStatus)
+        do {
+            try CovioKeychain.write(service: service, key: account, value: token)
+        } catch let error as CovioCoreError {
+            throw AgentExternalTokenError.keychain(error)
         }
-        var insert = query
-        attributes.forEach { insert[$0.key] = $0.value }
-        let insertStatus = SecItemAdd(insert as CFDictionary, nil)
-        guard insertStatus == errSecSuccess else {
-            throw AgentExternalTokenError.keychain(insertStatus)
+    }
+
+    func delete() throws {
+        do {
+            try CovioKeychain.delete(service: service, key: account)
+        } catch let error as CovioCoreError {
+            throw AgentExternalTokenError.keychain(error)
         }
     }
 

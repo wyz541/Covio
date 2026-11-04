@@ -195,6 +195,33 @@ uint32_t covio_keychain_delete(
     CovioError *error
 );
 
+uint32_t covio_keychain_read_with_service(
+    const uint8_t *service,
+    size_t service_len,
+    const uint8_t *key,
+    size_t key_len,
+    CovioOwnedBytes *out_value,
+    CovioError *error
+);
+
+uint32_t covio_keychain_write_with_service(
+    const uint8_t *service,
+    size_t service_len,
+    const uint8_t *key,
+    size_t key_len,
+    const uint8_t *value,
+    size_t value_len,
+    CovioError *error
+);
+
+uint32_t covio_keychain_delete_with_service(
+    const uint8_t *service,
+    size_t service_len,
+    const uint8_t *key,
+    size_t key_len,
+    CovioError *error
+);
+
 uint32_t covio_capability_status(uint32_t capability, CovioError *error);
 
 void covio_owned_bytes_free(CovioOwnedBytes *bytes);

@@ -391,6 +391,7 @@ The SwiftUI host reads its text and its tokens from `ContractCopy.swift` and `Co
 Both files are generated. Do not edit them by hand.
 
 The macOS host is SwiftUI and links the Rust core through the C ABI.
+The external Agent token uses the Rust Keychain adapter through the same C ABI.
 The macOS build does not link or embed a Kotlin framework. Open `macosApp/Covio.xcodeproj` to work on the host.
 The legacy Kotlin shared module remains available to the transitional Android and Windows work until #611.
 See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md).

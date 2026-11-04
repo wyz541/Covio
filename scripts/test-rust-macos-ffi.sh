@@ -9,6 +9,9 @@ bash "$ROOT/scripts/build-rust-macos-ffi.sh" debug
 otool -D "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib" | grep -F '@rpath/libcovio_ffi.1.dylib' >/dev/null
 nm -gU "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib" | grep -F '_covio_handle_create' >/dev/null
 nm -gU "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib" | grep -F '_covio_keychain_read' >/dev/null
+nm -gU "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib" | grep -F '_covio_keychain_read_with_service' >/dev/null
+nm -gU "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib" | grep -F '_covio_keychain_write_with_service' >/dev/null
+nm -gU "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib" | grep -F '_covio_keychain_delete_with_service' >/dev/null
 xcrun swiftc \
   -I "$OUTPUT_DIR/include" \
   -L "$OUTPUT_DIR/lib" \
