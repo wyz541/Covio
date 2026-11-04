@@ -154,8 +154,8 @@ final class AppRuntimeTests: XCTestCase {
     func testUpdateCheckPublishesTheAvailableVersion() async throws {
         let created = makeRuntime(
             updateRelease: UpdateInfo(
-                version: "9.9.9.9",
-                title: "Covio 9.9.9.9",
+                version: "9.9.9",
+                title: "Covio 9.9.9",
                 releaseUrl: "https://example.com/covio",
                 publishedAt: ""
             )
@@ -166,7 +166,7 @@ final class AppRuntimeTests: XCTestCase {
         for _ in 0..<100 where created.availableUpdate == nil {
             try await Task.sleep(for: .milliseconds(10))
         }
-        XCTAssertEqual(created.availableUpdate?.version, "9.9.9.9")
+        XCTAssertEqual(created.availableUpdate?.version, "9.9.9")
         XCTAssertFalse(created.isCheckingForUpdates)
 
         created.setUpdateChecks(false)

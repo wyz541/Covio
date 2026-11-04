@@ -19,12 +19,12 @@ class ReleasePipelineTests(unittest.TestCase):
     helper_hash = "b" * 64
 
     def setUp(self):
-        self.source = pipeline.release.ReleaseSpec(2, "1.2.3", "0.0.0.4", 4, "internal", 8)
+        self.source = pipeline.release.ReleaseSpec(3, "1.2.3", "1.2.3-internal.4", 4, "internal", 8)
         self.artifact = {
-            "schemaVersion": 1,
-            "releaseId": f"0.0.0.4-g{self.commit}",
+            "schemaVersion": 3,
+            "releaseId": f"1.2.3-internal.4-g{self.commit}",
             "productVersion": "1.2.3",
-            "clientVersion": "0.0.0.4",
+            "clientVersion": "1.2.3-internal.4",
             "buildNumber": 4,
             "gitCommit": self.commit,
             "helperProtocolVersion": 8,
@@ -32,9 +32,9 @@ class ReleasePipelineTests(unittest.TestCase):
             "channel": "internal",
         }
         self.app_info = {
-            "CFBundleShortVersionString": "0.0.0.4",
+            "CFBundleShortVersionString": "1.2.3",
             "CFBundleVersion": "4",
-            "CovioClientVersion": "0.0.0.4",
+            "CovioClientVersion": "1.2.3-internal.4",
             "CovioProductVersion": "1.2.3",
             "CovioReleaseId": self.artifact["releaseId"],
             "CovioGitCommit": self.commit,
@@ -43,7 +43,7 @@ class ReleasePipelineTests(unittest.TestCase):
         }
         self.helper = {
             "releaseId": self.artifact["releaseId"],
-            "clientVersion": "0.0.0.4",
+            "clientVersion": "1.2.3-internal.4",
             "productVersion": "1.2.3",
             "buildNumber": "4",
             "gitCommit": self.commit,
@@ -190,30 +190,30 @@ class ReleasePipelineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_release_assets(root)
-            first = pipeline.write_checksums(root, "0.0.0.4").read_text(encoding="utf-8")
-            second = pipeline.write_checksums(root, "0.0.0.4").read_text(encoding="utf-8")
+            first = pipeline.write_checksums(root, "1.2.3-internal.4").read_text(encoding="utf-8")
+            second = pipeline.write_checksums(root, "1.2.3-internal.4").read_text(encoding="utf-8")
             self.assertEqual(first, second)
-            pipeline.verify_checksums(root, "0.0.0.4")
-            (root / "Covio-0.0.0.4.dmg").write_bytes(b"changed")
+            pipeline.verify_checksums(root, "1.2.3-internal.4")
+            (root / "Covio-1.2.3-internal.4.dmg").write_bytes(b"changed")
             with self.assertRaises(pipeline.ReleaseVerificationError):
-                pipeline.verify_checksums(root, "0.0.0.4")
+                pipeline.verify_checksums(root, "1.2.3-internal.4")
 
     def test_checksum_asset_set_is_complete(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_release_assets(root)
-            pipeline.write_checksums(root, "0.0.0.4")
-            (root / "Covio-0.0.0.4.pkg").unlink()
+            pipeline.write_checksums(root, "1.2.3-internal.4")
+            (root / "Covio-1.2.3-internal.4.pkg").unlink()
             with self.assertRaises(pipeline.ReleaseVerificationError):
-                pipeline.verify_checksums(root, "0.0.0.4")
+                pipeline.verify_checksums(root, "1.2.3-internal.4")
 
     def test_offline_installer_is_included_in_checksums(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_release_assets(root, offline=True)
-            checksums = pipeline.write_checksums(root, "0.0.0.4").read_text(encoding="utf-8")
-            self.assertIn("Covio-Offline-0.0.0.4.dmg", checksums)
-            pipeline.verify_checksums(root, "0.0.0.4")
+            checksums = pipeline.write_checksums(root, "1.2.3-internal.4").read_text(encoding="utf-8")
+            self.assertIn("Covio-Offline-1.2.3-internal.4.dmg", checksums)
+            pipeline.verify_checksums(root, "1.2.3-internal.4")
 
     def test_model_metadata_mismatch_is_rejected(self):
         manifest = {
@@ -238,10 +238,10 @@ class ReleasePipelineTests(unittest.TestCase):
             weights.write_bytes(b"weights")
             self.assertEqual(pipeline.model_weight_paths(app), (weights,))
 
-    def test_internal_and_public_tags_are_distinct(self):
-        public = self.source.__class__(2, "1.2.3", "0.0.0.4", 4, "public", 8)
-        self.assertEqual(pipeline.release_tag(self.source), "v0.0.0.4-internal")
-        self.assertEqual(pipeline.release_tag(public), "v0.0.0.4")
+    def test_tags_use_the_canonical_semantic_version(self):
+        public = self.source.__class__(3, "1.2.3", "1.2.3", 4, "public", 8)
+        self.assertEqual(pipeline.release_tag(self.source), "v1.2.3-internal.4")
+        self.assertEqual(pipeline.release_tag(public), "v1.2.3")
 
     def test_internal_release_never_becomes_latest(self):
         internal = pipeline.public_visibility("internal")
@@ -253,15 +253,15 @@ class ReleasePipelineTests(unittest.TestCase):
 
     def test_promotion_requires_draft_and_paired_assets(self):
         evidence = {
-            "tag": "v0.0.0.4-internal",
+            "tag": "v1.2.3-internal.4",
             "productVersion": "1.2.3",
-            "clientVersion": "0.0.0.4",
+            "clientVersion": "1.2.3-internal.4",
             "assets": {
                 name: {"sha256": "a" * 64, "size": 1}
-                for name in pipeline.expected_asset_names("0.0.0.4")
+                for name in pipeline.expected_asset_names("1.2.3-internal.4")
             },
             "installers": {
-                "default": {"name": "Covio-0.0.0.4.dmg"},
+                "default": {"name": "Covio-1.2.3-internal.4.dmg"},
                 "offline": None,
             },
         }
@@ -271,22 +271,22 @@ class ReleasePipelineTests(unittest.TestCase):
             pipeline.promotion_errors("internal", info | {"isDraft": False}, evidence),
             [],
         )
-        incomplete = evidence | {"assets": {"Covio-0.0.0.4.dmg": {"sha256": "a" * 64, "size": 1}}}
+        incomplete = evidence | {"assets": {"Covio-1.2.3-internal.4.dmg": {"sha256": "a" * 64, "size": 1}}}
         self.assertNotEqual(pipeline.promotion_errors("internal", info, incomplete), [])
 
     def test_release_notes_include_release_evidence_and_hashes(self):
         evidence = {
             "channel": "internal",
-            "releaseId": f"0.0.0.4-g{self.commit}",
+            "releaseId": f"1.2.3-internal.4-g{self.commit}",
             "productVersion": "1.2.3",
-            "clientVersion": "0.0.0.4",
+            "clientVersion": "1.2.3-internal.4",
             "buildNumber": 4,
             "gitCommit": self.commit,
             "helperProtocolVersion": 8,
             "helperSHA256": self.helper_hash,
-            "tag": "v0.0.0.4-internal",
+            "tag": "v1.2.3-internal.4",
             "assets": {
-                "Covio-0.0.0.4.dmg": {"sha256": "c" * 64, "size": 123},
+                "Covio-1.2.3-internal.4.dmg": {"sha256": "c" * 64, "size": 123},
             },
             "verification": {
                 "identity": "MATCH",
@@ -300,11 +300,11 @@ class ReleasePipelineTests(unittest.TestCase):
         self.assertIn("# Notes", notes)
 
     def _write_release_assets(self, root: pathlib.Path, offline: bool = False) -> None:
-        for name in pipeline.expected_asset_names("0.0.0.4"):
+        for name in pipeline.expected_asset_names("1.2.3-internal.4"):
             (root / name).write_bytes(name.encode("utf-8"))
         installers = {
             "default": {
-                "name": "Covio-0.0.0.4.dmg",
+                "name": "Covio-1.2.3-internal.4.dmg",
                 "size": 1,
                 "sha256": "1" * 64,
             },
@@ -312,9 +312,9 @@ class ReleasePipelineTests(unittest.TestCase):
         }
         model = None
         if offline:
-            (root / "Covio-Offline-0.0.0.4.dmg").write_bytes(b"offline")
+            (root / "Covio-Offline-1.2.3-internal.4.dmg").write_bytes(b"offline")
             installers["offline"] = {
-                "name": "Covio-Offline-0.0.0.4.dmg",
+                "name": "Covio-Offline-1.2.3-internal.4.dmg",
                 "size": 1,
                 "sha256": "2" * 64,
             }

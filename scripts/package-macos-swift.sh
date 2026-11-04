@@ -192,7 +192,7 @@ phase_done "package resolve"
 
 xcodebuild \
   "${XCODE_COMMON_ARGS[@]}" \
-  MARKETING_VERSION="$VERSION" \
+  MARKETING_VERSION="$PRODUCT_VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   COVIO_CLIENT_VERSION="$VERSION" \
   COVIO_PRODUCT_VERSION="$PRODUCT_VERSION" \
@@ -281,8 +281,8 @@ require_plist() {
   fi
 }
 
-# 版本从 release manifest 走到 MARKETING_VERSION，再经 Info.plist 落进包内。
-require_plist CFBundleShortVersionString "$VERSION"
+# 产品版本进入 MARKETING_VERSION。完整 SemVer 进入自定义版本身份。
+require_plist CFBundleShortVersionString "$PRODUCT_VERSION"
 require_plist CFBundleVersion "$BUILD_NUMBER"
 require_plist CovioClientVersion "$VERSION"
 require_plist CovioProductVersion "$PRODUCT_VERSION"

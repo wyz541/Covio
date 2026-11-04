@@ -9,7 +9,7 @@
 | 日期 | `2026-10-24` |
 | Issue | #153、#354 |
 | Feature | #148、#350 |
-| 上游决策 | ADR-0006、ADR-0007、ADR-0018、ADR-0026 |
+| 上游决策 | ADR-0006、ADR-0007、ADR-0018、ADR-0031 |
 
 ## 目标
 
@@ -55,8 +55,8 @@ stateDiagram-v2
 
 | 字段 | 含义 |
 | --- | --- |
-| `version`、`clientVersion` | 用户可见四段客户端版本 |
-| `productVersion` | 独立产品版本 |
+| `version`、`clientVersion` | 完整 SemVer 项目版本 |
+| `productVersion` | 稳定 SemVer 基线 |
 | `buildNumber` | 单调递增的 build number |
 | `gitCommit` | 完整 Git commit，不参与版本排序 |
 | `releaseId` | `<clientVersion>-g<fullGitSHA>` |

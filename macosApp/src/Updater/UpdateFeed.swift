@@ -94,8 +94,9 @@ final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
             )
         }
         return candidates.sorted {
-            (clientVersionRank($0.clientVersion) ?? 0)
-                > (clientVersionRank($1.clientVersion) ?? 0)
+            let left = ReleaseVersion($0.clientVersion)!
+            let right = ReleaseVersion($1.clientVersion)!
+            return left > right
         }
     }
 
@@ -121,20 +122,16 @@ final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
 
 
     static func clientVersion(fromInternalTag tag: String) -> String? {
-        let suffix = "-internal"
-        guard tag.hasPrefix("v"), tag.hasSuffix(suffix) else { return nil }
-        let version = String(tag.dropFirst().dropLast(suffix.count))
-        return clientVersionRank(version) == nil ? nil : version
-    }
-
-    static func clientVersionRank(_ value: String) -> Int? {
-        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 4 else { return nil }
-        let numbers = parts.compactMap { part in
-            part.count == 1 ? Int(part) : nil
+        guard tag.hasPrefix("v"),
+              let version = ReleaseVersion(String(tag.dropFirst())),
+              version.prerelease.count == 2,
+              version.prerelease[0] == "internal",
+              let build = Int(version.prerelease[1]),
+              version.isInternalBuild(build)
+        else {
+            return nil
         }
-        guard numbers.count == 4 else { return nil }
-        return numbers.reduce(0) { $0 * 10 + $1 }
+        return version.description
     }
 }
 

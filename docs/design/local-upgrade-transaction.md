@@ -9,7 +9,7 @@
 | 状态 | 已实现；#358 真机矩阵通过 |
 | 日期 | `2026-10-25` |
 | Issue | #357、#390、#562 |
-| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0026](../adr/adr-0026-four-part-client-version.md) |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0031](../adr/adr-0031-semantic-versioning.md) |
 
 ## 目标
 

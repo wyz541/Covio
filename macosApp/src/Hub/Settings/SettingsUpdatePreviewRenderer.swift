@@ -96,11 +96,11 @@ enum SettingsUpdatePreviewRenderer {
             status: UpdaterStatus(
                 schemaVersion: 1,
                 updaterProtocolVersion: 1,
-                releaseId: "0.0.1.9-g\(String(repeating: "a", count: 40))",
+                releaseId: "0.6.0-internal.23-g\(String(repeating: "a", count: 40))",
                 state: state,
                 automaticUpdatesEnabled: true,
                 lastCheckAt: "2026-11-04T00:00:00Z",
-                availableVersion: state == .available ? "0.0.2.0" : nil,
+                availableVersion: state == .available ? "0.6.0-internal.24" : nil,
                 message: nil
             ),
             busy: false,

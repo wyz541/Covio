@@ -23,6 +23,7 @@ ENGINE_SOURCES=(
   "$ROOT/macosApp/src/Updater/CovioUpdaterService.swift"
   "$ROOT/macosApp/src/Updater/CovioUpdaterXPCProtocol.swift"
   "$ROOT/macosApp/src/Updater/GeneratedUpdateTrust.swift"
+  "$ROOT/macosApp/src/Updater/ReleaseVersion.swift"
   "$ROOT/macosApp/src/Updater/UpdateFeed.swift"
   "$ROOT/macosApp/src/Updater/UpdaterCoordinator.swift"
   "$ROOT/macosApp/src/Updater/UpdaterPreferences.swift"
@@ -35,6 +36,7 @@ ENGINE_SOURCES=(
 LAUNCHER_SOURCES=(
   "$ROOT/macosApp/updater/CovioUpdaterLauncher.swift"
   "$ROOT/macosApp/src/Updater/UpdaterContract.swift"
+  "$ROOT/macosApp/src/Updater/ReleaseVersion.swift"
   "$ROOT/macosApp/src/Updater/UpdaterPaths.swift"
   "$ROOT/macosApp/src/Updater/UpdaterState.swift"
 )

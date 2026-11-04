@@ -113,16 +113,15 @@ Checksums are in the release `checksums.txt` asset.
 
 ## Version identity
 
-The user-facing client version has four decimal digits: `0.0.1.6`.
-The build number is padded to four digits and split into `thousands.hundreds.tens.ones`.
-Examples: build `15` is `0.0.1.5`, build `16` is `0.0.1.6`, and build `100` is `0.1.0.0`.
-The product version `0.6.0` is separate metadata.
+Covio uses Semantic Versioning 2.0.0.
+The user-facing client version is `0.6.0-internal.23` for an internal build.
+The product version is the stable base `0.6.0`.
+The build number is a separate monotonic integer. It is not part of the version.
 The channel, Git commit, and helper protocol are also separate fields.
 
-The internal tag is `v<clientVersion>-internal`.
-A stable tag is `v<clientVersion>`.
+The tag is `v<clientVersion>`. For example, an internal tag is `v0.6.0-internal.23`.
 The release ID is `<clientVersion>-g<fullGitSHA>`.
-The build number controls upgrade order. The Git commit does not control upgrade order.
+SemVer controls version precedence. The build number must also increase for each release.
 
 ## What changed in build 7
 
@@ -476,21 +475,21 @@ Model weights are not in Git.
 4. Verify the optional offline DMG in a network-denied sandbox:
 
    ```sh
-   bash scripts/verify-file-naming-bundle.sh dist/Covio-Offline-0.0.1.6.dmg
+   bash scripts/verify-file-naming-bundle.sh dist/Covio-Offline-0.6.0-internal.23.dmg
    ```
 
 The package script writes these files:
 
 - `dist/Covio.app`
-- `dist/Covio-0.0.1.6.dmg`
-- `dist/Covio-0.0.1.6.pkg`
-- `dist/Covio-0.0.1.6.app.zip`
+- `dist/Covio-0.6.0-internal.23.dmg`
+- `dist/Covio-0.6.0-internal.23.pkg`
+- `dist/Covio-0.6.0-internal.23.app.zip`
 - `dist/release-manifest.json`
 
 The offline packaging command adds:
 
 - `dist/Covio-Offline.app`
-- `dist/Covio-Offline-0.0.1.6.dmg`
+- `dist/Covio-Offline-0.6.0-internal.23.dmg`
 
 The default script verifies the model manifest and rejects model weights in the app.
 The offline script verifies model file sizes, SHA-256 values, license, and NOTICE.
@@ -531,7 +530,7 @@ COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
 Publish the verified Draft with:
 
 ```sh
-bash scripts/publish-release.sh v<clientVersion>-internal
+bash scripts/publish-release.sh v<clientVersion>
 ```
 
 `.pkg` is the transactional install and upgrade entry.

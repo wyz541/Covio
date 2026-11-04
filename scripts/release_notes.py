@@ -20,8 +20,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TODO_MARKER = "TODO(release)"
 MERGE_SUBJECT = re.compile(r"^Merge pull request #(\d+) from [^/\s]+/(\S+)$")
 SQUASH_SUBJECT = re.compile(r"^(.*\S)\s+\(#(\d+)\)$")
-CURRENT_INTERNAL_TAG = re.compile(r"^v(\d\.\d\.\d\.\d)-internal$")
-LEGACY_INTERNAL_TAG = re.compile(r"^v(\d+\.\d+\.\d+)-internal\.(\d+)$")
+SEMVER_INTERNAL_TAG = re.compile(
+    r"^v((0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-internal\.(\d+))$"
+)
+FOUR_PART_INTERNAL_TAG = re.compile(r"^v(\d\.\d\.\d\.\d)-internal$")
 
 
 class NotesError(Exception):
@@ -46,19 +48,21 @@ class InternalTag:
         return self.tag_name
 
     @property
+    def product_version(self) -> str:
+        return self.version.split("-internal.", 1)[0]
+
+    @property
     def label(self) -> str:
-        if self.legacy:
-            return f"{self.version} internal build {self.build}"
         return self.version
 
 
 def parse_tag(tag: str) -> InternalTag:
-    current = CURRENT_INTERNAL_TAG.fullmatch(tag)
+    current = SEMVER_INTERNAL_TAG.fullmatch(tag)
     if current:
-        return InternalTag(current.group(1), None, tag, False)
-    legacy = LEGACY_INTERNAL_TAG.fullmatch(tag)
+        return InternalTag(current.group(1), int(current.group(5)), tag, False)
+    legacy = FOUR_PART_INTERNAL_TAG.fullmatch(tag)
     if legacy:
-        return InternalTag(legacy.group(1), int(legacy.group(2)), tag, True)
+        return InternalTag(legacy.group(1), None, tag, True)
     raise NotesError(f"not an internal release tag: {tag}")
 
 
@@ -105,13 +109,12 @@ def draft_notes(text: str, previous: InternalTag, current: InternalTag, pulls: l
     lines = text.splitlines(keepends=True)
     if not lines or not lines[0].startswith("# "):
         raise NotesError("RELEASE_NOTES.md must start with a level-1 heading")
-    if current.legacy:
-        lines[0] = f"# Covio {current.version}（内测 build {current.build}）\n"
-    else:
-        lines[0] = f"# Covio {current.version}\n"
+    lines[0] = f"# Covio {current.version}\n"
     text = "".join(lines)
     if previous.version != current.version:
         text = text.replace(previous.version, current.version)
+    if previous.product_version != current.product_version:
+        text = text.replace(previous.product_version, current.product_version)
 
     items = [f"- {pull.title}（#{pull.number}）" for pull in pulls] or ["- 无已合并的 PR。"]
     changes = "\n".join(
@@ -178,11 +181,7 @@ def update_readme(text: str, previous: InternalTag, current: InternalTag) -> str
 
 def check_notes(text: str, current: InternalTag) -> list[str]:
     errors: list[str] = []
-    expected = (
-        f"# Covio {current.version}（内测 build {current.build}）"
-        if current.legacy
-        else f"# Covio {current.version}"
-    )
+    expected = f"# Covio {current.version}"
     first = text.splitlines()[0] if text else ""
     if first != expected:
         errors.append(f"RELEASE_NOTES.md heading is {first!r}, expected {expected!r}")

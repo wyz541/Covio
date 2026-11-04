@@ -18,10 +18,14 @@ from typing import Any
 REPOSITORY = "wyz541/kmp-Covio"
 CHANNEL = "internal"
 UPDATER_PROTOCOL_VERSION = 1
-MANIFEST_SCHEMA_VERSION = 1
+MANIFEST_SCHEMA_VERSION = 2
 SIGNATURE_SCHEMA_VERSION = 1
 MAX_ARCHIVE_BYTES = 500_000_000
-CLIENT_VERSION = re.compile(r"^\d\.\d\.\d\.\d$")
+SEMVER = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
+    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+)
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -56,29 +60,35 @@ def load_release_spec(path: pathlib.Path) -> ReleaseSpec:
     except json.JSONDecodeError as error:
         raise UpdateManifestError("release manifest is not valid JSON") from error
 
-    if raw.get("schemaVersion") != 2:
-        raise UpdateManifestError("release manifest schemaVersion must be 2")
+    if raw.get("schemaVersion") != 3:
+        raise UpdateManifestError("release manifest schemaVersion must be 3")
     channel = raw.get("channel")
     if channel != CHANNEL:
         raise UpdateManifestError(f"update channel must be {CHANNEL}")
     client_version = raw.get("clientVersion")
-    if not isinstance(client_version, str) or not CLIENT_VERSION.fullmatch(client_version):
+    fields = semver_fields(client_version)
+    if fields is None or fields[2]:
         raise UpdateManifestError("clientVersion is invalid")
     build_number = raw.get("buildNumber")
     if isinstance(build_number, bool) or not isinstance(build_number, int):
         raise UpdateManifestError("buildNumber is invalid")
     if not 1 <= build_number <= 9_999:
         raise UpdateManifestError("buildNumber must be between 1 and 9999")
-    if client_version != client_version_for_build(build_number):
-        raise UpdateManifestError("clientVersion does not match buildNumber")
+    product_version = raw.get("productVersion")
+    if not isinstance(product_version, str):
+        raise UpdateManifestError("productVersion is invalid")
+    product_fields = semver_fields(product_version)
+    if product_fields is None or product_fields[1] or product_fields[2]:
+        raise UpdateManifestError("productVersion is invalid")
+    if fields[0] != product_version:
+        raise UpdateManifestError("clientVersion must use productVersion as its base")
+    if fields[1] != ["internal", str(build_number)]:
+        raise UpdateManifestError("internal clientVersion must end with internal.buildNumber")
     helper_protocol = raw.get("helperProtocolVersion")
     if isinstance(helper_protocol, bool) or not isinstance(helper_protocol, int):
         raise UpdateManifestError("helperProtocolVersion is invalid")
     if helper_protocol < 1:
         raise UpdateManifestError("helperProtocolVersion must be positive")
-    product_version = raw.get("productVersion")
-    if not isinstance(product_version, str) or not product_version:
-        raise UpdateManifestError("productVersion is invalid")
     return ReleaseSpec(
         product_version=product_version,
         client_version=client_version,
@@ -87,11 +97,29 @@ def load_release_spec(path: pathlib.Path) -> ReleaseSpec:
     )
 
 
-def client_version_for_build(build_number: int) -> str:
+def semver_fields(value: Any) -> tuple[str, list[str], list[str]] | None:
+    if not isinstance(value, str):
+        return None
+    match = SEMVER.fullmatch(value)
+    if match is None:
+        return None
+    prerelease = match.group(4).split(".") if match.group(4) else []
+    if any(
+        identifier.isdigit() and len(identifier) > 1 and identifier.startswith("0")
+        for identifier in prerelease
+    ):
+        return None
+    build_metadata = match.group(5).split(".") if match.group(5) else []
+    return f"{match.group(1)}.{match.group(2)}.{match.group(3)}", prerelease, build_metadata
+
+
+def client_version_for_build(product_version: str, build_number: int) -> str:
     if not 1 <= build_number <= 9_999:
         raise UpdateManifestError("buildNumber must be between 1 and 9999")
-    digits = f"{build_number:04d}"
-    return ".".join(digits)
+    fields = semver_fields(product_version)
+    if fields is None or fields[1] or fields[2]:
+        raise UpdateManifestError("productVersion is invalid")
+    return f"{product_version}-internal.{build_number}"
 
 
 def generate_manifest(
@@ -151,7 +179,7 @@ def generate_manifest(
     release_id = f"{spec.client_version}-g{git_commit}"
     archive_url = (
         f"https://github.com/{REPOSITORY}/releases/download/"
-        f"v{spec.client_version}-internal/{expected_archive_name}"
+        f"v{spec.client_version}/{expected_archive_name}"
     )
     manifest: dict[str, Any] = {
         "schemaVersion": MANIFEST_SCHEMA_VERSION,

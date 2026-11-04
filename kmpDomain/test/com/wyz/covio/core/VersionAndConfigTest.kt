@@ -10,11 +10,23 @@ import okio.Path.Companion.toPath
 class VersionAndConfigTest {
     @Test
     fun `semantic version comparison handles releases and prereleases`() {
-        assertTrue(isNewerVersion("1.2.0", "1.1.9"))
-        assertTrue(isNewerVersion("1.0.1", "1.0.0"))
-        assertFalse(isNewerVersion("1.0.0-beta.1", "1.0.0"))
-        assertFalse(isStableVersion("1.0.0-beta.1"))
-        assertTrue(isStableVersion("v1.0.0"))
+        assertTrue(isNewerVersion("0.6.1", "0.6.0"))
+        assertTrue(isNewerVersion("0.6.0", "0.6.0-internal.23"))
+        assertTrue(isNewerVersion("0.6.0-internal.10", "0.6.0-internal.9"))
+        assertFalse(isNewerVersion("0.6.0-internal.9", "0.6.0-internal.10"))
+        assertFalse(isStableVersion("0.6.0-internal.23"))
+        assertTrue(isStableVersion("0.6.0"))
+    }
+
+    @Test
+    fun `semantic version parser enforces canonical semver syntax`() {
+        assertEquals("0.6.0-internal.23", SemanticVersion.parse("0.6.0-internal.23")?.toString())
+        assertEquals("0.6.0+ci.7", SemanticVersion.parse("0.6.0+ci.7")?.toString())
+        assertNull(SemanticVersion.parse("v0.6.0"))
+        assertNull(SemanticVersion.parse("0.06.0"))
+        assertNull(SemanticVersion.parse("0.6.0-internal.023"))
+        assertNull(SemanticVersion.parse("0.6.0-internal..23"))
+        assertEquals("0.6.0-internal.23", SemanticVersion.parseTag("v0.6.0-internal.23")?.toString())
     }
 
     @Test
@@ -258,10 +270,10 @@ class VersionAndConfigTest {
         val config = AppConfig(lastUpdateCheckEpochSeconds = 1_000, updateCheckIntervalHours = 24)
         assertFalse(UpdatePolicy.shouldCheck(config, 1_000 + 23 * 3_600))
         assertTrue(UpdatePolicy.shouldCheck(config, 1_000 + 24 * 3_600))
-        val prerelease = UpdateInfo("0.0.2.0-internal", "beta", "https://example.com")
-        val stable = UpdateInfo("0.0.2.0", "stable", "https://example.com")
-        assertEquals(null, UpdatePolicy.selectUpdate(prerelease, "0.0.1.5"))
-        assertEquals(stable, UpdatePolicy.selectUpdate(stable, "0.0.1.5"))
+        val prerelease = UpdateInfo("0.6.0-internal.24", "beta", "https://example.com")
+        val stable = UpdateInfo("0.6.0", "stable", "https://example.com")
+        assertEquals(null, UpdatePolicy.selectUpdate(prerelease, "0.6.0-internal.23"))
+        assertEquals(stable, UpdatePolicy.selectUpdate(stable, "0.6.0-internal.23"))
     }
 
     @Test

@@ -8,7 +8,7 @@ object UpdatePolicy {
     }
 
     fun selectUpdate(candidate: UpdateInfo?, currentVersion: String): UpdateInfo? {
-        if (candidate == null || !isStableClientVersion(candidate.version)) return null
-        return candidate.takeIf { isNewerClientVersion(it.version, currentVersion) }
+        if (candidate == null || !isStableVersion(candidate.version)) return null
+        return candidate.takeIf { isNewerVersion(it.version, currentVersion) }
     }
 }

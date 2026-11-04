@@ -9,16 +9,16 @@ final class UpdaterCoordinatorTests: XCTestCase {
             .appendingPathComponent("covio-updater-coordinator-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: root) }
         let paths = UpdaterPaths(root: root)
-        let currentReleaseId = "0.0.1.9-g" + String(repeating: "a", count: 40)
+        let currentReleaseId = "0.6.0-internal.23-g" + String(repeating: "a", count: 40)
         let signingKey = Curve25519.Signing.PrivateKey()
         let manifestURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.0-internal/CovioUpdate-0.0.2.0.json"
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.25/CovioUpdate-0.6.0-internal.25.json"
         ))
         let signatureURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.0-internal/CovioUpdate-0.0.2.0.sig.json"
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.25/CovioUpdate-0.6.0-internal.25.sig.json"
         ))
         let archiveURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.0.2.0-internal/CovioUpdate-0.0.2.0.zip"
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.25/CovioUpdate-0.6.0-internal.25.zip"
         ))
         let manifest = makeManifest(archiveURL: archiveURL.absoluteString)
         let manifestData = try JSONEncoder().encode(manifest)
@@ -47,8 +47,8 @@ final class UpdaterCoordinatorTests: XCTestCase {
         let feed = FixedUpdaterFeed(
             releases: [
                 UpdaterReleaseCandidate(
-                    tagName: "v0.0.2.0-internal",
-                    clientVersion: "0.0.2.0",
+                    tagName: "v0.6.0-internal.25",
+                    clientVersion: "0.6.0-internal.25",
                     manifestURL: manifestURL,
                     signatureURL: signatureURL,
                     archiveURL: archiveURL,
@@ -73,7 +73,7 @@ final class UpdaterCoordinatorTests: XCTestCase {
         }
         wait(for: [finished], timeout: 5)
         XCTAssertEqual(result?.state, .available)
-        XCTAssertEqual(result?.availableVersion, "0.0.2.0")
+        XCTAssertEqual(result?.availableVersion, "0.6.0-internal.25")
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.candidateManifest.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: paths.candidateSignature.path))
         XCTAssertEqual(coordinator.persistedStatus.state, .available)
@@ -86,7 +86,7 @@ final class UpdaterCoordinatorTests: XCTestCase {
             session: session,
             environment: ["COVIO_UPDATER_TEST_MODE": "1"]
         )
-        XCTAssertEqual(restarted.persistedStatus.availableVersion, "0.0.2.0")
+        XCTAssertEqual(restarted.persistedStatus.availableVersion, "0.6.0-internal.25")
     }
 
     func testStartupDoesNotRecoverAnActivePKGTransaction() throws {
@@ -98,7 +98,7 @@ final class UpdaterCoordinatorTests: XCTestCase {
         try writeInstallTransaction(paths: paths, mode: "pkg", recoveryMarker: marker)
         let coordinator = UpdaterCoordinator(
             paths: paths,
-            currentReleaseId: "0.0.2.0-g" + String(repeating: "a", count: 40),
+            currentReleaseId: "0.6.0-internal.23-g" + String(repeating: "a", count: 40),
             trustedKeys: [:]
         )
 
@@ -116,7 +116,7 @@ final class UpdaterCoordinatorTests: XCTestCase {
         try writeInstallTransaction(paths: paths, mode: "automatic", recoveryMarker: marker)
         let coordinator = UpdaterCoordinator(
             paths: paths,
-            currentReleaseId: "0.0.2.0-g" + String(repeating: "a", count: 40),
+            currentReleaseId: "0.6.0-internal.23-g" + String(repeating: "a", count: 40),
             trustedKeys: [:]
         )
 
@@ -156,14 +156,14 @@ final class UpdaterCoordinatorTests: XCTestCase {
 
     private func makeManifest(archiveURL: String) -> UpdateManifest {
         UpdateManifest(
-            schemaVersion: 1,
+            schemaVersion: 2,
             keyId: "test-key",
             channel: "internal",
             productVersion: "0.6.0",
-            clientVersion: "0.0.2.0",
-            buildNumber: 20,
+            clientVersion: "0.6.0-internal.25",
+            buildNumber: 25,
             gitCommit: String(repeating: "b", count: 40),
-            releaseId: "0.0.2.0-g" + String(repeating: "b", count: 40),
+            releaseId: "0.6.0-internal.25-g" + String(repeating: "b", count: 40),
             helperProtocolVersion: GeneratedReleaseIdentity.helperProtocolVersion,
             updaterProtocolVersion: UpdaterContract.protocolVersion,
             minimumMacOSVersion: "14.0",

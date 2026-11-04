@@ -9,6 +9,7 @@ final class UpdateManifestTests: XCTestCase {
 
     private var expectations: UpdateManifestExpectations {
         UpdateManifestExpectations(
+            currentVersion: "0.6.0-internal.19",
             currentBuildNumber: 19,
             channel: "internal",
             helperProtocolVersion: 10,
@@ -24,8 +25,8 @@ final class UpdateManifestTests: XCTestCase {
     func testValidManifestIsAccepted() throws {
         let verified = try verify()
         XCTAssertEqual(verified.buildNumber, 20)
-        XCTAssertEqual(verified.clientVersion, "0.0.2.0")
-        XCTAssertEqual(verified.releaseId, "0.0.2.0-g\(commit)")
+        XCTAssertEqual(verified.clientVersion, "0.6.0-internal.20")
+        XCTAssertEqual(verified.releaseId, "0.6.0-internal.20-g\(commit)")
     }
 
     func testManifestByteChangeFailsDigestValidation() throws {
@@ -91,27 +92,27 @@ final class UpdateManifestTests: XCTestCase {
         }
     }
 
-    func testSameBuildIsRejected() throws {
+    func testSameVersionAndBuildIsRejected() throws {
         let manifest = makeManifest(
-            clientVersion: "0.0.1.9",
+            clientVersion: "0.6.0-internal.19",
             buildNumber: 19
         )
         let signed = try signedManifest(manifest)
         XCTAssertThrowsError(try verify(signed)) { error in
-            XCTAssertEqual(error as? UpdateManifestError, .olderBuild)
+            XCTAssertEqual(error as? UpdateManifestError, .olderVersion)
         }
     }
 
     func testClientVersionMustMatchBuildNumber() throws {
-        let manifest = makeManifest(clientVersion: "0.0.2.1")
+        let manifest = makeManifest(clientVersion: "0.6.0-internal.21")
         let signed = try signedManifest(manifest)
         XCTAssertThrowsError(try verify(signed)) { error in
             XCTAssertEqual(error as? UpdateManifestError, .versionBuildMismatch)
         }
     }
 
-    func testTwoDigitVersionSegmentIsRejected() throws {
-        let manifest = makeManifest(clientVersion: "0.0.1.10")
+    func testPrereleaseWithLeadingZeroIsRejected() throws {
+        let manifest = makeManifest(clientVersion: "0.6.0-internal.020")
         let signed = try signedManifest(manifest)
         XCTAssertThrowsError(try verify(signed)) { error in
             XCTAssertEqual(error as? UpdateManifestError, .invalidVersion)
@@ -120,7 +121,7 @@ final class UpdateManifestTests: XCTestCase {
 
     func testReleaseIdMustMatchVersionAndCommit() throws {
         let manifest = makeManifest(
-            releaseId: "0.0.2.0-g\(String(repeating: "f", count: 40))"
+            releaseId: "0.6.0-internal.20-g\(String(repeating: "f", count: 40))"
         )
         let signed = try signedManifest(manifest)
         XCTAssertThrowsError(try verify(signed)) { error in
@@ -148,7 +149,7 @@ final class UpdateManifestTests: XCTestCase {
 
     func testArchiveURLMustUseFixedRepositoryAndTag() throws {
         let manifest = makeManifest(
-            archiveURL: "https://example.com/CovioUpdate-0.0.2.0.zip"
+            archiveURL: "https://example.com/CovioUpdate-0.6.0-internal.20.zip"
         )
         let signed = try signedManifest(manifest)
         XCTAssertThrowsError(try verify(signed)) { error in
@@ -184,7 +185,7 @@ final class UpdateManifestTests: XCTestCase {
 
     private func makeManifest(
         channel: String = "internal",
-        clientVersion: String = "0.0.2.0",
+        clientVersion: String = "0.6.0-internal.20",
         buildNumber: Int = 20,
         helperProtocolVersion: Int = 10,
         minimumMacOSVersion: String = "26.0",
@@ -194,7 +195,7 @@ final class UpdateManifestTests: XCTestCase {
         archiveSize: Int = 42
     ) -> UpdateManifest {
         return UpdateManifest(
-            schemaVersion: 1,
+            schemaVersion: 2,
             keyId: keyId,
             channel: channel,
             productVersion: "0.6.0",
@@ -206,7 +207,7 @@ final class UpdateManifestTests: XCTestCase {
             updaterProtocolVersion: 1,
             minimumMacOSVersion: minimumMacOSVersion,
             archiveURL: archiveURL
-                ?? "https://github.com/wyz541/kmp-Covio/releases/download/v\(clientVersion)-internal/CovioUpdate-\(clientVersion).zip",
+                ?? "https://github.com/wyz541/kmp-Covio/releases/download/v\(clientVersion)/CovioUpdate-\(clientVersion).zip",
             archiveSHA256: archiveSHA256,
             archiveSize: archiveSize,
             componentHashes: .init(

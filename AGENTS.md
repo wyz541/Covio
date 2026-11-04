@@ -8,6 +8,7 @@
 - 共享领域逻辑使用 KMP，代码在 `kmpDomain/`。
 - 构建系统是 Amper 0.12.1，不是 Gradle。
 - 主干是 `main`。
+- 项目版本遵循 Semantic Versioning 2.0.0。权威规则见 `docs/process/versioning.md`。
 
 ## 2. 工作流
 流程细节见 `docs/process/workflow.md`。

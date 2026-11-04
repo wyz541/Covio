@@ -5,7 +5,7 @@
 - Date：2026-11-03
 - Supersedes：ADR-0020 的常规升级授权部分和自动更新限制（决策 10 的常规升级部分、决策 16）
 - Implements：#553
-- 相关：ADR-0005、ADR-0018、ADR-0020、ADR-0026、Discussion #552、#555、#557
+- 相关：ADR-0005、ADR-0018、ADR-0020、ADR-0031、Discussion #552、#555、#557
 
 ## 背景
 
@@ -131,7 +131,7 @@ updater 读取固定 internal feed
 | `schemaVersion` | Manifest schema 版本 |
 | `keyId` | 选择内置公钥 |
 | `channel` | 限制安装渠道 |
-| `clientVersion` | 用户可见版本 |
+| `clientVersion` | 完整 SemVer 项目版本 |
 | `buildNumber` | 单调升级顺序 |
 | `gitCommit` | 关联 Git 来源 |
 | `releaseId` | 绑定本次发布 |
@@ -310,7 +310,7 @@ Research #555 和 #557 收敛了实现边界。本节补充取代决策 29，并
 - [ADR-0005：本机用固定证书签名](adr-0005-local-code-signing.md)
 - [ADR-0018：独立特权 helper 和发布身份](adr-0018-privileged-helper-release-identity.md)
 - [ADR-0020：本机分发和 Legacy helper](adr-0020-local-only-helper-distribution.md)
-- [ADR-0026：四段客户端版本和结构化发布身份](adr-0026-four-part-client-version.md)
+- [ADR-0031：Semantic Versioning](adr-0031-semantic-versioning.md)
 - [本机 app 与 helper 升级事务](../design/local-upgrade-transaction.md)
 - [Helper 服务边界](../design/helper-service.md)
 - [发布流水线](../design/release-pipeline.md)

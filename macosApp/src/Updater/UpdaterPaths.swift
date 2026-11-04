@@ -57,14 +57,8 @@ struct UpdaterPaths: Equatable {
     static func isReleaseId(_ value: String) -> Bool {
         let components = value.split(separator: "-g", omittingEmptySubsequences: false)
         guard components.count == 2 else { return false }
-        let versionParts = components[0].split(separator: ".", omittingEmptySubsequences: false)
-        guard versionParts.count == 4,
-              versionParts.allSatisfy({ part in
-                  part.count == 1 && part.unicodeScalars.allSatisfy {
-                      $0.value >= 48 && $0.value <= 57
-                  }
-              })
-        else {
+        let version = String(components[0])
+        guard ReleaseVersion(version) != nil || isLegacyClientVersion(version) else {
             return false
         }
         let commit = components[1]
@@ -73,6 +67,15 @@ struct UpdaterPaths: Equatable {
                 ($0.value >= 48 && $0.value <= 57)
                     || ($0.value >= 97 && $0.value <= 102)
             }
+    }
+
+    private static func isLegacyClientVersion(_ value: String) -> Bool {
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        return parts.count == 4 && parts.allSatisfy { part in
+            part.count == 1 && part.unicodeScalars.allSatisfy {
+                $0.value >= 48 && $0.value <= 57
+            }
+        }
     }
 }
 

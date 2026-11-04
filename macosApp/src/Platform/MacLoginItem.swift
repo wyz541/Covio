@@ -142,7 +142,7 @@ final class MacLoginItem: NSObject, LoginItem {
 ///
 /// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/GithubUpdateChecker.kt`。
 /// 读 GitHub releases 页面的 HTML，取客户端版本最大的发布。
-/// internal build 同时识别四段 internal tag 和 stable tag。
+/// internal build 同时识别 SemVer prerelease 和 stable tag。
 /// public build 只识别 stable tag。旧语义版本 tag 继续忽略。
 ///
 /// 解析器是纯函数，测试直接喂 HTML 字符串。
@@ -214,7 +214,7 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
             options: [.caseInsensitive]
         )
         let range = NSRange(body.startIndex..<body.endIndex, in: body)
-        var best: (version: ClientVersion, url: String)?
+        var best: (version: ReleaseVersion, url: String)?
         for match in pattern?.matches(in: body, options: [], range: range) ?? [] {
             guard let pathRange = Range(match.range(at: 1), in: body),
                   let tagRange = Range(match.range(at: 2), in: body),
@@ -225,24 +225,33 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
             else { continue }
             let path = String(body[pathRange])
             let url = path.hasPrefix("http") ? path : "https://github.com\(path)"
-            if let current = best, current.version.compareTo(other: version) >= 0 { continue }
+            if let current = best, current.version >= version { continue }
             best = (version, url)
         }
         guard let best else { return nil }
         return UpdateInfo(
-            version: best.version.description(),
-            title: "Covio \(best.version.description())",
+            version: best.version.description,
+            title: "Covio \(best.version.description)",
             releaseUrl: best.url,
             publishedAt: ""
         )
     }
 
-    private static func clientVersion(forTag tag: String, includeInternal: Bool) -> ClientVersion? {
-        let suffix = "-internal"
-        if tag.hasSuffix(suffix) {
-            guard includeInternal else { return nil }
-            return ClientVersion.companion.parse(value: String(tag.dropLast(suffix.count)))
+    private static func clientVersion(forTag tag: String, includeInternal: Bool) -> ReleaseVersion? {
+        guard tag.hasPrefix("v"), let version = ReleaseVersion(String(tag.dropFirst())) else {
+            return nil
         }
-        return ClientVersion.companion.parse(value: tag)
+        if version.isStable {
+            return version
+        }
+        guard includeInternal,
+              version.prerelease.count == 2,
+              version.prerelease[0] == "internal",
+              let build = Int(version.prerelease[1]),
+              version.isInternalBuild(build)
+        else {
+            return nil
+        }
+        return version
     }
 }

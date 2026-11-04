@@ -107,8 +107,8 @@ final class WorkbenchTabBarTests: XCTestCase {
     /// 右下角入口仍需显示本地化标题和版本号。
     func testTheUpdateBadgeShowsTheVersion() {
         XCTAssertEqual(
-            WorkbenchUpdateBadge.title(version: "0.0.1.8", language: .simplifiedChinese),
-            "有可用更新 · 0.0.1.8"
+            WorkbenchUpdateBadge.title(version: "0.6.0-internal.23", language: .simplifiedChinese),
+            "有可用更新 · 0.6.0-internal.23"
         )
     }
 

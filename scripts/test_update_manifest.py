@@ -58,17 +58,23 @@ class UpdateManifestTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.temporary.cleanup()
 
-    def test_build_number_mapping(self):
-        self.assertEqual(update_manifest.client_version_for_build(19), "0.0.1.9")
-        self.assertEqual(update_manifest.client_version_for_build(20), "0.0.2.0")
+    def test_internal_version_includes_semantic_base_and_build(self):
+        self.assertEqual(
+            update_manifest.client_version_for_build("0.6.0", 19),
+            "0.6.0-internal.19",
+        )
+        self.assertEqual(
+            update_manifest.client_version_for_build("0.6.0", 20),
+            "0.6.0-internal.20",
+        )
 
     def test_generate_and_verify_manifest(self):
         paths = self._generate()
         manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
         signature = json.loads(paths["signature"].read_text(encoding="utf-8"))
         self.assertEqual(manifest["buildNumber"], 20)
-        self.assertEqual(manifest["clientVersion"], "0.0.2.0")
-        self.assertEqual(manifest["releaseId"], f"0.0.2.0-g{'a' * 40}")
+        self.assertEqual(manifest["clientVersion"], "0.6.0-internal.20")
+        self.assertEqual(manifest["releaseId"], f"0.6.0-internal.20-g{'a' * 40}")
         self.assertEqual(signature["schemaVersion"], 1)
         self.assertEqual(
             signature["manifestSHA256"],
@@ -126,7 +132,7 @@ class UpdateManifestTests(unittest.TestCase):
             )
 
     def test_public_channel_is_rejected(self):
-        fixture = self._fixture("CovioUpdate-0.0.2.0.zip")
+        fixture = self._fixture("CovioUpdate-0.6.0-internal.20.zip")
         release = json.loads(fixture["release_manifest"].read_text(encoding="utf-8"))
         release["channel"] = "public"
         fixture["release_manifest"].write_text(
@@ -148,7 +154,7 @@ class UpdateManifestTests(unittest.TestCase):
             )
 
     def test_published_at_requires_a_time_zone(self):
-        fixture = self._fixture("CovioUpdate-0.0.2.0.zip")
+        fixture = self._fixture("CovioUpdate-0.6.0-internal.20.zip")
         with self.assertRaises(update_manifest.UpdateManifestError):
             update_manifest.generate_manifest(
                 release_manifest=fixture["release_manifest"],
@@ -169,7 +175,7 @@ class UpdateManifestTests(unittest.TestCase):
         self.assertEqual(mode, 0o600)
 
     def _generate(self) -> dict[str, pathlib.Path]:
-        fixture = self._fixture("CovioUpdate-0.0.2.0.zip")
+        fixture = self._fixture("CovioUpdate-0.6.0-internal.20.zip")
         output = self.root / f"output-{self._testMethodName}"
         manifest, signature = update_manifest.generate_manifest(
             release_manifest=fixture["release_manifest"],
@@ -196,9 +202,9 @@ class UpdateManifestTests(unittest.TestCase):
         release_manifest.write_text(
             json.dumps(
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "productVersion": "0.6.0",
-                    "clientVersion": "0.0.2.0",
+                    "clientVersion": "0.6.0-internal.20",
                     "buildNumber": 20,
                     "channel": "internal",
                     "helperProtocolVersion": 10,

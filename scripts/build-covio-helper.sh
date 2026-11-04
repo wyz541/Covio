@@ -24,7 +24,7 @@ if [[ ! -f "$STATIC_FRAMEWORK/kmpDomain" ]]; then
   exit 1
 fi
 
-VERSION="${MARKETING_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)}"
+VERSION="${COVIO_CLIENT_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)}"
 PRODUCT_VERSION="${COVIO_PRODUCT_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)}"
 BUILD_NUMBER="${CURRENT_PROJECT_VERSION:-$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)}"
 CHANNEL="${COVIO_RELEASE_CHANNEL:-$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)}"
@@ -37,7 +37,7 @@ if [[ -e "$OUT_DIR/Info.plist" ]]; then
   unlink "$OUT_DIR/Info.plist"
 fi
 /usr/bin/ditto "$HELPER_INFO_SOURCE" "$HELPER_INFO"
-"$PLIST_BUDDY" -c "Set :CFBundleShortVersionString $VERSION" "$HELPER_INFO"
+"$PLIST_BUDDY" -c "Set :CFBundleShortVersionString $PRODUCT_VERSION" "$HELPER_INFO"
 "$PLIST_BUDDY" -c "Set :CFBundleVersion $BUILD_NUMBER" "$HELPER_INFO"
 "$PLIST_BUDDY" -c "Set :CovioClientVersion $VERSION" "$HELPER_INFO"
 "$PLIST_BUDDY" -c "Set :CovioProductVersion $PRODUCT_VERSION" "$HELPER_INFO"
