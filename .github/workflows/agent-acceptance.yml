@@ -36,7 +36,9 @@ jobs:
       - name: Free build inputs
         run: |
           find "$COVIO_FILE_NAMING_MODEL_DIR" -depth -delete
-          find build/xcode-archive -depth -delete
+          if [[ -d build/xcode-archive ]]; then
+            find build/xcode-archive -depth -delete
+          fi
           find dist -maxdepth 1 -type f -name 'Covio-*.dmg' -delete
           df -h /
 
