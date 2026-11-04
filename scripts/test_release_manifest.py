@@ -17,26 +17,28 @@ SPEC.loader.exec_module(release)
 
 class ReleaseManifestTests(unittest.TestCase):
     def test_release_id_is_deterministic(self):
-        spec = release.ReleaseSpec(2, "1.2.3", "0.0.0.4", 4, "internal", 8)
+        spec = release.ReleaseSpec(3, "1.2.3", "1.2.3-internal.4", 4, "internal", 8)
         commit = "a" * 40
-        self.assertEqual(release.release_id(spec, commit), f"0.0.0.4-g{commit}")
+        self.assertEqual(release.release_id(spec, commit), f"1.2.3-internal.4-g{commit}")
         self.assertEqual(release.release_id(spec, commit), release.release_id(spec, commit))
 
-    def test_client_version_uses_four_padded_decimal_digits(self):
-        cases = {
-            1: "0.0.0.1",
-            15: "0.0.1.5",
-            16: "0.0.1.6",
-            100: "0.1.0.0",
-            9999: "9.9.9.9",
-        }
-        for build, expected in cases.items():
-            with self.subTest(build=build):
-                self.assertEqual(release.client_version_for_build(build), expected)
-        for build in (0, 10000):
+    def test_internal_versions_follow_semantic_versioning(self):
+        self.assertEqual(
+            release.client_version_for_build("0.6.0", 23, "internal"),
+            "0.6.0-internal.23",
+        )
+        self.assertEqual(
+            release.client_version_for_build("0.6.0", 23, "public"),
+            "0.6.0",
+        )
+        for build in (0, 10_000):
             with self.subTest(build=build):
                 with self.assertRaises(release.ManifestError):
-                    release.client_version_for_build(build)
+                    release.client_version_for_build("0.6.0", build, "internal")
+        for version in ("0.06.0", "0.6", "v0.6.0"):
+            with self.subTest(version=version):
+                with self.assertRaises(release.ManifestError):
+                    release.client_version_for_build(version, 1, "internal")
 
     def test_bump_increments_build_and_can_change_version(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -45,9 +47,9 @@ class ReleaseManifestTests(unittest.TestCase):
             (root / release.SOURCE_MANIFEST).write_text(
                 json.dumps(
                     {
-                        "schemaVersion": 2,
+                        "schemaVersion": 3,
                         "productVersion": "1.2.3",
-                        "clientVersion": "0.0.0.4",
+                        "clientVersion": "1.2.3-internal.4",
                         "buildNumber": 4,
                         "channel": "internal",
                         "helperProtocolVersion": 8,
@@ -87,7 +89,7 @@ class ReleaseManifestTests(unittest.TestCase):
             spec = release.bump_build(root, "2.0.0")
 
             self.assertEqual(spec.product_version, "2.0.0")
-            self.assertEqual(spec.client_version, "0.0.0.5")
+            self.assertEqual(spec.client_version, "2.0.0-internal.5")
             self.assertEqual(spec.build_number, 5)
             self.assertEqual(release.load_spec(root), spec)
             self.assertEqual(release.drift_errors(root), [])
@@ -109,7 +111,7 @@ class ReleaseManifestTests(unittest.TestCase):
             self._write_fixture(root)
             helper = root / "helper"
             helper.write_bytes(b"helper-v1")
-            default_dmg = root / "Covio-0.0.0.4.dmg"
+            default_dmg = root / "Covio-1.2.3-internal.4.dmg"
             default_dmg.write_bytes(b"default-dmg")
             spec = release.load_spec(root)
             manifest = release.artifact_manifest(spec, "b" * 40, helper, default_dmg)
@@ -145,7 +147,7 @@ class ReleaseManifestTests(unittest.TestCase):
             self._write_fixture(root)
             helper = root / "helper"
             helper.write_bytes(b"helper")
-            default_dmg = root / "Covio-0.0.0.4.dmg"
+            default_dmg = root / "Covio-1.2.3-internal.4.dmg"
             default_dmg.write_bytes(b"default-dmg")
             manifest = release.artifact_manifest(
                 release.load_spec(root),
@@ -154,9 +156,9 @@ class ReleaseManifestTests(unittest.TestCase):
                 default_dmg,
             )
             self.assertEqual(manifest["schemaVersion"], release.ARTIFACT_SCHEMA_VERSION)
-            self.assertEqual(manifest["releaseId"], f"0.0.0.4-g{'c' * 40}")
+            self.assertEqual(manifest["releaseId"], f"1.2.3-internal.4-g{'c' * 40}")
             self.assertEqual(manifest["helperSHA256"], release.sha256_file(helper))
-            self.assertEqual(manifest["installers"]["default"]["name"], "Covio-0.0.0.4.dmg")
+            self.assertEqual(manifest["installers"]["default"]["name"], "Covio-1.2.3-internal.4.dmg")
             self.assertIsNone(manifest["installers"]["offline"])
             self.assertIsNone(manifest["model"])
 
@@ -166,9 +168,9 @@ class ReleaseManifestTests(unittest.TestCase):
             self._write_fixture(root)
             helper = root / "helper"
             helper.write_bytes(b"helper")
-            default_dmg = root / "Covio-0.0.0.4.dmg"
+            default_dmg = root / "Covio-1.2.3-internal.4.dmg"
             default_dmg.write_bytes(b"default-dmg")
-            offline_dmg = root / "Covio-Offline-0.0.0.4.dmg"
+            offline_dmg = root / "Covio-Offline-1.2.3-internal.4.dmg"
             offline_dmg.write_bytes(b"offline-dmg")
             model_manifest = self._write_model_manifest(root)
 
@@ -200,9 +202,9 @@ class ReleaseManifestTests(unittest.TestCase):
             self._write_fixture(root)
             helper = root / "helper"
             helper.write_bytes(b"helper")
-            default_dmg = root / "Covio-0.0.0.4.dmg"
+            default_dmg = root / "Covio-1.2.3-internal.4.dmg"
             default_dmg.write_bytes(b"default-dmg")
-            offline_dmg = root / "Covio-Offline-0.0.0.4.dmg"
+            offline_dmg = root / "Covio-Offline-1.2.3-internal.4.dmg"
             offline_dmg.write_bytes(b"offline-dmg")
             model_manifest = self._write_model_manifest(root)
             spec = release.load_spec(root)
@@ -232,7 +234,7 @@ class ReleaseManifestTests(unittest.TestCase):
             self._write_fixture(root)
             helper = root / "helper"
             helper.write_bytes(b"helper")
-            default_dmg = root / "Covio-0.0.0.4.dmg"
+            default_dmg = root / "Covio-1.2.3-internal.4.dmg"
             default_dmg.write_bytes(b"default-dmg")
             manifest = release.artifact_manifest(
                 release.load_spec(root),
@@ -276,9 +278,9 @@ class ReleaseManifestTests(unittest.TestCase):
         (root / release.SOURCE_MANIFEST).write_text(
             json.dumps(
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "productVersion": "1.2.3",
-                    "clientVersion": "0.0.0.4",
+                    "clientVersion": "1.2.3-internal.4",
                     "buildNumber": 4,
                     "channel": "internal",
                     "helperProtocolVersion": 8,

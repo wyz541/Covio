@@ -162,7 +162,7 @@ final class UpdaterCoordinator: @unchecked Sendable {
                         expectations: manifestExpectations()
                     )
                     guard release.clientVersion == manifest.clientVersion,
-                          release.tagName == "v\(manifest.clientVersion)-internal",
+                          release.tagName == "v\(manifest.clientVersion)",
                           release.archiveURL.absoluteString == manifest.archiveURL
                     else {
                         throw UpdaterCoordinatorError.releaseMetadataMismatch
@@ -428,7 +428,7 @@ final class UpdaterCoordinator: @unchecked Sendable {
         guard let bundleManifest = try JSONSerialization.jsonObject(
             with: manifestData
         ) as? [String: Any],
-              (bundleManifest["schemaVersion"] as? NSNumber)?.intValue == 1,
+              (bundleManifest["schemaVersion"] as? NSNumber)?.intValue == 2,
               bundleManifest["releaseId"] as? String == candidate.manifest.releaseId,
               bundleManifest["clientVersion"] as? String == candidate.manifest.clientVersion,
               bundleManifest["productVersion"] as? String == candidate.manifest.productVersion,
@@ -843,7 +843,8 @@ final class UpdaterCoordinator: @unchecked Sendable {
 
     private func manifestExpectations() -> UpdateManifestExpectations {
         UpdateManifestExpectations(
-            currentBuildNumber: Self.buildNumber(from: currentReleaseId),
+            currentVersion: GeneratedReleaseIdentity.clientVersion,
+            currentBuildNumber: GeneratedReleaseIdentity.buildNumber,
             channel: GeneratedReleaseIdentity.channel,
             helperProtocolVersion: GeneratedReleaseIdentity.helperProtocolVersion,
             updaterProtocolVersion: UpdaterContract.protocolVersion,
@@ -899,12 +900,6 @@ final class UpdaterCoordinator: @unchecked Sendable {
 
     private static func allowedAssetHost(_ host: String?) -> Bool {
         host == "github.com" || host == "release-assets.githubusercontent.com"
-    }
-
-    private static func buildNumber(from releaseId: String) -> Int {
-        let version = releaseId.split(separator: "-g", maxSplits: 1)[0]
-        let digits = version.split(separator: ".").compactMap { Int($0) }
-        return digits.reduce(0) { $0 * 10 + $1 }
     }
 
     private static var macOSVersion: String {

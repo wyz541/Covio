@@ -311,8 +311,9 @@ release_prepare() {
     die "$previous_tag is not published. Run 'scripts/covio release draft' and 'publish' first."
   fi
 
-  local product_version client_version build next_build current_tag branch worktree
+  local product_version client_version channel build next_build current_tag branch worktree
   product_version="$(main_manifest_value productVersion)"
+  channel="$(main_manifest_value channel)"
   build="$(main_manifest_value buildNumber)"
   if [[ -n "$new_version" ]]; then
     product_version="$new_version"
@@ -321,10 +322,11 @@ release_prepare() {
     fi
   fi
   next_build=$((build + 1))
-  client_version="$(python3 -I "$ROOT/scripts/release_manifest.py" client-version --build "$next_build")"
-  current_tag="v$client_version-internal"
-  branch="release/$client_version-internal"
-  worktree="$WORKTREE_ROOT/release-$client_version-internal"
+  client_version="$(python3 -I "$ROOT/scripts/release_manifest.py" client-version \
+    --product-version "$product_version" --build "$next_build" --channel "$channel")"
+  current_tag="v$client_version"
+  branch="release/$client_version"
+  worktree="$WORKTREE_ROOT/release-$client_version"
 
   git -C "$ROOT" show-ref --quiet "refs/heads/$branch" && die "branch $branch already exists"
   [[ -e "$worktree" ]] && die "worktree path already exists: $worktree"

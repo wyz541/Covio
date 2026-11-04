@@ -108,8 +108,6 @@ def release_asset_names(directory: pathlib.Path, version: str) -> tuple[str, ...
 
 
 def release_tag(spec: release.ReleaseSpec) -> str:
-    if spec.channel == "internal":
-        return f"v{spec.client_version}-internal"
     return f"v{spec.client_version}"
 
 
@@ -153,7 +151,7 @@ def identity_errors(
             errors.append(f"artifact {key} mismatch: {artifact_fields[key]!r} != {value!r}")
 
     app_expected = {
-        "CFBundleShortVersionString": source.client_version,
+        "CFBundleShortVersionString": source.product_version,
         "CFBundleVersion": str(source.build_number),
         "CovioClientVersion": source.client_version,
         "CovioProductVersion": source.product_version,
@@ -478,8 +476,8 @@ def verify_update_assets(
     manifest = read_json(manifest_path)
     signature = read_json(signature_path)
     expected_release_id = artifact.get("releaseId")
-    if manifest.get("schemaVersion") != 1:
-        raise ReleaseVerificationError("update manifest schemaVersion must be 1")
+    if manifest.get("schemaVersion") != 2:
+        raise ReleaseVerificationError("update manifest schemaVersion must be 2")
     if manifest.get("channel") != "internal" or source.channel != "internal":
         raise ReleaseVerificationError("update manifest channel must be internal")
     expected = {
@@ -496,7 +494,7 @@ def verify_update_assets(
             raise ReleaseVerificationError(f"update manifest {key} differs from release identity")
     expected_url = (
         f"https://github.com/wyz541/kmp-Covio/releases/download/"
-        f"v{source.client_version}-internal/CovioUpdate-{source.client_version}.zip"
+        f"v{source.client_version}/CovioUpdate-{source.client_version}.zip"
     )
     if manifest.get("archiveURL") != expected_url:
         raise ReleaseVerificationError("update manifest archive URL is not the fixed internal URL")

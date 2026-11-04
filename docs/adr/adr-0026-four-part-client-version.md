@@ -1,6 +1,7 @@
 # ADR-0026：用四段客户端版本和结构化发布身份
 
-- Status：accepted
+- Status：superseded
+- Superseded by：[ADR-0031](adr-0031-semantic-versioning.md)
 - Kind：architecture
 - Date：2026-11-02
 - Supersedes：none

@@ -25,10 +25,10 @@ final class HelperStatusTests: XCTestCase {
         helperHash: String? = nil
     ) -> HelperReleaseIdentity {
         HelperReleaseIdentity(
-            releaseId: "0.0.1.6-g\(commit)",
-            clientVersion: "0.0.1.6",
+            releaseId: "0.6.0-internal.23-g\(commit)",
+            clientVersion: "0.6.0-internal.23",
             productVersion: "0.6.0",
-            buildNumber: "16",
+            buildNumber: "23",
             gitCommit: commit,
             protocolVersion: protocolVersion,
             helperSHA256: helperHash ?? self.helperHash,

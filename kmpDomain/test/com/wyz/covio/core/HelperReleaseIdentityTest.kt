@@ -55,14 +55,14 @@ class HelperReleaseIdentityTest {
     @Test
     fun `older helper or protocol is outdated`() {
         val olderVersion = expected.copy(
-            clientVersion = "0.0.1.4",
-            releaseId = "0.0.1.4-g$commit",
-            buildNumber = "14",
+            clientVersion = "0.6.0-internal.22",
+            releaseId = "0.6.0-internal.22-g$commit",
+            buildNumber = "22",
         )
         val olderBuild = expected.copy(
-            clientVersion = "0.0.1.4",
-            releaseId = "0.0.1.4-g$commit",
-            buildNumber = "14",
+            clientVersion = "0.6.0-internal.23",
+            releaseId = "0.6.0-internal.23-g$commit",
+            buildNumber = "22",
         )
         val differentProtocol = expected.copy(protocolVersion = "7")
 
@@ -83,17 +83,42 @@ class HelperReleaseIdentityTest {
     @Test
     fun `client version must match build number`() {
         assertNull(HelperReleaseHandshake.parse(wire(expected).toMutableMap().apply {
-            this["clientVersion"] = "9.9.9.9"
+            this["clientVersion"] = "0.6.0-internal.24"
         }))
         assertNull(HelperReleaseHandshake.parse(wire(expected).toMutableMap().apply {
-            this["version"] = "9.9.9.9"
+            this["version"] = "0.6.0-internal.24"
+        }))
+    }
+
+
+    @Test
+    fun `legacy four part identity remains readable for migration`() {
+        val legacy = identity().copy(
+            releaseId = "0.0.1.5-g$commit",
+            clientVersion = "0.0.1.5",
+            buildNumber = "15",
+        )
+
+        assertEquals(legacy, HelperReleaseHandshake.parse(wire(legacy)))
+        assertEquals(
+            HelperStatus.OUTDATED,
+            HelperReleaseHandshake.classify(expected, legacy, signatureTrusted = true),
+        )
+    }
+
+    @Test
+    fun `internal semantic version must embed the build number`() {
+        assertNull(HelperReleaseHandshake.parse(wire(expected).toMutableMap().apply {
+            this["clientVersion"] = "0.6.0-internal.22"
+            this["version"] = "0.6.0-internal.22"
+            this["releaseId"] = "0.6.0-internal.22-g$commit"
         }))
     }
 
     @Test
     fun `same version with different commit or helper digest mismatches`() {
         val differentCommit = expected.copy(
-            releaseId = "0.0.1.5-g${"c".repeat(40)}",
+            releaseId = "0.6.0-internal.23-g${"c".repeat(40)}",
             gitCommit = "c".repeat(40),
         )
         val differentHash = expected.copy(helperSHA256 = "d".repeat(64))
@@ -130,10 +155,10 @@ class HelperReleaseIdentityTest {
     }
 
     private fun identity() = HelperReleaseIdentity(
-        releaseId = "0.0.1.5-g$commit",
-        clientVersion = "0.0.1.5",
+        releaseId = "0.6.0-internal.23-g$commit",
+        clientVersion = "0.6.0-internal.23",
         productVersion = "0.6.0",
-        buildNumber = "15",
+        buildNumber = "23",
         gitCommit = commit,
         protocolVersion = "10",
         helperSHA256 = hash,

@@ -114,12 +114,12 @@ enum CovioUpdaterLauncherMain {
     }
 
     private static func selftest() -> Bool {
-        let valid = "0.0.2.0-g" + String(repeating: "a", count: 40)
+        let valid = "0.6.0-internal.23-g" + String(repeating: "a", count: 40)
         let invalid = [
-            "0.0.2.0",
-            "0.0.2.10-g" + String(repeating: "a", count: 40),
-            "0.0.2.0-g" + String(repeating: "A", count: 40),
-            "../0.0.2.0-g" + String(repeating: "a", count: 40),
+            "0.6.0-internal.23",
+            "0.6.0-internal.023-g" + String(repeating: "a", count: 40),
+            "0.6.0-internal.23-g" + String(repeating: "A", count: 40),
+            "../0.6.0-internal.23-g" + String(repeating: "a", count: 40),
         ]
         guard UpdaterPaths.isReleaseId(valid),
               invalid.allSatisfy({ !UpdaterPaths.isReleaseId($0) })

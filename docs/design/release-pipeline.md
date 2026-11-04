@@ -8,7 +8,7 @@
 | 状态 | 已实现；当前只创建 internal/local Draft |
 | 日期 | `2026-10-25` |
 | Issue | #356 |
-| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0026](../adr/adr-0026-four-part-client-version.md) |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0031](../adr/adr-0031-semantic-versioning.md) |
 
 ## 目标
 
@@ -21,20 +21,22 @@
 
 | 字段 | 示例 | 用途 |
 | --- | --- | --- |
-| `clientVersion` | `0.0.1.6` | 用户可见版本，更新检查和安装包文件名 |
-| `productVersion` | `0.6.0` | 产品版本元数据 |
-| `buildNumber` | `16` | 单调递增升级顺序 |
+| `clientVersion` | `0.6.0-internal.23` | 完整 SemVer，用于更新检查和安装包文件名 |
+| `productVersion` | `0.6.0` | 稳定 SemVer 基线 |
+| `buildNumber` | `23` | 单调递增构建号，不是项目版本 |
 | `gitCommit` | 完整 40 位 SHA | 源码定位，不参与排序 |
 | `channel` | `internal` 或 `public` | 发布渠道 |
 | `helperProtocolVersion` | `10` | app 与 helper 的协议版本 |
 
-`buildNumber` 补足四位十进制，再拆成 `千.百.十.个`。
-示例：build `15` 生成 `0.0.1.5`，build `16` 生成 `0.0.1.6`，build `100` 生成 `0.1.0.0`。
+internal 渠道生成 `clientVersion = productVersion-internal.buildNumber`。
+public 渠道生成 `clientVersion = productVersion`。
+示例：`0.6.0-internal.23` 和 `0.6.0`。
 `buildNumber` 超过 `9999` 时，脚本失败关闭。
 
 `releaseId` 使用 `<clientVersion>-g<fullGitSHA>`。
-app 的 `CFBundleShortVersionString` 使用 `clientVersion`。
+app 的 `CFBundleShortVersionString` 使用 `productVersion`。
 app 的 `CFBundleVersion` 使用 `buildNumber`。
+自定义 `CovioClientVersion` 保存完整 `clientVersion`。
 `clientVersion`、`productVersion`、`buildNumber`、渠道、Git 和 helper 协议必须分别保存。
 
 ## 资产
@@ -91,8 +93,8 @@ COVIO_FILE_NAMING_MODEL_DIR=build/models/Qwen3VL-2B-Instruct-4bit \
 ```
 
 该命令默认构建制品并创建 Draft。
-内部 tag 使用 `v<clientVersion>-internal`。
-内部 Draft 同时标记为 pre-release。
+内部 tag 使用 `v<clientVersion>`。`clientVersion` 已包含 `internal.<buildNumber>`。
+内部 Draft 同时标记为 pre-release。旧四位客户端需要手工安装首个 SemVer 版本。
 
 复用刚构建的制品：
 
@@ -244,7 +246,7 @@ scripts/covio local --pkg    # 打包并用事务 PKG 安装
 | --- | --- | --- |
 | release manifest 和源清单一致 | 必须 | 必须 |
 | app/helper releaseId 一致 | 必须 | 必须 |
-| app/helper 客户端版本、产品版本、build、commit、渠道、协议一致 | 必须 | 必须 |
+| app/helper 的 clientVersion、productVersion、buildNumber、commit、渠道和协议一致 | 必须 | 必须 |
 | helper SHA-256 一致 | 必须 | 必须 |
 | app/helper 架构为 arm64 | 必须 | 必须 |
 | app zip、DMG、PKG 和 checksums 完整 | 必须 | 必须 |

@@ -71,24 +71,49 @@ assert_updater_record_match() {
     "app release ID differs from updater"
 }
 
-client_version_for_build() {
+legacy_client_version_for_build() {
   local build="$1"
   local digits
   printf -v digits '%04d' "$build"
   printf '%s.%s.%s.%s' "${digits:0:1}" "${digits:1:1}" "${digits:2:1}" "${digits:3:1}"
 }
 
+semver_client_version_for_build() {
+  local product_version="$1"
+  local build="$2"
+  local channel="$3"
+  case "$channel" in
+    internal) printf '%s-internal.%s' "$product_version" "$build" ;;
+    public) printf '%s' "$product_version" ;;
+    *) return 1 ;;
+  esac
+}
+
+client_version_for_build() {
+  local product_version="$1"
+  local build="$2"
+  local channel="$3"
+  local format="${4:-modern}"
+  case "$format" in
+    modern) semver_client_version_for_build "$product_version" "$build" "$channel" ;;
+    modern-four) legacy_client_version_for_build "$build" ;;
+    *) return 1 ;;
+  esac
+}
+
 release_id_for_build() {
-  local build="$1"
-  local commit="$2"
-  local format="${3:-modern}"
+  local product_version="$1"
+  local build="$2"
+  local commit="$3"
+  local channel="$4"
+  local format="${5:-modern}"
   local client_version
-  client_version="$(client_version_for_build "$build")"
   if [[ "$format" == "legacy" ]]; then
-    printf '0.6.0+%s+%s' "$build" "$commit"
-  else
-    printf '%s-g%s' "$client_version" "$commit"
+    printf '%s+%s+%s' "$product_version" "$build" "$commit"
+    return
   fi
+  client_version="$(client_version_for_build "$product_version" "$build" "$channel" "$format")"
+  printf '%s-g%s' "$client_version" "$commit"
 }
 
 xcrun clang \
@@ -333,9 +358,11 @@ build_app() {
   local install_mode="${11-legacy}"
   local identity_format="${12:-modern}"
   local updater_result="${13:-1}"
-  local client_version release_id helper helper_sha manifest_sha info
-  client_version="$(client_version_for_build "$build")"
-  release_id="$(release_id_for_build "$build" "$commit" "$identity_format")"
+  local client_version release_id helper helper_sha manifest_sha info schema_version
+  client_version="$(client_version_for_build "$product_version" "$build" "$channel" "$identity_format" 2>/dev/null || legacy_client_version_for_build "$build")"
+  release_id="$(release_id_for_build "$product_version" "$build" "$commit" "$channel" "$identity_format")"
+  schema_version=2
+  [[ "$identity_format" == "modern" ]] || schema_version=1
   mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" \
     "$app/Contents/Library/LaunchDaemons"
   cp "$TEST_ROOT/fake_covio" "$app/Contents/MacOS/Covio"
@@ -361,7 +388,7 @@ build_app() {
 {"releaseId":"$release_id","clientVersion":"$client_version","productVersion":"$product_version","buildNumber":"$build","gitCommit":"$commit","protocolVersion":"$protocol","helperSHA256":"$helper_sha","channel":"$channel"}
 EOF
     cat > "$app/Contents/Resources/release-manifest.json" <<EOF
-{"schemaVersion":1,"releaseId":"$release_id","clientVersion":"$client_version","productVersion":"$product_version","buildNumber":$build,"gitCommit":"$commit","helperProtocolVersion":$protocol,"helperSHA256":"$manifest_sha","channel":"$channel"}
+{"schemaVersion":$schema_version,"releaseId":"$release_id","clientVersion":"$client_version","productVersion":"$product_version","buildNumber":$build,"gitCommit":"$commit","helperProtocolVersion":$protocol,"helperSHA256":"$manifest_sha","channel":"$channel"}
 EOF
   else
     cat > "$app/Contents/Resources/identity.json" <<EOF
@@ -374,7 +401,7 @@ EOF
   info="$app/Contents/Info.plist"
   /usr/bin/plutil -create xml1 "$info" >/dev/null
   if [[ "$identity_format" == "modern" ]]; then
-    /usr/bin/plutil -insert CFBundleShortVersionString -string "$client_version" "$info" >/dev/null
+    /usr/bin/plutil -insert CFBundleShortVersionString -string "$product_version" "$info" >/dev/null
     /usr/bin/plutil -insert CovioClientVersion -string "$client_version" "$info" >/dev/null
     /usr/bin/plutil -insert CovioProductVersion -string "$product_version" "$info" >/dev/null
   else
@@ -459,7 +486,7 @@ prepare_automatic_case() {
   OLD_APP="$COVIO_TX_APPLICATIONS_ROOT/Covio.app"
   NEW_APP="$CASE_ROOT/new/Covio.app"
   build_app "$NEW_APP" 0.6.0 16 "$NEW_COMMIT" 10 internal 1 "" 1 legacy modern
-  build_app "$OLD_APP" 0.6.0 15 "$OLD_COMMIT" 9 internal 1 "" 1 legacy modern
+  build_app "$OLD_APP" 0.6.0 15 "$OLD_COMMIT" 9 internal 1 "" 1 legacy modern-four
   write_environment "$NEW_APP"
   covio_tx_load_environment "$TX_ENVIRONMENT_SOURCE"
   covio_tx_configure
@@ -483,7 +510,7 @@ seed_installed_updater() {
   local release_id updater_sha launcher_sha build client_version
   release_id="$(/usr/bin/plutil -extract CovioReleaseId raw -o - "$app/Contents/Info.plist")"
   build="$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$app/Contents/Info.plist")"
-  client_version="$(client_version_for_build "$build")"
+  client_version="$(/usr/bin/plutil -extract CovioClientVersion raw -o - "$app/Contents/Info.plist" 2>/dev/null || legacy_client_version_for_build "$build")"
   COVIO_UPDATER_ROOT="$COVIO_TX_UPDATER_ROOT" \
   COVIO_UPDATER_LAUNCHD_PATH="$COVIO_TX_UPDATER_LAUNCHD_PATH" \
   COVIO_UPDATER_RELEASE_ID="$release_id" \
@@ -567,11 +594,11 @@ stage_new_app
 covio_tx_commit
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 16 "app was not upgraded"
 assert_json "$TX_RECORD_PATH" schemaVersion 2
-assert_json "$TX_RECORD_PATH" clientVersion 0.0.1.6
+assert_json "$TX_RECORD_PATH" clientVersion 0.6.0-internal.16
 assert_json "$TX_RECORD_PATH" productVersion 0.6.0
-assert_json "$TX_RECORD_PATH" releaseId "0.0.1.6-g$NEW_COMMIT"
-assert_app_helper_record_match "$TX_APP_PATH" "0.0.1.6-g$NEW_COMMIT"
-assert_updater_record_match "$TX_APP_PATH" "0.0.1.6-g$NEW_COMMIT"
+assert_json "$TX_RECORD_PATH" releaseId "0.6.0-internal.16-g$NEW_COMMIT"
+assert_app_helper_record_match "$TX_APP_PATH" "0.6.0-internal.16-g$NEW_COMMIT"
+assert_updater_record_match "$TX_APP_PATH" "0.6.0-internal.16-g$NEW_COMMIT"
 assert_json "$TX_REPORT_PATH" result installed
 assert_json "$TX_REPORT_PATH" source pkg
 assert_json "$TX_REPORT_PATH" previousReleaseId "0.6.0+15+$OLD_COMMIT"
@@ -654,8 +681,8 @@ covio_tx_prepare
 stage_new_app
 COVIO_TEST_SKIP_UPDATER_LAYOUT=1 covio_tx_commit
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 27 "layout repair did not install the app"
-assert_app_helper_record_match "$TX_APP_PATH" "0.0.2.7-g$NEW_COMMIT"
-assert_updater_record_match "$TX_APP_PATH" "0.0.2.7-g$NEW_COMMIT"
+assert_app_helper_record_match "$TX_APP_PATH" "0.6.0-internal.27-g$NEW_COMMIT"
+assert_updater_record_match "$TX_APP_PATH" "0.6.0-internal.27-g$NEW_COMMIT"
 assert_eq "$(cat "$COVIO_TX_UPDATER_ROOT/updater-client-requirement")" test-requirement "layout repair client requirement differs"
 [[ -x "$COVIO_TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" ]] || \
   fail "layout repair did not install the immutable launcher"
@@ -690,12 +717,12 @@ covio_tx_prepare
 stage_new_app
 covio_tx_commit
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 16 "automatic update did not install the app"
-assert_eq "$(tr -d '[:space:]' < "$COVIO_TX_UPDATER_ROOT/current")" "0.0.1.6-g$NEW_COMMIT" "automatic update current pointer differs"
+assert_eq "$(tr -d '[:space:]' < "$COVIO_TX_UPDATER_ROOT/current")" "0.6.0-internal.16-g$NEW_COMMIT" "automatic update current pointer differs"
 assert_eq "$(tr -d '[:space:]' < "$COVIO_TX_UPDATER_ROOT/previous")" "$OLD_RELEASE_ID" "automatic update previous pointer differs"
 assert_eq "$(/usr/bin/shasum -a 256 "$COVIO_TX_UPDATER_ROOT/bin/CovioUpdaterLauncher" | awk '{print $1}')" "$OLD_LAUNCHER_SHA" "automatic update replaced the launcher"
 assert_eq "$(/usr/bin/shasum -a 256 "$COVIO_TX_UPDATER_LAUNCHD_PATH" | awk '{print $1}')" "$OLD_PLIST_SHA" "automatic update replaced the LaunchDaemon"
 assert_json "$TX_RECORD_PATH" updaterLauncherSHA256 "$OLD_LAUNCHER_SHA"
-assert_json "$TX_RECORD_PATH" releaseId "0.0.1.6-g$NEW_COMMIT"
+assert_json "$TX_RECORD_PATH" releaseId "0.6.0-internal.16-g$NEW_COMMIT"
 
 printf 'case: interruption after bundle exchange is recoverable\n'
 prepare_case interruption 0.6.0 21 "$NEW_COMMIT"
@@ -757,8 +784,8 @@ prepare_case sm-migration 0.6.0 24 "$NEW_COMMIT" 1 "" 1 1 ""
 covio_tx_prepare
 stage_new_app
 covio_tx_commit
-assert_app_helper_record_match "$TX_APP_PATH" "0.0.2.4-g$NEW_COMMIT"
-assert_updater_record_match "$TX_APP_PATH" "0.0.2.4-g$NEW_COMMIT"
+assert_app_helper_record_match "$TX_APP_PATH" "0.6.0-internal.24-g$NEW_COMMIT"
+assert_updater_record_match "$TX_APP_PATH" "0.6.0-internal.24-g$NEW_COMMIT"
 [[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || \
   fail "SMAppService migration did not create the Legacy helper"
 
@@ -773,9 +800,9 @@ covio_tx_prepare
 stage_new_app
 TMPDIR="$CASE_ROOT/unavailable-tmp" covio_tx_commit
 assert_eq "$(/usr/bin/plutil -extract CFBundleVersion raw -o - "$TX_APP_PATH/Contents/Info.plist")" 25 "clean install did not commit"
-assert_json "$TX_RECORD_PATH" releaseId "0.0.2.5-g$NEW_COMMIT"
-assert_app_helper_record_match "$TX_APP_PATH" "0.0.2.5-g$NEW_COMMIT"
-assert_updater_record_match "$TX_APP_PATH" "0.0.2.5-g$NEW_COMMIT"
+assert_json "$TX_RECORD_PATH" releaseId "0.6.0-internal.25-g$NEW_COMMIT"
+assert_app_helper_record_match "$TX_APP_PATH" "0.6.0-internal.25-g$NEW_COMMIT"
+assert_updater_record_match "$TX_APP_PATH" "0.6.0-internal.25-g$NEW_COMMIT"
 [[ -x "$TX_HELPER_PATH" && -f "$TX_LAUNCHD_PATH" ]] || fail "clean install did not create fixed helper paths"
 assert_json "$TX_REPORT_PATH" result installed
 

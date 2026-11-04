@@ -8,7 +8,7 @@
 | --- | --- |
 | 渠道 | `internal` |
 | 固定仓库 | `wyz541/kmp-Covio` |
-| Manifest schema | `1` |
+| Manifest schema | `2` |
 | Signature schema | `1` |
 | Updater protocol | `1` |
 
@@ -58,7 +58,7 @@ Ed25519 签名
     ↓
 schema、channel 和协议
     ↓
-build 与四段 clientVersion
+build 与 SemVer clientVersion
     ↓
 release ID、commit 和 archive URL
     ↓
@@ -71,11 +71,14 @@ archive size、SHA-256 和 component hashes
 
 | buildNumber | clientVersion |
 | ---: | --- |
-| 19 | `0.0.1.9` |
-| 20 | `0.0.2.0` |
+| 23 | `0.6.0-internal.23` |
+| 24 | `0.6.0-internal.24` |
+| 25 | `0.6.0-internal.25` |
 
-版本段只有一位十进制数字。
-因此 `0.0.1.10` 不是有效客户端版本。
+Updater 按 SemVer 比较 `clientVersion`。
+`internal.10` 高于 `internal.9`。
+Updater 还要求 `buildNumber` 大于当前构建号。
+旧四位版本只用于迁移读取，不用于新发布。
 
 ## 生成
 
@@ -103,7 +106,7 @@ bash scripts/setup-update-signing-key.sh covio-internal-2026-01
 ```sh
 python3 -I scripts/update_manifest.py generate \
   --release-manifest release/release-manifest.json \
-  --archive build/dist/CovioUpdate-0.0.2.0.zip \
+  --archive build/dist/CovioUpdate-0.6.0-internal.24.zip \
   --app-executable Covio.app/Contents/MacOS/Covio \
   --helper CovioHelper \
   --updater CovioUpdater \

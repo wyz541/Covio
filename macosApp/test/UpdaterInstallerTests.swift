@@ -5,7 +5,7 @@ import XCTest
 @testable import Covio
 
 final class UpdaterInstallerTests: XCTestCase {
-    private let releaseId = "0.0.1.9-g" + String(repeating: "a", count: 40)
+    private let releaseId = "0.6.0-internal.23-g" + String(repeating: "a", count: 40)
 
     func testInstallWritesRootLayoutAndPointers() throws {
         let root = try makeAppBundle(releaseId: releaseId)
@@ -54,8 +54,8 @@ final class UpdaterInstallerTests: XCTestCase {
     }
 
     func testAutomaticEngineInstallKeepsImmutableLauncherAndDaemon() throws {
-        let oldReleaseId = "0.0.1.9-g" + String(repeating: "a", count: 40)
-        let newReleaseId = "0.0.2.0-g" + String(repeating: "b", count: 40)
+        let oldReleaseId = "0.6.0-internal.23-g" + String(repeating: "a", count: 40)
+        let newReleaseId = "0.6.0-internal.24-g" + String(repeating: "b", count: 40)
         let base = FileManager.default.temporaryDirectory
             .appendingPathComponent("covio-updater-auto-installer-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: base) }

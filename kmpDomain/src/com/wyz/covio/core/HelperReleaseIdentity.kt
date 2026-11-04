@@ -19,11 +19,10 @@ data class HelperReleaseIdentity(
 
 /** 发布身份解析与比较。只有实现放在共享层，两个宿主不会各写一套规则。 */
 object HelperReleaseHandshake {
-    private val SEMVER = Regex("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$")
-    private val CLIENT_VERSION = Regex("^\\d\\.\\d\\.\\d\\.\\d$")
     private val COMMIT = Regex("^[0-9a-f]{40}$")
     private val SHA256 = Regex("^[0-9a-f]{64}$")
     private val CHANNELS = setOf("internal", "public")
+    private const val MAX_BUILD_NUMBER = 9_999L
 
     private val IDENTITY_FIELDS = setOf(
         "releaseId",
@@ -48,16 +47,30 @@ object HelperReleaseHandshake {
         val channel = result["channel"]?.trim().orEmpty()
         val build = buildNumber.toLongOrNull()
         val protocol = protocolVersion.toIntOrNull()
+        val semanticVersion = SemanticVersion.parse(clientVersion)
+        val legacyVersion = ClientVersion.parse(clientVersion)
+        val product = SemanticVersion.parse(productVersion)
 
-        if (!CLIENT_VERSION.matches(clientVersion)) return null
+        if (semanticVersion == null && legacyVersion == null) return null
         if (!compatibilityVersion.isNullOrEmpty() && compatibilityVersion != clientVersion) return null
-        if (!SEMVER.matches(productVersion)) return null
-        if (build == null || build.toString() != buildNumber) return null
-        if (ClientVersion.fromBuild(build)?.toString() != clientVersion) return null
+        if (product == null || product.prerelease.isNotEmpty() || product.buildMetadata.isNotEmpty()) return null
+        if (build == null || build !in 1L..MAX_BUILD_NUMBER || build.toString() != buildNumber) return null
+        if (channel !in CHANNELS) return null
+        if (semanticVersion != null) {
+            if (semanticVersion.buildMetadata.isNotEmpty()) return null
+            if (productVersion != semanticVersion.baseVersion) return null
+            val validChannelVersion = when (channel) {
+                "internal" -> semanticVersion.isInternalBuild(build)
+                "public" -> semanticVersion.prerelease.isEmpty()
+                else -> false
+            }
+            if (!validChannelVersion) return null
+        } else {
+            if (ClientVersion.fromBuild(build)?.toString() != clientVersion) return null
+        }
         if (!COMMIT.matches(gitCommit)) return null
         if (protocol == null || protocol < 1 || protocol.toString() != protocolVersion) return null
         if (!SHA256.matches(helperSHA256)) return null
-        if (channel !in CHANNELS) return null
         if (releaseId != "$clientVersion-g$gitCommit") return null
 
         return HelperReleaseIdentity(
@@ -94,19 +107,20 @@ object HelperReleaseHandshake {
     }
 
     private fun isOlder(observed: HelperReleaseIdentity, expected: HelperReleaseIdentity): Boolean {
-        val observedVersion = clientVersionParts(observed.clientVersion) ?: return false
-        val expectedVersion = clientVersionParts(expected.clientVersion) ?: return false
-        for (index in 0..3) {
-            if (observedVersion[index] != expectedVersion[index]) {
-                return observedVersion[index] < expectedVersion[index]
-            }
+        val observedSemantic = SemanticVersion.parse(observed.clientVersion)
+        val expectedSemantic = SemanticVersion.parse(expected.clientVersion)
+        if (expectedSemantic != null) {
+            if (observedSemantic == null) return true
+            val versionOrder = observedSemantic.compareTo(expectedSemantic)
+            if (versionOrder != 0) return versionOrder < 0
+        } else {
+            val observedLegacy = ClientVersion.parse(observed.clientVersion) ?: return false
+            val expectedLegacy = ClientVersion.parse(expected.clientVersion) ?: return false
+            val versionOrder = observedLegacy.compareTo(expectedLegacy)
+            if (versionOrder != 0) return versionOrder < 0
         }
         val observedBuild = observed.buildNumber.toLongOrNull() ?: return false
         val expectedBuild = expected.buildNumber.toLongOrNull() ?: return false
         return observedBuild < expectedBuild
     }
-
-    private fun clientVersionParts(version: String): List<Long>? =
-        CLIENT_VERSION.matchEntire(version)?.value?.split('.')?.mapNotNull(String::toLongOrNull)
-            ?.takeIf { it.size == 4 }
 }

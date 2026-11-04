@@ -2,7 +2,8 @@
 
 `release/release-manifest.json` is the source of truth for:
 
-- product version
+- Semantic Versioning client version
+- stable product version
 - build number
 - release channel
 - helper protocol version
@@ -31,8 +32,8 @@ Generate the final artifact manifest from the signed helper and built installers
 ```sh
 python3 scripts/release_manifest.py generate-artifact \
   --helper dist/Covio-Offline.app/Contents/MacOS/CovioHelper \
-  --default-dmg dist/Covio-0.5.2.dmg \
-  --offline-dmg dist/Covio-Offline-0.5.2.dmg \
+  --default-dmg dist/Covio-<clientVersion>.dmg \
+  --offline-dmg dist/Covio-Offline-<clientVersion>.dmg \
   --model-manifest macosApp/src/AutoNaming/FileNamingModelManifest.json \
   --output dist/release-manifest.json
 ```

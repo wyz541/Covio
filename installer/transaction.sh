@@ -183,6 +183,17 @@ covio_tx_client_version_for_build() {
         "${digits:0:1}" "${digits:1:1}" "${digits:2:1}" "${digits:3:1}"
 }
 
+covio_tx_semver_client_version() {
+    local product_version="$1"
+    local build="$2"
+    local channel="$3"
+    case "$channel" in
+        internal) printf '%s-internal.%s\n' "$product_version" "$build" ;;
+        public) printf '%s\n' "$product_version" ;;
+        *) return 1 ;;
+    esac
+}
+
 covio_tx_load_info_identity() {
     local app="$1"
     local prefix="$2"
@@ -296,14 +307,17 @@ covio_tx_validate_prefix() {
     channel="$(covio_tx_identity_value "$prefix" CHANNEL)"
     helper_sha="$(covio_tx_identity_value "$prefix" HELPER_SHA256)"
     [[ "$format" == "modern" || "$format" == "legacy" ]] || return 1
-    [[ "$client_version" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]$ ]] || return 1
     [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || return 1
     [[ "$build" =~ ^[1-9][0-9]{0,3}$ ]] || return 1
-    expected_client_version="$(covio_tx_client_version_for_build "$build")" || return 1
+    [[ "$channel" == "internal" || "$channel" == "public" ]] || return 1
+    if [[ "$client_version" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]$ ]]; then
+        expected_client_version="$(covio_tx_client_version_for_build "$build")" || return 1
+    else
+        expected_client_version="$(covio_tx_semver_client_version "$version" "$build" "$channel")" || return 1
+    fi
     [[ "$client_version" == "$expected_client_version" ]] || return 1
     [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || return 1
     [[ "$protocol" =~ ^[1-9][0-9]*$ ]] || return 1
-    [[ "$channel" == "internal" || "$channel" == "public" ]] || return 1
     [[ "$helper_sha" =~ ^[0-9a-f]{64}$ ]] || return 1
     if [[ -n "$(covio_tx_identity_value "$prefix" UPDATER_SHA256)" ]]; then
         [[ "$(covio_tx_identity_value "$prefix" UPDATER_SHA256)" =~ ^[0-9a-f]{64}$ ]] || return 1
@@ -336,8 +350,7 @@ covio_tx_prefixes_equal() {
 }
 
 covio_tx_validate_expected_identity() {
-    if [[ ! "$EXPECTED_CLIENT_VERSION" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]$ ||
-          ! "$EXPECTED_PRODUCT_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ||
+    if [[ ! "$EXPECTED_PRODUCT_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ||
           ! "$EXPECTED_BUILD_NUMBER" =~ ^[1-9][0-9]{0,3}$ ||
           ! "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ||
           ! "$EXPECTED_PROTOCOL_VERSION" =~ ^[1-9][0-9]*$ ||
@@ -348,9 +361,11 @@ covio_tx_validate_expected_identity() {
         covio_tx_log "Signed installer identity has invalid fields"
         return 1
     fi
-    if [[ "$EXPECTED_CLIENT_VERSION" != \
-          "$(covio_tx_client_version_for_build "$EXPECTED_BUILD_NUMBER")" ]]; then
-        covio_tx_log "Expected clientVersion does not match buildNumber"
+    local expected_client_version
+    expected_client_version="$(covio_tx_semver_client_version \
+        "$EXPECTED_PRODUCT_VERSION" "$EXPECTED_BUILD_NUMBER" "$EXPECTED_CHANNEL")" || return 1
+    if [[ "$EXPECTED_CLIENT_VERSION" != "$expected_client_version" ]]; then
+        covio_tx_log "Expected clientVersion does not match product version, channel, or build"
         return 1
     fi
     if [[ "$EXPECTED_RELEASE_ID" != \
@@ -438,8 +453,8 @@ covio_tx_verify_new_app() {
         covio_tx_log "Staged app has no release manifest"
         return 1
     fi
-    if [[ "$(covio_tx_plist_raw "$manifest" schemaVersion)" != "1" ]]; then
-        covio_tx_log "Staged app bundle manifest schemaVersion must be 1"
+    if [[ "$(covio_tx_plist_raw "$manifest" schemaVersion)" != "2" ]]; then
+        covio_tx_log "Staged app bundle manifest schemaVersion must be 2"
         return 1
     fi
     if ! covio_tx_load_info_identity "$app" NEW ||
@@ -1070,7 +1085,7 @@ covio_tx_verify_installed_updater() {
     current="$(tr -d '[:space:]' < "$TX_UPDATER_ROOT/current" 2>/dev/null || true)"
     launcher="$TX_UPDATER_ROOT/bin/CovioUpdaterLauncher"
     engine="$TX_UPDATER_ROOT/versions/$current/CovioUpdater"
-    [[ "$current" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]-g[0-9a-f]{40}$ ]] || return 1
+    [[ "$current" =~ ^((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-internal\.[1-9][0-9]*)?|[0-9]\.[0-9]\.[0-9]\.[0-9])-g[0-9a-f]{40}$ ]] || return 1
     [[ -x "$launcher" && -x "$engine" && -f "$TX_UPDATER_LAUNCHD_PATH" ]] || return 1
     [[ -f "$TX_RECORD_PATH" && -f "$TX_UPDATER_ROOT/updater-client-requirement" &&
        -f "$TX_UPDATER_ROOT/updater-requirement" ]] || return 1
@@ -1228,7 +1243,7 @@ covio_tx_register_and_verify_updater() {
     mkdir -p "$TX_TRANSACTION_ROOT"
     covio_tx_log "Installing updater for $prefix"
     if [[ "$TX_UPDATE_MODE" == "automatic" ]]; then
-        [[ "$EXPECTED_PREVIOUS_RELEASE_ID" =~ ^[0-9]\.[0-9]\.[0-9]\.[0-9]-g[0-9a-f]{40}$ ]] || return 1
+        [[ "$EXPECTED_PREVIOUS_RELEASE_ID" =~ ^((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-internal\.[1-9][0-9]*)?|[0-9]\.[0-9]\.[0-9]\.[0-9])-g[0-9a-f]{40}$ ]] || return 1
         covio_tx_verify_installed_updater || return 1
         if ! COVIO_UPDATER_ROOT="$TX_UPDATER_ROOT" \
              COVIO_UPDATER_CURRENT_RELEASE_ID="$EXPECTED_PREVIOUS_RELEASE_ID" \

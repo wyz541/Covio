@@ -361,19 +361,18 @@ final class HelperContractMirrorTests: XCTestCase {
 
     /// 版本号只有一个来源：`release/release-manifest.json`。
     ///
-    /// 界面、更新检查、helper 比对全都读它。这里守住它与包里的
-    /// `MARKETING_VERSION` 一致——不一致的表现是更新检查一直提示
-    /// "有新版本"，而那个"新版本"就是当前这一版。
+    /// 完整 SemVer 进入自定义 `CovioClientVersion`。
+    /// Apple 的 `MARKETING_VERSION` 只保存稳定的三数字产品版本。
     ///
     /// 测试跑在宿主应用进程里，所以 `Bundle.main` 就是 Covio.app。
-    func testBundleVersionMatchesTheKotlinConstant() throws {
+    func testBundleProductVersionMatchesTheKotlinConstant() throws {
         let bundle = Bundle.main
         XCTAssertEqual(bundle.bundleIdentifier, "com.wyz.covio", "测试宿主不是 Covio.app")
         let short = try XCTUnwrap(
             bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
             "包里读不到 CFBundleShortVersionString"
         )
-        XCTAssertEqual(GeneratedReleaseIdentityKt.APP_VERSION, short)
+        XCTAssertEqual(GeneratedReleaseIdentityKt.APP_PRODUCT_VERSION, short)
     }
 
     /// Build number、release ID 和 helper 协议都来自生成的发布身份。
@@ -404,7 +403,7 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertEqual(GeneratedReleaseIdentity.productVersion, GeneratedReleaseIdentityKt.APP_PRODUCT_VERSION)
         XCTAssertEqual(GeneratedReleaseIdentity.buildNumber, Int(GeneratedReleaseIdentityKt.APP_BUILD_NUMBER))
         XCTAssertEqual(GeneratedReleaseIdentity.channel, GeneratedReleaseIdentityKt.APP_RELEASE_CHANNEL)
-        XCTAssertEqual(short, GeneratedReleaseIdentity.clientVersion)
+        XCTAssertEqual(short, GeneratedReleaseIdentity.productVersion)
         XCTAssertEqual(clientVersion, GeneratedReleaseIdentity.clientVersion)
         XCTAssertEqual(productVersion, GeneratedReleaseIdentity.productVersion)
         XCTAssertEqual(build, String(GeneratedReleaseIdentity.buildNumber))
@@ -414,7 +413,7 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertEqual(transactionVersion, "1")
         XCTAssertEqual(helperInstallMode, "legacy")
         XCTAssertFalse(commit.isEmpty)
-        XCTAssertEqual(releaseID, "\(short)-g\(commit)")
+        XCTAssertEqual(releaseID, "\(clientVersion)-g\(commit)")
     }
 
     /// Legacy plist 必须指向固定 helper 并声明同一个 XPC 服务。

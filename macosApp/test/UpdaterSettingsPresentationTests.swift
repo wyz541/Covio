@@ -3,11 +3,11 @@ import kmpDomain
 @testable import Covio
 
 final class UpdaterSettingsPresentationTests: XCTestCase {
-    private let releaseId = "0.0.1.9-g" + String(repeating: "a", count: 40)
+    private let releaseId = "0.6.0-internal.23-g" + String(repeating: "a", count: 40)
 
     func testAvailableUpdateEnablesInstallAction() {
         let value = UpdaterSettingsPresentation(
-            status: status(state: .available, availableVersion: "0.0.2.0"),
+            status: status(state: .available, availableVersion: "0.6.0-internal.24"),
             busy: false,
             unavailable: false,
             language: .english
@@ -15,7 +15,7 @@ final class UpdaterSettingsPresentationTests: XCTestCase {
         XCTAssertTrue(value.canInstall)
         XCTAssertTrue(value.canCheck)
         XCTAssertFalse(value.canRestart)
-        XCTAssertEqual(value.availableVersionText, "0.0.2.0")
+        XCTAssertEqual(value.availableVersionText, "0.6.0-internal.24")
         XCTAssertEqual(
             value.stateText,
             ContractCopy.copyDialogUpdateTitle.text(for: .english)

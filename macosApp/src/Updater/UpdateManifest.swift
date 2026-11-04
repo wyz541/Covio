@@ -38,6 +38,7 @@ struct UpdateSignatureEnvelope: Codable, Equatable, Sendable {
 }
 
 struct UpdateManifestExpectations: Equatable, Sendable {
+    let currentVersion: String
     let currentBuildNumber: Int
     let channel: String
     let helperProtocolVersion: Int
@@ -59,6 +60,7 @@ enum UpdateManifestError: Error, Equatable, LocalizedError {
     case invalidCommit
     case invalidReleaseId
     case protocolMismatch
+    case olderVersion
     case olderBuild
     case invalidArchiveURL
     case invalidArchiveDigest
@@ -80,6 +82,7 @@ enum UpdateManifestError: Error, Equatable, LocalizedError {
         case .invalidCommit: "Invalid Git commit"
         case .invalidReleaseId: "Invalid release ID"
         case .protocolMismatch: "Update protocol mismatch"
+        case .olderVersion: "Update version is not newer than the installed version"
         case .olderBuild: "Update is not newer than the installed build"
         case .invalidArchiveURL: "Invalid update archive URL"
         case .invalidArchiveDigest: "Invalid update archive digest"
@@ -90,7 +93,7 @@ enum UpdateManifestError: Error, Equatable, LocalizedError {
 }
 
 enum UpdateManifestVerifier {
-    static let schemaVersion = 1
+    static let schemaVersion = 2
     static let signatureEnvelopeSchemaVersion = 1
     static let maximumArchiveBytes = 500_000_000
     static let repository = "wyz541/kmp-Covio"
@@ -170,16 +173,23 @@ enum UpdateManifestVerifier {
         else {
             throw UpdateManifestError.invalidManifest
         }
-        guard let versionDigits = clientVersionDigits(manifest.clientVersion) else {
+        guard let version = ReleaseVersion(manifest.clientVersion),
+              version.buildMetadata.isEmpty,
+              version.baseVersion == manifest.productVersion
+        else {
             throw UpdateManifestError.invalidVersion
         }
         guard (1...9_999).contains(manifest.buildNumber) else {
             throw UpdateManifestError.invalidBuild
         }
-        guard let expectedVersionDigits = digits(forBuild: manifest.buildNumber),
-              versionDigits == expectedVersionDigits
-        else {
+        guard version.isInternalBuild(manifest.buildNumber) else {
             throw UpdateManifestError.versionBuildMismatch
+        }
+        guard let currentVersion = ReleaseVersion(expectations.currentVersion),
+              currentVersion.buildMetadata.isEmpty,
+              version > currentVersion
+        else {
+            throw UpdateManifestError.olderVersion
         }
         guard manifest.buildNumber > expectations.currentBuildNumber else {
             throw UpdateManifestError.olderBuild
@@ -238,28 +248,8 @@ enum UpdateManifestVerifier {
         else {
             return false
         }
-        let expected = "/\(repository)/releases/download/v\(clientVersion)-internal/CovioUpdate-\(clientVersion).zip"
+        let expected = "/\(repository)/releases/download/v\(clientVersion)/CovioUpdate-\(clientVersion).zip"
         return components.percentEncodedPath == expected
-    }
-
-    private static func clientVersionDigits(_ value: String) -> [Int]? {
-        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 4 else { return nil }
-        let digits = parts.compactMap { part in Int(part) }
-        guard digits.count == 4,
-              zip(parts, digits).allSatisfy({ pair in
-                  pair.0.count == 1 && pair.1 >= 0 && pair.1 <= 9
-              })
-        else {
-            return nil
-        }
-        return digits
-    }
-
-    private static func digits(forBuild build: Int) -> [Int]? {
-        guard (1...9_999).contains(build) else { return nil }
-        let value = String(format: "%04d", build)
-        return value.compactMap { Int(String($0)) }
     }
 
     private static func isLowercaseHex(_ value: String, count: Int) -> Bool {
@@ -269,11 +259,8 @@ enum UpdateManifestVerifier {
     }
 
     private static func isProductVersion(_ value: String) -> Bool {
-        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 3 else { return false }
-        return parts.allSatisfy { part in
-            !part.isEmpty && part.allSatisfy { $0.isNumber }
-        }
+        guard let version = ReleaseVersion(value) else { return false }
+        return version.isStable && version.buildMetadata.isEmpty
     }
 
     private static func isVersion(_ required: String, atMost current: String) -> Bool {

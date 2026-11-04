@@ -13,63 +13,61 @@ final class UpdateCheckerTests: XCTestCase {
     private let releasePage = """
     <html>
     <body>
-    <a href="/wyz541/kmp-Covio/releases/tag/v0.0.1.6">Covio 0.0.1.6</a>
-    <a href="/wyz541/kmp-Covio/releases/tag/v0.0.1.5">Covio 0.0.1.5</a>
-    <a href="/wyz541/kmp-Covio/releases/tag/v0.0.1.7-internal">Internal</a>
-    <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15">Legacy internal</a>
+    <a href="/wyz541/kmp-Covio/releases/tag/v0.7.0">Covio 0.7.0</a>
+    <a href="/wyz541/kmp-Covio/releases/tag/v0.6.1">Covio 0.6.1</a>
+    <a href="/wyz541/kmp-Covio/releases/tag/v0.7.1-internal.23">Internal</a>
+    <a href="/wyz541/kmp-Covio/releases/tag/v0.0.2.2-internal">Legacy</a>
     </body>
     </html>
     """
 
     func testInternalBuildPrefersANewerInternalRelease() {
         let info = GithubUpdateChecker.parseRelease(releasePage, includeInternal: true)
-        XCTAssertEqual(info?.version, "0.0.1.7")
-        XCTAssertEqual(info?.title, "Covio 0.0.1.7")
+        XCTAssertEqual(info?.version, "0.7.1-internal.23")
+        XCTAssertEqual(info?.title, "Covio 0.7.1-internal.23")
         XCTAssertEqual(
             info?.releaseUrl,
-            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.7-internal"
+            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.7.1-internal.23"
         )
     }
 
     func testPublicBuildIgnoresInternalReleases() {
         let info = GithubUpdateChecker.parseRelease(releasePage, includeInternal: false)
-        XCTAssertEqual(info?.version, "0.0.1.6")
+        XCTAssertEqual(info?.version, "0.7.0")
         XCTAssertEqual(
             info?.releaseUrl,
-            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.6"
+            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.7.0"
         )
     }
 
-    /// 旧语义版本标签不进入更新提示。
-    func testLegacySemanticTagsAreIgnored() {
+    func testFourPartTagsAreIgnored() {
         let body = """
-        <a href="https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.9">stable</a>
-        <a href="/wyz541/kmp-Covio/releases/tag/v0.1.0.0-internal">candidate</a>
-        <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15">legacy</a>
+        <a href="https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.9">stable four-part</a>
+        <a href="/wyz541/kmp-Covio/releases/tag/v0.1.0.0-internal">candidate four-part</a>
+        <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15">canonical</a>
         """
         let info = GithubUpdateChecker.parseRelease(body, includeInternal: true)
-        XCTAssertEqual(info?.version, "0.1.0.0")
-        XCTAssertEqual(
-            info?.releaseUrl,
-            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.1.0.0-internal"
-        )
+        XCTAssertEqual(info?.version, "0.6.0-internal.15")
     }
 
-    func testFourPartVersionsUseDecimalOrder() {
+    func testInternalVersionsUseNumericSemanticOrder() {
         let body = """
-        <a href="/wyz541/kmp-Covio/releases/tag/v0.0.9.9">old</a>
-        <a href="/wyz541/kmp-Covio/releases/tag/v0.1.0.0">new</a>
+        <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.9">old</a>
+        <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.10">new</a>
         """
-        XCTAssertEqual(GithubUpdateChecker.parseRelease(body)?.version, "0.1.0.0")
+        XCTAssertEqual(
+            GithubUpdateChecker.parseRelease(body)?.version,
+            "0.6.0-internal.10"
+        )
     }
 
     /// 相对路径要补成绝对地址，否则界面上的「打开」按钮没有落点。
     func testRelativeHrefBecomesAnAbsoluteURL() {
-        let body = #"<a href="/wyz541/kmp-Covio/releases/tag/v0.0.1.6">x</a>"#
+        let body = #"<a href="/wyz541/kmp-Covio/releases/tag/v0.7.1">x</a>"#
         let info = GithubUpdateChecker.parseRelease(body)
         XCTAssertEqual(
             info?.releaseUrl,
-            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.6"
+            "https://github.com/wyz541/kmp-Covio/releases/tag/v0.7.1"
         )
     }
 
@@ -83,13 +81,13 @@ final class UpdateCheckerTests: XCTestCase {
 
     func testOnlyInternalReleasesAreIgnoredByPublicBuilds() {
         let body = """
-        <a href="/wyz541/kmp-Covio/releases/tag/v0.0.2.0-internal">internal</a>
-        <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15">legacy</a>
+        <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.23">internal</a>
+        <a href="/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15">older internal</a>
         """
         XCTAssertNil(GithubUpdateChecker.parseRelease(body, includeInternal: false))
         XCTAssertEqual(
             GithubUpdateChecker.parseRelease(body, includeInternal: true)?.version,
-            "0.0.2.0"
+            "0.6.0-internal.23"
         )
     }
 
@@ -101,7 +99,7 @@ final class UpdateCheckerTests: XCTestCase {
 
     func testSuccessStatusParsesTheBody() {
         let checker = GithubUpdateChecker(session: session(status: 200, body: releasePage))
-        XCTAssertEqual(checker.latestRelease()?.version, "0.0.1.7")
+        XCTAssertEqual(checker.latestRelease()?.version, "0.7.1-internal.23")
     }
 
     /// 一个只应答固定状态码与固定正文的会话。

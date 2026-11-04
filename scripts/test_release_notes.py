@@ -18,7 +18,7 @@ Covio 0.6.0 是内测版。
 
 ## 安装包
 
-本版提供 `Covio-0.6.0.dmg`。
+本版提供 `Covio-0.6.0-internal.15.dmg`。
 
 ## 从 build 13 到 build 14 的变化
 
@@ -32,15 +32,15 @@ Covio 0.6.0 是内测版。
 
 ## 安装
 
-1. 打开 `Covio-0.6.0.dmg`。
+1. 打开 `Covio-0.6.0-internal.15.dmg`。
 """
 
 README = """## Download (internal test)
 
 Covio 0.6.0-internal.15 is the current internal build.
 
-- [Default DMG](https://github.com/o/r/releases/download/v0.6.0-internal.15/Covio-0.6.0.dmg)
-- [Transactional PKG](https://github.com/o/r/releases/download/v0.6.0-internal.15/Covio-0.6.0.pkg)
+- [Default DMG](https://github.com/o/r/releases/download/v0.6.0-internal.15/Covio-0.6.0-internal.15.dmg)
+- [Transactional PKG](https://github.com/o/r/releases/download/v0.6.0-internal.15/Covio-0.6.0-internal.15.pkg)
 - [Release page](https://github.com/o/r/releases/tag/v0.6.0-internal.15)
 - [Checksums](https://github.com/o/r/releases/download/v0.6.0-internal.15/checksums.txt)
 - [Covio 0.6.0 internal build 13](https://github.com/o/r/releases/tag/v0.6.0-internal.13) is the previous internal test.
@@ -52,13 +52,13 @@ Install steps:
 
 class ReleaseNotesTests(unittest.TestCase):
     previous = notes.parse_tag("v0.6.0-internal.15")
-    current = notes.parse_tag("v0.0.1.6-internal")
+    current = notes.parse_tag("v0.6.0-internal.16")
 
     def test_parse_tag(self):
         self.assertEqual(notes.parse_tag("v0.6.0-internal.15"), self.previous)
-        self.assertEqual(notes.parse_tag("v0.0.1.6-internal"), self.current)
+        self.assertEqual(notes.parse_tag("v0.6.0-internal.16"), self.current)
         with self.assertRaises(notes.NotesError):
-            notes.parse_tag("v0.0.1.6")
+            notes.parse_tag("v0.6.0")
 
     def test_merged_pull_requests_skip_release_branches(self):
         log = "\x1e".join(
@@ -85,8 +85,8 @@ class ReleaseNotesTests(unittest.TestCase):
     def test_draft_notes_replaces_heading_changes_and_verification(self):
         pulls = [notes.PullRequest(512, "Expand advanced settings")]
         text = notes.draft_notes(NOTES, self.previous, self.current, pulls)
-        self.assertTrue(text.startswith("# Covio 0.0.1.6\n"))
-        self.assertIn("## 从 0.6.0 internal build 15 到 0.0.1.6 的变化", text)
+        self.assertTrue(text.startswith("# Covio 0.6.0-internal.16\n"))
+        self.assertIn("## 从 0.6.0-internal.15 到 0.6.0-internal.16 的变化", text)
         self.assertIn("- Expand advanced settings（#512）", text)
         self.assertNotIn("旧内容", text)
         self.assertNotIn("旧验证", text)
@@ -94,17 +94,17 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertIn("## 安装\n", text)
 
     def test_draft_notes_accepts_client_version_heading(self):
-        current_heading = "## 从 0.6.0 internal build 13 到 build 14 的变化"
+        current_heading = "## 从 0.6.0-internal.13 到 0.6.0-internal.14 的变化"
         source = NOTES.replace("## 从 build 13 到 build 14 的变化", current_heading)
         text = notes.draft_notes(source, self.previous, self.current, [])
-        self.assertIn("## 从 0.6.0 internal build 15 到 0.0.1.6 的变化", text)
+        self.assertIn("## 从 0.6.0-internal.15 到 0.6.0-internal.16 的变化", text)
         self.assertNotIn(current_heading, text)
 
     def test_draft_notes_renames_version(self):
-        current = notes.parse_tag("v0.0.2.0-internal")
+        current = notes.parse_tag("v0.7.0-internal.17")
         text = notes.draft_notes(NOTES, self.previous, current, [])
         self.assertNotIn("Covio 0.6.0 是内测版", text)
-        self.assertIn("`Covio-0.0.2.0.dmg`", text)
+        self.assertIn("`Covio-0.7.0-internal.17.dmg`", text)
         self.assertIn("- 无已合并的 PR。", text)
 
     def test_draft_notes_requires_changes_section(self):
@@ -113,16 +113,16 @@ class ReleaseNotesTests(unittest.TestCase):
 
     def test_update_readme_moves_links(self):
         text = notes.update_readme(README, self.previous, self.current)
-        self.assertIn("Covio 0.0.1.6 is the current internal build.", text)
-        self.assertIn("/download/v0.0.1.6-internal/Covio-0.0.1.6.dmg", text)
-        self.assertIn("/tag/v0.0.1.6-internal)", text)
+        self.assertIn("Covio 0.6.0-internal.16 is the current internal build.", text)
+        self.assertIn("/download/v0.6.0-internal.16/Covio-0.6.0-internal.16.dmg", text)
+        self.assertIn("/tag/v0.6.0-internal.16)", text)
         self.assertNotIn("/download/v0.6.0-internal.15/", text)
         self.assertIn(
-            "- [Covio 0.6.0 internal build 15](https://github.com/o/r/releases/tag/v0.6.0-internal.15)"
+            "- [Covio 0.6.0-internal.15](https://github.com/o/r/releases/tag/v0.6.0-internal.15)"
             " is the previous internal test.",
             text,
         )
-        self.assertIn("internal build 13](https://github.com/o/r/releases/tag/v0.6.0-internal.13)"
+        self.assertIn("Covio 0.6.0 internal build 13](https://github.com/o/r/releases/tag/v0.6.0-internal.13)"
                       " is an older internal test.", text)
         self.assertEqual(text.count("is the previous internal test."), 1)
 
@@ -133,7 +133,7 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertIn(notes.TODO_MARKER, errors[0])
         final = draft.replace(f"<!-- {notes.TODO_MARKER}", "<!-- done")
         self.assertEqual(notes.check_notes(final, self.current), [])
-        self.assertEqual(len(notes.check_notes(final, notes.parse_tag("v0.0.1.7-internal"))), 1)
+        self.assertEqual(len(notes.check_notes(final, notes.parse_tag("v0.6.0-internal.17"))), 1)
 
 
 if __name__ == "__main__":

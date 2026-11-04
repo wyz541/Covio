@@ -13,9 +13,9 @@ trap cleanup EXIT
 bash "$ROOT/scripts/build-covio-updater.sh"
 ENGINE="$ROOT/build/updater/CovioUpdater"
 LAUNCHER="$ROOT/build/updater/CovioUpdaterLauncher"
-VALID="0.0.2.0-g$(printf 'a%.0s' {1..40})"
-BAD="0.0.1.9-g$(printf 'b%.0s' {1..40})"
-WRONG="0.0.2.0-g$(printf 'c%.0s' {1..40})"
+VALID="0.6.0-internal.24-g$(printf 'a%.0s' {1..40})"
+BAD="0.6.0-internal.23-g$(printf 'b%.0s' {1..40})"
+WRONG="0.6.0-internal.24-g$(printf 'c%.0s' {1..40})"
 
 printf '%s\n' 'case: engine selftest returns a fixed status'
 STATUS="$(

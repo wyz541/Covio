@@ -1,5 +1,6 @@
 package com.wyz.covio.core
 
+/** 历史四位客户端版本。只用于读取旧安装记录和旧 helper 身份。 */
 data class ClientVersion(
     val thousands: Int,
     val hundreds: Int,
@@ -41,12 +42,17 @@ data class ClientVersion(
     }
 }
 
+/** Semantic Versioning 2.0.0。Build metadata 不参与优先级比较。 */
 data class SemanticVersion(
     val major: Int,
     val minor: Int,
     val patch: Int,
     val prerelease: List<String> = emptyList(),
+    val buildMetadata: List<String> = emptyList(),
 ) : Comparable<SemanticVersion> {
+    val baseVersion: String
+        get() = "$major.$minor.$patch"
+
     override fun compareTo(other: SemanticVersion): Int {
         compareValues(major, other.major).takeIf { it != 0 }?.let { return it }
         compareValues(minor, other.minor).takeIf { it != 0 }?.let { return it }
@@ -59,53 +65,80 @@ data class SemanticVersion(
             val right = other.prerelease.getOrNull(index)
             if (left == null) return -1
             if (right == null) return 1
-            val leftNumber = left.toIntOrNull()
-            val rightNumber = right.toIntOrNull()
-            val result = when {
-                leftNumber != null && rightNumber != null -> leftNumber.compareTo(rightNumber)
-                leftNumber != null -> -1
-                rightNumber != null -> 1
-                else -> left.compareTo(right)
-            }
+            val result = comparePrereleaseIdentifier(left, right)
             if (result != 0) return result
         }
         return 0
     }
 
     override fun toString(): String = buildString {
-        append("$major.$minor.$patch")
+        append(baseVersion)
         if (prerelease.isNotEmpty()) append("-").append(prerelease.joinToString("."))
+        if (buildMetadata.isNotEmpty()) append("+").append(buildMetadata.joinToString("."))
     }
+
+    fun isInternalBuild(buildNumber: Long): Boolean =
+        buildMetadata.isEmpty() && prerelease == listOf("internal", buildNumber.toString())
 
     companion object {
         private val pattern = Regex(
-            "^[vV]?(\\d+)\\.(\\d+)\\.(\\d+)(?:-([0-9A-Za-z.-]+))?(?:\\+[0-9A-Za-z.-]+)?$",
+            "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)" +
+                "(?:-([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?" +
+                "(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$",
         )
 
         fun parse(value: String): SemanticVersion? {
             val match = pattern.matchEntire(value.trim()) ?: return null
+            val prerelease = match.groupValues[4].takeIf(String::isNotEmpty)?.split('.').orEmpty()
+            if (prerelease.any { it.isNumericIdentifier() && it.length > 1 && it.startsWith('0') }) {
+                return null
+            }
             return SemanticVersion(
                 major = match.groupValues[1].toIntOrNull() ?: return null,
                 minor = match.groupValues[2].toIntOrNull() ?: return null,
                 patch = match.groupValues[3].toIntOrNull() ?: return null,
-                prerelease = match.groupValues[4]
-                    .takeIf { it.isNotBlank() }
-                    ?.split('.')
-                    .orEmpty(),
+                prerelease = prerelease,
+                buildMetadata = match.groupValues[5].takeIf(String::isNotEmpty)?.split('.').orEmpty(),
             )
         }
+
+        /** 解析 GitHub tag。`v` 是 tag 约定，不属于 SemVer 版本本体。 */
+        fun parseTag(value: String): SemanticVersion? {
+            val tag = value.trim()
+            if (!tag.startsWith('v')) return null
+            return parse(tag.drop(1))
+        }
+
+        private fun comparePrereleaseIdentifier(left: String, right: String): Int {
+            val leftNumeric = left.isNumericIdentifier()
+            val rightNumeric = right.isNumericIdentifier()
+            return when {
+                leftNumeric && rightNumeric -> {
+                    val length = left.length.compareTo(right.length)
+                    if (length != 0) length else left.compareTo(right)
+                }
+                leftNumeric -> -1
+                rightNumeric -> 1
+                else -> left.compareTo(right)
+            }
+        }
+
+        private fun String.isNumericIdentifier(): Boolean = isNotEmpty() && all { it in '0'..'9' }
     }
 }
 
 fun isStableVersion(value: String): Boolean = SemanticVersion.parse(value)?.prerelease?.isEmpty() == true
+
 fun isNewerVersion(candidate: String, current: String): Boolean {
     val left = SemanticVersion.parse(candidate) ?: return false
     val right = SemanticVersion.parse(current) ?: return false
     return left > right
 }
 
+@Suppress("unused")
 fun isStableClientVersion(value: String): Boolean = ClientVersion.parse(value) != null
 
+@Suppress("unused")
 fun isNewerClientVersion(candidate: String, current: String): Boolean {
     val left = ClientVersion.parse(candidate) ?: return false
     val right = ClientVersion.parse(current) ?: return false

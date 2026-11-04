@@ -3,7 +3,7 @@ import XCTest
 @testable import Covio
 
 final class UpdaterContractTests: XCTestCase {
-    private let releaseId = "0.0.2.0-g" + String(repeating: "a", count: 40)
+    private let releaseId = "0.6.0-internal.23-g" + String(repeating: "a", count: 40)
 
     func testValidReleaseIdIsAccepted() {
         XCTAssertTrue(UpdaterPaths.isReleaseId(releaseId))
@@ -11,11 +11,11 @@ final class UpdaterContractTests: XCTestCase {
 
     func testInvalidReleaseIdsAreRejected() {
         let invalid = [
-            "0.0.2.0",
-            "0.0.2.10-g" + String(repeating: "a", count: 40),
-            "0.0.2.0-g" + String(repeating: "A", count: 40),
-            "../0.0.2.0-g" + String(repeating: "a", count: 40),
-            "0.0.2.0-g" + String(repeating: "a", count: 39),
+            "0.6.0-internal.23",
+            "0.6.0-internal.023-g" + String(repeating: "a", count: 40),
+            "0.6.0-internal.23-g" + String(repeating: "A", count: 40),
+            "../0.6.0-internal.23-g" + String(repeating: "a", count: 40),
+            "0.6.0-internal.23-g" + String(repeating: "a", count: 39),
         ]
         for value in invalid {
             XCTAssertFalse(UpdaterPaths.isReleaseId(value), value)

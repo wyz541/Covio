@@ -100,8 +100,8 @@ if require_manifest or manifest_path.is_file():
     if not manifest_path.is_file():
         raise SystemExit("bundled release manifest is missing")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schemaVersion") != 1:
-        raise SystemExit("bundled release manifest schemaVersion must be 1")
+    if manifest.get("schemaVersion") != 2:
+        raise SystemExit("bundled release manifest schemaVersion must be 2")
     manifest_expected = {
         "releaseId": info["CovioReleaseId"],
         "productVersion": info["CovioProductVersion"],
