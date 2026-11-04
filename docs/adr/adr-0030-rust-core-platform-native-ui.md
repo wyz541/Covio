@@ -1,6 +1,6 @@
 # ADR-0030：Windows 与 macOS 使用 Rust core 和原生 UI
 
-- Status：proposed
+- Status：accepted
 - Kind：architecture
 - Date：2026-11-04
 - Supersedes：ADR-0001 的 KMP shared-foundation 决策

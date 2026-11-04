@@ -1,6 +1,6 @@
 # Covio Windows 与 macOS Rust core 迁移计划
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-11-04
 - 决策：[ADR-0030](../adr/adr-0030-rust-core-platform-native-ui.md)
 - Feature：[#595](https://github.com/wyz541/kmp-Covio/issues/595)
