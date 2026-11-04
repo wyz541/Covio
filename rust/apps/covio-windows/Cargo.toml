@@ -21,6 +21,7 @@ eframe = { version = "0.32.3", default-features = false, features = ["accesskit"
 image = { version = "0.25.9", default-features = false, features = ["png"] }
 single-instance = "0.3.3"
 tray-icon = { version = "0.21.2", default-features = false }
+wgpu = { version = "25.0.2", default-features = false, features = ["dx12", "wgsl"] }
 
 [lints]
 workspace = true
