@@ -1,6 +1,6 @@
 # ADR-0030：Rust 拥有非 UI 核心，平台保持原生 UI
 
-- Status：proposed
+- Status：accepted
 - Kind：architecture
 - Date：2026-11-04
 - Supersedes：ADR-0001 的 KMP shared-foundation 决策
