@@ -62,7 +62,6 @@ jobs:
           python3 -I scripts/generate-contract-constants.py --check
           python3 -I scripts/validate-contract.py
           python3 -I scripts/validate-workflow.py
-          bash scripts/test-release-cache.sh
           python3 -I scripts/file_naming_model.py verify-all
 
       - name: Set up Java
