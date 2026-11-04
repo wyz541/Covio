@@ -18,6 +18,7 @@ cd "$ROOT/rust"
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo run -p covio-windows -- --headless-smoke
 if [[ "$(uname -s)" == "Darwin" ]]; then
   bash "$ROOT/scripts/test-rust-macos-ffi.sh"
 fi

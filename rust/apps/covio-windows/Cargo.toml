@@ -1,0 +1,25 @@
+[package]
+name = "covio-windows"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "covio-windows"
+path = "src/main.rs"
+
+[dependencies]
+covio-core = { path = "../../crates/covio-core" }
+covio-ffi = { path = "../../crates/covio-ffi" }
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(target_os = "windows")'.dependencies]
+dark-light = "1.1.1"
+eframe = { version = "0.32.3", default-features = false, features = ["__screenshot", "accesskit", "default_fonts", "glow"] }
+single-instance = "0.3.3"
+tray-icon = { version = "0.21.2", default-features = false, features = ["common-controls-v6"] }
+
+[lints]
+workspace = true

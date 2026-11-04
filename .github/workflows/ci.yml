@@ -19,6 +19,42 @@ permissions:
 # Hosted CI is the portable gate. macOS XCTest and installers run on the release Mac
 # or in the manual "macOS full acceptance" workflow.
 jobs:
+  windows-host:
+    name: Windows host
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Restore Rust cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-windows-v1-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            rust-windows-v1-${{ hashFiles('rust/Cargo.lock') }}-
+            rust-windows-v1-
+
+      - name: Test Windows host
+        shell: bash
+        run: bash scripts/test-windows-rust.sh
+
+      - name: Upload Windows host screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-host-${{ github.run_id }}
+          path: build/covio-windows-host.png
+          if-no-files-found: error
+          retention-days: 30
+
   portable:
     name: Portable gate
     runs-on: ubuntu-latest
@@ -49,6 +85,7 @@ jobs:
               - "scripts/test-all.sh"
               - "scripts/test-rust.sh"
               - "scripts/test-rust-macos-ffi.sh"
+              - "scripts/test-windows-rust.sh"
               - "scripts/validate-workflow.py"
 
       - name: Check portable files
