@@ -16,8 +16,7 @@ permissions:
   contents: read
   pull-requests: read
 
-# Hosted CI is the portable gate. macOS XCTest and installers run on the release Mac
-# or in the manual "macOS full acceptance" workflow.
+# Hosted CI covers Linux and Windows. All macOS builds and acceptance run locally.
 jobs:
   windows-host:
     name: Windows host (${{ matrix.label }})
@@ -136,7 +135,6 @@ jobs:
           filters: |
             kotlin:
               - ".github/workflows/ci.yml"
-              - ".github/workflows/macos-release.yml"
               - "app/**"
               - "kmpDomain/**"
               - "kotlin"
@@ -146,7 +144,6 @@ jobs:
               - "scripts/validate-workflow.py"
             rust:
               - ".github/workflows/ci.yml"
-              - ".github/workflows/macos-release.yml"
               - "assets/windows/**"
               - "installer/windows/**"
               - "rust/**"

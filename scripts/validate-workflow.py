@@ -12,12 +12,9 @@ AGENTS = ROOT / "AGENTS.md"
 PR_TEMPLATE = ROOT / ".github" / "pull_request_template.md"
 PREVIEWS = ROOT / "docs" / "design" / "previews" / "README.md"
 ADR = ROOT / "docs" / "adr" / "adr-0028-slim-issue-workflow.md"
-CI = ROOT / ".github" / "workflows" / "ci.yml"
-MACOS_ACCEPTANCE = ROOT / ".github" / "workflows" / "macos-release.yml"
-MANUAL_MACOS_WORKFLOWS = (
-    ROOT / ".github" / "workflows" / "agent-acceptance.yml",
-    ROOT / ".github" / "workflows" / "file-naming-acceptance.yml",
-)
+WORKFLOWS = ROOT / ".github" / "workflows"
+CI = WORKFLOWS / "ci.yml"
+LOCAL_MACOS = ROOT / "docs" / "process" / "macos-validation.md"
 
 errors: list[str] = []
 
@@ -160,21 +157,21 @@ def main() -> int:
             "./kotlin test --platform=jvm",
         ),
     )
-    forbid(CI, ("  push:", "runs-on: macos-"))
+    forbid(CI, ("  push:", "macos-release.yml"))
+
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        if re.search(r"runs-on:\s*\[?[^\n]*macos", text(path), re.IGNORECASE):
+            errors.append(f"{path.relative_to(ROOT)} 不得使用 macOS runner")
 
     require(
-        MACOS_ACCEPTANCE,
+        LOCAL_MACOS,
         (
-            "workflow_dispatch:",
-            "runs-on: macos-26",
+            "GitHub Actions 不运行 macOS 检查",
             "bash scripts/test-all.sh",
+            "scripts/verify-agent-bundle.sh",
+            "scripts/verify-file-naming-bundle.sh",
         ),
     )
-    forbid(MACOS_ACCEPTANCE, ("pull_request:", "push:"))
-
-    for path in MANUAL_MACOS_WORKFLOWS:
-        require(path, ("workflow_dispatch:", "runs-on: macos-26"))
-        forbid(path, ("pull_request:", "push:"))
 
     if errors:
         for error in errors:
@@ -182,7 +179,7 @@ def main() -> int:
         print(f"{len(errors)} 条问题。", file=sys.stderr)
         return 1
 
-    print("工作流校验通过：三条路径、精简模板和 UI 证据分级正确。")
+    print("工作流校验通过：流程、无 macOS Actions 和本地 macOS 验收边界正确。")
     return 0
 
 

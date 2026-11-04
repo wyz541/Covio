@@ -242,9 +242,10 @@ Release 使用普通 `xcodebuild build`。
 Package 解析单独运行并记录 `package resolve` 阶段耗时。
 macOS 包不嵌入 KMP Framework。app 和 helper 都静态链接 Rust core。
 KMP 缓存测试仍保留到 #611 删除 shared module 为止，但 macOS 打包路径不调用它。
-GitHub Actions 不运行 macOS SwiftUI 作业。
-macOS 测试和 Release 构建由发布 Mac 负责。
+GitHub Actions 不运行任何 macOS 构建。
+macOS 测试和 Release 构建由本地 Apple Silicon Mac 负责。
 创建 Draft 前，维护者必须在本机运行 `bash scripts/test-all.sh`。
+本地验收步骤见 `docs/process/macos-validation.md`。
 
 ### 本机安装
 
