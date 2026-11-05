@@ -121,8 +121,8 @@ Project 8 的常规字段只有三个：
 | --- | --- | --- |
 | 相关测试 | 本地迭代 | 直接相关用例通过 |
 | 受影响模块 | 提交 PR 前 | 模块测试和跨边界用例通过 |
-| Linux 托管门禁 | 每个代码 PR | Rust、Kotlin JVM 和可移植检查通过 |
-| macOS 验收 | 发布 Mac 或手动工作流 | XCTest、helper、安装器和硬件验收通过 |
+| 托管门禁 | 每个代码 PR | Linux、Windows 和可移植检查通过 |
+| macOS 验收 | 本地 Apple Silicon Mac | XCTest、helper、安装器和硬件验收通过 |
 | 全量测试 | 高风险改动或正式发布 | `bash scripts/test-all.sh` 通过 |
 
 满足任一项时，运行全量测试：
@@ -132,7 +132,7 @@ Project 8 的常规字段只有三个：
 - 无法判断影响范围。
 - 准备正式发布。
 
-PR 写本地测试、CI 和真机结果。自动 CI 不运行 macOS XCTest。本地未跑全量测试时，写明原因和对应 CI 作业。
+PR 写本地测试、CI 和真机结果。GitHub Actions 不运行任何 macOS 构建。本地未跑全量测试时，写明原因和对应本地验收。
 
 ## 7. UI 证据
 

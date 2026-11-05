@@ -49,8 +49,8 @@ Project 8 的常规字段只有 `Status`、`Priority` 和 `Target date`。
 - 无法判断影响范围。
 - 准备正式发布。
 
-自动 CI 使用 Linux，运行 Rust、Kotlin JVM 和可移植检查。
-macOS XCTest、helper、安装器和真机验收在发布 Mac 或手动工作流运行。
+GitHub Actions 运行 Linux、Windows 和可移植检查。
+GitHub Actions 禁止 macOS 构建。macOS XCTest、helper、安装器和真机验收在本地 Apple Silicon Mac 运行。
 PR 写命令、结果、CI 和剩余风险。
 测试失败时不得转入 ready 或合并。
 

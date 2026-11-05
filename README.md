@@ -361,7 +361,7 @@ Run every test:
 bash scripts/test-all.sh
 ```
 
-The script runs the Kotlin tests, checks the design-contract constants, checks the contract rules that the schema cannot express, checks with the helper cutover script, and runs the macOS XCTest suite.
+GitHub Actions does not run macOS builds. Run this script locally for the complete macOS validation. The script runs the Kotlin tests, checks the design-contract constants, checks the contract rules that the schema cannot express, checks with the helper cutover script, and runs the macOS XCTest suite.
 
 Build one side only:
 

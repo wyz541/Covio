@@ -1,9 +1,10 @@
 # ADR-0032：托管 CI 只运行可移植门禁
 
-- Status：accepted
+- Status：superseded
 - Kind：architecture
 - Date：2026-11-04
 - Supersedes：none
+- Superseded by：ADR-0033
 - Implements：#627
 
 ## 背景
