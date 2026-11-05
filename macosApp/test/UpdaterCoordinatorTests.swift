@@ -96,6 +96,88 @@ final class UpdaterCoordinatorTests: XCTestCase {
         XCTAssertEqual(restarted.persistedStatus.availableVersion, nextClientVersion)
     }
 
+    func testCheckTreatsTheCurrentReleaseAsUpToDate() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covio-updater-current-release-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let paths = UpdaterPaths(root: root)
+        let currentVersion = GeneratedReleaseIdentity.clientVersion
+        let releaseTag = "v\(currentVersion)"
+        let signingKey = Curve25519.Signing.PrivateKey()
+        let manifestURL = try XCTUnwrap(URL(
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).json"
+        ))
+        let signatureURL = try XCTUnwrap(URL(
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).sig.json"
+        ))
+        let archiveURL = try XCTUnwrap(URL(
+            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).zip"
+        ))
+        let manifest = makeManifest(
+            archiveURL: archiveURL.absoluteString,
+            clientVersion: currentVersion,
+            buildNumber: GeneratedReleaseIdentity.buildNumber
+        )
+        let manifestData = try JSONEncoder().encode(manifest)
+        let signature = try signingKey.signature(for: manifestData)
+        let signatureData = try JSONEncoder().encode(
+            UpdateSignatureEnvelope(
+                schemaVersion: 1,
+                manifestSHA256: SHA256.hash(data: manifestData)
+                    .map { String(format: "%02x", $0) }
+                    .joined(),
+                signatures: [
+                    .init(
+                        keyId: "test-key",
+                        signature: signature.base64EncodedString()
+                    )
+                ]
+            )
+        )
+        UpdaterCoordinatorURLProtocol.responses = [
+            manifestURL.absoluteString: manifestData,
+            signatureURL.absoluteString: signatureData,
+        ]
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [UpdaterCoordinatorURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let feed = FixedUpdaterFeed(
+            releases: [
+                UpdaterReleaseCandidate(
+                    tagName: releaseTag,
+                    clientVersion: currentVersion,
+                    manifestURL: manifestURL,
+                    signatureURL: signatureURL,
+                    archiveURL: archiveURL,
+                    publishedAt: "2026-11-05T00:00:00Z"
+                ),
+            ]
+        )
+        let coordinator = UpdaterCoordinator(
+            paths: paths,
+            currentReleaseId: "\(currentVersion)-g" + String(repeating: "a", count: 40),
+            feed: feed,
+            trustedKeys: ["test-key": signingKey.publicKey.rawRepresentation],
+            session: session,
+            environment: ["COVIO_UPDATER_TEST_MODE": "1"]
+        )
+
+        let finished = expectation(description: "check completed")
+        var result: UpdaterOperationResult?
+        coordinator.check { value in
+            result = value
+            finished.fulfill()
+        }
+        wait(for: [finished], timeout: 5)
+
+        XCTAssertEqual(result?.ok, true)
+        XCTAssertEqual(result?.state, .idle)
+        XCTAssertNil(result?.availableVersion)
+        XCTAssertEqual(coordinator.persistedStatus.state, .idle)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.candidateManifest.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.candidateSignature.path))
+    }
+
     func testStartupDoesNotRecoverAnActivePKGTransaction() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("covio-updater-pkg-recovery-\(UUID().uuidString)")
