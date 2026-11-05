@@ -150,7 +150,7 @@ final class UpdaterCoordinator: @unchecked Sendable {
         do {
             try persist(.checking, availableVersion: nil, target: nil)
             let releases = try await feed.releases()
-            var lastError: Error?
+            var firstFailure: Error?
             for release in releases {
                 do {
                     let manifestData = try await downloadSmall(release.manifestURL)
@@ -185,12 +185,20 @@ final class UpdaterCoordinator: @unchecked Sendable {
                         message: "A verified update is available",
                         availableVersion: manifest.clientVersion
                     )
+                } catch let error as UpdateManifestError
+                    where error == .olderVersion || error == .olderBuild
+                {
+                    // The feed is sorted newest first. If this release is not newer,
+                    // every later release is also older and cannot be an update.
+                    break
                 } catch {
-                    lastError = error
+                    if firstFailure == nil {
+                        firstFailure = error
+                    }
                 }
             }
-            if let lastError {
-                throw lastError
+            if let firstFailure {
+                throw firstFailure
             }
             try clearCandidate()
             try persist(.idle, availableVersion: nil, target: nil)
