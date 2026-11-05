@@ -409,13 +409,20 @@ final class NotchShellControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testApplicationMenuSettingsOpensTheWorkbenchSettingsPane() throws {
+    func testApplicationMenuSettingsOpensTheStandaloneSettingsWindow() throws {
         let appDelegate = try XCTUnwrap(AppDelegate.current)
 
         XCTAssertTrue(appDelegate.openSettingsFromApplicationMenu())
-        XCTAssertEqual(
-            appDelegate.debugWorkbenchDestination,
-            .pane(id: PaneKind.settings.defaultId)
-        )
+        let controller = try XCTUnwrap(appDelegate.settingsWindowController)
+        let window = try XCTUnwrap(controller.window)
+
+        XCTAssertTrue(controller.isOpen)
+        XCTAssertFalse(window is NSPanel)
+        XCTAssertEqual(window.level, .normal)
+        XCTAssertTrue(window.styleMask.contains(.titled))
+        XCTAssertTrue(window.styleMask.contains(.closable))
+        XCTAssertTrue(window.styleMask.contains(.miniaturizable))
+        XCTAssertTrue(window.styleMask.contains(.resizable))
+        window.orderOut(nil)
     }
 }

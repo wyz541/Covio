@@ -112,8 +112,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openSettings() {
-        guard shell.workbench.openSettings() else { return }
-        shell.showFromGesture()
+        shell.onOpenSettings?(nil)
     }
 
     @objc private func quit() {

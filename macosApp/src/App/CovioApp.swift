@@ -10,7 +10,8 @@ import SwiftUI
 /// - Debug 构建另有充电命令，用来验证 helper 的原始回复。
 ///
 /// Hub 是 NSPanel，由 `AppDelegate` 与 `NotchShellController` 管理。
-/// 这里不提供任何窗口。`Settings` 场景是让 `App` 协议有一个非空 `Scene` 的最小写法。
+/// 独立设置窗口由 `SettingsWindowController` 创建。
+/// `Settings` 场景只满足 `App` 协议的非空 `Scene` 要求，应用菜单命令已替换为真实设置入口。
 @main
 enum CovioMain {
     static func main() async {

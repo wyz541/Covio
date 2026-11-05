@@ -45,8 +45,8 @@
 	<string>NSApplication</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Covio</string>
-	<!-- 代理应用：没有 Dock 图标与主菜单。入口是菜单栏状态项与顶部热区。 -->
+	<!-- 常规应用：显示 Dock 图标，可接收应用菜单与独立设置窗口。 -->
 	<key>LSUIElement</key>
-	<true/>
+	<false/>
 </dict>
 </plist>

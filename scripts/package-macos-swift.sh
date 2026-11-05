@@ -288,8 +288,8 @@ require_plist CovioReleaseId "$RELEASE_ID"
 require_plist CovioHelperProtocolVersion "$(python3 -I "$ROOT/scripts/release_manifest.py" value helperProtocolVersion)"
 require_plist CovioInstallTransactionVersion "1"
 require_plist CFBundleIdentifier "$APP_ID"
-# 代理应用：只有菜单栏状态项与顶部热区，没有 Dock 图标。
-require_plist LSUIElement "true"
+# 常规应用：Dock 图标用于聚焦 Covio，设置使用独立窗口。
+require_plist LSUIElement "false"
 
 # 最低系统版本由工程里的 MACOSX_DEPLOYMENT_TARGET 决定。这里只确认 Xcode 替换过。
 if [[ -z "$(read_plist LSMinimumSystemVersion)" ]]; then

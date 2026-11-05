@@ -46,6 +46,9 @@ final class NotchShellController {
 
     /// 运行时。Hub 的设置页读它。测试与预览里可以是 nil，那时设置页显示占位。
     var runtime: AppRuntime?
+    /// 打开独立设置窗口。生产环境由 `AppDelegate` 接线；预览与测试没有接线时
+    /// 搜索仍回落到工作台内旧路径。
+    var onOpenSettings: ((SettingsSearchHit?) -> Void)?
     /// `pointerLocation` 是唯一为了测试留的接缝。默认读真实指针位置。
     /// 测试注入固定坐标，就不必真的移动用户的鼠标。
     init(pointerLocation: @escaping @MainActor () -> CGPoint = { NSEvent.mouseLocation }) {

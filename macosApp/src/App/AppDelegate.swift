@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 应用代理。装配 Notch Shell、菜单栏图标与全局快捷键。
 ///
-/// `Info.plist` 的 `LSUIElement` 是 true，所以这是一个没有 Dock 图标与主菜单的代理应用。
+/// 应用使用常规激活策略，因此 Dock 中有 Covio 图标，也有标准应用菜单。
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 当前应用代理。宿主测试用它检查启动后的菜单栏入口装配。
@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 单实例检查通过之后才创建，避免第二个进程去动 shared 的配置文件。
     private var runtime: AppRuntime?
     private let shell = NotchShellController()
+    private(set) var settingsWindowController: SettingsWindowController?
     private(set) var statusItemController: StatusItemController?
     private var hotKey: GlobalHotKey?
     private var twoFingerSwipeMonitor: TwoFingerSwipeMonitor?
@@ -30,8 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.current = self
-        // LSUIElement 已经让进程成为代理应用。这里显式再设一次，防止从 Xcode 直接运行时不一致。
-        NSApp.setActivationPolicy(.accessory)
+        // 常规激活策略保证 Dock 图标存在，用户可以从 Dock 聚焦 Covio。
+        NSApp.setActivationPolicy(.regular)
 
         #if DEBUG
         switch ProcessInfo.processInfo.environment["COVIO_FORCE_APPEARANCE"]?.lowercased() {
@@ -368,22 +369,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let runtime = AppRuntime()
         self.runtime = runtime
         shell.runtime = runtime
+        settingsWindowController = SettingsWindowController(runtime: runtime)
+        shell.onOpenSettings = { [weak self] hit in
+            self?.showSettingsWindow(reveal: hit)
+        }
         runtime.agentUIActions.setOpenPaneAction { [weak self] pane in
             guard let self else { return false }
-            let opened: Bool
             switch pane {
             case .agent:
-                self.shell.chrome.select(.assistant)
-                opened = self.shell.workbench.openSettings()
+                return self.showSettingsWindow(section: .assistant)
             case .settings:
-                self.shell.chrome.select(.overview)
-                opened = self.shell.workbench.openSettings()
+                return self.showSettingsWindow(section: .overview)
             case .now, .clipboard, .files, .devices:
-                opened = self.shell.workbench.open(pane.hubTab)
+                guard self.shell.workbench.open(pane.hubTab) else { return false }
+                self.shell.show()
+                return true
             }
-            guard opened else { return false }
-            self.shell.show()
-            return true
         }
         // 工作台配置落盘。文件不存在时 `load()` 给默认值，所以首次启动就有六块组件。
         shell.workbench.attach(
@@ -440,11 +441,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if let rawSection = ProcessInfo.processInfo.environment["COVIO_SETTINGS_PREVIEW_SECTION"],
                    let section = SettingsSection(rawValue: rawSection)
                 {
-                    self.shell.chrome.select(section)
-                    _ = self.shell.workbench.openSettings()
+                    _ = self.showSettingsWindow(section: section)
+                } else {
+                    // 固定打开，避免指针不在面板内时自动收起，截图才可复现。
+                    self.shell.showFromGesture()
                 }
-                // 固定打开，避免指针不在面板内时自动收起，截图才可复现。
-                self.shell.showFromGesture()
                 NSApp.activate(ignoringOtherApps: true)
             }
         }
@@ -461,24 +462,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.hotKey = hotKey
     }
 
-    /// 应用菜单和 ⌘, 打开真实的工作台设置页。
+    /// 应用菜单和 ⌘, 打开独立设置窗口。
     @discardableResult
     func openSettingsFromApplicationMenu() -> Bool {
-        guard shell.workbench.openSettings() else { return false }
-        shell.showFromGesture()
+        showSettingsWindow()
+    }
+
+    /// 打开独立设置窗口。窗口打开后收起工作台，避免两个表面重叠。
+    @discardableResult
+    func showSettingsWindow(
+        section: SettingsSection? = nil,
+        reveal hit: SettingsSearchHit? = nil
+    ) -> Bool {
+        guard let settingsWindowController else { return false }
+        if shell.isExpanded {
+            shell.requestCollapse()
+        }
+        settingsWindowController.show(section: section, reveal: hit)
         return true
     }
 
-    #if DEBUG
-    var debugWorkbenchDestination: HubDestination {
-        shell.workbench.destination
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication,
+        hasVisibleWindows flag: Bool
+    ) -> Bool {
+        if settingsWindowController?.isOpen == true {
+            settingsWindowController?.bringForward()
+        } else if !shell.isHubPanelOnScreen {
+            shell.showFromGesture()
+            sender.activate(ignoringOtherApps: true)
+        }
+        return true
     }
-    #endif
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
 
     func applicationWillTerminate(_ notification: Notification) {
         Self.current = nil
         hotKey?.unregister()
         statusItemController?.tearDown()
+        settingsWindowController?.close()
         // Stop the lease before the helper expires it. The helper also restores
         // after a crash, but normal quit should not leave fan control running.
         FanControlLeaseKeeper.shared.stopAndRestore()

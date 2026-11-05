@@ -27,6 +27,8 @@ struct HubView: View {
     let runtime: AppRuntime?
     /// Popover 打开时用它通知控制器暂停自动收起。
     var popoverCoordinator: HubPopoverCoordinator? = nil
+    /// 把设置搜索结果交给独立窗口。预览与测试没有接线时回落到工作台设置页。
+    var onOpenSettings: ((SettingsSearchHit?) -> Void)? = nil
     /// 预览与测试没有运行时，用这个语言取文案。
     var previewLanguage: AppLanguage = CopyLocale.language
 
@@ -189,8 +191,13 @@ struct HubView: View {
 
                 if isSettingsSearch {
                     SettingsSearchResults(chrome: chrome, language: language) { hit in
-                        _ = workbench.openSettings()
-                        chrome.reveal(hit)
+                        chrome.clearSearch()
+                        if let onOpenSettings {
+                            onOpenSettings(hit)
+                        } else {
+                            _ = workbench.openSettings()
+                            chrome.reveal(hit)
+                        }
                     }
                 } else {
                     pageContent
