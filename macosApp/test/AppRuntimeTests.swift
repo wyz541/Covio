@@ -46,6 +46,8 @@ final class AppRuntimeTests: XCTestCase {
         helperStatus: HelperStatus? = nil,
         helperServiceState: HelperServiceState? = nil,
         updateRelease: UpdateInfo? = nil,
+        updaterClient: (any CovioUpdaterClientProtocol)? = nil,
+        updaterRequestTimeout: TimeInterval = 8,
         brightnessBackend: FakeClosedLidBrightnessBackend = FakeClosedLidBrightnessBackend(brightness: 0.6)
     ) -> AppRuntime {
         privileged = FakePrivilegedOps()
@@ -97,6 +99,8 @@ final class AppRuntimeTests: XCTestCase {
             loginItem: loginItem,
             notifier: notifier,
             updateChecker: updateChecker,
+            updaterClient: updaterClient ?? CovioUpdaterClient(),
+            updaterRequestTimeout: updaterRequestTimeout,
             powerObservation: powerObservation,
             powerHistoryStore: PowerHistoryStore.companion.create(
                 path: directory.appendingPathComponent("power-history.json").path
@@ -787,6 +791,25 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertNil(created.statusMessage)
     }
 
+    func testUpdaterStatusTimeoutClearsBusyState() async throws {
+        let updaterClient = NeverRespondingUpdaterClient()
+        let created = makeRuntime(
+            updaterClient: updaterClient,
+            updaterRequestTimeout: 0.1
+        )
+
+        created.refreshUpdaterStatus()
+        XCTAssertTrue(created.updaterBusy)
+        XCTAssertTrue(updaterClient.statusRequested)
+
+        try await Task.sleep(for: .milliseconds(250))
+
+        XCTAssertFalse(created.updaterBusy)
+        XCTAssertTrue(created.updaterUnavailable)
+        XCTAssertTrue(updaterClient.invalidated)
+        XCTAssertNotNil(created.statusMessage)
+    }
+
     /// 退出走注入的闭包。
     ///
     /// 默认实现真的调 `NSApp.terminate`，测试里换成假闭包，
@@ -889,4 +912,28 @@ final class FakeUpdateChecker: NSObject, UpdateChecker {
 private final class NoopMonitorHistorySampler: MonitorHistorySampling {
     func start() {}
     func stop() {}
+}
+
+private final class NeverRespondingUpdaterClient: CovioUpdaterClientProtocol {
+    private(set) var statusRequested = false
+    private(set) var invalidated = false
+
+    func getStatus(completion: @escaping (Result<UpdaterStatus, Error>) -> Void) {
+        statusRequested = true
+    }
+
+    func checkNow(completion: @escaping (Result<UpdaterOperationResult, Error>) -> Void) {}
+
+    func installAvailable(completion: @escaping (Result<UpdaterOperationResult, Error>) -> Void) {}
+
+    func setAutomaticUpdates(
+        _ enabled: Bool,
+        completion: @escaping (Result<UpdaterOperationResult, Error>) -> Void
+    ) {}
+
+    func restartApp(completion: @escaping (Result<UpdaterOperationResult, Error>) -> Void) {}
+
+    func invalidate() {
+        invalidated = true
+    }
 }

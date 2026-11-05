@@ -255,19 +255,21 @@ Research #555 和 #557 收敛了实现边界。本节补充取代决策 29，并
 2. Launcher 只读取 root-owned `current` 指针。指针内容是 release ID，不是任意路径。
 3. Launcher 只启动 `Updater/versions/<releaseId>/CovioUpdater`。
 4. Launcher 验证 engine 的路径、所有权、权限和代码签名。
-5. Launcher 启动 engine 子进程，并读取带 release ID 的 health 标记。
-6. Engine 快速连续启动失败时，launcher 使用 `previous` 指针恢复旧 engine。
-7. Updater 自更新只替换版本化 engine。成功提交后保留 `previous` engine，清理更旧版本。
-8. Launcher 只在 migration PKG 或 repair PKG 中更新。Repair PKG 继续请求最多 1 次管理员授权。
-9. Launcher 不联网、不读取 manifest、不执行 shell，也不接受调用方提供的路径。
-10. Updater XPC listener 在激活前设置 app 的固定代码签名要求。
-11. App 连接到 updater 时也设置 updater 的固定代码签名要求。
-12. Updater 在每次调用中读取 `NSXPCConnection.currentConnection` 的 kernel-provided peer metadata。
-13. Updater 使用 audit session、PID、EUID 和 EGID 做审计与用户上下文处理。
-14. `NSXPCConnection` 不暴露完整 `audit_token_t` 时，上述 audit metadata 是受支持的实现边界。
-15. 代码签名 requirement 决定是否授权。PID、UID 和路径不能单独授权调用方。
-16. 自动更新偏好按调用 UID 保存。Updater 拒绝一个用户修改另一个用户的偏好。
-17. Updater 只重启固定路径的 `/Applications/Covio.app`，并使用调用方的 audit session。
+5. Launcher 验证并预检 engine，然后用 `execv` 让 engine 接管同一进程。launchd Mach service 始终属于这个进程。
+6. Launcher 在 `execv` 前写入持久 launch-state。Engine 稳定运行后清除该状态。
+7. 同一 release 在 30 秒内连续启动 3 次失败时，launcher 使用 `previous` 指针恢复旧 engine。
+8. Updater 自更新只替换版本化 engine。成功提交后保留 `previous` engine，清理更旧版本。
+9. Launcher 只在 migration PKG 或 repair PKG 中更新。Repair PKG 继续请求最多 1 次管理员授权。
+10. Launcher 不联网、不读取 manifest、不执行 shell，也不接受调用方提供的路径。
+11. Updater XPC listener 在激活前设置 app 的固定代码签名要求。
+12. App 连接到 updater 时也设置 updater 的固定代码签名要求。
+13. Updater 在每次调用中读取 `NSXPCConnection.currentConnection` 的 kernel-provided peer metadata。
+14. Updater 使用 audit session、PID、EUID 和 EGID 做审计与用户上下文处理。
+15. `NSXPCConnection` 不暴露完整 `audit_token_t` 时，上述 audit metadata 是受支持的实现边界。
+16. 代码签名 requirement 决定是否授权。PID、UID 和路径不能单独授权调用方。
+17. 自动更新偏好按调用 UID 保存。Updater 拒绝一个用户修改另一个用户的偏好。
+18. Updater 只重启固定路径的 `/Applications/Covio.app`，并使用调用方的 audit session。
+19. 临时 launchd job 测试必须证明 versioned engine 在 `execv` 后能响应 `getStatus`。
 
 ### 后续约束
 

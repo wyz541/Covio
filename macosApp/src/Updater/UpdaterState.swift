@@ -68,3 +68,57 @@ struct UpdaterTransactionResult: Codable, Equatable, Sendable {
     let rollbackReason: String?
     let recordedAt: String
 }
+
+struct UpdaterLaunchState: Codable, Equatable, Sendable {
+    let schemaVersion: Int
+    let releaseId: String
+    let attempts: Int
+    let lastAttemptAt: String
+}
+
+enum UpdaterLaunchStateStore {
+    static let failureWindow: TimeInterval = 30
+    static let stableDelay: TimeInterval = 30
+
+    static func recordAttempt(
+        paths: UpdaterPaths,
+        releaseId: String,
+        now: Date = Date()
+    ) -> Int {
+        var attempts = 1
+        if let data = try? Data(contentsOf: paths.launchState),
+           let previous = try? JSONDecoder().decode(UpdaterLaunchState.self, from: data),
+           previous.schemaVersion == 1,
+           previous.releaseId == releaseId,
+           let previousDate = ISO8601DateFormatter().date(from: previous.lastAttemptAt),
+           now.timeIntervalSince(previousDate) >= 0,
+           now.timeIntervalSince(previousDate) <= failureWindow
+        {
+            attempts = previous.attempts + 1
+        }
+        let state = UpdaterLaunchState(
+            schemaVersion: 1,
+            releaseId: releaseId,
+            attempts: attempts,
+            lastAttemptAt: ISO8601DateFormatter().string(from: now)
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        var data = (try? encoder.encode(state)) ?? Data()
+        data.append(0x0A)
+        try? FileManager.default.createDirectory(
+            at: paths.root,
+            withIntermediateDirectories: true
+        )
+        try? data.write(to: paths.launchState, options: .atomic)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o644],
+            ofItemAtPath: paths.launchState.path
+        )
+        return attempts
+    }
+
+    static func clear(paths: UpdaterPaths) {
+        try? FileManager.default.removeItem(at: paths.launchState)
+    }
+}
