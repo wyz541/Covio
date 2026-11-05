@@ -60,7 +60,7 @@ The repository no longer contains the old KMP module, Amper project, Kotlin wrap
 ## Download (internal test)
 
 Covio is under internal test.
-Covio 0.6.0-internal.30 is the current internal build.
+Covio 0.6.0-internal.31 is the current internal build.
 The macOS build requires macOS 26 or later on Apple Silicon.
 The Windows build supports Windows 11 x64.
 The default installer does not contain model weights.
@@ -71,12 +71,13 @@ Existing 0.0.2.3 and earlier users must install the transactional PKG once for t
 Later internal updates do not request administrator credentials.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
-- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.30/Covio-0.6.0-internal.30.dmg)
-- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.30/Covio-0.6.0-internal.30.pkg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.30)
-- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.30/checksums.txt)
-- [Covio 0.6.0-internal.29](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.29) is the previous internal test.
-- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.30/Covio-0.6.0-internal.30-windows-x64-setup.exe)
+- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.31/Covio-0.6.0-internal.31.dmg)
+- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.31/Covio-0.6.0-internal.31.pkg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.31)
+- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.31/checksums.txt)
+- [Covio 0.6.0-internal.30](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.30) is the previous internal test.
+- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.31/Covio-0.6.0-internal.31-windows-x64-setup.exe)
+- [Covio 0.6.0-internal.29](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.29) is an older internal test.
 - [Covio 0.6.0-internal.28](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.28) is an older internal test.
 - [Covio 0.6.0-internal.27](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.27) is an older internal test.
 - [Covio 0.6.0-internal.26](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.26) is an older internal test.
@@ -101,7 +102,7 @@ Validation results are in `docs/research/installer-size-reduction/validation/`.
 
 Install steps:
 
-1. Download `Covio-0.6.0-internal.30.pkg`.
+1. Download `Covio-0.6.0-internal.31.pkg`.
 2. Open the PKG and complete one administrator authorization.
 3. Open `Covio.app`.
 4. Open Settings and confirm the automatic update state.
