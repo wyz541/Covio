@@ -1,6 +1,6 @@
 import Foundation
 
-struct UpdaterPaths: Equatable {
+struct UpdaterPaths: Equatable, Sendable {
     static let defaultRoot = "/Library/Application Support/Covio/Updater"
 
     let root: URL
@@ -34,6 +34,7 @@ struct UpdaterPaths: Equatable {
     var transactions: URL { root.appendingPathComponent("transactions", isDirectory: true) }
     var updateState: URL { root.appendingPathComponent("update-state.json") }
     var updateResult: URL { root.appendingPathComponent("update-result.json") }
+    var launchState: URL { root.appendingPathComponent("launch-state.json") }
     var candidateManifest: URL { root.appendingPathComponent("update-candidate.json") }
     var candidateSignature: URL { root.appendingPathComponent("update-candidate.sig.json") }
     var installerRoot: URL { root.deletingLastPathComponent().appendingPathComponent("Installer", isDirectory: true) }

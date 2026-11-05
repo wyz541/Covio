@@ -4,7 +4,6 @@ import Foundation
 @main
 enum CovioUpdaterLauncherMain {
     private static let rapidFailureThreshold = 3
-    private static let rapidFailureWindow: TimeInterval = 30
 
     static func main() {
         exit(run())
@@ -18,12 +17,10 @@ enum CovioUpdaterLauncherMain {
         }
 
         let skipValidation = environment["COVIO_UPDATER_TEST_SKIP_VALIDATION"] == "1"
-        let exitAfterHealthy =
-            environment["COVIO_UPDATER_TEST_EXIT_AFTER_HEALTHY"] == "1"
-        let healthTimeout = TimeInterval(
+        let preflightTimeout = TimeInterval(
             Double(environment["COVIO_UPDATER_HEALTH_TIMEOUT_MS"] ?? "") ?? 10_000
         ) / 1_000
-        var rapidFailures = 0
+        let forwardedArguments = Array(CommandLine.arguments.dropFirst())
 
         while true {
             guard let releaseId = readCurrentRelease(paths: paths) else {
@@ -33,84 +30,105 @@ enum CovioUpdaterLauncherMain {
             let engine: URL
             do {
                 engine = try paths.engine(for: releaseId)
-                try validateEngine(
-                    engine,
-                    skipValidation: skipValidation
-                )
+                try validateEngine(engine, skipValidation: skipValidation)
             } catch {
                 fputs("CovioUpdater engine validation failed: \(error)\n", stderr)
                 if fallback(paths: paths, failedReleaseId: releaseId) {
-                    rapidFailures = 0
                     continue
                 }
                 return 1
             }
 
-            try? FileManager.default.removeItem(at: paths.health)
-            let process = Process()
-            process.executableURL = engine
-            var childEnvironment = environment
-            childEnvironment["COVIO_UPDATER_RELEASE_ID"] = releaseId
-            childEnvironment["COVIO_UPDATER_ROOT"] = paths.root.path
-            process.environment = childEnvironment
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            do {
-                try process.run()
-            } catch {
-                fputs("CovioUpdater engine launch failed: \(error)\n", stderr)
-                if fallback(paths: paths, failedReleaseId: releaseId) {
-                    rapidFailures = 0
-                    continue
-                }
-                return 1
-            }
-
-            let startedAt = Date()
-            guard waitForHealthyEngine(
+            let attempts = UpdaterLaunchStateStore.recordAttempt(
                 paths: paths,
+                releaseId: releaseId
+            )
+            if attempts >= rapidFailureThreshold {
+                UpdaterLaunchStateStore.clear(paths: paths)
+                fputs("CovioUpdater engine failed \(attempts) rapid starts\n", stderr)
+                if fallback(paths: paths, failedReleaseId: releaseId) {
+                    continue
+                }
+                return 1
+            }
+
+            guard preflightEngine(
+                engine,
                 releaseId: releaseId,
-                process: process,
-                timeout: healthTimeout
+                paths: paths,
+                environment: environment,
+                timeout: preflightTimeout
             ) else {
-                if process.isRunning {
-                    process.terminate()
-                    process.waitUntilExit()
-                }
-                fputs("CovioUpdater engine did not report health\n", stderr)
-                if fallback(paths: paths, failedReleaseId: releaseId) {
-                    rapidFailures = 0
-                    continue
-                }
-                return 1
-            }
-
-            if exitAfterHealthy {
-                if process.isRunning {
-                    process.terminate()
-                    process.waitUntilExit()
-                }
-                return 0
-            }
-
-            while process.isRunning {
-                Thread.sleep(forTimeInterval: 0.2)
-            }
-            process.waitUntilExit()
-            let uptime = Date().timeIntervalSince(startedAt)
-            if uptime < rapidFailureWindow {
-                rapidFailures += 1
-            } else {
-                rapidFailures = 0
-            }
-            if rapidFailures >= rapidFailureThreshold {
-                rapidFailures = 0
+                UpdaterLaunchStateStore.clear(paths: paths)
+                fputs("CovioUpdater engine preflight failed\n", stderr)
                 if fallback(paths: paths, failedReleaseId: releaseId) {
                     continue
                 }
                 return 1
             }
+
+            // launchd binds the Mach service to this job process. exec preserves
+            // that process, so the versioned engine can own the XPC listener.
+            setenv("COVIO_UPDATER_RELEASE_ID", releaseId, 1)
+            setenv("COVIO_UPDATER_ROOT", paths.root.path, 1)
+            let arguments = [engine.path] + forwardedArguments
+            var argv: [UnsafeMutablePointer<CChar>?] = arguments.map { strdup($0) } + [nil]
+            let result = engine.path.withCString { path in
+                execv(path, &argv)
+            }
+            fputs("CovioUpdater engine exec failed: \(String(cString: strerror(errno)))\n", stderr)
+            UpdaterLaunchStateStore.clear(paths: paths)
+            if fallback(paths: paths, failedReleaseId: releaseId) {
+                continue
+            }
+            return result == -1 ? 1 : 0
         }
+    }
+
+    private static func preflightEngine(
+        _ engine: URL,
+        releaseId: String,
+        paths: UpdaterPaths,
+        environment: [String: String],
+        timeout: TimeInterval
+    ) -> Bool {
+        let process = Process()
+        process.executableURL = engine
+        process.arguments = ["--selftest"]
+        var childEnvironment = environment
+        childEnvironment["COVIO_UPDATER_RELEASE_ID"] = releaseId
+        childEnvironment["COVIO_UPDATER_ROOT"] = paths.root.path
+        process.environment = childEnvironment
+        let standardOutput = Pipe()
+        let standardError = Pipe()
+        process.standardOutput = standardOutput
+        process.standardError = standardError
+        do {
+            try process.run()
+        } catch {
+            return false
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        if process.isRunning {
+            process.terminate()
+            process.waitUntilExit()
+            return false
+        }
+        process.waitUntilExit()
+        let output = standardOutput.fileHandleForReading.readDataToEndOfFile()
+        let errorOutput = standardError.fileHandleForReading.readDataToEndOfFile()
+        guard process.terminationStatus == 0,
+              let status = try? JSONDecoder().decode(UpdaterStatus.self, from: output)
+        else {
+            fputs("CovioUpdater preflight output: \(String(decoding: output, as: UTF8.self))\n", stderr)
+            fputs("CovioUpdater preflight error: \(String(decoding: errorOutput, as: UTF8.self))\n", stderr)
+            return false
+        }
+        return status.releaseId == releaseId
     }
 
     private static func selftest() -> Bool {
@@ -243,28 +261,6 @@ enum CovioUpdaterLauncherMain {
         guard description.contains("Identifier=\(UpdaterContract.engineIdentifier)") else {
             throw UpdaterPathError.untrustedEngine
         }
-    }
-
-    private static func waitForHealthyEngine(
-        paths: UpdaterPaths,
-        releaseId: String,
-        process: Process,
-        timeout: TimeInterval
-    ) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            guard process.isRunning else { return false }
-            if let data = try? Data(contentsOf: paths.health),
-               let health = try? JSONDecoder().decode(UpdaterHealth.self, from: data),
-               health.isValidShape,
-               health.releaseId == releaseId,
-               health.processIdentifier == process.processIdentifier
-            {
-                return true
-            }
-            Thread.sleep(forTimeInterval: 0.1)
-        }
-        return false
     }
 
     private static func runTool(_ executable: String, arguments: [String]) -> Bool {

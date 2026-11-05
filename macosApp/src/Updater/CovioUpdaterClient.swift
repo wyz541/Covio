@@ -1,6 +1,18 @@
 import Foundation
 
-final class CovioUpdaterClient {
+protocol CovioUpdaterClientProtocol: AnyObject {
+    func getStatus(completion: @escaping (Result<UpdaterStatus, Error>) -> Void)
+    func checkNow(completion: @escaping (Result<UpdaterOperationResult, Error>) -> Void)
+    func installAvailable(completion: @escaping (Result<UpdaterOperationResult, Error>) -> Void)
+    func setAutomaticUpdates(
+        _ enabled: Bool,
+        completion: @escaping (Result<UpdaterOperationResult, Error>) -> Void
+    )
+    func restartApp(completion: @escaping (Result<UpdaterOperationResult, Error>) -> Void)
+    func invalidate()
+}
+
+final class CovioUpdaterClient: CovioUpdaterClientProtocol, @unchecked Sendable {
     private let paths: UpdaterPaths
     private var connection: NSXPCConnection?
 

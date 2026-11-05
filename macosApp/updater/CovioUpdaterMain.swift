@@ -66,7 +66,21 @@ enum CovioUpdaterMain {
             fputs("Cannot write updater health file\n", stderr)
             exit(1)
         }
+        scheduleLaunchStable(paths: paths, environment: environment)
         RunLoop.current.run()
+    }
+
+    private static func scheduleLaunchStable(
+        paths: UpdaterPaths,
+        environment: [String: String]
+    ) {
+        let configured = TimeInterval(
+            Double(environment["COVIO_UPDATER_STABILITY_DELAY_SECONDS"] ?? "") ?? 0
+        )
+        let delay = configured > 0 ? configured : UpdaterLaunchStateStore.stableDelay
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay) {
+            UpdaterLaunchStateStore.clear(paths: paths)
+        }
     }
 
     private static func clientRequirement(paths: UpdaterPaths) -> String {

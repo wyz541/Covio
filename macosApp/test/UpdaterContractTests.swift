@@ -36,6 +36,38 @@ final class UpdaterContractTests: XCTestCase {
         XCTAssertThrowsError(try paths.engine(for: "../../CovioUpdater"))
     }
 
+    func testLaunchAttemptsIncrementOnlyInsideTheFailureWindow() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("covio-updater-launch-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let paths = UpdaterPaths(root: root)
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+
+        XCTAssertEqual(
+            UpdaterLaunchStateStore.recordAttempt(paths: paths, releaseId: releaseId, now: start),
+            1
+        )
+        XCTAssertEqual(
+            UpdaterLaunchStateStore.recordAttempt(
+                paths: paths,
+                releaseId: releaseId,
+                now: start.addingTimeInterval(5)
+            ),
+            2
+        )
+        XCTAssertEqual(
+            UpdaterLaunchStateStore.recordAttempt(
+                paths: paths,
+                releaseId: releaseId,
+                now: start.addingTimeInterval(40)
+            ),
+            1
+        )
+
+        UpdaterLaunchStateStore.clear(paths: paths)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: paths.launchState.path))
+    }
+
     func testStatusRoundTripsThroughJSON() throws {
         let status = UpdaterStatus(
             schemaVersion: 1,
