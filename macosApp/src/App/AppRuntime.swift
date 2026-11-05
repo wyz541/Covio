@@ -125,6 +125,7 @@ final class AppRuntime {
     private let updateChecker: UpdateChecker
     private let updaterClient: any CovioUpdaterClientProtocol
     private let updaterRequestTimeout: TimeInterval
+    private let updaterOperationTimeout: TimeInterval
     /// 通知开关的持有者。`MacNotifier` 要一个读开关的闭包，
     /// 那个闭包必须在 `self` 建好之前交出去，所以开关放在这个独立对象里。
     private let notificationGate: NotificationGate
@@ -161,6 +162,7 @@ final class AppRuntime {
         updateChecker: UpdateChecker = GithubUpdateChecker(),
         updaterClient: any CovioUpdaterClientProtocol = CovioUpdaterClient(),
         updaterRequestTimeout: TimeInterval = 8,
+        updaterOperationTimeout: TimeInterval = 45,
         powerObservation: PowerObservationSource? = nil,
         powerHistoryStore: PowerHistoryStore? = nil,
         closedLidBrightnessBackend: ClosedLidBrightnessBackend? = nil,
@@ -218,6 +220,7 @@ final class AppRuntime {
         self.updateChecker = updateChecker
         self.updaterClient = updaterClient
         self.updaterRequestTimeout = updaterRequestTimeout
+        self.updaterOperationTimeout = updaterOperationTimeout
 
         // 空语言表示跟随系统。不要把解析出的语言写回配置，否则系统语言以后变化时不再生效。
         var loaded = resolvedStore.load()
@@ -1194,7 +1197,7 @@ final class AppRuntime {
     }
 
     func setUpdaterAutomatic(_ enabled: Bool) {
-        guard let generation = beginUpdaterRequest() else { return }
+        guard let generation = beginUpdaterRequest(timeout: updaterOperationTimeout) else { return }
         updaterClient.setAutomaticUpdates(enabled) { [weak self] result in
             Task { @MainActor in
                 guard let self, self.updaterRequestGeneration == generation else { return }
@@ -1213,7 +1216,7 @@ final class AppRuntime {
     }
 
     func checkUpdaterNow() {
-        guard let generation = beginUpdaterRequest() else { return }
+        guard let generation = beginUpdaterRequest(timeout: updaterOperationTimeout) else { return }
         updaterClient.checkNow { [weak self] result in
             Task { @MainActor in
                 guard let self, self.updaterRequestGeneration == generation else { return }
@@ -1236,7 +1239,7 @@ final class AppRuntime {
     }
 
     func installAvailableUpdate() {
-        guard let generation = beginUpdaterRequest() else { return }
+        guard let generation = beginUpdaterRequest(timeout: updaterOperationTimeout) else { return }
         updaterClient.installAvailable { [weak self] result in
             Task { @MainActor in
                 guard let self, self.updaterRequestGeneration == generation else { return }
@@ -1258,7 +1261,7 @@ final class AppRuntime {
     }
 
     func restartAppForUpdate() {
-        guard let generation = beginUpdaterRequest() else { return }
+        guard let generation = beginUpdaterRequest(timeout: updaterOperationTimeout) else { return }
         updaterClient.restartApp { [weak self] result in
             Task { @MainActor in
                 guard let self, self.updaterRequestGeneration == generation else { return }
@@ -1279,13 +1282,13 @@ final class AppRuntime {
         }
     }
 
-    private func beginUpdaterRequest() -> Int? {
+    private func beginUpdaterRequest(timeout requestedTimeout: TimeInterval? = nil) -> Int? {
         guard !updaterBusy else { return nil }
         updaterBusy = true
         updaterRequestGeneration += 1
         let generation = updaterRequestGeneration
         updaterTimeoutTask?.cancel()
-        let timeout = max(updaterRequestTimeout, 0.1)
+        let timeout = max(requestedTimeout ?? updaterRequestTimeout, 0.1)
         updaterTimeoutTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(timeout))
             guard !Task.isCancelled,
