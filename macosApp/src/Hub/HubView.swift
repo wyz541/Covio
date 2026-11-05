@@ -192,12 +192,7 @@ struct HubView: View {
                 if isSettingsSearch {
                     SettingsSearchResults(chrome: chrome, language: language) { hit in
                         chrome.clearSearch()
-                        if let onOpenSettings {
-                            onOpenSettings(hit)
-                        } else {
-                            _ = workbench.openSettings()
-                            chrome.reveal(hit)
-                        }
+                        onOpenSettings?(hit)
                     }
                 } else {
                     pageContent
@@ -353,8 +348,6 @@ struct HubTabContent: View {
                 runtime: runtime,
                 popoverCoordinator: popoverCoordinator
             )
-        } else if let runtime, tab == .settings {
-            SettingsTabView(runtime: runtime, section: chrome.settingsSection, chrome: chrome)
         } else if let runtime, tab == .clipboard {
             ClipboardTabView(
                 clipboard: runtime.clipboard,

@@ -8,32 +8,37 @@ struct OverviewPage: View {
     let runtime: AppRuntime
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MacTheme.space6) {
-            MacCard {
-                MacSettingRow(title: ContractCopy.copyOverviewRulesMaster.text(for: runtime.language)) {
-                    MacSwitch(
-                        label: ContractCopy.copyOverviewRulesMaster.text(for: runtime.language),
-                        isOn: Binding(
-                            get: { runtime.config.enabled },
-                            set: { runtime.setEnabled($0) }
-                        )
+        Form {
+            Section {
+                Toggle(
+                    ContractCopy.copyOverviewRulesMaster.text(for: runtime.language),
+                    isOn: Binding(
+                        get: { runtime.config.enabled },
+                        set: { runtime.setEnabled($0) }
                     )
-                }
+                )
+                .toggleStyle(.switch)
                 .settingsRowAnchor(SettingsRowID.overviewMaster)
-                HStack(spacing: MacTheme.space2) {
-                    MacButton(
-                        title: ContractCopy.copyOverviewActionSleepNow.text(for: runtime.language),
-                        kind: .primary
-                    ) { runtime.sleepNow() }
-                    MacButton(title: ContractCopy.copyOverviewActionDisplayOff.text(for: runtime.language)) {
-                        runtime.displaySleepNow()
-                    }
-                }
             }
 
-            MacCard {
-                MacStatusLine(text: runtime.batteryText())
+            Section {
+                Text(runtime.batteryText())
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: MacTheme.space2) {
+                    Button(ContractCopy.copyOverviewActionSleepNow.text(for: runtime.language)) {
+                        runtime.sleepNow()
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button(ContractCopy.copyOverviewActionDisplayOff.text(for: runtime.language)) {
+                        runtime.displaySleepNow()
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
         }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

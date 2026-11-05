@@ -413,16 +413,11 @@ final class NotchShellControllerTests: XCTestCase {
         let appDelegate = try XCTUnwrap(AppDelegate.current)
 
         XCTAssertTrue(appDelegate.openSettingsFromApplicationMenu())
-        let controller = try XCTUnwrap(appDelegate.settingsWindowController)
-        let window = try XCTUnwrap(controller.window)
+        let window = try XCTUnwrap(appDelegate.settingsWindow)
 
-        XCTAssertTrue(controller.isOpen)
         XCTAssertFalse(window is NSPanel)
         XCTAssertEqual(window.level, .normal)
-        XCTAssertTrue(window.styleMask.contains(.titled))
-        XCTAssertTrue(window.styleMask.contains(.closable))
-        XCTAssertTrue(window.styleMask.contains(.miniaturizable))
-        XCTAssertTrue(window.styleMask.contains(.resizable))
+        XCTAssertEqual(window.identifier, SettingsWindowMetrics.identifier)
         window.orderOut(nil)
     }
 }

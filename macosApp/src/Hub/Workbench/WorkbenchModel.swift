@@ -108,15 +108,6 @@ final class WorkbenchModel {
         destination = .pane(id: PaneKind.files.defaultId)
     }
 
-    /// 打开设置。设置不参与工作台页签，状态栏与搜索结果都走这里。
-    @discardableResult
-    func openSettings() -> Bool {
-        guard config.pane(id: PaneKind.settings.defaultId) != nil else { return false }
-        isEditing = false
-        destination = .pane(id: PaneKind.settings.defaultId)
-        return true
-    }
-
     /// 文件页读到请求后清空，避免下次进入时重复套用旧筛选。
     func consumeFileFilterRequest() {
         pendingFileFilter = nil

@@ -32,6 +32,13 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertEqual(seen, SettingsSection.allCases)
     }
 
+    /// 原生设置工具栏为每个分页提供唯一图标。
+    func testEverySectionHasAUniqueToolbarSymbol() {
+        let symbols = SettingsSection.allCases.map(\.symbolName)
+        XCTAssertTrue(symbols.allSatisfy { !$0.isEmpty })
+        XCTAssertEqual(Set(symbols).count, symbols.count)
+    }
+
     /// 每条都有合同键的标题，中英都不为空。
     func testEveryEntryHasCopy() {
         for entry in SettingsCatalog.entries {

@@ -34,11 +34,32 @@ struct MacCard<Content: View>: View {
         // 用不透明的 `surface` 会把模糊整个盖住。
         .background(MacTheme.material, in: shape)
         .overlay(shape.strokeBorder(MacTheme.divider, lineWidth: 1))
-        .glassSurface(cornerRadius: MacTheme.cardRadius)
+        .settingsAwareGlassSurface(cornerRadius: MacTheme.cardRadius)
     }
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
+    }
+}
+
+/// 设置窗口的内容层使用标准材质。其他界面继续使用既有 Liquid Glass 表面。
+private struct SettingsAwareGlassSurfaceModifier: ViewModifier {
+    let cornerRadius: CGFloat
+    @Environment(\.settingsContentSurface) private var settingsContentSurface
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if settingsContentSurface {
+            content
+        } else {
+            content.glassSurface(cornerRadius: cornerRadius)
+        }
+    }
+}
+
+extension View {
+    func settingsAwareGlassSurface(cornerRadius: CGFloat) -> some View {
+        modifier(SettingsAwareGlassSurfaceModifier(cornerRadius: cornerRadius))
     }
 }
 
@@ -108,6 +129,7 @@ struct MacNumberField: View {
     var body: some View {
         TextField(label, text: $text)
             .textFieldStyle(.roundedBorder)
+            .labelsHidden()
             .frame(width: MacControlSize.numberFieldWidth)
             .disabled(!isEnabled)
             .overlay(

@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// 更新区使用原生 Form 行和 Liquid Glass 动作。
+/// 更新区使用原生 Form 行和标准动作按钮。
 ///
 /// 组件只负责信息与动作。分组、材质和行距由 Settings 的 `.grouped` Form 提供，
-/// 不在内容层重复绘制卡片。Toggle 保留系统原生外观，动作按钮使用 Glass。
+/// 不在内容层重复绘制卡片。所有控件保持系统原生外观。
 struct UpdaterSettingsFormContent: View {
     let presentation: UpdaterSettingsPresentation
     let language: AppLanguage
@@ -53,43 +53,41 @@ struct UpdaterSettingsFormContent: View {
             }
         }
 
-        GlassEffectContainer(spacing: MacTheme.space2) {
-            HStack(spacing: MacTheme.space2) {
-                Spacer(minLength: 0)
+        HStack(spacing: MacTheme.space2) {
+            Spacer(minLength: 0)
+            Button {
+                onCheck()
+            } label: {
+                Label(
+                    ContractCopy.copyGeneralCheckUpdates.text(for: language),
+                    systemImage: "arrow.triangle.2.circlepath"
+                )
+            }
+            .buttonStyle(.bordered)
+            .disabled(!presentation.canCheck)
+
+            if presentation.canInstall {
                 Button {
-                    onCheck()
+                    onInstall()
                 } label: {
                     Label(
-                        ContractCopy.copyGeneralCheckUpdates.text(for: language),
-                        systemImage: "arrow.triangle.2.circlepath"
+                        ContractCopy.copyGeneralUpdateInstall.text(for: language),
+                        systemImage: "arrow.down.circle.fill"
                     )
                 }
-                .buttonStyle(.glass)
-                .disabled(!presentation.canCheck)
+                .buttonStyle(.borderedProminent)
+            }
 
-                if presentation.canInstall {
-                    Button {
-                        onInstall()
-                    } label: {
-                        Label(
-                            ContractCopy.copyGeneralUpdateInstall.text(for: language),
-                            systemImage: "arrow.down.circle.fill"
-                        )
-                    }
-                    .buttonStyle(.glassProminent)
+            if presentation.canRestart {
+                Button {
+                    onRestart()
+                } label: {
+                    Label(
+                        ContractCopy.copyGeneralUpdateRestart.text(for: language),
+                        systemImage: "arrow.clockwise"
+                    )
                 }
-
-                if presentation.canRestart {
-                    Button {
-                        onRestart()
-                    } label: {
-                        Label(
-                            ContractCopy.copyGeneralUpdateRestart.text(for: language),
-                            systemImage: "arrow.clockwise"
-                        )
-                    }
-                    .buttonStyle(.glassProminent)
-                }
+                .buttonStyle(.borderedProminent)
             }
         }
 

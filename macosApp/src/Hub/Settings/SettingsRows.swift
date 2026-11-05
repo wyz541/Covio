@@ -1,5 +1,3 @@
-import AppKit
-import Combine
 import SwiftUI
 
 /// 一行数字输入。
@@ -9,16 +7,23 @@ import SwiftUI
 struct NumberRow: View {
     let label: String
     let value: Int32
+    var unit: String?
     let onChange: (Int, Bool) -> Void
 
     @State private var text: String = ""
 
     var body: some View {
-        MacSettingRow(title: label) {
-            MacNumberField(label: label, text: $text)
-                .onChange(of: text) { _, newValue in
-                    onChange(Int(newValue) ?? Int(value), Int(newValue) != nil)
+        LabeledContent(label) {
+            HStack(spacing: MacTheme.space2) {
+                MacNumberField(label: label, text: $text)
+                    .onChange(of: text) { _, newValue in
+                        onChange(Int(newValue) ?? Int(value), Int(newValue) != nil)
+                    }
+                if let unit {
+                    Text(unit)
+                        .foregroundStyle(.secondary)
                 }
+            }
         }
         .onAppear { text = String(value) }
         .onChange(of: value) { _, newValue in
@@ -38,13 +43,15 @@ struct CancellationOptions: View {
     private static let options: [Int64] = [300, 600, 1_800, 3_600, 7_200, 10_800, 43_200, 86_400]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MacTheme.space2) {
+        Grid(alignment: .leading, horizontalSpacing: MacTheme.space2, verticalSpacing: MacTheme.space2) {
             ForEach(Array(Self.options.chunked(into: 4).enumerated()), id: \.offset) { _, row in
-                HStack(spacing: MacTheme.space2) {
+                GridRow {
                     ForEach(row, id: \.self) { seconds in
-                        MacButton(title: SettingsFormat.duration(seconds: seconds, language: language), kind: .plain) {
+                        Button(SettingsFormat.duration(seconds: seconds, language: language)) {
                             onSelect(seconds)
                         }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
             }
@@ -55,64 +62,6 @@ struct CancellationOptions: View {
 extension Array {
     func chunked(into size: Int) -> [[Element]] {
         stride(from: 0, to: count, by: size).map { Array(self[$0..<Swift.min($0 + size, count)]) }
-    }
-}
-
-/// 剪切板设置。
-///
-/// Carbon 在快捷键被别的应用占用时静默失败，所以每个动作都要显示
-/// 「注册失败」，并把备选组合摆出来让用户换一个。
-struct ClipboardCard: View {
-    let runtime: AppRuntime
-
-    @State private var permissionGranted = ClipboardPaste.hasAccessibilityPermission
-
-    var body: some View {
-        MacCard {
-            MacSettingRow(title: ContractCopy.copyClipboardSettingsEnabled.text(for: runtime.language)) {
-                MacSwitch(
-                    label: ContractCopy.copyClipboardSettingsEnabled.text(for: runtime.language),
-                    isOn: Binding(
-                        get: { runtime.config.clipboardEnabled },
-                        set: { runtime.setClipboardEnabled($0) }
-                    )
-                )
-            }
-            .settingsRowAnchor(SettingsRowID.clipboardEnabled)
-
-            MacSectionTitle(text: ContractCopy.copyClipboardSettingsHotKeys.text(for: runtime.language))
-            ForEach(ClipboardHotKeyAction.allCases, id: \.rawValue) { action in
-                HotKeyRow(action: action, runtime: runtime)
-            }
-            .settingsRowAnchor(SettingsRowID.clipboardHotKeys)
-
-            MacSectionTitle(text: ContractCopy.copyClipboardSettingsAccessibility.text(for: runtime.language))
-            MacStatusLine(
-                text: "\(ContractCopy.copyClipboardSettingsAccessibility.text(for: runtime.language)): \(accessibilityText)"
-            )
-            HStack(spacing: MacTheme.space2) {
-                MacButton(title: ContractCopy.copyClipboardSettingsRequestPermission.text(for: runtime.language)) {
-                    ClipboardPaste.requestAccessibilityPermission()
-                }
-                MacButton(title: ContractCopy.copyClipboardActionOpenSettings.text(for: runtime.language)) {
-                    ClipboardPaste.openAccessibilitySettings()
-                }
-            }
-            MacAlert(
-                message: ContractCopy.copyClipboardSettingsAccessibilityFallback.text(for: runtime.language),
-                kind: .info
-            )
-        }
-        // 用户去系统设置里授权之后回到本应用，这里要重新读一次。
-        // 授权状态没有通知，只能靠这个时机刷新。
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            permissionGranted = ClipboardPaste.hasAccessibilityPermission
-        }
-    }
-
-    private var accessibilityText: String {
-        (permissionGranted ? ContractCopy.copyClipboardSettingsGranted : ContractCopy.copyClipboardSettingsNotGranted)
-            .text(for: runtime.language)
     }
 }
 
@@ -130,19 +79,26 @@ struct HotKeyRow: View {
             : [current] + action.candidates
 
         VStack(alignment: .leading, spacing: MacTheme.space1) {
-            MacSettingRow(title: title) {
-                MacSegmented(
-                    options: options.map { displayName(of: $0) },
-                    selectedIndex: options.firstIndex(of: current) ?? 0
-                ) { index in
-                    runtime.setClipboardHotKey(action, to: options[index])
+            LabeledContent(title) {
+                Picker(title, selection: Binding(
+                    get: { current },
+                    set: { runtime.setClipboardHotKey(action, to: $0) }
+                )) {
+                    ForEach(options, id: \.self) { option in
+                        Text(displayName(of: option)).tag(option)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(minWidth: 160)
             }
             if runtime.clipboard.hasHotKeyConflict(action) {
-                MacAlert(
-                    message: ContractCopy.copyClipboardSettingsHotKeyConflict.text(for: runtime.language),
-                    kind: .warning
+                Label(
+                    ContractCopy.copyClipboardSettingsHotKeyConflict.text(for: runtime.language),
+                    systemImage: "exclamationmark.triangle.fill"
                 )
+                .font(.callout)
+                .foregroundStyle(.orange)
             }
         }
     }

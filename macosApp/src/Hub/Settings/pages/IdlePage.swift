@@ -7,46 +7,58 @@ struct IdlePage: View {
     let runtime: AppRuntime
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MacTheme.space6) {
-            MacCard {
-                MacSettingRow(title: ContractCopy.copyIdlePreventIdle.text(for: runtime.language)) {
-                    MacSwitch(
-                        label: ContractCopy.copyIdlePreventIdle.text(for: runtime.language),
-                        isOn: Binding(
-                            get: { !runtime.appState.idleSleepAvailable },
-                            set: { _ in runtime.toggleIdleSleep() }
-                        )
+        Form {
+            Section {
+                Toggle(
+                    ContractCopy.copyIdlePreventIdle.text(for: runtime.language),
+                    isOn: Binding(
+                        get: { !runtime.appState.idleSleepAvailable },
+                        set: { _ in runtime.toggleIdleSleep() }
                     )
-                }
+                )
+                .toggleStyle(.switch)
                 .settingsRowAnchor(SettingsRowID.idlePrevent)
-                MacSettingRow(title: ContractCopy.copyIdleWhileCharging.text(for: runtime.language)) {
-                    MacSwitch(
-                        label: ContractCopy.copyIdleWhileCharging.text(for: runtime.language),
-                        isOn: Binding(
-                            get: { runtime.config.disableIdleSleepInCharging },
-                            set: { runtime.setDisableIdleWhileCharging($0) }
-                        )
+
+                Toggle(
+                    ContractCopy.copyIdleWhileCharging.text(for: runtime.language),
+                    isOn: Binding(
+                        get: { runtime.config.disableIdleSleepInCharging },
+                        set: { runtime.setDisableIdleWhileCharging($0) }
                     )
-                }
+                )
+                .toggleStyle(.switch)
                 .settingsRowAnchor(SettingsRowID.idleCharging)
+            } footer: {
                 if let error = runtime.appState.lastError {
-                    MacStatusLine(
-                        text: "\(ContractCopy.copyToastError.text(for: runtime.language)) \(error)"
+                    Label(
+                        "\(ContractCopy.copyToastError.text(for: runtime.language)) \(error)",
+                        systemImage: "exclamationmark.triangle.fill"
                     )
+                    .foregroundStyle(.orange)
                 }
             }
 
-            MacCard {
-                MacSectionTitle(text: ContractCopy.copyIdleCancelAfter.text(for: runtime.language))
-                .settingsRowAnchor(SettingsRowID.idleCancel)
-                CancellationOptions(language: runtime.language) { runtime.scheduleCancelIdle(seconds: $0) }
+            Section {
+                Text(ContractCopy.copyIdleCancelAfter.text(for: runtime.language))
+                    .font(.headline)
+                    .settingsRowAnchor(SettingsRowID.idleCancel)
+                CancellationOptions(language: runtime.language) {
+                    runtime.scheduleCancelIdle(seconds: $0)
+                }
                 if let remaining = runtime.appState.idleCancelRemainingSeconds {
-                    MacStatusLine(
-                        text: "\(ContractCopy.copyIdleRemaining.text(for: runtime.language)): "
-                            + SettingsFormat.duration(seconds: remaining.int64Value, language: runtime.language)
-                    )
+                    LabeledContent(ContractCopy.copyIdleRemaining.text(for: runtime.language)) {
+                        Text(
+                            SettingsFormat.duration(
+                                seconds: remaining.int64Value,
+                                language: runtime.language
+                            )
+                        )
+                        .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
+        .formStyle(.grouped)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

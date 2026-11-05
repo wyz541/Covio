@@ -12,9 +12,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 运行时。引擎与端口都由它持有。
     ///
     /// 单实例检查通过之后才创建，避免第二个进程去动 shared 的配置文件。
-    private var runtime: AppRuntime?
+    private(set) var runtime: AppRuntime?
     private let shell = NotchShellController()
-    private(set) var settingsWindowController: SettingsWindowController?
+    let settingsChrome = HubChromeModel()
+    let settingsRuntime = SettingsRuntimeProvider()
     private(set) var statusItemController: StatusItemController?
     private var hotKey: GlobalHotKey?
     private var twoFingerSwipeMonitor: TwoFingerSwipeMonitor?
@@ -368,8 +369,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let runtime = AppRuntime()
         self.runtime = runtime
+        settingsRuntime.runtime = runtime
         shell.runtime = runtime
-        settingsWindowController = SettingsWindowController(runtime: runtime)
         shell.onOpenSettings = { [weak self] hit in
             self?.showSettingsWindow(reveal: hit)
         }
@@ -438,6 +439,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if ProcessInfo.processInfo.environment["COVIO_HUB_PREVIEW"] == "1" {
             NSApp.setActivationPolicy(.regular)
             Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(300))
                 if let rawSection = ProcessInfo.processInfo.environment["COVIO_SETTINGS_PREVIEW_SECTION"],
                    let section = SettingsSection(rawValue: rawSection)
                 {
@@ -474,20 +476,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         section: SettingsSection? = nil,
         reveal hit: SettingsSearchHit? = nil
     ) -> Bool {
-        guard let settingsWindowController else { return false }
+        guard runtime != nil else { return false }
+        settingsChrome.clearSearch()
+        settingsChrome.clearHighlight()
+        if let section {
+            settingsChrome.select(section)
+        }
         if shell.isExpanded {
             shell.requestCollapse()
         }
-        settingsWindowController.show(section: section, reveal: hit)
+        guard presentNativeSettingsWindow() else { return false }
+        if let hit {
+            DispatchQueue.main.async { [weak self] in
+                self?.settingsChrome.reveal(hit)
+            }
+        }
         return true
+    }
+
+    /// 打开 SwiftUI 注册的原生 Settings 场景。新系统使用 `showSettingsWindow:`，
+    /// 旧 selector 只作兼容回退。
+    private func presentNativeSettingsWindow() -> Bool {
+        if let item = applicationSettingsMenuItem,
+           let action = item.action,
+           NSApp.sendAction(action, to: item.target, from: item) {
+            return true
+        }
+        let selectors = [
+            Selector(("showSettingsWindow:")),
+            Selector(("showPreferencesWindow:")),
+        ]
+        return selectors.contains { selector in
+            NSApp.sendAction(selector, to: nil, from: nil)
+        }
+    }
+
+    private var applicationSettingsMenuItem: NSMenuItem? {
+        guard let appMenu = NSApp.mainMenu?.items.first?.submenu else { return nil }
+        return appMenu.items.first { $0.keyEquivalent == "," }
+    }
+
+    /// 测试与 Dock 重入使用同一个窗口查询。SwiftUI Settings 窗口由系统创建。
+    var settingsWindow: NSWindow? {
+        NSApp.windows.first {
+            $0.identifier == SettingsWindowMetrics.identifier && !($0 is NSPanel)
+        }
+    }
+
+    /// 应用菜单使用原生 `SettingsLink` 时，窗口出现后再处理工作台焦点。
+    func settingsWindowDidAppear() {
+        if shell.isExpanded {
+            shell.requestCollapse()
+        }
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationShouldHandleReopen(
         _ sender: NSApplication,
         hasVisibleWindows flag: Bool
     ) -> Bool {
-        if settingsWindowController?.isOpen == true {
-            settingsWindowController?.bringForward()
+        if let settingsWindow, settingsWindow.isVisible {
+            NSApp.activate(ignoringOtherApps: true)
+            settingsWindow.makeKeyAndOrderFront(nil)
         } else if !shell.isHubPanelOnScreen {
             shell.showFromGesture()
             sender.activate(ignoringOtherApps: true)
@@ -503,7 +553,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Self.current = nil
         hotKey?.unregister()
         statusItemController?.tearDown()
-        settingsWindowController?.close()
         // Stop the lease before the helper expires it. The helper also restores
         // after a crash, but normal quit should not leave fan control running.
         FanControlLeaseKeeper.shared.stopAndRestore()

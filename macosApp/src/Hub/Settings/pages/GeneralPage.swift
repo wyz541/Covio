@@ -12,21 +12,14 @@ struct GeneralPage: View {
     let runtime: AppRuntime
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            GeneralSettingsHeader(language: runtime.language)
-
-            Form {
-                behaviorSection
-                startupSection
-                updateSection
-                versionSection
-                diagnosticsSection
-            }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        Form {
+            behaviorSection
+            startupSection
+            updateSection
+            versionSection
+            diagnosticsSection
         }
-        .frame(maxWidth: 760, maxHeight: .infinity, alignment: .top)
+        .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
@@ -139,34 +132,30 @@ struct GeneralPage: View {
 
     private var diagnosticsSection: some View {
         Section {
-            GlassEffectContainer(spacing: MacTheme.space3) {
-                HStack(spacing: MacTheme.space3) {
-                    Button(ContractCopy.copyHubLogView.text(for: runtime.language)) {
-                        runtime.viewLog()
-                    }
-                    .buttonStyle(.glass)
-
-                    Button(ContractCopy.copyHubLogExport.text(for: runtime.language)) {
-                        runtime.exportLog()
-                    }
-                    .buttonStyle(.glass)
-
-                    Spacer(minLength: 0)
+            HStack(spacing: MacTheme.space3) {
+                Button(ContractCopy.copyHubLogView.text(for: runtime.language)) {
+                    runtime.viewLog()
                 }
+                .buttonStyle(.bordered)
+
+                Button(ContractCopy.copyHubLogExport.text(for: runtime.language)) {
+                    runtime.exportLog()
+                }
+                .buttonStyle(.bordered)
+
+                Spacer(minLength: 0)
             }
             .settingsRowAnchor(SettingsRowID.generalLogs)
 
-            GlassEffectContainer(spacing: MacTheme.space2) {
-                Button(
-                    ContractCopy.copyGeneralClearConfig.text(for: runtime.language),
-                    role: .destructive
-                ) {
-                    confirmClearConfig()
-                }
-                .buttonStyle(.glass)
-                .tint(.red)
-                .disabled(runtime.busy)
+            Button(
+                ContractCopy.copyGeneralClearConfig.text(for: runtime.language),
+                role: .destructive
+            ) {
+                confirmClearConfig()
             }
+            .buttonStyle(.bordered)
+            .tint(.red)
+            .disabled(runtime.busy)
             .settingsRowAnchor(SettingsRowID.generalReset)
         } header: {
             Text(ContractCopy.copyGeneralSectionDiagnostics.text(for: runtime.language))
