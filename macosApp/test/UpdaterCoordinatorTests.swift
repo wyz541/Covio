@@ -103,7 +103,6 @@ final class UpdaterCoordinatorTests: XCTestCase {
         let paths = UpdaterPaths(root: root)
         let currentVersion = GeneratedReleaseIdentity.clientVersion
         let releaseTag = "v\(currentVersion)"
-        let signingKey = Curve25519.Signing.PrivateKey()
         let manifestURL = try XCTUnwrap(URL(
             string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).json"
         ))
@@ -113,31 +112,7 @@ final class UpdaterCoordinatorTests: XCTestCase {
         let archiveURL = try XCTUnwrap(URL(
             string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).zip"
         ))
-        let manifest = makeManifest(
-            archiveURL: archiveURL.absoluteString,
-            clientVersion: currentVersion,
-            buildNumber: GeneratedReleaseIdentity.buildNumber
-        )
-        let manifestData = try JSONEncoder().encode(manifest)
-        let signature = try signingKey.signature(for: manifestData)
-        let signatureData = try JSONEncoder().encode(
-            UpdateSignatureEnvelope(
-                schemaVersion: 1,
-                manifestSHA256: SHA256.hash(data: manifestData)
-                    .map { String(format: "%02x", $0) }
-                    .joined(),
-                signatures: [
-                    .init(
-                        keyId: "test-key",
-                        signature: signature.base64EncodedString()
-                    )
-                ]
-            )
-        )
-        UpdaterCoordinatorURLProtocol.responses = [
-            manifestURL.absoluteString: manifestData,
-            signatureURL.absoluteString: signatureData,
-        ]
+        UpdaterCoordinatorURLProtocol.responses = [:]
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [UpdaterCoordinatorURLProtocol.self]
         let session = URLSession(configuration: configuration)
@@ -157,7 +132,7 @@ final class UpdaterCoordinatorTests: XCTestCase {
             paths: paths,
             currentReleaseId: "\(currentVersion)-g" + String(repeating: "a", count: 40),
             feed: feed,
-            trustedKeys: ["test-key": signingKey.publicKey.rawRepresentation],
+            trustedKeys: ["test-key": Data(repeating: 0x01, count: 32)],
             session: session,
             environment: ["COVIO_UPDATER_TEST_MODE": "1"]
         )
