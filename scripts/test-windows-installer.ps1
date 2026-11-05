@@ -15,11 +15,16 @@ function Get-PackagedInstaller {
     if (-not (Test-Path $installerPath)) {
         throw "Missing $Label installer"
     }
-    return Get-Item $installerPath
+    return [pscustomobject]@{
+        File = Get-Item $installerPath
+        BuildNumber = [int]$manifest.buildNumber
+    }
 }
 
-$PreviousInstaller = Get-PackagedInstaller -Directory $PreviousDir -Label "previous"
-$CurrentInstaller = Get-PackagedInstaller -Directory $CurrentDir -Label "current"
+$PreviousPackage = Get-PackagedInstaller -Directory $PreviousDir -Label "previous"
+$CurrentPackage = Get-PackagedInstaller -Directory $CurrentDir -Label "current"
+$PreviousInstaller = $PreviousPackage.File
+$CurrentInstaller = $CurrentPackage.File
 
 $TestRoot = Join-Path $env:RUNNER_TEMP "covio-windows-installer"
 $InstallDir = Join-Path $TestRoot "app"
@@ -94,12 +99,12 @@ function Uninstall-Covio {
 
 try {
     Invoke-Installer -Installer $PreviousInstaller -Label "previous-install"
-    Assert-BuildNumber 24
+    Assert-BuildNumber $PreviousPackage.BuildNumber
     New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
     Invoke-Covio -Arguments @("--headless-smoke", "--data-dir", "`"$DataDir`"")
 
     Invoke-Installer -Installer $CurrentInstaller -Label "upgrade-install"
-    Assert-BuildNumber 25
+    Assert-BuildNumber $CurrentPackage.BuildNumber
     Invoke-Covio -Arguments @(
         "--window-smoke",
         "--ui-scale", "1.5",
@@ -116,7 +121,7 @@ try {
 
     Uninstall-Covio
     Invoke-Installer -Installer $PreviousInstaller -Label "rollback-install"
-    Assert-BuildNumber 24
+    Assert-BuildNumber $PreviousPackage.BuildNumber
     Invoke-Covio -Arguments @("--headless-smoke", "--data-dir", "`"$DataDir`"")
     Uninstall-Covio
 

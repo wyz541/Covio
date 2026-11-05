@@ -3,9 +3,9 @@
 import Foundation
 
 enum GeneratedReleaseIdentity {
-    static let clientVersion = "0.6.0-internal.25"
+    static let clientVersion = "0.6.0-internal.26"
     static let productVersion = "0.6.0"
-    static let buildNumber = 25
+    static let buildNumber = 26
     static let channel = "internal"
     static let helperProtocolVersion = 10
 }

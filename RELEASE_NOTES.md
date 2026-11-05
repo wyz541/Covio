@@ -1,9 +1,10 @@
-# Covio 0.0.2.3
+# Covio 0.6.0-internal.26
 
-Covio 0.0.2.3 是内测版。
-此版本修复应用菜单设置入口和首次 Updater 安装。
-此版本包含风扇预设和 Liquid Glass 更新。
-此版本不用于公开分发。
+Covio 0.6.0-internal.26 是内测版。
+本版把 Windows 和 macOS 产品切到 Rust core 与平台原生 UI。
+macOS 继续使用 SwiftUI 和 AppKit。
+Windows 使用 egui。
+本版不用于公开分发。
 
 ## 系统要求
 
@@ -17,29 +18,39 @@ Covio 0.0.2.3 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-从 0.0.1.8 升级时，请使用事务安装 PKG。
-只安装 DMG 不会安装 root updater。
+从 0.0.2.3 或更早版本升级时，请使用事务安装 PKG。
+首个 0.6.0 SemVer 内测版需要手动安装。
+旧客户端不能解析新的 SemVer tag。
+安装后，自动更新恢复。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.0.2.1 到 0.0.2.3 的变化
+## 从 0.0.2.3 到 0.6.0-internal.26 的变化
 
-- `Covio > Settings…` 和 `⌘,` 打开工作台中的真实设置页。
-- PKG 首次安装 Updater 时创建完整布局并启动服务。
-- 安装事务清理上次失败遗留的 Updater 进程。
-- Updater 不在 PKG 安装期间错误执行自动更新恢复。
+- macOS 产品改用 Rust core。窗口、菜单和可访问性继续使用 SwiftUI / AppKit。
+- macOS 的配置、晾衣线、剪贴板、工作区、电源、helper 和更新规则使用 Rust。
+- macOS 通过 C ABI 使用 Rust core。产品不再加载 KMP framework。
+- Windows 产品改用 Rust core 和 egui。
+- Windows 产品路径不包含 JVM、Kotlin、Compose 或 JNA。
+- Windows 使用 Windows Credential Manager。macOS 使用 Keychain。
+- 项目版本改用 Semantic Versioning。本版是 `0.6.0-internal.26`。
+- 构建号与产品版本分开保存。
+- 安装包和更新包增加 KMP、JVM、Kotlin、Compose 和 JNA 边界检查。
+- macOS 和 Windows 的最终产品边界完成验收。
 
 ## 验证
 
-- `bash scripts/test-all.sh`：通过。Kotlin 477 个测试通过；macOS XCTest 1069 个测试中 3 个跳过、0 个失败。
-- GitHub Actions 的 Kotlin、Contract and scripts 检查：通过。
-- MacBookPro18,2、macOS 27.0.1：PKG 从 0.0.1.8 build 18 升级到 0.0.2.3 build 23。
-- 真机确认 App、Helper、Updater engine 和 Launcher 的 release ID 一致。
-- 真机确认 Updater Launcher 和 engine 正在运行，health release ID 与 current 指针一致。
-- 真机确认 `Covio > Settings…` 打开真实工作台设置页。
+- `bash scripts/test-all.sh`：通过。
+- macOS 全量测试和最终包：[run 41861580963](https://github.com/wyz541/kmp-Covio/actions/runs/41861580963)。
+- macOS 真机验收：MacBook Pro M1 Max，macOS 27.0.1。
+- macOS Keychain、睡眠、helper 和重启恢复通过。
+- macOS artifact boundary：57 个 app 文件，8 个 Mach-O 文件，无 KMP fallback。
+- Windows CI 和最终 installer：[run 41861581262](https://github.com/wyz541/kmp-Covio/actions/runs/41861581262)。
+- Windows installer：clean install、upgrade、rollback、uninstall、crash recovery 和 DPI 1.5 通过。
+- Windows 多显示器：[run 41870873498](https://github.com/wyz541/kmp-Covio/actions/runs/41870873498)。
 
 ## 安装
 
-1. 下载 `Covio-0.0.2.3.pkg`。
+1. 下载 `Covio-0.6.0-internal.26.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。
