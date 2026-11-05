@@ -16,8 +16,9 @@ protocol UpdaterFeedProviding: Sendable {
 }
 
 final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
+    // The REST API is limited per public IP. The Atom feed is not.
     private static let endpoint = URL(
-        string: "https://api.github.com/repos/wyz541/kmp-Covio/releases?per_page=30"
+        string: "https://github.com/wyz541/kmp-Covio/releases.atom"
     )!
     private let session: URLSession
 
@@ -28,7 +29,7 @@ final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
     func releases() async throws -> [UpdaterReleaseCandidate] {
         var request = URLRequest(url: Self.endpoint)
         request.timeoutInterval = 15
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("application/atom+xml", forHTTPHeaderField: "Accept")
         request.setValue("CovioUpdater/1", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse,
@@ -40,57 +41,39 @@ final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
     }
 
     static func parseReleases(_ data: Data) throws -> [UpdaterReleaseCandidate] {
-        guard let releases = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+        let parser = AtomReleaseParser()
+        let xml = XMLParser(data: data)
+        xml.delegate = parser
+        guard xml.parse() else {
             throw UpdaterFeedError.invalidResponse
         }
-        var candidates: [UpdaterReleaseCandidate] = []
-        for release in releases {
-            guard release["draft"] as? Bool == false,
-                  release["prerelease"] as? Bool == true,
-                  let tag = release["tag_name"] as? String,
+        let candidates = parser.entries.compactMap { entry -> UpdaterReleaseCandidate? in
+            guard let tag = entry.tag,
                   let version = clientVersion(fromInternalTag: tag),
-                  let publishedAt = release["published_at"] as? String,
+                  let publishedAt = entry.updatedAt,
                   ISO8601DateFormatter().date(from: publishedAt) != nil,
-                  let assets = release["assets"] as? [[String: Any]]
+                  let manifestURL = assetURL(
+                      tag: tag,
+                      name: "CovioUpdate-\(version).json"
+                  ),
+                  let signatureURL = assetURL(
+                      tag: tag,
+                      name: "CovioUpdate-\(version).sig.json"
+                  ),
+                  let archiveURL = assetURL(
+                      tag: tag,
+                      name: "CovioUpdate-\(version).zip"
+                  )
             else {
-                continue
+                return nil
             }
-            let manifestName = "CovioUpdate-\(version).json"
-            let signatureName = "CovioUpdate-\(version).sig.json"
-            let archiveName = "CovioUpdate-\(version).zip"
-            var urls: [String: URL] = [:]
-            var duplicate = false
-            for asset in assets {
-                guard let name = asset["name"] as? String,
-                      [manifestName, signatureName, archiveName].contains(name),
-                      let rawURL = asset["browser_download_url"] as? String,
-                      let url = URL(string: rawURL),
-                      trustedAssetURL(url, tag: tag, assetName: name)
-                else {
-                    continue
-                }
-                if urls[name] != nil {
-                    duplicate = true
-                    break
-                }
-                urls[name] = url
-            }
-            guard !duplicate,
-                  let manifestURL = urls[manifestName],
-                  let signatureURL = urls[signatureName],
-                  let archiveURL = urls[archiveName]
-            else {
-                continue
-            }
-            candidates.append(
-                UpdaterReleaseCandidate(
-                    tagName: tag,
-                    clientVersion: version,
-                    manifestURL: manifestURL,
-                    signatureURL: signatureURL,
-                    archiveURL: archiveURL,
-                    publishedAt: publishedAt
-                )
+            return UpdaterReleaseCandidate(
+                tagName: tag,
+                clientVersion: version,
+                manifestURL: manifestURL,
+                signatureURL: signatureURL,
+                archiveURL: archiveURL,
+                publishedAt: publishedAt
             )
         }
         return candidates.sorted {
@@ -100,26 +83,13 @@ final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
         }
     }
 
-    private static func trustedAssetURL(
-        _ url: URL,
-        tag: String,
-        assetName: String
-    ) -> Bool {
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              components.scheme == "https",
-              components.host == "github.com",
-              components.user == nil,
-              components.password == nil,
-              components.port == nil,
-              components.query == nil,
-              components.fragment == nil
-        else {
-            return false
-        }
-        let expectedPath = "/wyz541/kmp-Covio/releases/download/\(tag)/\(assetName)"
-        return components.percentEncodedPath == expectedPath
+    private static func assetURL(tag: String, name: String) -> URL? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "github.com"
+        components.path = "/wyz541/kmp-Covio/releases/download/\(tag)/\(name)"
+        return components.url
     }
-
 
     static func clientVersion(fromInternalTag tag: String) -> String? {
         guard tag.hasPrefix("v"),
@@ -135,14 +105,103 @@ final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
     }
 }
 
+private final class AtomReleaseParser: NSObject, XMLParserDelegate {
+    struct Entry {
+        var tag: String?
+        var updatedAt: String?
+    }
+
+    private(set) var entries: [Entry] = []
+    private var currentEntry: Entry?
+    private var currentText = ""
+    private var isReadingUpdatedAt = false
+
+    func parser(
+        _ parser: XMLParser,
+        didStartElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?,
+        attributes attributeDict: [String: String] = [:]
+    ) {
+        switch elementName {
+        case "entry":
+            currentEntry = Entry()
+        case "updated":
+            currentText = ""
+            isReadingUpdatedAt = currentEntry != nil
+        case "link":
+            guard currentEntry != nil,
+                  attributeDict["rel"] == "alternate",
+                  attributeDict["type"] == "text/html",
+                  let href = attributeDict["href"]
+            else {
+                return
+            }
+            currentEntry?.tag = releaseTag(from: href)
+        default:
+            break
+        }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        guard isReadingUpdatedAt else { return }
+        currentText += string
+    }
+
+    func parser(
+        _ parser: XMLParser,
+        didEndElement elementName: String,
+        namespaceURI: String?,
+        qualifiedName qName: String?
+    ) {
+        switch elementName {
+        case "updated":
+            if isReadingUpdatedAt {
+                currentEntry?.updatedAt = currentText.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+            }
+            currentText = ""
+            isReadingUpdatedAt = false
+        case "entry":
+            if let currentEntry {
+                entries.append(currentEntry)
+            }
+            currentEntry = nil
+        default:
+            break
+        }
+    }
+
+    private func releaseTag(from href: String) -> String? {
+        guard let url = URL(string: href),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.scheme == "https",
+              components.host == "github.com",
+              components.user == nil,
+              components.password == nil,
+              components.port == nil,
+              components.query == nil,
+              components.fragment == nil,
+              components.path.hasPrefix("/wyz541/kmp-Covio/releases/tag/")
+        else {
+            return nil
+        }
+        let tag = String(
+            components.path.dropFirst("/wyz541/kmp-Covio/releases/tag/".count)
+        )
+        return tag.isEmpty || tag.contains("/") ? nil : tag
+    }
+}
+
 enum UpdaterFeedError: Error, Equatable, LocalizedError {
     case httpFailure
     case invalidResponse
 
     var errorDescription: String? {
         switch self {
-        case .httpFailure: "GitHub release request failed"
-        case .invalidResponse: "GitHub release response is invalid"
+        case .httpFailure: "GitHub release feed request failed"
+        case .invalidResponse: "GitHub release feed is invalid"
         }
     }
 }

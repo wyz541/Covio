@@ -2,27 +2,34 @@ import XCTest
 @testable import Covio
 
 final class UpdaterFeedTests: XCTestCase {
-    func testParserAcceptsOnlyFixedInternalReleaseAssets() throws {
-        let data = try JSONSerialization.data(
-            withJSONObject: [release(version: "0.6.0-internal.20")]
-        )
+    func testParserBuildsAssetsFromInternalAtomEntries() throws {
+        let data = atom(entries: [
+            ("v0.6.0-internal.20", "2026-11-05T00:00:00Z"),
+        ])
         let candidates = try GithubUpdaterFeed.parseReleases(data)
         let candidate = try XCTUnwrap(candidates.first)
         XCTAssertEqual(candidate.tagName, "v0.6.0-internal.20")
         XCTAssertEqual(candidate.clientVersion, "0.6.0-internal.20")
+        XCTAssertEqual(candidate.publishedAt, "2026-11-05T00:00:00Z")
         XCTAssertEqual(
             candidate.manifestURL.absoluteString,
             "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.json"
         )
+        XCTAssertEqual(
+            candidate.signatureURL.absoluteString,
+            "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.sig.json"
+        )
+        XCTAssertEqual(
+            candidate.archiveURL.absoluteString,
+            "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.zip"
+        )
     }
 
     func testParserSortsNewestSemanticVersionFirst() throws {
-        let data = try JSONSerialization.data(
-            withJSONObject: [
-                release(version: "0.6.0-internal.9"),
-                release(version: "0.6.0-internal.10"),
-            ]
-        )
+        let data = atom(entries: [
+            ("v0.6.0-internal.9", "2026-11-03T00:00:00Z"),
+            ("v0.6.0-internal.10", "2026-11-04T00:00:00Z"),
+        ])
         let candidates = try GithubUpdaterFeed.parseReleases(data)
         XCTAssertEqual(
             candidates.map(\.clientVersion),
@@ -30,36 +37,35 @@ final class UpdaterFeedTests: XCTestCase {
         )
     }
 
-    func testParserRejectsDraftAndStableReleases() throws {
-        var draft = release(version: "0.6.0-internal.20")
-        draft["draft"] = true
-        var publicRelease = release(version: "0.6.0-internal.21")
-        publicRelease["tag_name"] = "v0.6.0"
-        let data = try JSONSerialization.data(withJSONObject: [draft, publicRelease])
+    func testParserRejectsStableAndMalformedEntries() throws {
+        let data = atom(entries: [
+            ("v0.6.0", "2026-11-05T00:00:00Z"),
+            ("v0.0.2.0-internal", "2026-11-05T00:00:00Z"),
+            ("v0.6.0-internal.21", "not-a-date"),
+        ])
         let candidates = try GithubUpdaterFeed.parseReleases(data)
         XCTAssertTrue(candidates.isEmpty)
     }
 
-    func testParserRejectsWrongAssetNameAndURL() throws {
-        var wrongName = release(version: "0.6.0-internal.20")
-        wrongName["assets"] = [
-            asset(name: "CovioUpdate-0.6.0-internal.20.zip", version: "0.6.0-internal.20"),
-            asset(name: "CovioUpdate-0.6.0-internal.20.json", version: "0.6.0-internal.20"),
-            asset(name: "wrong.sig.json", version: "0.6.0-internal.20"),
-        ]
-        var wrongHost = release(version: "0.6.0-internal.21")
-        wrongHost["assets"] = [
-            asset(name: "CovioUpdate-0.6.0-internal.21.zip", version: "0.6.0-internal.21"),
-            asset(
-                name: "CovioUpdate-0.6.0-internal.21.json",
-                version: "0.6.0-internal.21",
-                host: "example.com"
-            ),
-            asset(name: "CovioUpdate-0.6.0-internal.21.sig.json", version: "0.6.0-internal.21"),
-        ]
-        let data = try JSONSerialization.data(withJSONObject: [wrongName, wrongHost])
-        let candidates = try GithubUpdaterFeed.parseReleases(data)
-        XCTAssertTrue(candidates.isEmpty)
+    func testParserRejectsLinksOutsideTheReleaseTagRoute() throws {
+        let wrongHost = atom(
+            entries: [("v0.6.0-internal.20", "2026-11-05T00:00:00Z")],
+            host: "example.com"
+        )
+        let wrongPath = atom(
+            entries: [("v0.6.0-internal.21", "2026-11-05T00:00:00Z")],
+            path: "/wyz541/kmp-Covio/other"
+        )
+        XCTAssertTrue(try GithubUpdaterFeed.parseReleases(wrongHost).isEmpty)
+        XCTAssertTrue(try GithubUpdaterFeed.parseReleases(wrongPath).isEmpty)
+    }
+
+    func testParserRejectsMalformedXML() {
+        XCTAssertThrowsError(
+            try GithubUpdaterFeed.parseReleases(Data("<feed><entry>".utf8))
+        ) { error in
+            XCTAssertEqual(error as? UpdaterFeedError, .invalidResponse)
+        }
     }
 
     func testInternalTagRequiresCanonicalSemanticVersion() {
@@ -76,28 +82,26 @@ final class UpdaterFeedTests: XCTestCase {
         XCTAssertNil(GithubUpdaterFeed.clientVersion(fromInternalTag: "v0.0.2.0-internal"))
     }
 
-    private func release(version: String) -> [String: Any] {
-        [
-            "tag_name": "v\(version)",
-            "draft": false,
-            "prerelease": true,
-            "published_at": "2026-11-03T00:00:00Z",
-            "assets": [
-                asset(name: "CovioUpdate-\(version).zip", version: version),
-                asset(name: "CovioUpdate-\(version).json", version: version),
-                asset(name: "CovioUpdate-\(version).sig.json", version: version),
-            ],
-        ]
-    }
-
-    private func asset(
-        name: String,
-        version: String,
-        host: String = "github.com"
-    ) -> [String: Any] {
-        [
-            "name": name,
-            "browser_download_url": "https://\(host)/wyz541/kmp-Covio/releases/download/v\(version)/\(name)",
-        ]
+    private func atom(
+        entries: [(tag: String, updatedAt: String)],
+        host: String = "github.com",
+        path: String = "/wyz541/kmp-Covio/releases/tag"
+    ) -> Data {
+        let body = entries.map { entry in
+            """
+            <entry>
+              <updated>\(entry.updatedAt)</updated>
+              <link rel="alternate" type="text/html" href="https://\(host)\(path)/\(entry.tag)"/>
+            </entry>
+            """
+        }.joined(separator: "\n")
+        return Data(
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <feed xmlns="http://www.w3.org/2005/Atom">
+            \(body)
+            </feed>
+            """.utf8
+        )
     }
 }
