@@ -1,6 +1,6 @@
-# Covio 0.0.2.3
+# Covio 0.6.0-internal.26
 
-Covio 0.0.2.3 是内测版。
+Covio 0.6.0-internal.26 是内测版。
 此版本修复应用菜单设置入口和首次 Updater 安装。
 此版本包含风扇预设和 Liquid Glass 更新。
 此版本不用于公开分发。
@@ -21,25 +21,37 @@ Covio 0.0.2.3 是内测版。
 只安装 DMG 不会安装 root updater。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.0.2.1 到 0.0.2.3 的变化
+## 从 0.0.2.3 到 0.6.0-internal.26 的变化
 
-- `Covio > Settings…` 和 `⌘,` 打开工作台中的真实设置页。
-- PKG 首次安装 Updater 时创建完整布局并启动服务。
-- 安装事务清理上次失败遗留的 Updater 进程。
-- Updater 不在 PKG 安装期间错误执行自动更新恢复。
+<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+
+- Update ADR-0030 after cutover（#638）
+- Record the Windows and macOS acceptance（#637）
+- Harden Windows and macOS release artifacts（#636）
+- Cut Windows over to the Rust egui product（#635）
+- Add Windows platform capability adapters（#634）
+- Add the Windows Rust egui host（#633）
+- Restrict the Rust migration to Windows and macOS（#632）
+- Move the macOS host to the Rust core（#626）
+- Keep hosted CI on Linux（#628）
+- Add macOS Rust FFI and Keychain adapter（#625）
+- Migrate update and design contract rules to Rust（#624）
+- Migrate power and helper contracts to Rust（#623）
+- Migrate workspace state and transfer to Rust（#622）
+- Migrate shelf and clipboard state to Rust（#621）
+- Adopt Semantic Versioning（#619）
+- Migrate configuration and platform ports to Rust（#620）
+- Cache Release packages and KMP frameworks（#617）
+- Establish the Rust core bridge（#616）
+- Define the Rust core migration architecture（#615）
 
 ## 验证
 
-- `bash scripts/test-all.sh`：通过。Kotlin 477 个测试通过；macOS XCTest 1069 个测试中 3 个跳过、0 个失败。
-- GitHub Actions 的 Kotlin、Contract and scripts 检查：通过。
-- MacBookPro18,2、macOS 27.0.1：PKG 从 0.0.1.8 build 18 升级到 0.0.2.3 build 23。
-- 真机确认 App、Helper、Updater engine 和 Launcher 的 release ID 一致。
-- 真机确认 Updater Launcher 和 engine 正在运行，health release ID 与 current 指针一致。
-- 真机确认 `Covio > Settings…` 打开真实工作台设置页。
+<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
 
 ## 安装
 
-1. 下载 `Covio-0.0.2.3.pkg`。
+1. 下载 `Covio-0.6.0-internal.26.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。
