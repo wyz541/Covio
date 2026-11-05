@@ -14,7 +14,8 @@
 
 Manifest、签名信封和更新归档来自同一个 GitHub Release。
 Updater 不从网页正文读取更新身份。
-GitHub API 的 release 必须是已发布 internal pre-release。
+Updater 从 GitHub Releases Atom feed 读取已发布的 internal tag。
+Updater 不依赖 GitHub REST API 的匿名配额。
 Asset 名和 GitHub download URL 使用固定值。
 
 ## 文件
