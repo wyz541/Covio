@@ -76,7 +76,7 @@ Validation results are in `docs/research/installer-size-reduction/validation/`.
 - [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.28)
 - [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.28/checksums.txt)
 - [Covio 0.6.0-internal.27](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.27) is the previous internal test.
-- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.27/Covio-0.6.0-internal.27-windows-x64-setup.exe)
+- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.28/Covio-0.6.0-internal.28-windows-x64-setup.exe)
 - [Covio 0.6.0-internal.26](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.26) is the previous internal test.
 - [Covio 0.0.2.3](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.3-internal) is an older internal test.
 - [Covio 0.0.2.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.1-internal) is an older internal test.

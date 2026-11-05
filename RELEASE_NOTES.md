@@ -1,7 +1,7 @@
 # Covio 0.6.0-internal.28
 
 Covio 0.6.0-internal.28 是内测版。
-本版删除仓库中的 KMP shared module。
+本版修复 updater XPC 无法响应的问题。
 Windows 和 macOS 继续使用 Rust core 与平台原生 UI。
 macOS 使用 SwiftUI 和 AppKit。
 Windows 使用 egui。
@@ -23,21 +23,26 @@ Windows 包含当前用户安装的 x64 安装包。
 本版不构建离线模型 DMG。
 
 从 0.0.2.3 或更早版本升级时，请使用事务安装 PKG。
-首个 0.6.0 SemVer 内测版需要手动安装。
-旧客户端不能解析新的 SemVer tag。
-安装后，自动更新恢复。
+`0.6.0-internal.26` 和 `.27` 的更新服务可能一直显示忙碌。
+如果你当前运行 `.26` 或 `.27`，请手动安装 `.28` PKG 一次。
+安装 `.28` 后，更新服务恢复。
 事务安装 PKG 最多请求 1 次管理员授权。
 
 ## 从 0.6.0-internal.27 到 0.6.0-internal.28 的变化
 
-<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
-
-- Fix updater XPC ownership（#643）
+- 修复 updater XPC 无法响应的问题（#643）。
+- 更新设置不再永久停在忙碌状态（#643）。
+- XPC 超时后自动重置连接并显示错误（#643）。
+- Updater engine 启动失败时回退到上一个 engine（#643）。
+- Windows 和 macOS 安装包使用同一个发布身份。
 
 ## 验证
 
-<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
-
+- `bash scripts/test-all.sh`：通过。
+- macOS XCTest：1,077 个执行，3 个跳过，0 个失败。
+- Launchd updater XPC 回归测试：通过。
+- #643 CI：Portable、Windows ARM64、Windows x64、Windows package/installer 全部通过。
+- Release 构建后执行 macOS 签名、DMG、PKG、更新包和 artifact boundary 复验。
 ## 安装
 
 ### macOS
