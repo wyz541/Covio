@@ -1,6 +1,6 @@
-# Covio 0.6.0-internal.26
+# Covio 0.6.0-internal.27
 
-Covio 0.6.0-internal.26 是内测版。
+Covio 0.6.0-internal.27 是内测版。
 本版把 Windows 和 macOS 产品切到 Rust core 与平台原生 UI。
 macOS 继续使用 SwiftUI 和 AppKit。
 Windows 使用 egui。
@@ -24,33 +24,19 @@ Windows 使用 egui。
 安装后，自动更新恢复。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.0.2.3 到 0.6.0-internal.26 的变化
+## 从 0.6.0-internal.26 到 0.6.0-internal.27 的变化
 
-- macOS 产品改用 Rust core。窗口、菜单和可访问性继续使用 SwiftUI / AppKit。
-- macOS 的配置、晾衣线、剪贴板、工作区、电源、helper 和更新规则使用 Rust。
-- macOS 通过 C ABI 使用 Rust core。产品不再加载 KMP framework。
-- Windows 产品改用 Rust core 和 egui。
-- Windows 产品路径不包含 JVM、Kotlin、Compose 或 JNA。
-- Windows 使用 Windows Credential Manager。macOS 使用 Keychain。
-- 项目版本改用 Semantic Versioning。本版是 `0.6.0-internal.26`。
-- 构建号与产品版本分开保存。
-- 安装包和更新包增加 KMP、JVM、Kotlin、Compose 和 JNA 边界检查。
-- macOS 和 Windows 的最终产品边界完成验收。
+<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+
+- Remove the KMP shared module（#640）
 
 ## 验证
 
-- `bash scripts/test-all.sh`：通过。
-- macOS 全量测试和最终包：[run 41861580963](https://github.com/wyz541/kmp-Covio/actions/runs/41861580963)。
-- macOS 真机验收：MacBook Pro M1 Max，macOS 27.0.1。
-- macOS Keychain、睡眠、helper 和重启恢复通过。
-- macOS artifact boundary：57 个 app 文件，8 个 Mach-O 文件，无 KMP fallback。
-- Windows CI 和最终 installer：[run 41861581262](https://github.com/wyz541/kmp-Covio/actions/runs/41861581262)。
-- Windows installer：clean install、upgrade、rollback、uninstall、crash recovery 和 DPI 1.5 通过。
-- Windows 多显示器：[run 41870873498](https://github.com/wyz541/kmp-Covio/actions/runs/41870873498)。
+<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
 
 ## 安装
 
-1. 下载 `Covio-0.6.0-internal.26.pkg`。
+1. 下载 `Covio-0.6.0-internal.27.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。

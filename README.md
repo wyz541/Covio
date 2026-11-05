@@ -60,7 +60,7 @@ The repository no longer contains the old KMP module, Amper project, Kotlin wrap
 ## Download (internal test)
 
 Covio is under internal test.
-Covio 0.6.0-internal.26 is the current internal build.
+Covio 0.6.0-internal.27 is the current internal build.
 It requires macOS 26 or later on Apple Silicon.
 The default installer does not contain model weights.
 Covio downloads the model after user confirmation.
@@ -70,11 +70,12 @@ Existing 0.0.2.3 and earlier users must install the transactional PKG once for t
 Later internal updates do not request administrator credentials.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
-- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.26/Covio-0.6.0-internal.26.dmg)
-- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.26/Covio-0.6.0-internal.26.pkg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.26)
-- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.26/checksums.txt)
-- [Covio 0.0.2.3](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.3-internal) is the previous internal test.
+- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.27/Covio-0.6.0-internal.27.dmg)
+- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.27/Covio-0.6.0-internal.27.pkg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.27)
+- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.27/checksums.txt)
+- [Covio 0.6.0-internal.26](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.26) is the previous internal test.
+- [Covio 0.0.2.3](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.3-internal) is an older internal test.
 - [Covio 0.0.2.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.1-internal) is an older internal test.
 - [Covio 0.0.2.0](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.0-internal) is an older internal test.
 - [Covio 0.0.1.8](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.8-internal) is an older internal test.
