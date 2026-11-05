@@ -1,7 +1,7 @@
-# Covio 0.6.0-internal.30
+# Covio 0.6.0-internal.31
 
-Covio 0.6.0-internal.30 是内测版。
-本版修复正常更新检查被界面误报为“更新器不可用”的问题。
+Covio 0.6.0-internal.31 是内测版。
+本版修复 GitHub REST API 匿名限流导致更新失败的问题。
 Windows 和 macOS 继续使用 Rust core 与平台原生 UI。
 macOS 使用 SwiftUI 和 AppKit。
 Windows 使用 egui。
@@ -24,30 +24,32 @@ Windows 包含当前用户安装的 x64 安装包。
 
 从 0.0.2.3 或更早版本升级时，请使用事务安装 PKG。
 `0.6.0-internal.26` 和 `.27` 的更新服务可能一直显示忙碌。
-如果你当前运行 `.26` 或 `.27`，请手动安装 `.30` PKG 一次。
-运行 `.28` 或 `.29` 时，可以使用自动更新升级到 `.30`。
+如果你当前运行 `.26` 或 `.27`，请手动安装 `.31` PKG 一次。
+运行 `.28` 到 `.30` 时，可以使用自动更新升级到 `.31`。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.6.0-internal.29 到 0.6.0-internal.30 的变化
+## 从 0.6.0-internal.30 到 0.6.0-internal.31 的变化
 
-- 当前版本或旧版本直接从 release feed 判定，不再下载无效的 manifest 和签名（#649）。
-- 更新状态请求继续使用 8 秒超时（#649）。
-- 检查、安装和重启操作使用独立的 45 秒超时（#649）。
-- 增加无下载路径和独立操作超时的回归测试（#649）。
+- 使用 GitHub Releases Atom feed 读取 internal tag（#652）。
+- 不再依赖 GitHub REST API 的匿名配额（#652）。
+- Manifest、签名和更新归档 URL 继续使用固定格式（#652）。
+- 更新包继续通过现有 manifest 签名链验证（#652）。
 
 ## 验证
 
 - `bash scripts/test-all.sh`：通过。
-- macOS XCTest：1,079 个执行，3 个跳过，0 个失败。
+- macOS XCTest：1,080 个执行，3 个跳过，0 个失败。
 - Updater service 和 launchd XPC 回归测试：通过。
-- #649 CI：Portable、Windows ARM64、Windows x64、Windows package/installer 全部通过。
+- Atom feed 实际解析：找到 `.31`、`.30` 和 `.29`。
+- REST API 限流复验：返回 `403` 时 Atom feed 仍返回 `200`。
+- #652 CI：Portable、Windows ARM64、Windows x64、Windows package/installer 全部通过。
 - Release 构建后执行 macOS 签名、DMG、PKG、更新包和 artifact boundary 复验。
 
 ## 安装
 
 ### macOS
 
-1. 下载 `Covio-0.6.0-internal.30.pkg`。
+1. 下载 `Covio-0.6.0-internal.31.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。
@@ -55,7 +57,7 @@ Windows 包含当前用户安装的 x64 安装包。
 
 ### Windows
 
-1. 下载 `Covio-0.6.0-internal.30-windows-x64-setup.exe`。
+1. 下载 `Covio-0.6.0-internal.31-windows-x64-setup.exe`。
 2. 运行安装包。
 3. 安装到当前用户目录。
 4. 从开始菜单启动 Covio。
