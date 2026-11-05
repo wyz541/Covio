@@ -1,9 +1,10 @@
 # Covio 0.6.0-internal.26
 
 Covio 0.6.0-internal.26 是内测版。
-此版本修复应用菜单设置入口和首次 Updater 安装。
-此版本包含风扇预设和 Liquid Glass 更新。
-此版本不用于公开分发。
+本版把 Windows 和 macOS 产品切到 Rust core 与平台原生 UI。
+macOS 继续使用 SwiftUI 和 AppKit。
+Windows 使用 egui。
+本版不用于公开分发。
 
 ## 系统要求
 
@@ -17,37 +18,35 @@ Covio 0.6.0-internal.26 是内测版。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
 
-从 0.0.1.8 升级时，请使用事务安装 PKG。
-只安装 DMG 不会安装 root updater。
+从 0.0.2.3 或更早版本升级时，请使用事务安装 PKG。
+首个 0.6.0 SemVer 内测版需要手动安装。
+旧客户端不能解析新的 SemVer tag。
+安装后，自动更新恢复。
 事务安装 PKG 最多请求 1 次管理员授权。
 
 ## 从 0.0.2.3 到 0.6.0-internal.26 的变化
 
-<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
-
-- Update ADR-0030 after cutover（#638）
-- Record the Windows and macOS acceptance（#637）
-- Harden Windows and macOS release artifacts（#636）
-- Cut Windows over to the Rust egui product（#635）
-- Add Windows platform capability adapters（#634）
-- Add the Windows Rust egui host（#633）
-- Restrict the Rust migration to Windows and macOS（#632）
-- Move the macOS host to the Rust core（#626）
-- Keep hosted CI on Linux（#628）
-- Add macOS Rust FFI and Keychain adapter（#625）
-- Migrate update and design contract rules to Rust（#624）
-- Migrate power and helper contracts to Rust（#623）
-- Migrate workspace state and transfer to Rust（#622）
-- Migrate shelf and clipboard state to Rust（#621）
-- Adopt Semantic Versioning（#619）
-- Migrate configuration and platform ports to Rust（#620）
-- Cache Release packages and KMP frameworks（#617）
-- Establish the Rust core bridge（#616）
-- Define the Rust core migration architecture（#615）
+- macOS 产品改用 Rust core。窗口、菜单和可访问性继续使用 SwiftUI / AppKit。
+- macOS 的配置、晾衣线、剪贴板、工作区、电源、helper 和更新规则使用 Rust。
+- macOS 通过 C ABI 使用 Rust core。产品不再加载 KMP framework。
+- Windows 产品改用 Rust core 和 egui。
+- Windows 产品路径不包含 JVM、Kotlin、Compose 或 JNA。
+- Windows 使用 Windows Credential Manager。macOS 使用 Keychain。
+- 项目版本改用 Semantic Versioning。本版是 `0.6.0-internal.26`。
+- 构建号与产品版本分开保存。
+- 安装包和更新包增加 KMP、JVM、Kotlin、Compose 和 JNA 边界检查。
+- macOS 和 Windows 的最终产品边界完成验收。
 
 ## 验证
 
-<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
+- `bash scripts/test-all.sh`：通过。
+- macOS 全量测试和最终包：[run 41861580963](https://github.com/wyz541/kmp-Covio/actions/runs/41861580963)。
+- macOS 真机验收：MacBook Pro M1 Max，macOS 27.0.1。
+- macOS Keychain、睡眠、helper 和重启恢复通过。
+- macOS artifact boundary：57 个 app 文件，8 个 Mach-O 文件，无 KMP fallback。
+- Windows CI 和最终 installer：[run 41861581262](https://github.com/wyz541/kmp-Covio/actions/runs/41861581262)。
+- Windows installer：clean install、upgrade、rollback、uninstall、crash recovery 和 DPI 1.5 通过。
+- Windows 多显示器：[run 41870873498](https://github.com/wyz541/kmp-Covio/actions/runs/41870873498)。
 
 ## 安装
 

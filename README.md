@@ -65,7 +65,7 @@ The default installer does not contain model weights.
 Covio downloads the model after user confirmation.
 This release does not provide an offline model installer.
 Covio 0.0.2.0 includes the migration for passwordless internal updates.
-Existing 0.0.1.8 users must install the transactional PKG once.
+Existing 0.0.2.3 and earlier users must install the transactional PKG once for the first SemVer build.
 Later internal updates do not request administrator credentials.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
