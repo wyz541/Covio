@@ -61,7 +61,8 @@ The repository no longer contains the old KMP module, Amper project, Kotlin wrap
 
 Covio is under internal test.
 Covio 0.6.0-internal.27 is the current internal build.
-It requires macOS 26 or later on Apple Silicon.
+The macOS build requires macOS 26 or later on Apple Silicon.
+The Windows build supports Windows 11 x64.
 The default installer does not contain model weights.
 Covio downloads the model after user confirmation.
 This release does not provide an offline model installer.
@@ -74,6 +75,7 @@ Validation results are in `docs/research/installer-size-reduction/validation/`.
 - [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.27/Covio-0.6.0-internal.27.pkg)
 - [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.27)
 - [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.27/checksums.txt)
+- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.27/Covio-0.6.0-internal.27-windows-x64-setup.exe)
 - [Covio 0.6.0-internal.26](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.26) is the previous internal test.
 - [Covio 0.0.2.3](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.3-internal) is an older internal test.
 - [Covio 0.0.2.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.1-internal) is an older internal test.
