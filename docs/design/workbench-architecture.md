@@ -9,10 +9,10 @@
 | 日期 | `2026-11-03` |
 | 适用范围 | macOS 宿主。Windows 与 iOS 只定义入口形态。 |
 | 设计依据 | [设计合同](../covio-design-contract.json) |
-| 实现边界 | [ADR-0030](../adr/adr-0030-rust-core-platform-native-ui.md) 与 [Rust core 迁移计划](rust-core-migration.md) |
+| 实现边界 | [ADR-0030](../adr/adr-0030-rust-core-platform-native-ui.md)、[ADR-0034](../adr/adr-0034-remove-kmp-shared-module.md) 与 [Rust core 迁移计划](rust-core-migration.md) |
 
 本文写工作台的功能、设计与预期。
-本文不规定 Rust、KMP 或平台 UI host 的内部实现。
+本文不规定 Rust core 或平台 UI host 的内部实现。
 
 
 ## 1. 目标与范围

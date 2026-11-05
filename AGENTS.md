@@ -4,9 +4,9 @@
 
 ## 1. 项目基线
 - Covio 交付 Windows 和 macOS。macOS UI 在 `macosApp/`，Windows UI 在 `rust/apps/covio-windows/`。
-- 共享逻辑是 Rust core，代码在 `rust/crates/`。`kmpDomain/` 只保留给未迁移平台和仓库检查。
-- 仓库级 KMP 删除需要独立决定。
-- Amper 0.12.1 仍管理 KMP 检查，不是 Gradle。
+- 共享逻辑是 Rust core，代码在 `rust/crates/`。
+- Windows 和 macOS 产品路径不含 KMP、Kotlin、Compose、JVM 或 JNA。
+- KMP 删除决策见 ADR-0034。Android、iOS 和 Web 不在当前产品范围。
 - 主干是 `main`。
 - 项目版本遵循 Semantic Versioning 2.0.0。权威规则见 `docs/process/versioning.md`。
 

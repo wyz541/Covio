@@ -576,7 +576,7 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         let contract = result.contract.expect("contract");
-        assert_eq!(contract.schema_version, "1.3.0");
+        assert_eq!(contract.schema_version, "1.4.0");
         assert_eq!(contract.tokens.len(), 163);
         assert_eq!(contract.copy.len(), 888);
         assert_eq!(contract.components.len(), 30);

@@ -3,17 +3,16 @@ import Foundation
 
 /// `AppConfig` 的构造助手。
 ///
-/// Kotlin 的默认参数不导出到 Swift，`AppConfig` 的全部字段都要写。
-/// 这里不抄默认值：默认值从 Kotlin 自己生成的一份配置里取，见 `DefaultConfig`。
-/// 抄写会漂移，而漂移的默认值会让两版写出不同的 `config.json`。
+/// 桥接层不向 Swift 导出默认参数，`AppConfig` 的全部字段都要写。
+/// 这里不抄默认值：默认值由 Rust core 在空目录加载时生成，见 `DefaultConfig`。
+/// 抄写会漂移，而漂移的默认值会让产品写出不同的 `config.json`。
 enum AppConfigs {
-    /// Kotlin 侧 `AppConfig()` 的默认值。
+    /// Rust core 的 `AppConfig` 默认值。
     ///
     /// 做法：让 `ConfigStore` 在一个空目录里 `load()`。
     /// 文件不存在时它写出一份默认配置并返回；再读一次拿到的是
     /// 经过 `normalized()` 的那份，与真实启动路径一致。
-    // `AppConfig` 是 Kotlin 的 data class，字段全只读，所以共享它是安全的。
-    // Swift 看不到 Kotlin 的不可变性，只能显式声明。
+    // 桥接层对 Swift 只暴露只读字段。
     nonisolated(unsafe) static let defaults: AppConfig = {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("covio-config-defaults-\(UUID().uuidString)", isDirectory: true)
@@ -82,7 +81,6 @@ enum AppConfigs {
 
 /// 被测引擎加一组假端口。
 ///
-/// 对应 `kmpDomain/test/com/wyz/covio/core/EngineTest.kt` 里的 `Fixture`。
 final class Fixture {
     let power = FakePower()
     let lid = FakeLid()
@@ -123,7 +121,7 @@ final class Fixture {
 
     func nowMillis() -> Int64 { Fixture.systemNowMillis() }
 
-    /// Kotlin 的 `EngineDefaults.nowMillis()`。那个对象不导出到 Swift。
+    /// Rust core 使用的当前时间毫秒值。
     static func systemNowMillis() -> Int64 { Int64(Date().timeIntervalSince1970 * 1_000) }
 }
 

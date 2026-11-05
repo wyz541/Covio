@@ -2,10 +2,10 @@ import Foundation
 
 /// 单实例锁。
 ///
-/// 行为与 Compose 版的 `app/src/com/wyz/covio/app/platform/SingleInstanceLock.kt` 一致：
-/// 用文件锁实现。进程退出或崩溃时操作系统自动释放，不会留下死锁。
+/// 单实例锁用文件锁实现。
+/// 进程退出或崩溃时，操作系统自动释放锁。
 ///
-/// 两版用不同的文件名，所以可以同时运行。见 `AppPaths`。
+/// 当前宿主与旧版宿主使用不同的锁文件名，所以可以同时运行。见 `AppPaths`。
 final class SingleInstanceLock {
     private let url: URL
     private var descriptor: Int32 = -1

@@ -5,7 +5,7 @@ import Foundation
 /// 对应 Rust core 的 workspace store。
 /// 实现只有一份，在 Rust core 里，这里只是把它包成 Swift 用起来顺手的样子。
 ///
-/// 存储位置是 `<应用数据根>/Covio/Workspace/`。索引与内容都由 Kotlin 那份实现读写，
+/// 存储位置是 `<应用数据根>/Covio/Workspace/`。索引与内容都由 Rust core 读写，
 /// 不能在 Swift 里另写一套。
 ///
 /// 每一项都拿同一把锁：`WorkspaceRuntime` 在主线程上跑，但内容落盘与淘汰可能在别处触发。
@@ -146,7 +146,7 @@ final class WorkspaceStoreClient: @unchecked Sendable {
         return path
     }
 
-    /// 界面上的排列顺序。顺序规则在 Kotlin 里，四个平台共用。
+    /// 界面上的排列顺序。顺序规则在 Rust core 里，由各平台共用。
     static func displayOrder(_ state: WorkspaceState) -> [WorkspaceEntry] {
         WorkspaceLogic.shared.displayOrder(entries: state.entries)
     }

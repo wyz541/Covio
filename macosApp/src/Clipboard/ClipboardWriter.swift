@@ -8,7 +8,7 @@ enum ClipboardWriter {
     /// 写入并返回是否成功。
     @discardableResult
     static func write(_ item: ClipItem, to pasteboard: NSPasteboard = .general) -> Bool {
-        // Kotlin 的 enum 导出到 Swift 是类而不是 Swift enum，所以这里用比较而不是 switch。
+        // 桥接层的种类值不是 Swift enum，所以这里用比较而不是 switch。
         if item.kind == ClipKind.image {
             guard let image = NSImage(contentsOfFile: item.filePath) else { return false }
             // 访达的 ⌘V 只接受文件地址。只写图片时，粘贴到访达没有反应。

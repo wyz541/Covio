@@ -3,7 +3,7 @@ import XCTest
 
 /// 电源观察端口的导出与映射测试。
 ///
-/// 策略本身由 Kotlin 测试覆盖。
+/// 策略本身由 Rust core 测试覆盖。
 /// 这里只守 Swift 系统 API 到共享模型的第一层转换。
 final class PowerObservationTests: XCTestCase {
     func testBatteryPercentDoesNotInventUnknownValues() {

@@ -10,6 +10,7 @@ schema 管得住形状，管不住跨段的一致性。这个脚本补上 schema
 4. `tokens` 段的键前缀必须在允许的集合里。
 5. `metadata.counts` 的数字要与合同的真实长度一致。
 6. macOS 宿主的源码里不许手写文案，只许读生成的 `ContractCopy`。
+7. 合同不得保留 Compose 或 Kotlin 产品映射。
 
 用法：
     python3 scripts/validate-contract.py            校验，失败退出码 1
@@ -124,7 +125,7 @@ def check_copy(contract: dict) -> None:
     """规则 3：合同内部引用的文案键必须存在。
 
     只查这一个方向。反方向查不了：`copy` 段的键主要由代码引用
-    （生成的 `ContractCopy.swift` 与 Kotlin 侧），合同里没有引用点。
+    （生成的 `ContractCopy.swift`），合同里没有引用点。
     代码那一侧由规则 6 与 `ContractConstantsTests` 保证。
     """
     copy = contract.get("copy", {})
@@ -212,6 +213,17 @@ def check_no_hand_written_copy() -> None:
                 fail(f"{relative}:{number} 手写了文案。文案要读 ContractCopy")
 
 
+def check_legacy_product_mappings_absent(contract: dict) -> None:
+    """规则 7：已删除的 Kotlin 产品路径不能继续出现在合同里。"""
+    metadata = contract.get("metadata", {})
+    if "kotlinInterfaces" in metadata:
+        fail("metadata.kotlinInterfaces 已删除，不能再声明 Kotlin 产品接口")
+
+    for key, component in contract.get("components", {}).items():
+        if "composeMapping" in component:
+            fail(f"{key}.composeMapping 已删除，不能再声明 Compose 落点")
+
+
 def main() -> int:
     contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
 
@@ -221,6 +233,7 @@ def main() -> int:
     check_tokens(contract)
     check_counts(contract)
     check_no_hand_written_copy()
+    check_legacy_product_mappings_absent(contract)
 
     if errors:
         for message in errors:

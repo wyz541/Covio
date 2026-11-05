@@ -15,7 +15,7 @@ final class MacSleepController: NSObject, SleepController {
 
     /// 缓存规则的权威实现已迁入 Rust core，Swift 适配器只缓存 OS 读取结果。
     ///
-    /// Kotlin 的默认参数值不导出（ADR-001 实测 18），所以 `ttlMillis` 要显式传。
+    /// 桥接层不向 Swift 导出默认参数，所以 `ttlMillis` 要显式传。
     private let timeoutCache: IdleSleepTimeoutCache
 
     init(

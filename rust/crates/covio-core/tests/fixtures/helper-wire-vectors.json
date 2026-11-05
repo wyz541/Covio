@@ -1,5 +1,5 @@
 {
-  "$comment": "特权 helper 的线上协议语料。两侧测试读同一份：kmpDomain/test 的 HelperWireVectorTest 与 macosApp/test 的 HelperWireParityTests。line 是线上真实的字节，expected 与 reencoded 是逐字节比较的目标。改动这里等于改协议，要看清楚旧版客户端怎么读。",
+  "$comment": "特权 helper 的线上协议语料。两侧测试读同一份：Rust core 的 helper wire 测试与 macosApp/test 的 HelperWireParityTests。line 是线上真实的字节，expected 与 reencoded 是逐字节比较的目标。改动这里等于改协议，要看清楚旧版客户端怎么读。",
   "requests": [
     {
       "name": "Swift 客户端带上空 payload 对象",
@@ -10,7 +10,7 @@
       "reencoded": "{\"version\":\"10\",\"requestId\":\"r1\",\"command\":\"version\"}"
     },
     {
-      "name": "Kotlin 客户端省略空 payload",
+      "name": "旧版客户端省略空 payload",
       "line": "{\"version\":\"10\",\"requestId\":\"r2\",\"command\":\"version\"}",
       "decode": "ok",
       "validate": null,

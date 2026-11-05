@@ -2,14 +2,13 @@ import Foundation
 
 /// `PrivilegedOps` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/MacPrivilegedOps.kt`。
-/// 与 Kotlin 版的行为一致：
+/// 与旧版宿主保持相同行为：
 /// - 「已安装」的判据是 socket 文件存在，不是 LaunchDaemon 在跑。
 /// - 完整发布身份和签名都匹配才返回 `MATCH`。
 /// - 其他状态进入只读安全模式，并只允许 helper 修复入口。
 /// - 只有 `pmset` 读操作在本地做，写操作一律走 helper。
 ///
-/// Kotlin interface 导出为 Objective-C protocol，实现类必须继承 `NSObject`。
+/// 实现类继承 `NSObject`，以便使用 Objective-C runtime 的 helper 检查。
 final class MacPrivilegedOps: NSObject, PrivilegedOps {
     private let logger: AppLogger
     private let executablePath: String

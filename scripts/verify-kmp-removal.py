@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Verify that the KMP and Kotlin product paths are absent.
+
+The check covers four boundaries:
+
+1. Removed source and toolchain paths.
+2. Active build, test, CI, and release scripts.
+3. The macOS Xcode project and the Rust workspace graph.
+4. The product design contract and its guide schema.
+"""
+
+from __future__ import annotations
+
+import json
+import pathlib
+import sys
+
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+REMOVED_PATHS = (
+    "app",
+    "kmpDomain",
+    "project.yaml",
+    "libs.versions.toml",
+    "kotlin",
+    "kotlin.bat",
+    "scripts/build-kmp-framework.sh",
+    "scripts/provision-amper-github-downloads.sh",
+)
+FORBIDDEN_TOKENS = (
+    "kmpdomain",
+    "build-kmp-framework",
+    "provision-amper",
+    "setup-java",
+    "kotlin-linux",
+    "generatedreleaseidentity.kt",
+)
+EXCLUDED_DIRECTORIES = {".git", "build", "dist", "node_modules", "target"}
+
+errors: list[str] = []
+
+
+def fail(message: str) -> None:
+    errors.append(message)
+
+
+def active_files(suffixes: tuple[str, ...]) -> list[pathlib.Path]:
+    files: list[pathlib.Path] = []
+    for path in ROOT.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(ROOT)
+        if any(part in EXCLUDED_DIRECTORIES for part in relative.parts):
+            continue
+        if path.suffix in suffixes:
+            files.append(path)
+    return sorted(files)
+
+
+def check_removed_paths() -> None:
+    for relative in REMOVED_PATHS:
+        if (ROOT / relative).exists():
+            fail(f"removed product path exists: {relative}")
+
+    for path in active_files((".kt", ".kts", ".gradle")):
+        fail(f"Kotlin or Gradle source remains: {path.relative_to(ROOT)}")
+
+
+def check_active_build_files() -> None:
+    paths = (
+        ".github/workflows/ci.yml",
+        "scripts/test-all.sh",
+        "scripts/build-macos-swift.sh",
+        "scripts/test-macos-swift.sh",
+        "scripts/release_manifest.py",
+        "scripts/release-cache.sh",
+        "scripts/covio",
+    )
+    for relative in paths:
+        path = ROOT / relative
+        if not path.exists():
+            fail(f"build file is missing: {relative}")
+            continue
+        content = path.read_text(encoding="utf-8").lower()
+        for token in FORBIDDEN_TOKENS:
+            if token in content:
+                fail(f"legacy product token {token!r} remains in {relative}")
+
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        content = path.read_text(encoding="utf-8").lower()
+        for token in ("setup-java", "kotlin test", "kmpdomain"):
+            if token in content:
+                fail(f"legacy workflow token {token!r} remains in {path.relative_to(ROOT)}")
+
+
+def check_macos_build_graph() -> None:
+    project = ROOT / "macosApp" / "Covio.xcodeproj" / "project.pbxproj"
+    content = project.read_text(encoding="utf-8").lower()
+    for token in ("kmpdomain", "kotlin", ".kt"):
+        if token in content:
+            fail(f"macOS build graph still contains {token!r}")
+
+    generated = ROOT / "release" / "release-manifest.json"
+    manifest = json.loads(generated.read_text(encoding="utf-8"))
+    if not isinstance(manifest.get("helperProtocolVersion"), int):
+        fail("release manifest does not carry helperProtocolVersion")
+
+
+def check_rust_build_graph() -> None:
+    workspace = (ROOT / "rust" / "Cargo.toml").read_text(encoding="utf-8").lower()
+    for token in ("kmp", "kotlin", "compose", "jna"):
+        if token in workspace:
+            fail(f"Rust workspace graph contains {token!r}")
+
+    for path in sorted((ROOT / "rust").glob("**/Cargo.toml")):
+        content = path.read_text(encoding="utf-8").lower()
+        for token in ("kotlin", "compose", "jna"):
+            if token in content:
+                fail(f"Rust manifest {path.relative_to(ROOT)} contains {token!r}")
+
+
+def check_product_contract() -> None:
+    contract = json.loads((ROOT / "docs" / "covio-design-contract.json").read_text(encoding="utf-8"))
+    if "kotlinInterfaces" in contract.get("metadata", {}):
+        fail("design contract still contains metadata.kotlinInterfaces")
+    for key, component in contract.get("components", {}).items():
+        if "composeMapping" in component:
+            fail(f"design contract still contains {key}.composeMapping")
+
+    guide_schema = (ROOT / "guide" / "src" / "content.config.ts").read_text(encoding="utf-8")
+    if "kmp:" in guide_schema:
+        fail("guide schema still exposes a KMP implementation field")
+
+
+def main() -> int:
+    check_removed_paths()
+    check_active_build_files()
+    check_macos_build_graph()
+    check_rust_build_graph()
+    check_product_contract()
+
+    if errors:
+        for error in errors:
+            print(f"KMP removal check failed: {error}", file=sys.stderr)
+        print(f"{len(errors)} problems.", file=sys.stderr)
+        return 1
+
+    print(
+        "KMP removal boundary passed: "
+        "no Kotlin product source, build task, framework link, or release output."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

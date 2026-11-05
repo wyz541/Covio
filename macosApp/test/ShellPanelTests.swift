@@ -6,7 +6,7 @@ import XCTest
 ///
 /// 这些断言把 M1 的 NSPanel 配置表逐条钉住。其中 `level` 那一条最关键：
 /// `isFloatingPanel = true` 会把 `level` 静默重置为 `.floating`（3），
-/// 现有 Compose 版的 `FLOATING_WINDOW_LEVEL = 3` 就是踩了这个坑。
+/// 旧版宿主的 `FLOATING_WINDOW_LEVEL = 3` 就是踩了这个坑。
 /// 见 `docs/adr/adr-0001-macos-ui-swiftui.md` 实测 9。
 @MainActor
 final class ShellPanelTests: XCTestCase {
@@ -29,11 +29,11 @@ final class ShellPanelTests: XCTestCase {
         XCTAssertTrue(panel.styleMask.contains(.nonactivatingPanel))
     }
 
-    func testCollectionBehaviorMatchesTheComposeVersionPlusIgnoresCycle() {
+    func testCollectionBehaviorMatchesTheLegacyHostPlusIgnoresCycle() {
         let panel = HubPanel(rect: testRect)
         defer { panel.orderOut(nil) }
 
-        // 现有 Compose 版的 PANEL_COLLECTION_BEHAVIOR 是 0x51，
+        // 旧版宿主的 PANEL_COLLECTION_BEHAVIOR 是 0x51，
         // 即 canJoinAllSpaces | stationary | fullScreenAuxiliary。这里再加 ignoresCycle。
         XCTAssertTrue(panel.collectionBehavior.contains(.canJoinAllSpaces))
         XCTAssertTrue(panel.collectionBehavior.contains(.stationary))

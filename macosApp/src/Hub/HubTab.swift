@@ -2,7 +2,7 @@ import Foundation
 
 /// 工作区页面的种类。
 ///
-/// 模型那一侧的种类是 Kotlin 的 `PaneKind`。它在 Swift 里是一个类，不能穷举 switch，
+/// 桥接模型的种类是 `PaneKind`。它在 Swift 里是一个类，不能穷举 switch，
 /// 所以宿主镜像一个同形的枚举，两边靠 `rawValue`（等于 `PaneKind.key`）互转。
 ///
 /// 文案键与顺序由 `DesignContractTests` 守住。

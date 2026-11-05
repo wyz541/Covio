@@ -35,12 +35,3 @@ release_source_packages_path() {
     printf '%s/build/release-source-packages\n' "$(release_primary_checkout "$root")"
   fi
 }
-
-release_kmp_cache_path() {
-  local root="$1"
-  if [[ -n "${COVIO_RELEASE_KMP_CACHE_DIR:-}" ]]; then
-    release_path_from_root "$root" "$COVIO_RELEASE_KMP_CACHE_DIR"
-  else
-    printf '%s/build/release-kmp-cache\n' "$(release_primary_checkout "$root")"
-  fi
-}

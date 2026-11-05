@@ -1,13 +1,11 @@
 import XCTest
 @testable import Covio
 
-/// 两版共存的路径测试。
+/// 新旧版本共存的路径测试。
 ///
-/// M1 的完成判据要求 Compose 版与 SwiftUI 版可以同时运行。
-/// 两版共用数据目录与 `config.json`，只有 lock 文件名不同。
+/// 当前宿主与旧版宿主共用数据目录与 `config.json`，只有锁文件名不同。
 final class AppPathsTests: XCTestCase {
-    func testSupportDirectoryMatchesTheComposeVersion() {
-        // 与 core/src/com/wyz/covio/Models.kt 的 APP_ID 一致。
+    func testSupportDirectoryMatchesTheLegacyLocation() {
         XCTAssertEqual(AppPaths.appID, "com.wyz.covio")
         XCTAssertTrue(AppPaths.supportDirectory.path.hasSuffix("Application Support/com.wyz.covio"))
     }
@@ -22,9 +20,9 @@ final class AppPathsTests: XCTestCase {
     }
 
     func testBothVersionsUseDifferentLockFiles() {
-        XCTAssertNotEqual(AppPaths.lockFile, AppPaths.composeLockFile)
+        XCTAssertNotEqual(AppPaths.lockFile, AppPaths.legacyLockFile)
         XCTAssertEqual(AppPaths.lockFile.lastPathComponent, "app.swiftui.lock")
-        XCTAssertEqual(AppPaths.composeLockFile.lastPathComponent, "app.lock")
+        XCTAssertEqual(AppPaths.legacyLockFile.lastPathComponent, "app.lock")
     }
 
     func testPowerHistorySitsInTheSupportDirectory() {
@@ -128,21 +126,21 @@ final class AppPathsTests: XCTestCase {
             .appendingPathComponent("covio-coexist-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        let swiftUI = SingleInstanceLock(url: directory.appendingPathComponent(AppPaths.swiftUILockFileName))
-        let compose = SingleInstanceLock(url: directory.appendingPathComponent(AppPaths.composeLockFileName))
+        let current = SingleInstanceLock(url: directory.appendingPathComponent(AppPaths.swiftUILockFileName))
+        let legacy = SingleInstanceLock(url: directory.appendingPathComponent(AppPaths.legacyLockFileName))
 
-        XCTAssertTrue(swiftUI.acquire(), "SwiftUI 版应该拿到自己的锁")
-        XCTAssertTrue(compose.acquire(), "Compose 版应该能同时拿到自己的锁")
-        XCTAssertTrue(swiftUI.isAcquired)
-        XCTAssertTrue(compose.isAcquired)
+        XCTAssertTrue(current.acquire(), "当前版本应该拿到自己的锁")
+        XCTAssertTrue(legacy.acquire(), "旧版应该能同时拿到自己的锁")
+        XCTAssertTrue(current.isAcquired)
+        XCTAssertTrue(legacy.isAcquired)
 
         // 但同一版仍然只有一个实例。
-        let secondSwiftUI = SingleInstanceLock(
+        let secondCurrent = SingleInstanceLock(
             url: directory.appendingPathComponent(AppPaths.swiftUILockFileName)
         )
-        XCTAssertFalse(secondSwiftUI.acquire(), "SwiftUI 版的第二个实例不应该拿到锁")
+        XCTAssertFalse(secondCurrent.acquire(), "当前版本的第二个实例不应该拿到锁")
 
-        swiftUI.release()
-        compose.release()
+        current.release()
+        legacy.release()
     }
 }

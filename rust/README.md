@@ -12,8 +12,8 @@
 | `covio-ffi` | macOS C ABI、opaque handle、callback、shutdown 和 Swift 可导入 header |
 | `covio-windows` | Windows egui product host、托盘、单实例、core worker、capability composition 和 installer smoke |
 
-`covio-core` 的配置 codec 读取 Kotlin 生成的 fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
-Shelf、clipboard 与 workspace 使用同一 filesystem capability，并读取 Kotlin 共用的 durable-state fixture。
+`covio-core` 的配置 codec 使用 Rust test fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
+Shelf、clipboard 与 workspace 使用同一 filesystem capability，并读取仓库内的 durable-state fixture。
 Workspace 使用 SHA-256 内容寻址、bounded range reads、staging、atomic move 和 tombstone。
 
 `covio-platform` 定义 capability。macOS adapter 使用 Security.framework 读写 Keychain。Windows adapter 使用 Windows Credential Manager，不提供明文 fallback。

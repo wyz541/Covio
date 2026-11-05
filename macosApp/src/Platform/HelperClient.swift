@@ -3,7 +3,6 @@ import Foundation
 
 /// 特权 helper 客户端。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/helper/HelperClient.kt`。
 /// 新服务通过 XPC 通信；检测到 legacy helper 时回退到 Unix socket。
 /// 两条 transport 使用同一套共享层线协议。
 /// 对外语义一致：超时或失败返回 nil，不抛异常。

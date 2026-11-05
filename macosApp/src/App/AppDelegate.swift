@@ -344,7 +344,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 测试进程不是真实实例，不参与单实例仲裁。
         // 真实应用在跑时仲裁会失败，那会把整个测试套件终止掉。
         if !LaunchEnvironment.isRunningTests() {
-            // 单实例。Compose 版用 app.lock，本版用 app.swiftui.lock，两版可以同时运行。
+            // 单实例。旧版使用 app.lock，当前版本使用 app.swiftui.lock，两者可以同时运行。
             let lock = SingleInstanceLock()
             guard lock.acquire() else {
                 NSLog("Covio 已经在运行。本进程退出。")

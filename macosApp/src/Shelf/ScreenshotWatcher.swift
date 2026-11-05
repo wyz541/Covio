@@ -12,12 +12,10 @@ func hasScreenCaptureAttribute(_ path: String) -> Bool {
 
 /// 监视一个目录，把新出现的截图报出来。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/ScreenshotWatcher.kt`。
-/// Kotlin 版用 `WatchService`，这里用 `DispatchSource` 的 vnode 事件。
+/// 旧版使用 `WatchService`，当前实现使用 `DispatchSource` 的 vnode 事件。
 /// 两者都只看目录本身，不递归子目录。
 ///
 /// 回调送到主队列。截图到达后要改 SwiftUI 状态，而那些状态只能在主线程改。
-/// Kotlin 版从监视线程直接回调，因为 Compose 的快照状态允许跨线程写。
 final class ScreenshotWatcher: @unchecked Sendable {
     /// 系统写完一张截图需要时间。收到事件后等这么久再读目录。
     static let defaultDebounceSeconds: TimeInterval = 0.200

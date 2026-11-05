@@ -2,7 +2,6 @@ import Foundation
 
 /// `AppLogger` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/FileAppLogger.kt`。
 /// 写到 `~/Library/Application Support/com.wyz.covio/logs/Covio.log`，
 /// 超过 5 MB 就轮转，保留 `.1` 到 `.3`。
 final class FileAppLogger: NSObject, AppLogger {
@@ -86,8 +85,7 @@ final class FileAppLogger: NSObject, AppLogger {
 
 /// `WakeLogReader` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/PmsetWakeLogReader.kt`。
-/// 跑 `pmset -g log` 并把输出交给 Kotlin 的 `PmsetWakeLogParser`。
+/// 跑 `pmset -g log` 并把输出交给 Rust core 的 `PmsetWakeLogParser`。
 /// 解析留在共享层，两个平台的结果必然一致。
 ///
 /// 输出可能有几 MB，所以先落到临时文件再读，不占内存管道。

@@ -171,7 +171,7 @@ Android 的数据迁移、JNI、Keystore 和 Kotlin UI 也不在本 ADR 范围�
 | Android 迁移 | out of scope | 需要独立 ADR 和独立 Feature |
 | iOS 迁移 | out of scope | 需要独立 ADR 和独立 Feature |
 | Web 迁移 | out of scope | 需要独立 ADR 和独立 Feature |
-| KMP 仓库级删除 | not decided | 单独 ADR，在 Windows 和 macOS cutover 后决定 |
+| KMP 仓库级删除 | resolved | 由 ADR-0034 完成 |
 | 性能收益 | not measured | 只有同设备、同 OS、同负载有读数后才能声明 |
 
 ## 参考
@@ -179,4 +179,5 @@ Android 的数据迁移、JNI、Keystore 和 Kotlin UI 也不在本 ADR 范围�
 - [ADR-0001：macOS UI 使用 SwiftUI](adr-0001-macos-ui-swiftui.md)
 - [ADR-0021：废弃 Compose Web 打样](adr-0021-deprecate-compose-web-preview.md)
 - [Rust core 迁移计划](../design/rust-core-migration.md)
+- [ADR-0034：删除仓库中的 KMP shared module](adr-0034-remove-kmp-shared-module.md)
 - [Feature #595](https://github.com/wyz541/kmp-Covio/issues/595)

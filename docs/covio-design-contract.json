@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "1.3.0",
+  "schemaVersion": "1.4.0",
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-11-01",
+    "updatedAt": "2026-11-05",
     "authority": "docs/covio-design-contract.json",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -35,32 +35,6 @@
         "family": "SF Pro",
         "status": "required",
         "usage": "All Covio delivery pages."
-      }
-    ],
-    "kotlinInterfaces": [
-      {
-        "name": "DesignContract",
-        "purpose": "Read-only contract model.",
-        "status": "implemented",
-        "path": "kmpDomain/src/com/wyz/covio/core/DesignContract.kt"
-      },
-      {
-        "name": "DesignContractReader",
-        "purpose": "Read and parse the design contract.",
-        "status": "implemented",
-        "path": "kmpDomain/src/com/wyz/covio/core/DesignContract.kt"
-      },
-      {
-        "name": "DesignContractValidationResult",
-        "purpose": "Report contract validation status.",
-        "status": "implemented",
-        "path": "kmpDomain/src/com/wyz/covio/core/DesignContract.kt"
-      },
-      {
-        "name": "DesignContractDiagnostic",
-        "purpose": "Describe one validation diagnostic.",
-        "status": "implemented",
-        "path": "kmpDomain/src/com/wyz/covio/core/DesignContract.kt"
       }
     ],
     "validation": {
@@ -1610,10 +1584,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "MacWindow, Row",
-        "behavior": "Keep traffic-light controls at the leading edge and place title content after them."
-      },
       "nativeSize": {
         "width": 960,
         "height": 40
@@ -1662,10 +1632,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "Column, Text",
-        "behavior": "Use the page-title text style and reserve focus treatment for interactive title variants."
-      },
       "nativeSize": {
         "width": 912,
         "height": 24
@@ -1713,10 +1679,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Keep navigation text readable over every content backdrop."
       ],
-      "composeMapping": {
-        "target": "MacTabBar",
-        "behavior": "Keep one selected item, expose keyboard focus, and disable unavailable destinations."
-      },
       "nativeSize": {
         "width": 960,
         "height": 46
@@ -1758,10 +1720,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "HomeGrid",
-        "behavior": "Four columns of 96-point rows with a 12-point gap; widgets pack in list order, first fit."
-      },
       "nativeSize": {
         "width": 912,
         "height": 420
@@ -1803,10 +1761,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "WidgetCard",
-        "behavior": "Rounded 16-point tinted card; title at 13 points semibold over a one-line detail at 11 points secondary."
-      },
       "nativeSize": {
         "width": 219,
         "height": 96
@@ -1848,10 +1802,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "MacCard",
-        "behavior": "Use surface, divider, and large radius tokens; do not nest cards."
-      },
       "nativeSize": {
         "width": 896,
         "height": 160
@@ -1897,10 +1847,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "MacSettingRow",
-        "behavior": "Keep the control target at least 44 points and align the label at the leading edge."
-      },
       "nativeSize": {
         "width": 856,
         "height": 52
@@ -1945,10 +1891,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Expose the current value or state to assistive technology."
       ],
-      "composeMapping": {
-        "target": "MacSwitch",
-        "behavior": "Expose checked state to accessibility services and keep the full row clickable."
-      },
       "nativeSize": {
         "width": 38,
         "height": 22
@@ -1995,10 +1937,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Expose the current value or state to assistive technology."
       ],
-      "composeMapping": {
-        "target": "MacNumberField",
-        "behavior": "Clamp values to the documented range and keep the error text visible."
-      },
       "nativeSize": {
         "width": 120,
         "height": 24
@@ -2048,10 +1986,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Expose the current value or state to assistive technology."
       ],
-      "composeMapping": {
-        "target": "MacSegmented",
-        "behavior": "Expose one selected value and support keyboard movement between options."
-      },
       "nativeSize": {
         "width": 260,
         "height": 22
@@ -2113,10 +2047,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Expose the current value or state to assistive technology."
       ],
-      "composeMapping": {
-        "target": "MacButton",
-        "behavior": "Allow one submission per press and keep loading, success, warning, and error labels visible."
-      },
       "nativeSize": {
         "width": 132,
         "height": 22
@@ -2164,10 +2094,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "MacStatusBadge",
-        "behavior": "Pair every color with text or an icon so color is not the only status cue."
-      },
       "nativeSize": {
         "width": 126,
         "height": 24
@@ -2209,10 +2135,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "MacAlert",
-        "behavior": "Keep the message in reading order before related actions."
-      },
       "nativeSize": {
         "width": 260,
         "height": 152
@@ -2257,10 +2179,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Move focus into the dialog on open and restore focus on close."
       ],
-      "composeMapping": {
-        "target": "MacDialog",
-        "behavior": "Trap keyboard focus, restore focus on close, and keep the primary action visible."
-      },
       "nativeSize": {
         "width": 360,
         "height": 216
@@ -2306,10 +2224,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "MacToast",
-        "behavior": "Do not put the only recovery action in a toast; keep it announced to assistive technology."
-      },
       "nativeSize": {
         "width": 344,
         "height": 77
@@ -2357,10 +2271,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "ScreenshotCard",
-        "behavior": "Show screenshots as file-area focus or quiet tiles. Expose copy, open, markup, workspace, and remove actions."
-      },
       "nativeSize": {
         "width": 150,
         "height": 200
@@ -2412,10 +2322,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "Item, CheckboxItem",
-        "behavior": "Use the macOS menu surface and system keyboard behavior."
-      },
       "nativeSize": {
         "width": 160,
         "height": 22
@@ -2461,10 +2367,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "CovioStatusIcon",
-        "behavior": "Use the shared glass hanger icon. Do not draw rope or clothesline geometry."
-      },
       "nativeSize": {
         "width": 9,
         "height": 26
@@ -2519,10 +2421,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "VoiceOver reads the highest-priority status and the full status summary."
       ],
-      "composeMapping": {
-        "target": "CovioTrayIcon",
-        "behavior": "Render the shared glass hanger icon without a pill, brand fill, or app name. Keep the interactive target at least 24 points."
-      },
       "nativeSize": {
         "width": 44,
         "height": 44
@@ -2572,10 +2470,6 @@
         "Keep keyboard focus visible and expose a readable accessible name.",
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows."
       ],
-      "composeMapping": {
-        "target": "MenuScope, TrayPresentation",
-        "behavior": "Use the native menu implementation; do not draw alternate menu chrome."
-      },
       "nativeSize": {
         "width": 680,
         "height": 400
@@ -2641,10 +2535,6 @@
         "Keep the material role and control state understandable without blur.",
         "Expose the same semantic colors when the material is approximated in Compose."
       ],
-      "composeMapping": {
-        "target": "MaterialSurface",
-        "behavior": "egui uses drawable translucent fills, borders, and shadows that preserve the static Figma structure."
-      },
       "nativeSize": {
         "width": 200,
         "height": 120
@@ -2706,10 +2596,6 @@
         "Keep every sidebar row and toolbar action reachable by keyboard.",
         "Do not use a window chrome color as the only separator."
       ],
-      "composeMapping": {
-        "target": "MacWindowShell",
-        "behavior": "Use one shell for title bar, sidebar, toolbar, and content. Keep window chrome colors in the theme layer."
-      },
       "nativeSize": {
         "width": 840,
         "height": 400
@@ -2778,10 +2664,6 @@
         "Keep focus visible on the control, not only on the toolbar group.",
         "Keep hover, pressed, focused, and disabled states distinct without color alone."
       ],
-      "composeMapping": {
-        "target": "MacToolbar",
-        "behavior": "Use density and state rules from the contract. The Windows host keeps system commands in the native tray and window menus when possible."
-      },
       "nativeSize": {
         "width": 320,
         "height": 40
@@ -2848,10 +2730,6 @@
         "Keep the top and bottom anchors visually distinct from the content surface.",
         "Use the 10-point popover radius for every type variant."
       ],
-      "composeMapping": {
-        "target": "MacPopover",
-        "behavior": "Use a drawable surface with the popover radius and native focus behavior. Menu behavior stays in the system menu where possible."
-      },
       "nativeSize": {
         "width": 200,
         "height": 200
@@ -2896,10 +2774,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Do not indicate the focused item by size alone. Expose the selected item to assistive technology."
       ],
-      "composeMapping": {
-        "target": "FileAreaPreview",
-        "behavior": "One filter menu, one Add button, one focus card, and a quiet four-column grid."
-      },
       "nativeSize": {
         "width": 912,
         "height": 538
@@ -2948,10 +2822,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Announce the file name, type, source, status, and actions."
       ],
-      "composeMapping": {
-        "target": "FileFocusCard",
-        "behavior": "A full-width 176-point card with a preview and one primary action group."
-      },
       "nativeSize": {
         "width": 912,
         "height": 176
@@ -3000,10 +2870,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Expose one primary action and a full context menu."
       ],
-      "composeMapping": {
-        "target": "FileQuietTile",
-        "behavior": "A 217.5 by 146 point tile with a 104-point preview, one title, and one status line."
-      },
       "nativeSize": {
         "width": 217.5,
         "height": 146
@@ -3046,10 +2912,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Expose the selected filter and the item count for each option."
       ],
-      "composeMapping": {
-        "target": "FileFilterMenu",
-        "behavior": "The menu contains All, Screenshots, Files, Text, and Transfers with counts."
-      },
       "nativeSize": {
         "width": 158,
         "height": 178
@@ -3090,10 +2952,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Keep the import and new-text actions reachable by keyboard."
       ],
-      "composeMapping": {
-        "target": "FileEmptyState",
-        "behavior": "Short centered copy with one primary action and one secondary action."
-      },
       "nativeSize": {
         "width": 912,
         "height": 300
@@ -3136,10 +2994,6 @@
         "Keep the interactive target at least 24 points; use 44 points for primary controls where layout allows.",
         "Keep destructive actions last and label them in text."
       ],
-      "composeMapping": {
-        "target": "FileContextMenu",
-        "behavior": "Thirty-point menu rows. A separator precedes Delete."
-      },
       "nativeSize": {
         "width": 152,
         "height": 180
@@ -7822,42 +7676,42 @@
       "componentKey": "component/file-area",
       "runtimeTarget": "FileAreaPreview",
       "behavior": "One filter menu, one Add button, one focus card, and a quiet four-column grid.",
-      "status": "dual-source-mapped",
+      "status": "native-source-mapped",
       "swiftRuntimeTarget": "FilesTabView"
     },
     "platform/component/file-focus-card": {
       "componentKey": "component/file-focus-card",
       "runtimeTarget": "FileFocusCard",
       "behavior": "Full-width detailed item with preview and compact actions.",
-      "status": "dual-source-mapped",
+      "status": "native-source-mapped",
       "swiftRuntimeTarget": "FileFocusCardView"
     },
     "platform/component/file-quiet-tile": {
       "componentKey": "component/file-quiet-tile",
       "runtimeTarget": "FileQuietTile",
       "behavior": "Content-first grid tile with one primary action on hover.",
-      "status": "dual-source-mapped",
+      "status": "native-source-mapped",
       "swiftRuntimeTarget": "FileQuietTileView"
     },
     "platform/component/file-filter-menu": {
       "componentKey": "component/file-filter-menu",
       "runtimeTarget": "FileFilterMenu",
       "behavior": "Single menu for All, Screenshots, Files, Text, and Transfers.",
-      "status": "dual-source-mapped",
+      "status": "native-source-mapped",
       "swiftRuntimeTarget": "FileFilterMenuView"
     },
     "platform/component/file-empty-state": {
       "componentKey": "component/file-empty-state",
       "runtimeTarget": "FileEmptyState",
       "behavior": "Compact empty and no-match states.",
-      "status": "dual-source-mapped",
+      "status": "native-source-mapped",
       "swiftRuntimeTarget": "FileEmptyStateView"
     },
     "platform/component/file-context-menu": {
       "componentKey": "component/file-context-menu",
       "runtimeTarget": "FileContextMenu",
       "behavior": "Native menu rhythm with destructive action last.",
-      "status": "dual-source-mapped",
+      "status": "native-source-mapped",
       "swiftRuntimeTarget": "FileContextMenuView"
     }
   },

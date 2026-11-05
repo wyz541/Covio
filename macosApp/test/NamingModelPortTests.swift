@@ -88,7 +88,7 @@ final class NamingModelPortTests: XCTestCase {
         }
     }
 
-    func testFactsMapToKMPWithoutModelControlledMetadata() async throws {
+    func testFactsMapToNamingPolicyWithoutModelControlledMetadata() async throws {
         let response = try await HeuristicNamingModel().generate(
             NamingModelRequest(
                 candidateId: "facts",

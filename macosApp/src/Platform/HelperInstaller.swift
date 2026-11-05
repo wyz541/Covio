@@ -2,7 +2,6 @@ import Foundation
 
 /// 安装、迁移与卸载特权 helper。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/helper/HelperInstaller.kt`。
 /// 生成的 shell 脚本与 plist 来自 Rust-core compatibility contract，
 /// 所以 app、helper 和安装事务使用相同的路径与 plist。
 ///
@@ -234,7 +233,7 @@ enum HelperInstaller {
 
     /// 安装脚本。可单独测试，不需要管理员权限。
     ///
-    /// 四个参数都显式传给共享层：Kotlin 的默认参数值不导出到 Swift。
+    /// 四个参数都显式传给共享层：桥接层不向 Swift 导出默认参数。
     static func installScript(
         executablePath: String,
         uid: String = currentUid(),

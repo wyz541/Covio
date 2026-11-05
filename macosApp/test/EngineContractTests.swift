@@ -3,11 +3,9 @@ import XCTest
 
 /// 引擎行为基线。
 ///
-/// 这是 `kmpDomain/test/com/wyz/covio/core/EngineTest.kt` 的镜像。
-/// 两个文件断言的必须是同一组行为：共享层的 Engine 只有一份实现，
-/// 但调用它的宿主换成了 Swift，所以要证明从 Swift 调用时行为不变。
-///
-/// 逐条对应关系写在每个用例的注释里。Kotlin 那份改了，这里也要改。
+/// 这是 Rust core engine 行为的 Swift 边界镜像。
+/// Engine 只有一份 Rust 实现。
+/// 这里证明从 Swift 调用时行为不变。
 @MainActor
 final class EngineContractTests: XCTestCase {
 

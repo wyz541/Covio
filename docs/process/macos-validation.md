@@ -13,7 +13,6 @@ GitHub Actions 不得使用 macOS runner。macOS 结果保存在 PR、Issue 或�
 - Apple Silicon Mac。
 - macOS 26 或更高版本。
 - Xcode 27。
-- JDK 25。
 - Rust stable。
 
 记录以下环境信息：
@@ -35,7 +34,7 @@ bash scripts/test-all.sh
 预期结果：
 
 - Rust workspace 通过。
-- Kotlin 的 JVM 与 macOS 测试通过。
+- KMP 与 Kotlin 产品路径不存在。
 - 合同和工作流检查通过。
 - helper、安装器和 Updater 测试通过。
 - macOS XCTest 通过。

@@ -1,8 +1,10 @@
 # Covio Windows 与 macOS Rust core 迁移计划
 
 - 状态：accepted
+- 迁移状态：completed
 - 日期：2026-11-04
 - 决策：[ADR-0030](../adr/adr-0030-rust-core-platform-native-ui.md)
+- Repository removal：[ADR-0034](../adr/adr-0034-remove-kmp-shared-module.md)
 - Feature：[#595](https://github.com/wyz541/kmp-Covio/issues/595)
 
 ## 1. 结论
@@ -15,7 +17,8 @@ Android、iOS 和 Web 不在本次迁移范围内。
 Windows 和 macOS 迁移后，产品核心使用 Rust。
 两个平台不保留 KMP shared module、Kotlin framework、JVM、Compose 或 JNA。
 
-KMP 的仓库级删除不属于本计划。
+KMP 的仓库级删除由 ADR-0034 决定。
+ADR-0034 只覆盖 Windows 和 macOS 的仓库产品路径。
 Android、iOS 或 Web 的迁移需要独立 ADR 和独立 Feature。
 
 ## 2. 当前状态与目标状态
@@ -30,7 +33,7 @@ Android、iOS 或 Web 的迁移需要独立 ADR 和独立 Feature。
 | Windows bridge | 同一 Rust 进程直接调用 | 同一 Rust 进程直接调用 |
 | macOS secret | 产品通过 C ABI 使用 Rust Keychain adapter | Keychain |
 | Windows secret | Windows Credential Manager | Windows Credential Manager |
-| 最终 artifact | macOS 不含 KMP；Windows installer 不含 JVM、Kotlin、Compose 或 JNA | Windows 和 macOS 均不含 KMP fallback |
+| 最终 artifact | Windows 和 macOS 均不含 KMP、JVM、Kotlin、Compose 或 JNA | 由 artifact boundary 与 KMP removal check 持续验证 |
 | Android、iOS、Web | 不在本次迁移范围 | 需要独立 ADR |
 
 ## 3. Ownership
@@ -156,9 +159,10 @@ Atomic write 使用同目录文件替换。Windows 上覆盖已有目标文件�
 | Windows cutover | #608 | Rust + egui 产品边界和 current-user installer |
 | Build and release | #612 | Windows 和 macOS CI、安装包与边界检查 |
 | Final verification | #613 | Windows 和 macOS 真实产品验收 |
+| Repository cleanup | #611 | KMP 与 Kotlin 非 UI 路径删除（已完成） |
 
 Android Issue #609 和 #610 不属于本计划。
-KMP removal Issue #611 不属于本计划。
+KMP removal Issue #611 已完成，决策是 ADR-0034。
 Verification Issue #613 只覆盖 Windows 和 macOS。
 
 ## 9. Cutover gates
@@ -194,7 +198,7 @@ Verification Issue #613 只覆盖 Windows 和 macOS。
 4. 回滚不删除新文件。
 5. 回滚后旧版本仍能读取迁移后的共享字段。
 6. 回滚失败时停止该平台 cutover。
-7. 本计划不授权删除 KMP module。
+7. KMP module 的删除遵循 ADR-0034。
 
 ## 11. 测试与证据
 
@@ -202,7 +206,7 @@ Verification Issue #613 只覆盖 Windows 和 macOS。
 | --- | --- |
 | Rust unit / integration | `cargo fmt --check`、Clippy、workspace tests |
 | Bridge | C header、round-trip、cancellation 和 payload tests |
-| Data compatibility | KMP fixture 与 Rust output 对照 |
+| Data compatibility | 共享 fixture 与 Rust output 对照 |
 | macOS | Swift tests、Keychain、真机流程、artifact scan |
 | Windows | egui tests、Credential Manager、安装／升级／回滚／卸载 smoke、Windows 11 artifact 验收 |
 | Release | clean install、upgrade、rollback、dependency graph 和 bundle scan |
@@ -215,7 +219,7 @@ Verification Issue #613 只覆盖 Windows 和 macOS。
 | 文档 | 要求 |
 | --- | --- |
 | `README.md` | 只承诺 Windows 和 macOS 的 Rust 迁移 |
-| `AGENTS.md` | 保留当前 KMP 构建约束，直到单独决策 |
+| `AGENTS.md` | 记录 Rust core、原生 UI 和 KMP removal 边界 |
 | `docs/design/workbench-architecture.md` | 更新 host ownership 引用 |
 | `docs/adr/adr-0030-rust-core-platform-native-ui.md` | 记录 Windows 和 macOS 决策 |
 | `docs/design/rust-core-migration.md` | 更新阶段、完成状态和证据 |
@@ -233,8 +237,9 @@ Verification Issue #613 只覆盖 Windows 和 macOS。
 6. macOS artifact 不含 Kotlin framework 或 KMP shared module。
 7. Windows 和 macOS 的 CI 与 release 只构建 Rust core 与平台 native UI。
 8. README、ADR、迁移计划和发布文档与现实一致。
+9. 仓库不再包含 KMP shared module 或 Kotlin 非 UI 产品路径。
 
-仓库级 KMP 删除需要单独 ADR。
+KMP 仓库级删除已由 ADR-0034 完成。
 Android、iOS 和 Web 的迁移需要单独 ADR 和 Feature。
 
 ## 14. 最终验收记录
@@ -310,4 +315,16 @@ Windows 视觉证据：
 - Windows 运行验收使用虚拟机和 hosted runner，不是物理 Windows 硬件记录。
 - macOS 最终 `main` 包由 CI 构建并扫描。真机完整 UI、睡眠和 helper 证据来自 `811c92d`。
 - Android、iOS 和 Web 不在本计划范围。
-- `kmpDomain` 的仓库级删除仍需要单独 ADR。
+- KMP shared module 已从仓库删除，决策见 ADR-0034。
+
+## 15. 仓库清理记录
+
+- 结论：完成。
+- 日期：2026-11-05。
+- 决策：[ADR-0034](../adr/adr-0034-remove-kmp-shared-module.md)。
+- Issue：[#611](https://github.com/wyz541/kmp-Covio/issues/611)。
+- 结果：旧 Kotlin `app`、KMP shared module、Amper project、Kotlin wrapper 和 Kotlin release identity 已删除。
+- 构建边界：CI、`scripts/test-all.sh`、macOS build 和 release cache 不再运行 Kotlin。
+- 产品合同：Compose mapping 与 Kotlin interface inventory 已删除。
+- 测试 fixture：helper wire 与 model package 语料位于 Rust core test fixture。
+- Android、iOS 和 Web：不在本次决策范围。当前仓库没有 Android product target。

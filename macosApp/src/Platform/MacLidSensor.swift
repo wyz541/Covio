@@ -3,7 +3,6 @@ import Foundation
 
 /// `LidSensor` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/MacLidSensor.kt`。
 /// 读 `IOPMrootDomain` 的 `AppleClamshellState` 属性，并订阅该服务的状态变化。
 ///
 /// 台式机没有这个属性，此时返回 `UNKNOWN`。调用方必须把 `UNKNOWN` 当作

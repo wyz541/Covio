@@ -272,7 +272,7 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertFalse(reloaded.enabled)
     }
 
-    /// 写出的 JSON 用的是 0.4.2 的键名，不是 Kotlin 的属性名。
+    /// 写出的 JSON 使用 0.4.2 的键名，不使用旧实现的属性名。
     /// 键名对不上，老版本就读不到新版本写的值。
     func testWrittenKeysMatchTheLegacyNames() throws {
         let store = store()
@@ -313,26 +313,26 @@ final class ConfigCompatibilityTests: XCTestCase {
 
 /// helper 契约的守卫。
 ///
-/// 路径、版本号与命令白名单的权威是共享模块的 `HelperContract.kt`，
-/// Swift 侧直接读 Kotlin 的值，不另抄一份。这里钉住三件事：
+/// 路径、版本号与命令白名单的权威是 Rust core 的 helper contract。
+/// Swift 侧直接读 bridge 的值，不另抄一份。这里钉住三件事：
 ///
-/// 1. 读到的确实是 Kotlin 的值，不是某个空集合。
+/// 1. 读到的确实是 Rust core 的值，不是某个空集合。
 /// 2. 安装脚本里写死的字面量与协议常量一致。
 /// 3. 协议允许的休眠模式确实能通过校验。
 final class HelperContractMirrorTests: XCTestCase {
-    func testCommandAllowListComesFromKotlin() {
-        let kotlin = CovioHelperContract.HELPER_ALLOWED_COMMANDS
-        XCTAssertEqual(HelperProtocol.allowedCommands, kotlin)
-        XCTAssertFalse(kotlin.isEmpty, "白名单为空会让所有命令都被拒绝")
+    func testCommandAllowListComesFromTheRustCore() {
+        let shared = CovioHelperContract.HELPER_ALLOWED_COMMANDS
+        XCTAssertEqual(HelperProtocol.allowedCommands, shared)
+        XCTAssertFalse(shared.isEmpty, "白名单为空会让所有命令都被拒绝")
     }
 
-    func testSupportedHibernateModesComeFromKotlin() {
-        let kotlin = Set(CovioRuntimeConstants.SUPPORTED_HIBERNATE_MODES.map { Int($0.int32Value) })
-        XCTAssertEqual(HelperProtocol.supportedHibernateModes, kotlin)
-        XCTAssertFalse(kotlin.isEmpty, "白名单不该为空，否则休眠模式永远设不进去")
+    func testSupportedHibernateModesComeFromTheRustCore() {
+        let shared = Set(CovioRuntimeConstants.SUPPORTED_HIBERNATE_MODES.map { Int($0.int32Value) })
+        XCTAssertEqual(HelperProtocol.supportedHibernateModes, shared)
+        XCTAssertFalse(shared.isEmpty, "白名单不该为空，否则休眠模式永远设不进去")
     }
 
-    func testPathsComeFromKotlin() {
+    func testPathsComeFromTheRustCore() {
         XCTAssertEqual(HelperProtocol.socketPath, CovioHelperContract.HELPER_SOCKET_PATH)
         XCTAssertEqual(HelperProtocol.helperDirectory, CovioHelperContract.HELPER_DIRECTORY)
         XCTAssertEqual(HelperProtocol.helperBinaryPath, CovioHelperContract.HELPER_BINARY_PATH)
@@ -348,13 +348,13 @@ final class HelperContractMirrorTests: XCTestCase {
         XCTAssertFalse(HelperProtocol.socketPath.isEmpty, "路径为空会让 helper 装到奇怪的位置")
     }
 
-    func testLeaseTimingComesFromKotlin() {
+    func testLeaseTimingComesFromTheRustCore() {
         XCTAssertEqual(HelperProtocol.leaseDurationSeconds, 60)
         XCTAssertEqual(HelperProtocol.leaseRenewSeconds, 15)
         XCTAssertEqual(HelperProtocol.sleepOwnerValue, "covio-sleep-disabled-v2")
     }
 
-    func testProtocolVersionComesFromKotlin() {
+    func testProtocolVersionComesFromTheRustCore() {
         XCTAssertEqual(HelperProtocol.protocolVersion, CovioHelperContract.HELPER_PROTOCOL_VERSION)
     }
 
@@ -364,7 +364,7 @@ final class HelperContractMirrorTests: XCTestCase {
     /// Apple 的 `MARKETING_VERSION` 只保存稳定的三数字产品版本。
     ///
     /// 测试跑在宿主应用进程里，所以 `Bundle.main` 就是 Covio.app。
-    func testBundleProductVersionMatchesTheKotlinConstant() throws {
+    func testBundleProductVersionMatchesTheGeneratedIdentity() throws {
         let bundle = Bundle.main
         XCTAssertEqual(bundle.bundleIdentifier, "com.wyz.covio", "测试宿主不是 Covio.app")
         let short = try XCTUnwrap(

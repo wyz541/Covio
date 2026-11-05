@@ -4,12 +4,11 @@ import Foundation
 
 /// `Notifier` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/MacNotifier.kt`。
-/// Kotlin 版用反射拼 `NSUserNotification`，那个类在 macOS 14 已废弃。
-/// 这里用 `UNUserNotificationCenter`。
+/// 旧版使用 `NSUserNotification`，该 API 在 macOS 14 已废弃。
+/// 当前实现使用 `UNUserNotificationCenter`。
 ///
-/// 两者行为差异：`UNUserNotificationCenter` 需要用户授权，且应用必须已注册。
-/// 未授权或注册失败时退回 `osascript`，与 Kotlin 版一致。
+/// `UNUserNotificationCenter` 需要用户授权，且应用必须已注册。
+/// 未授权或注册失败时退回 `osascript`。
 // 所有可变状态都由 `lock` 保护，所以可以跨线程传。
 final class MacNotifier: NSObject, Notifier, @unchecked Sendable {
     private let logger: AppLogger

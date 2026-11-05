@@ -1,7 +1,7 @@
 # Covio
 
-Covio is a macOS menu-bar app.
-It controls sleep behavior. It indexes native macOS screenshots in the Files area.
+Covio is a macOS menu-bar app and a Windows desktop app.
+It controls sleep behavior. It indexes native screenshots in the Files area.
 
 Covio is an independent implementation.
 It does not use the Tendedero name, icon, or documentation images.
@@ -13,8 +13,8 @@ It does not use the Tendedero name, icon, or documentation images.
 - The Covio Figma file is the visual projection used for implementation verification.
 - Static design status: 8 pages, 8 sections, 35 boards, 130 source component sets, 186 component nodes, and 42 prototype reactions. Static visual audit passed.
 
-Each component carries a `composeMapping` and a `swiftMapping`.
-The macOS host reads the Swift mapping. The Compose host reads the other one.
+Each component carries a `swiftMapping`.
+The macOS host reads the Swift mapping. Windows surfaces use the native `platformMapping`.
 
 **Note:** The JSON schema cannot express "`swiftMapping` is required on macOS".
 The check is in `scripts/validate-contract.py`.
@@ -50,9 +50,10 @@ The migration scope is Windows and macOS. Android, iOS, and Web need separate de
 | macOS | SwiftUI + AppKit | C ABI / cinterop |
 
 The Windows and macOS products do not contain a KMP fallback, a Kotlin JVM product path, or a Windows Compose / JNA path.
-Repository-wide KMP removal needs a separate decision.
+The repository no longer contains the old KMP module, Amper project, Kotlin wrapper, or Compose helper.
 
-- Decision: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
+- Product decision: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
+- Repository removal: [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md)
 - Plan: [Rust core migration plan](docs/design/rust-core-migration.md)
 - Tracking: [Feature #595](https://github.com/wyz541/kmp-Covio/issues/595)
 
@@ -352,7 +353,6 @@ The model license and attribution are in `THIRD_PARTY_NOTICES.md`.
 - An Apple Silicon Mac.
 - Xcode 27 to build the SwiftUI host.
 - Windows 11 x64 for the Windows installer.
-- JDK 25 only for the remaining Kotlin shared checks. The macOS and Windows products do not require a JDK.
 
 ## Build and test
 
@@ -362,12 +362,11 @@ Run every test:
 bash scripts/test-all.sh
 ```
 
-GitHub Actions does not run macOS builds. Run this script locally for the complete macOS validation. The script runs the Kotlin tests, checks the design-contract constants, checks the contract rules that the schema cannot express, checks with the helper cutover script, and runs the macOS XCTest suite.
+GitHub Actions does not run macOS builds. Run this script locally for the complete macOS validation. The script checks the KMP removal boundary, design-contract constants, release and helper paths, and runs the macOS XCTest suite.
 
 Build one side only:
 
 ```sh
-/bin/sh ./kotlin test          # the legacy shared layer, on jvm and macosArm64
 bash scripts/build-macos-swift.sh     # build the Rust-core macOS host
 bash scripts/test-macos-swift.sh      # run the host XCTest suite
 bash scripts/package-windows.sh       # build the Windows installer on Windows
@@ -397,8 +396,8 @@ The macOS host is SwiftUI and links the Rust core through the C ABI.
 The external Agent token uses the Rust Keychain adapter through the same C ABI.
 The macOS build does not link or embed a Kotlin framework. Open `macosApp/Covio.xcodeproj` to work on the host.
 The Windows product does not link the Kotlin shared module.
-Repository-wide KMP removal is still a separate decision.
-See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md).
+Repository-wide KMP removal is complete.
+See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md) and [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md).
 
 ### Windows package
 
@@ -461,8 +460,8 @@ Do not switch between separate app copies.
 Use temporary fixtures for permission tests, not the real Desktop.
 
 The SwiftUI host is on macOS only.
-It uses the same `config.json` as the Compose version.
-The two versions use different lock files, so both can run at the same time.
+It keeps the `config.json` layout used by earlier Covio macOS releases.
+It uses a separate lock file, so an older installed host can run at the same time.
 
 ## Package
 
@@ -534,7 +533,6 @@ The downloader uses a fixed manifest revision and stores files under `$HOME/Libr
 It pauses and resumes through the Hub download cache.
 It verifies the complete package before registering it.
 The macOS compatibility models and path rules call the Rust application service.
-The legacy Kotlin contract remains for out-of-scope platforms and repository checks.
 The Windows product supplies transport and storage adapters through the Rust host. The model runtime remains platform-specific.
 The Windows runtime boundary is recorded in [#391](https://github.com/wyz541/kmp-Covio/issues/391).
 The Agent and file naming views show one shared model setup panel.

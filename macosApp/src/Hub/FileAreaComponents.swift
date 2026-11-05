@@ -13,7 +13,7 @@ extension EnvironmentValues {
     }
 }
 
-/// 文件区筛选。Kotlin 的 `FileAreaFilter` 负责数据筛选，这个 Swift 枚举只负责菜单状态。
+/// 文件区筛选。桥接层的 `FileAreaFilter` 负责数据筛选，这个 Swift 枚举只负责菜单状态。
 enum FileAreaFilterChoice: String, CaseIterable, Identifiable {
     case all
     case screenshots

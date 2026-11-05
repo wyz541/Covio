@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-/// SwiftUI 版的运行时。对应 Compose 版的 `AppRuntime`。
+/// SwiftUI 宿主运行时。
 ///
 /// 职责：
 /// - 持有全部 Ports 与 `Engine`。
@@ -133,11 +133,11 @@ final class AppRuntime {
     private var updateTimer: Timer?
     private var ticks = 0
 
-    /// 每秒一次的心跳间隔。与 Compose 版一致。
+    /// 每秒一次的心跳间隔。
     static let tickInterval: TimeInterval = 1
-    /// 每多少次心跳刷新一次 helper 状态。与 Compose 版一致：5 秒。
+    /// 每五次心跳刷新一次 helper 状态。
     static let helperRefreshTicks = 5
-    /// 启动后多久做第一次自动更新检查。与 Compose 版一致：30 秒。
+    /// 启动后 30 秒做第一次自动更新检查。
     static let firstUpdateCheckDelay: TimeInterval = 30
 
     /// 端口都按协议收。默认值是 macOS 的真实实现，测试传假的。
@@ -364,7 +364,7 @@ final class AppRuntime {
             // 后台线程一调就撞 `dispatch_assert_queue` 断言。
             clock: { @Sendable in AppRuntime.nowMillis() },
             stateListener: forwarder,
-            // 引擎要求这个块跑在别的线程上。Kotlin 的函数类型不是 Sendable，
+            // 引擎要求这个块跑在别的线程上。桥接闭包不能自动证明 Sendable，
             // 用 `SendableBox` 把「按约定跨线程」这件事写在一处。
             wakeScanExecutor: { @Sendable block in
                 let box = SendableBox(block)
@@ -668,7 +668,7 @@ final class AppRuntime {
         }
     }
 
-    // MARK: - 设置动作。逐个对应 Compose 版 `AppRuntime` 的同名方法。
+    // MARK: - 设置动作。
 
     func setEnabled(_ enabled: Bool) {
         if !updateConfigDraft({
@@ -999,7 +999,7 @@ final class AppRuntime {
 
     /// 等 helper 起来。刚装完 launchd 还没把 socket 建好，立刻查会读到未安装。
     ///
-    /// 与 Compose 版 `awaitHelperStatus` 一致：最多等 5 秒，每 200 毫秒查一次。
+    /// 最多等 5 秒，每 200 毫秒查询一次。
     private func refreshHelperStatus(waitForMatch: Bool = false) async {
         helperServiceState = helperServiceManager.state
         if let helperMonitor {
@@ -1505,7 +1505,7 @@ final class AppRuntime {
 
     /// 引擎启动前的状态。全默认，只有 `enabled` 来自配置。
     ///
-    /// Kotlin 的 `AppState()` 默认参数不导出，所以这里要写全所有字段。
+    /// 桥接层不向 Swift 导出默认参数，所以这里要写全所有字段。
     static func initialState(enabled: Bool) -> AppState {
         AppState(
             battery: nil,
@@ -1546,7 +1546,7 @@ final class AppRuntime {
     nonisolated static func nowMillis() -> Int64 { Int64(Date().timeIntervalSince1970 * 1_000) }
     nonisolated static func nowEpochSeconds() -> Int64 { Int64(Date().timeIntervalSince1970) }
 
-    /// 实时电池文字。与 Compose 版 `formatBattery` 一致。
+    /// 实时电池文字。
     func batteryText() -> String {
         guard let battery = appState.battery else { return ContractCopy.copyStateEmpty.text(for: language) }
         let stateText: String
@@ -1563,7 +1563,7 @@ final class AppRuntime {
 
 /// `AppConfig` 的可变草稿。
 ///
-/// Kotlin 的 data class 在 Swift 里字段全只读，没有 `copy` 之外的改法。
+/// 桥接模型在 Swift 里字段全只读，没有 `copy` 之外的改法。
 /// 全部字段的 `doCopy` 写十遍会出错，所以集中到这里。
 /// 加字段时只改这一处。
 final class ConfigDraft {
@@ -1684,10 +1684,10 @@ private final class StateForwarder: NSObject, StateListener {
     }
 }
 
-/// 跨线程传一个 Kotlin 的不可变对象。
+/// 跨线程传一个桥接层的不可变对象。
 ///
-/// Kotlin 的 data class 导出到 Swift 后字段全只读，跨线程传是安全的，
-/// 但 Swift 看不到这一点。用它把这件事写在一处，
+/// 桥接模型在 Swift 中字段全只读，按约定跨线程传递是安全的。
+/// Swift 看不到这一点。用它把这件事写在一处，
 /// 而不是在每个调用点撒 `@unchecked Sendable`。
 final class SendableBox<Value>: @unchecked Sendable {
     let value: Value

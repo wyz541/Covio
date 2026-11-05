@@ -17,7 +17,7 @@ body:
     attributes:
       label: 待答问题
       description: 只写一个问题，并用问句表示。
-      placeholder: kmpDomain 能否解析 `pmset` 唤醒日志？
+      placeholder: Rust core 能否解析 `pmset` 唤醒日志？
     validations:
       required: true
 

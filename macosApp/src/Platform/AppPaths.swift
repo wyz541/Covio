@@ -2,18 +2,14 @@ import Foundation
 
 /// 应用用到的文件路径。
 ///
-/// 与 Compose 版的 `core/src/com/wyz/covio/ConfigStore.kt` 和
-/// `app/src/com/wyz/covio/app/platform/SingleInstanceLock.kt` 保持一致：
-/// 数据目录都是 `~/Library/Application Support/com.wyz.covio/`。
-///
-/// 唯一的差别是 lock 文件名。计划的 M1 完成判据要求两版能同时运行，
-/// 所以 SwiftUI 版用 `app.swiftui.lock`，Compose 版继续用 `app.lock`。
+/// 数据目录是 `~/Library/Application Support/com.wyz.covio/`。
+/// 当前宿主与旧版宿主使用不同的锁文件名，所以两个版本可以同时运行。
 enum AppPaths {
-    /// 与 `core/src/com/wyz/covio/Models.kt` 的 `APP_ID` 一致。
+    /// 固定的应用标识。
     static let appID = "com.wyz.covio"
 
-    /// Compose 版用的 lock 文件名。
-    static let composeLockFileName = "app.lock"
+    /// 旧版宿主使用的锁文件名。
+    static let legacyLockFileName = "app.lock"
     /// SwiftUI 版用的 lock 文件名。两版不同，所以可以同时运行。
     static let swiftUILockFileName = "app.swiftui.lock"
 
@@ -107,9 +103,9 @@ enum AppPaths {
         supportDirectory.appendingPathComponent(swiftUILockFileName)
     }
 
-    /// Compose 版的单实例锁文件。只用于文档与迁移脚本。
-    static var composeLockFile: URL {
-        supportDirectory.appendingPathComponent(composeLockFileName)
+    /// 旧版宿主的单实例锁文件。只用于兼容测试与迁移脚本。
+    static var legacyLockFile: URL {
+        supportDirectory.appendingPathComponent(legacyLockFileName)
     }
 
     /// 剪切板条目的落盘目录。

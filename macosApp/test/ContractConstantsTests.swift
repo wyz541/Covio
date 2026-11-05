@@ -250,29 +250,23 @@ final class ContractConstantsTests: XCTestCase {
         }
     }
 
-    /// 合同声明已落地的接口，实现文件要真的在。
-    func testImplementedInt32erfacesExist() throws {
-        let metadata = try XCTUnwrap(try contract()["metadata"] as? [String: Any])
-        let interfaces = try XCTUnwrap(metadata["kotlinInterfaces"] as? [[String: String]])
-        XCTAssertEqual(interfaces.count, 4, "接口数量被改动了")
+    /// 合同不得继续声明已删除的 Kotlin 产品映射。
+    func testContractHasNoLegacyKotlinMapping() throws {
+        let contract = try self.contract()
+        let metadata = try XCTUnwrap(contract["metadata"] as? [String: Any])
+        XCTAssertNil(metadata["kotlinInterfaces"])
 
-        for entry in interfaces {
-            let name = try XCTUnwrap(entry["name"])
-            XCTAssertEqual(entry["status"], "implemented", "\(name) 还没落地")
-            let path = try XCTUnwrap(entry["path"], "\(name) 没有 path")
-            let url = Self.repoRoot.appendingPathComponent(path)
-            XCTAssertTrue(
-                FileManager.default.fileExists(atPath: url.path),
-                "\(name) 的实现文件不存在：\(path)"
-            )
+        let components = try XCTUnwrap(contract["components"] as? [String: [String: Any]])
+        for (key, component) in components {
+            XCTAssertNil(component["composeMapping"], "\(key) 仍有 Compose 映射")
         }
     }
 
-    /// Kotlin 侧的合同读取器要能在 SwiftUI 宿主里跑起来。
+    /// Rust core 的合同读取器要能在 SwiftUI 宿主里跑起来。
     ///
-    /// 这一条同时验证 `macosArm64` framework 的导出：数据类、枚举、
-    /// 以及 `object` 的 `.shared` 写法。跑通了说明共享层的合同模型可用。
-    func testKotlinContractReaderReadsTheShippedContract() throws {
+    /// 这一条验证 C ABI 导出的数据类、枚举与 `.shared` 单例。
+    /// 跑通了说明共享层的合同模型可用。
+    func testRustContractReaderReadsTheShippedContract() throws {
         let path = Self.repoRoot.appendingPathComponent("docs/covio-design-contract.json").path
         let result = DesignContractReader.shared.readFile(path: path)
 
@@ -292,7 +286,7 @@ final class ContractConstantsTests: XCTestCase {
     }
 
     /// 读不到的合同要变成诊断，不能抛异常跨到 Swift 终止进程。
-    func testKotlinContractReaderReportsAMissingFile() {
+    func testRustContractReaderReportsAMissingFile() {
         let result = DesignContractReader.shared.readFile(path: "/tmp/covio-没有这个合同.json")
 
         XCTAssertFalse(result.isValid)
@@ -438,7 +432,7 @@ final class SettingsSectionTests: XCTestCase {
     }
 }
 
-/// 设置页的格式化。纯函数，与 Compose 版逐字对齐。
+/// 设置页的格式化。纯函数，与旧版宿主逐字对齐。
 final class SettingsFormatTests: XCTestCase {
     /// 时长的中文写法。
     func testChineseDuration() {
@@ -467,7 +461,7 @@ final class SettingsFormatTests: XCTestCase {
         }
     }
 
-    /// 时间用系统时区渲染，格式与 Compose 版一致。
+    /// 时间用系统时区渲染，格式与旧版宿主一致。
     func testWakeTimeUsesTheDocumentedFormat() {
         let text = SettingsFormat.wakeTime(epochSeconds: 1_700_000_000)
         XCTAssertEqual(text.count, 19, "格式应为 yyyy-MM-dd HH:mm:ss：\(text)")
@@ -475,8 +469,8 @@ final class SettingsFormatTests: XCTestCase {
         XCTAssertEqual(text.filter { $0 == ":" }.count, 2)
     }
 
-    /// 实际语言码与 Kotlin 的 `AppLanguage` 一致，空偏好回落到系统语言。
-    func testLanguageCodesMatchKotlin() {
+    /// 实际语言码与共享语言规则一致，空偏好回落到系统语言。
+    func testLanguageCodesMatchTheSharedRules() {
         XCTAssertEqual(AppLanguage.english.rawValue, "en")
         XCTAssertEqual(AppLanguage.simplifiedChinese.rawValue, "zh-CN")
         XCTAssertEqual(AppLanguagePreference.system.rawValue, "")

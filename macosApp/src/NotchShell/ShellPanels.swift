@@ -42,7 +42,7 @@ enum HubAppearance {
 /// | 先 `level`，再 `isFloatingPanel` | 3 |
 ///
 /// 见 `docs/adr/adr-0001-macos-ui-swiftui.md` 实测 9。
-/// 现有 Compose 版的 `FLOATING_WINDOW_LEVEL = 3` 就是踩了这个坑。
+/// 旧版宿主的 `FLOATING_WINDOW_LEVEL = 3` 就是踩了这个坑。
 @MainActor
 class ShellPanel: NSPanel {
     init(contentRect: NSRect) {
