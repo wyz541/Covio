@@ -2,7 +2,7 @@ import Foundation
 
 /// 设置界面用到的格式化。纯函数，好测。
 enum SettingsFormat {
-    /// 时长的中英文写法。与 Compose 版 `formatDuration` 一致。
+    /// 时长的中英文写法。与旧版 `formatDuration` 一致。
     static func duration(seconds: Int64, language: AppLanguage) -> String {
         let hours = seconds / 3_600
         let minutes = (seconds % 3_600) / 60
@@ -36,7 +36,7 @@ enum SettingsFormat {
         return formatter.string(from: date)
     }
 
-    /// 上次 DarkWake 的时间。用系统时区，格式与 Compose 版一致。
+    /// 上次 DarkWake 的时间。用系统时区，格式与旧版一致。
     static func wakeTime(epochSeconds: Int64) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"

@@ -13,7 +13,7 @@ struct ClipboardPayload: Equatable {
 
 /// 系统剪贴板的读写。
 ///
-/// 对应 Compose 版没有的东西：0.4.2 只有截图专用的 `ShelfClipboard`。
+/// 旧版 0.4.2 只有截图专用的 `ShelfClipboard`，没有通用剪贴板载荷模型。
 ///
 /// **读的顺序是文件、图片、文本。** 从访达复制图片时剪贴板上同时有
 /// `fileURL`、TIFF 和字符串三种表示，从浏览器复制图片时同时有 TIFF 与字符串。

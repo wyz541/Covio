@@ -263,7 +263,7 @@ final class ClipboardRuntime {
     /// 粘贴栈的队首。⇧⌘V 走这条。
     @discardableResult
     func pasteNextFromStack() -> Bool {
-        // Kotlin 的 `Pair` 到 Swift 是类，不能按元组解构。
+        // 桥接层返回的配对值不是 Swift 元组，不能直接解构。
         // `first` 是剩下的栈，`second` 是队首。
         let next = ClipboardLogic.shared.nextPaste(state: currentState())
         pasteStack = next.first.pasteStack
@@ -444,7 +444,7 @@ final class ClipboardRuntime {
         _ = store.save(state: currentState())
     }
 
-    /// 换一个字段重建条目。Kotlin 的 data class 导出到 Swift 只有 `doCopy`，
+    /// 换一个字段重建条目。桥接模型在 Swift 中字段只读，只能调用 `doCopy`。
     /// 参数要写全，所以集中在这一处。
     private static func remake(
         _ item: ClipItem,

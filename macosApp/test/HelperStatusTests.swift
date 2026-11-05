@@ -394,7 +394,7 @@ private final class FakeHelper {
 
             port.append(request.command)
             // 用共享层的回复构造器：真 helper 回的字节与它一模一样。
-            // `result` 必须显式传：Kotlin 的默认参数值不导出到 Swift。
+            // `result` 必须显式传：C ABI 不向 Swift 导出默认参数。
             let reply: HelperReply
             if request.command == HelperWire.shared.COMMAND_VERSION {
                 if let identityResult = port.identityResult {

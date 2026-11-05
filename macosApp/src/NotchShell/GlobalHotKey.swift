@@ -4,8 +4,7 @@ import Foundation
 /// 全局快捷键。`Control+Option+T` 打开或收起 Hub。
 /// M4 又加了 `Shift+Command+V` 与 `Shift+Command+C`。
 ///
-/// 用 Carbon 的 `RegisterEventHotKey`。它不需要辅助功能权限，
-/// 与现有 Compose 版的 `app/src/com/wyz/covio/app/platform/GlobalHotKey.kt` 是同一套做法。
+/// 用 Carbon 的 `RegisterEventHotKey`。它不需要辅助功能权限。
 ///
 /// **一个应用只装一个 Carbon 事件处理器。** 每个快捷键各装一个的话，
 /// 每个处理器都会收到所有快捷键的按下事件，动作会互相串。
@@ -46,7 +45,7 @@ final class GlobalHotKey {
         id: 3
     )
 
-    /// 四字符签名 'COVI'，与 Kotlin 侧的 `FOUR_CHAR_COVIO` 一致。
+    /// 四字符签名 'COVI'，与 Rust core 的 `FOUR_CHAR_COVIO` 一致。
     static let signature: OSType = 0x434F_5649
 
     let spec: Spec

@@ -3,7 +3,7 @@ import XCTest
 
 /// 文件页与工作区运行时的行为。
 ///
-/// 顺序、淘汰、过期的规则在 `kmpDomain` 里，由 Kotlin 的测试覆盖。
+/// 顺序、淘汰和过期规则在 Rust core 里，由 Rust 测试覆盖。
 /// 这里只测 Swift 这一层：放入、提示、置顶、删除、清理，以及页高。
 @MainActor
 final class WorkspaceTests: XCTestCase {

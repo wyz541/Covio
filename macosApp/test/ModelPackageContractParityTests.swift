@@ -4,7 +4,7 @@ import XCTest
 
 /// 模型包合同的共享语料，在 Swift 侧再跑一遍。
 ///
-/// Kotlin 侧钉住规则。这里钉住 framework 导出形状与 Swift Codable 镜像。
+/// Rust 侧钉住规则。这里钉住 C ABI 导出形状与 Swift Codable 镜像。
 final class ModelPackageContractParityTests: XCTestCase {
     private static let repositoryRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -12,9 +12,9 @@ final class ModelPackageContractParityTests: XCTestCase {
         .deletingLastPathComponent()
 
     private static let fixture = repositoryRoot
-        .appendingPathComponent("kmpDomain/test/fixtures/model-package-vectors.json")
+        .appendingPathComponent("rust/crates/covio-core/tests/fixtures/model-package-vectors.json")
 
-    func testManifestValidationUsesTheSharedKotlinContract() throws {
+    func testManifestValidationUsesTheRustContract() throws {
         let document = try Self.document()
         let manifest = try XCTUnwrap(document["manifest"] as? [String: Any])
         let expectation = try XCTUnwrap(document["expectation"] as? [String: Any])

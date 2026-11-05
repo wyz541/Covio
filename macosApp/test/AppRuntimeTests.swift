@@ -6,7 +6,6 @@ import XCTest
 /// 每个动作都要落盘，所以每条用例都指向一个临时目录，
 /// 断言既看内存里的 `config`，也看文件里的内容。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/ui/AppRuntime.kt`。
 @MainActor
 final class AppRuntimeTests: XCTestCase {
     private var directory: URL!

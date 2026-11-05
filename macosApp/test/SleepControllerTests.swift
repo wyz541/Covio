@@ -1,11 +1,10 @@
 import XCTest
 @testable import Covio
 
-/// `IdleSleepTimeoutCache` 的导出断言。
+/// `IdleSleepTimeoutCache` 的 C ABI 导出断言。
 ///
-/// 实现只有一份，在 `kmpDomain` 里，规则本身由
-/// `kmpDomain/test/com/wyz/covio/core/IdleSleepTimeoutCacheTest.kt` 覆盖。
-/// 这个文件留着是当导出冒烟测试：确认 `Long?` 出得来、`companion` 常量读得到。
+/// 实现只有一份，在 Rust core 里。这个文件是导出冒烟测试：
+/// 确认可选整数出得来、共享 TTL 常量读得到。
 ///
 /// `pmset -g` 要几十毫秒，`Engine.tick()` 每次调用都会问，所以缓存 60 秒。
 /// 四条断言都同时看结果和读取次数：只看结果分不出「命中缓存」和「又读了一次」。

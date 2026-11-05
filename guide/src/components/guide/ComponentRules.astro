@@ -4,7 +4,6 @@ const data = Astro.locals.starlightRoute.entry.data as {
     accessibilityRules: string[];
     implementation?: {
       swift: string[];
-      kmp: string[];
       notes?: string;
     };
   };
@@ -27,7 +26,6 @@ const implementation = component?.implementation;
       <p class="guide-eyebrow">实现映射</p>
       <h2>代码中的位置</h2>
       {implementation?.swift.length ? <p><strong>Swift：</strong>{implementation.swift.join('、')}</p> : null}
-      {implementation?.kmp.length ? <p><strong>KMP：</strong>{implementation.kmp.join('、')}</p> : null}
       {implementation?.notes && <p>{implementation.notes}</p>}
     </div>
   </section>

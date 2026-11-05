@@ -9,11 +9,11 @@ set -euo pipefail
 #   2. Rust core 与 bridge 的 fmt、Clippy 和测试。
 #   3. Windows host、installer 和 capability smoke。
 #   4. macOS 与 Windows artifact boundary checker。
-#   5. 共享层的 Kotlin 测试。两个平台都跑，macosArm64 也在内。
+#   5. KMP、Kotlin 与 JVM 产品路径已删除。
 #   6. 合同常量有没有漂移。
 #   7. 合同的跨段规则。schema 表达不了的那些。
 #   8. Issue 与 PR 模板是否把视觉证据放在正确对象。
-#   9. Release 缓存路径、KMP 缓存命中和失败回滚。
+#   9. Release 缓存路径与 linked worktree 解析。
 #   10. 割接脚本的断言。
 #   11. 本机 app-helper 升级与回滚事务。
 #   12. Updater launcher、XPC engine 和回退状态机。
@@ -46,9 +46,8 @@ step "Artifact boundary scripts"
 bash "$ROOT/scripts/test-verify-macos-artifact.sh"
 bash "$ROOT/scripts/test-verify-windows-artifact.sh"
 
-step "Kotlin 共享层"
-bash "$ROOT/scripts/provision-amper-github-downloads.sh"
-/bin/sh ./kotlin test
+step "KMP removal boundary"
+python3 -I "$ROOT/scripts/verify-kmp-removal.py"
 
 step "设计合同常量"
 # `-I` 是隔离模式：不读当前目录，防止目录里被放一个同名模块顶替标准库。

@@ -948,7 +948,7 @@ mod tests {
     }
 
     #[test]
-    fn numeric_and_boolean_strings_follow_kotlin_content_rules() {
+    fn numeric_and_boolean_strings_follow_legacy_content_rules() {
         let mut root = Map::new();
         root.insert("language".to_owned(), Value::from(42));
         root.insert("enabled".to_owned(), Value::from("yes"));

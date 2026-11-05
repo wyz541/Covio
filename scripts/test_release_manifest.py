@@ -57,10 +57,6 @@ class ReleaseManifestTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            (root / release.HELPER_CONTRACT).parent.mkdir(parents=True)
-            (root / release.HELPER_CONTRACT).write_text(
-                'const val HELPER_PROTOCOL_VERSION = "8"\n', encoding="utf-8"
-            )
             (root / release.SIGNING_XCCONFIG).parent.mkdir(parents=True)
             (root / release.SIGNING_XCCONFIG).write_text(
                 '#include "ReleaseIdentity.generated.xcconfig"\n', encoding="utf-8"
@@ -98,12 +94,26 @@ class ReleaseManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_fixture(root)
-            path = root / release.KOTLIN_OUT
+            path = root / release.SWIFT_OUT
             path.write_text("stale\n", encoding="utf-8")
             self.assertIn(
-                f"generated file is stale: {release.KOTLIN_OUT}",
+                f"generated file is stale: {release.SWIFT_OUT}",
                 release.drift_errors(root),
             )
+
+    def test_generation_has_no_kotlin_product_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            self.assertEqual(
+                set(release.expected_outputs(root)),
+                {
+                    root / release.SWIFT_OUT,
+                    root / release.XCCONFIG_OUT,
+                },
+            )
+            self.assertFalse(hasattr(release, "KOTLIN_OUT"))
+            self.assertFalse(hasattr(release, "render_kotlin"))
 
     def test_artifact_manifest_rejects_helper_hash_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -287,10 +297,6 @@ class ReleaseManifestTests(unittest.TestCase):
                 }
             ),
             encoding="utf-8",
-        )
-        (root / release.HELPER_CONTRACT).parent.mkdir(parents=True)
-        (root / release.HELPER_CONTRACT).write_text(
-            'const val HELPER_PROTOCOL_VERSION = "8"\n', encoding="utf-8"
         )
         (root / release.SIGNING_XCCONFIG).parent.mkdir(parents=True)
         (root / release.SIGNING_XCCONFIG).write_text(

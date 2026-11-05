@@ -347,7 +347,6 @@ release_prepare() {
   [[ -n "$issue" ]] && refs=$'\n\n'"Refs #$issue"
   git -C "$worktree" add \
     release/release-manifest.json \
-    kmpDomain/src/com/wyz/covio/core/GeneratedReleaseIdentity.kt \
     macosApp/ReleaseIdentity.generated.xcconfig \
     macosApp/src/Design/GeneratedReleaseIdentity.swift \
     RELEASE_NOTES.md \

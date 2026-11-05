@@ -154,10 +154,19 @@ def main() -> int:
             "pull_request:",
             "runs-on: ubuntu-latest",
             "cancel-in-progress: true",
-            "./kotlin test --platform=jvm",
+            "python3 -I scripts/verify-kmp-removal.py",
         ),
     )
-    forbid(CI, ("  push:", "macos-release.yml"))
+    forbid(
+        CI,
+        (
+            "  push:",
+            "macos-release.yml",
+            "setup-java",
+            "kotlin test",
+            "kmpDomain",
+        ),
+    )
 
     for path in sorted(WORKFLOWS.glob("*.yml")):
         if re.search(r"runs-on:\s*\[?[^\n]*macos", text(path), re.IGNORECASE):
@@ -179,7 +188,7 @@ def main() -> int:
         print(f"{len(errors)} 条问题。", file=sys.stderr)
         return 1
 
-    print("工作流校验通过：流程、无 macOS Actions 和本地 macOS 验收边界正确。")
+    print("工作流校验通过：流程、无 KMP 产品路径和本地 macOS 验收边界正确。")
     return 0
 
 

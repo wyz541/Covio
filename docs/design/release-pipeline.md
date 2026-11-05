@@ -20,7 +20,7 @@
 
 | 门禁 | 执行位置 | 产物 |
 | --- | --- | --- |
-| Portable tests | `ci.yml` 的 Ubuntu job | Rust、Kotlin JVM、合同和发布脚本测试结果 |
+| Portable tests | `ci.yml` 的 Ubuntu job | Rust、KMP removal、合同和发布脚本测试结果 |
 | Windows host | `ci.yml` 的 Windows ARM64 和 x64 jobs | host tests、screenshots、capability smoke |
 | Windows package | `ci.yml` 的 Windows package job | Inno Setup installer、checksum、artifact boundary、installer test report |
 | macOS package | 本地 Apple Silicon Mac | DMG、PKG、app zip、update zip、artifact boundary |
@@ -241,7 +241,7 @@ Release 使用普通 `xcodebuild build`。
 共享缓存因此可以复用未变化的 MLX 和 SwiftPM 构建产物。
 Package 解析单独运行并记录 `package resolve` 阶段耗时。
 macOS 包不嵌入 KMP Framework。app 和 helper 都静态链接 Rust core。
-KMP 缓存测试仍保留到 #611 删除 shared module 为止，但 macOS 打包路径不调用它。
+Release 只缓存 Xcode DerivedData 与 Swift Package checkout。
 GitHub Actions 不运行任何 macOS 构建。
 macOS 测试和 Release 构建由本地 Apple Silicon Mac 负责。
 创建 Draft 前，维护者必须在本机运行 `bash scripts/test-all.sh`。

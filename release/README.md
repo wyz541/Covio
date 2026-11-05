@@ -48,7 +48,6 @@ Internal releases add these update assets:
 
 The generated files are:
 
-- `kmpDomain/src/com/wyz/covio/core/GeneratedReleaseIdentity.kt`
 - `macosApp/src/Design/GeneratedReleaseIdentity.swift`
 - `macosApp/ReleaseIdentity.generated.xcconfig`
 

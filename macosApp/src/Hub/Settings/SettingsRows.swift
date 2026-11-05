@@ -29,7 +29,7 @@ struct NumberRow: View {
     }
 }
 
-/// 到点自动取消的时长。与 Compose 版 `CancellationOptions` 的取值一致。
+/// 到点自动取消的时长。与旧版 `CancellationOptions` 的取值一致。
 struct CancellationOptions: View {
     let language: AppLanguage
     let onSelect: (Int64) -> Void
@@ -160,7 +160,7 @@ struct HotKeyRow: View {
     }
 }
 
-/// 休眠模式。取值来自 Kotlin 的 `SUPPORTED_HIBERNATE_MODES`，不在这里写死。
+/// 休眠模式。取值来自 Rust core 的 `SUPPORTED_HIBERNATE_MODES`，不在这里写死。
 enum SleepModeOptions {
     static let modes: [Int32] = CovioRuntimeConstants.SUPPORTED_HIBERNATE_MODES
         .map { $0.int32Value }

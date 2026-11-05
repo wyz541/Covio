@@ -7,8 +7,7 @@ import Foundation
 
 /// `PowerSource` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/MacPowerSource.kt`。
-/// Kotlin 版通过 JNA 调 IOKit，这里直接用 IOKit 的 Swift 接口。
+/// 直接使用 IOKit 的 Swift 接口。
 ///
 /// 两路通知都在：IOPS 推送变化，5 秒轮询兜底。
 /// 只用推送会在某些机型上漏掉充电状态变化，只用轮询会让电量显示延迟。

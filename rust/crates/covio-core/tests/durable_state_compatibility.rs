@@ -240,7 +240,7 @@ fn clipboard_clear_removes_state_and_temporary_file() {
 }
 
 #[test]
-fn clipboard_logic_matches_the_kotlin_contract() {
+fn clipboard_logic_matches_the_legacy_contract() {
     assert_eq!(classify("https://example.com"), ClipKind::Link);
     assert_eq!(classify("#abc"), ClipKind::Color);
     assert_eq!(classify("看这个 https://example.com"), ClipKind::Text);

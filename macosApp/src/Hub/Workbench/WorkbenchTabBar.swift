@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 顶栏上的一个工作区。
 ///
-/// 视图不直接拿 `PaneInstance`：那是 Kotlin 的类，名字随时可能被配置改掉。
+/// 视图不直接拿桥接层的 `PaneInstance`：名字随时可能被配置改掉。
 /// 这里只留画一条页签要用的三样。
 struct PaneItem: Identifiable, Equatable, Sendable {
     let id: String

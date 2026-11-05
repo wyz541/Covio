@@ -142,15 +142,6 @@ jobs:
         uses: dorny/paths-filter@v4
         with:
           filters: |
-            kotlin:
-              - ".github/workflows/ci.yml"
-              - "app/**"
-              - "kmpDomain/**"
-              - "kotlin"
-              - "libs.versions.toml"
-              - "project.yaml"
-              - "scripts/test-all.sh"
-              - "scripts/validate-workflow.py"
             rust:
               - ".github/workflows/ci.yml"
               - "assets/windows/**"
@@ -172,6 +163,7 @@ jobs:
         run: |
           python3 -I scripts/release_manifest.py check
           python3 -I scripts/test_release_manifest.py
+          python3 -I scripts/verify-kmp-removal.py
           python3 -I scripts/test_release_pipeline.py
           python3 -I scripts/test_release_notes.py
           python3 -I scripts/generate-update-trust.py --check
@@ -180,32 +172,6 @@ jobs:
           python3 -I scripts/validate-contract.py
           python3 -I scripts/validate-workflow.py
           python3 -I scripts/file_naming_model.py verify-all
-
-      - name: Set up Java
-        if: github.event_name != 'pull_request' || steps.changes.outputs.kotlin == 'true'
-        uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "25"
-
-      - name: Restore Kotlin cache
-        if: github.event_name != 'pull_request' || steps.changes.outputs.kotlin == 'true'
-        uses: actions/cache@v6
-        with:
-          path: |
-            build/
-            ~/.cache/JetBrains/Kotlin
-            ~/.konan
-          key: kotlin-linux-v1-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml', 'libs.versions.toml') }}
-          restore-keys: |
-            kotlin-linux-v1-${{ hashFiles('kmpDomain/module.yaml', 'app/module.yaml', 'libs.versions.toml') }}-
-            kotlin-linux-v1-
-
-      - name: Test Kotlin JVM targets
-        if: github.event_name != 'pull_request' || steps.changes.outputs.kotlin == 'true'
-        env:
-          KOTLIN_CLI_NO_WELCOME_BANNER: "1"
-        run: /bin/sh ./kotlin test --platform=jvm
 
       - name: Install Rust
         if: github.event_name != 'pull_request' || steps.changes.outputs.rust == 'true'

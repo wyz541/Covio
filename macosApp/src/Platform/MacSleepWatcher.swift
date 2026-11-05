@@ -4,7 +4,6 @@ import IOKit.pwr_mgt
 
 /// `SleepWatcher` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/MacSleepWatcher.kt`。
 /// 用 `IORegisterForSystemPower` 订阅系统电源消息。
 ///
 /// 系统要睡眠时会阻塞等待 `IOAllowPowerChange`。这里收到
@@ -25,9 +24,7 @@ final class MacSleepWatcher: NSObject, SleepWatcher, @unchecked Sendable {
     private var runLoop: CFRunLoop?
     private var eventThread: Thread?
 
-    // 参数名必须写成 `listener__`：Kotlin 的 `subscribe(listener:)` 导出到
-    // Objective-C 后选择子是 `subscribeListener__:`，多出的下划线是 konanc
-    // 为带参数的闭包加的。写成 `listener` 编译不过。
+    // 协议固定使用 `listener__` 作为 ABI 参数名。
     func subscribe(listener__: @escaping (SleepEvent) -> Void) {
         lock.lock()
         self.listener = listener__

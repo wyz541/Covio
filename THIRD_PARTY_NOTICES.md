@@ -2,7 +2,7 @@
 
 ## BatteryHog
 
-The wake-log parsing approach in `core/src/com/wyz/covio/PmsetWakeLogParser.kt` follows BatteryHog.
+The wake-log parsing approach in `rust/crates/covio-core/src/power/pmset.rs` follows BatteryHog.
 
 - Source: https://github.com/luke-fairbanks/BatteryHog
 - Copyright: Copyright (c) 2026 Luke Fairbanks

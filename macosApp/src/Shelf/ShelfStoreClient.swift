@@ -6,7 +6,7 @@ import Foundation
 /// 实现只有一份，在 Rust core 里，这里只是把它包成 Swift 用起来顺手的样子。
 ///
 /// 存储位置是 `~/Library/Application Support/Covio/Screenshots/shelf.json`。
-/// 两版共用这一个文件，所以读写都要走 Kotlin 那份实现，不能在 Swift 里另写一套序列化。
+/// 新旧版本共用这一个文件，所以读写都经过 Rust core，不能在 Swift 里另写一套序列化。
 final class ShelfStoreClient: @unchecked Sendable {
     private let store: ShelfStore
     private let lock = NSLock()

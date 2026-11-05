@@ -11,7 +11,6 @@ const capabilitySchema = z.object({
 
 const implementationSchema = z.object({
   swift: z.array(z.string().min(1)).default([]),
-  kmp: z.array(z.string().min(1)).default([]),
   notes: z.string().min(1).optional(),
 });
 

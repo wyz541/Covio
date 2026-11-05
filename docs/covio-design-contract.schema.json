@@ -18,7 +18,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": "1.3.0"
+      "const": "1.4.0"
     },
     "metadata": {
       "$ref": "#/$defs/metadata"
@@ -150,7 +150,6 @@
         "reference",
         "counts",
         "fonts",
-        "kotlinInterfaces",
         "validation",
         "knownDifferences",
         "sourceKit"
@@ -316,41 +315,6 @@
             }
           }
         },
-        "kotlinInterfaces": {
-          "type": "array",
-          "minItems": 4,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "name",
-              "purpose",
-              "status"
-            ],
-            "properties": {
-              "name": {
-                "type": "string",
-                "minLength": 1
-              },
-              "purpose": {
-                "type": "string",
-                "minLength": 1
-              },
-              "status": {
-                "enum": [
-                  "future-not-implemented",
-                  "implemented"
-                ],
-                "description": "implemented 的条目要带 path，指向实现所在的文件。"
-              },
-              "path": {
-                "type": "string",
-                "minLength": 1,
-                "description": "实现所在的文件，相对仓库根目录。只有 implemented 的条目有。"
-              }
-            }
-          }
-        },
         "validation": {
           "type": "object",
           "additionalProperties": false,
@@ -476,13 +440,10 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "name",
         "type",
         "light",
         "dark",
-        "purpose",
-        "lightVariableId",
-        "darkVariableId"
+        "purpose"
       ],
       "properties": {
         "name": {
@@ -532,7 +493,6 @@
         "properties",
         "states",
         "accessibilityRules",
-        "composeMapping",
         "figmaComponentSetIds",
         "sourceAuthority"
       ],
@@ -605,24 +565,6 @@
           "items": {
             "type": "string",
             "minLength": 1
-          }
-        },
-        "composeMapping": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "target",
-            "behavior"
-          ],
-          "properties": {
-            "target": {
-              "type": "string",
-              "minLength": 1
-            },
-            "behavior": {
-              "type": "string",
-              "minLength": 1
-            }
           }
         },
         "nativeSize": {
@@ -727,10 +669,9 @@
         "status": {
           "enum": [
             "native-source-mapped",
-            "swift-source-mapped",
-            "dual-source-mapped"
+            "swift-source-mapped"
           ],
-          "description": "native-source-mapped：只有原生源码落点。swift-source-mapped：只有 Swift 落点。dual-source-mapped：Compose 与 Swift 两边都有落点。"
+          "description": "native-source-mapped：配置桌面应用的 Figma 原生资源落点。swift-source-mapped：落点在 Swift 宿主源码中。"
         },
         "swiftRuntimeTarget": {
           "type": "string",
@@ -978,8 +919,8 @@
             },
             "rows": {
               "type": "array",
-              "minItems": 6,
-              "maxItems": 6,
+              "minItems": 5,
+              "maxItems": 5,
               "items": {
                 "type": "string",
                 "minLength": 1
@@ -987,8 +928,8 @@
             },
             "cells": {
               "type": "array",
-              "minItems": 42,
-              "maxItems": 42,
+              "minItems": 35,
+              "maxItems": 35,
               "items": {
                 "$ref": "#/$defs/cell"
               }

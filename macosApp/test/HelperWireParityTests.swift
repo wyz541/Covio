@@ -3,17 +3,17 @@ import XCTest
 
 /// 线上协议的共享语料，在 Swift 侧再跑一遍。
 ///
-/// 语料文件 `kmpDomain/test/fixtures/helper-wire-vectors.json` 两侧共用。
-/// Kotlin 侧是 `HelperWireVectorTest`，那边验协议行为；这边多验一件事：
-/// 导出的 framework 真的能被 Swift 调用，参数与返回值的形状没有变。
+/// 语料文件 `rust/crates/covio-core/tests/fixtures/helper-wire-vectors.json`
+/// 由 Rust 与 Swift 测试共用。
+/// Rust 侧验证协议行为。这里验证 C ABI 导出的形状与 Swift 调用一致。
 ///
-/// 所以这个文件同时是导出冒烟测试。Kotlin 侧改了签名而这里没跟上时会红。
+/// 所以这个文件同时是 C ABI 冒烟测试。Rust 侧改了接口而这里没跟上时会红。
 final class HelperWireParityTests: XCTestCase {
     private static let fixture = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
         .deletingLastPathComponent()
         .deletingLastPathComponent()
-        .appendingPathComponent("kmpDomain/test/fixtures/helper-wire-vectors.json")
+        .appendingPathComponent("rust/crates/covio-core/tests/fixtures/helper-wire-vectors.json")
 
     func testTheCorpusIsWhereTheTestsExpectIt() throws {
         let document = try Self.document()
@@ -23,7 +23,7 @@ final class HelperWireParityTests: XCTestCase {
         XCTAssertGreaterThanOrEqual((document["constructed"] as? [Any])?.count ?? 0, 5)
     }
 
-    func testEveryRequestVectorBehavesTheSameAsKotlin() throws {
+    func testEveryRequestVectorBehavesTheSameThroughTheRustBridge() throws {
         for vector in try Self.vectors("requests") {
             let name = vector["name"] as? String ?? "\(vector)"
             let line = try XCTUnwrap(vector["line"] as? String, name)
@@ -53,7 +53,7 @@ final class HelperWireParityTests: XCTestCase {
         }
     }
 
-    func testEveryReplyVectorBehavesTheSameAsKotlin() throws {
+    func testEveryReplyVectorBehavesTheSameThroughTheRustBridge() throws {
         for vector in try Self.vectors("replies") {
             let name = vector["name"] as? String ?? "\(vector)"
             let line = try XCTUnwrap(vector["line"] as? String, name)
@@ -151,7 +151,7 @@ final class HelperWireParityTests: XCTestCase {
     }
 
     /// 字节上限与 socket 权限位也来自共享层，不在这里另写一份。
-    func testTheWireLimitsComeFromKotlin() {
+    func testTheWireLimitsComeFromTheRustCore() {
         XCTAssertEqual(Int(HelperWire.shared.MAX_REQUEST_BYTES), 64 * 1024)
         XCTAssertEqual(Int(HelperWire.shared.MAX_REPLY_BYTES), 64 * 1024)
         XCTAssertEqual(Int(HelperWire.shared.SOCKET_PERMISSIONS), 0o666)

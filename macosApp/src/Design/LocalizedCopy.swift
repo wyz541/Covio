@@ -31,7 +31,7 @@ struct LocalizedCopy: Sendable, Equatable {
 
 /// 实际的界面语言。
 ///
-/// 取值与 Kotlin 的 `AppLanguage` 一致：`en` 与 `zh-CN`。
+/// 取值与 Rust core 的语言码一致：`en` 与 `zh-CN`。
 enum AppLanguage: String, CaseIterable, Sendable {
     case english = "en"
     case simplifiedChinese = "zh-CN"

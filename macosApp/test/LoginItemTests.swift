@@ -1,14 +1,14 @@
 import XCTest
 @testable import Covio
 
-/// `MacLoginItem` 的断言。对应 M6 删掉的 `MacLoginItemTest.kt`。
+/// `MacLoginItem` 的断言。
 ///
 /// 登录项写 `~/Library/LaunchAgents/<APP_ID>.plist`，再用 `launchctl` 注册。
 /// 测试不碰真的 LaunchAgents 目录，也不跑真的 `launchctl`：
 /// plist 路径与命令执行器都是注入的，断言只看写出的 plist 文本与命令序列。
 ///
-/// plist 的内容与 Compose 版逐字节相同，两版可以互相卸载对方的登录项，
-/// 所以这里的断言也是那条兼容性的守卫。
+/// plist 的内容与旧版逐字节相同，新旧版本可以互相卸载对方的登录项。
+/// 所以这里的断言也是兼容性的守卫。
 final class LoginItemTests: XCTestCase {
     private var directory: URL!
 

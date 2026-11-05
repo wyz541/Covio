@@ -8,8 +8,6 @@ struct PreferenceCommandResult: Equatable, Sendable {
 
 /// 读取系统截图偏好，并清理旧版接管留下的快照。
 ///
-/// 对应 Compose 版的
-/// `app/src/com/wyz/covio/app/platform/ScreenshotPreferenceStore.kt`。
 ///
 /// 系统截图偏好存在 `com.apple.screencapture` 这个 defaults 域里。
 /// 新版只读取截图目录。快照只在升级时用于恢复旧版改动。
@@ -139,7 +137,7 @@ final class MacScreenshotPreferenceStore: ScreenshotPreferenceStore, @unchecked 
         )
     }
 
-    /// 跑一条 `defaults` 命令。标准错误合并进标准输出，与 Kotlin 版一致。
+    /// 跑一条 `defaults` 命令。标准错误合并进标准输出，与旧版一致。
     ///
     /// 超过五秒就当失败并杀掉进程。超时时长由
     /// `ScreenshotPreferencePolicy.COMMAND_TIMEOUT_MILLIS` 给出。`defaults` 正常在毫秒级返回，

@@ -580,7 +580,7 @@ mod tests {
 
     fn fixture() -> Value {
         serde_json::from_str(include_str!(
-            "../../../../../kmpDomain/test/fixtures/helper-wire-vectors.json"
+            "../../tests/fixtures/helper-wire-vectors.json"
         ))
         .expect("helper wire fixture")
     }

@@ -2,10 +2,9 @@ import Foundation
 
 /// `LoginItem` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/MacLoginItem.kt`。
 /// 写 `~/Library/LaunchAgents/<APP_ID>.plist`，然后用 `launchctl` 注册。
 ///
-/// plist 的内容与 Kotlin 版逐字节相同，所以两版可以互相卸载对方的登录项。
+/// plist 内容与旧版一致，所以新版本可以卸载旧版本的登录项。
 final class MacLoginItem: NSObject, LoginItem {
     private let plistURL: URL
     private let launchctl: ([String]) -> Bool
@@ -139,7 +138,7 @@ final class MacLoginItem: NSObject, LoginItem {
 
 /// `UpdateChecker` 端口的 macOS 实现。
 ///
-/// 对应 Compose 版的 `app/src/com/wyz/covio/app/platform/GithubUpdateChecker.kt`。
+/// 检查 GitHub Release 页面中的稳定版本。
 /// 读 GitHub releases 页面的 HTML，取客户端版本最大的发布。
 /// internal build 同时识别 SemVer prerelease 和 stable tag。
 /// public build 只识别 stable tag。旧语义版本 tag 继续忽略。
