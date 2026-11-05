@@ -92,12 +92,21 @@ jobs:
             rust-windows-package-v1-${{ hashFiles('rust/Cargo.lock') }}-
             rust-windows-package-v1-
 
+      - name: Read release build number
+        id: release
+        shell: bash
+        run: |
+          current="$(python3 -I scripts/release_manifest.py value buildNumber)"
+          previous=$((current - 1))
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+
       - name: Build previous installer
         shell: bash
         env:
-          COVIO_WINDOWS_BUILD_NUMBER: "24"
-          COVIO_WINDOWS_APP_VERSION: "0.6.0-internal.24"
-          COVIO_WINDOWS_RELEASE_ID: "windows-installer-previous-24"
+          COVIO_WINDOWS_BUILD_NUMBER: ${{ steps.release.outputs.previous }}
+          COVIO_WINDOWS_APP_VERSION: "0.6.0-internal.${{ steps.release.outputs.previous }}"
+          COVIO_WINDOWS_RELEASE_ID: "windows-installer-previous-${{ steps.release.outputs.previous }}"
           COVIO_WINDOWS_OUTPUT_DIR: "build/windows-previous"
         run: bash scripts/package-windows.sh
 
