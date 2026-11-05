@@ -23,7 +23,7 @@
 | Portable tests | `ci.yml` 的 Ubuntu job | Rust、Kotlin JVM、合同和发布脚本测试结果 |
 | Windows host | `ci.yml` 的 Windows ARM64 和 x64 jobs | host tests、screenshots、capability smoke |
 | Windows package | `ci.yml` 的 Windows package job | Inno Setup installer、checksum、artifact boundary、installer test report |
-| macOS package | `macos-release.yml` 的手动 job | DMG、PKG、app zip、update zip、artifact boundary |
+| macOS package | 本地 Apple Silicon Mac | DMG、PKG、app zip、update zip、artifact boundary |
 | Runtime acceptance | #613 的 Windows 和 macOS 真实设备 | 日期、设备、OS、artifact、commit 和结果 |
 
 Hosted tests 只证明构建和仓库行为。
