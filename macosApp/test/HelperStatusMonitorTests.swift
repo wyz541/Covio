@@ -8,6 +8,8 @@ final class HelperStatusMonitorTests: XCTestCase {
         let gate = DispatchSemaphore(value: 0)
         fake.blockNextStatus(until: gate)
         let monitor = HelperStatusMonitor(upstream: fake)
+        let updated = expectation(description: "blocked probe completed")
+        monitor.setUpdateHandler { _ in updated.fulfill() }
 
         let startedAt = Date()
         XCTAssertEqual(monitor.status(), .missing)
@@ -15,9 +17,9 @@ final class HelperStatusMonitorTests: XCTestCase {
         XCTAssertEqual(fake.statusStarted.wait(timeout: .now() + 1), .success)
 
         gate.signal()
-        let snapshot = await monitor.probe(force: true)
+        await fulfillment(of: [updated], timeout: 1)
 
-        XCTAssertEqual(snapshot?.status, .match)
+        XCTAssertEqual(monitor.status(), .match)
         XCTAssertEqual(monitor.lidLeaseStatus().sleepDisabled?.boolValue, true)
         XCTAssertEqual(fake.statusCalls, 1)
         XCTAssertEqual(fake.lidLeaseCalls, 1)

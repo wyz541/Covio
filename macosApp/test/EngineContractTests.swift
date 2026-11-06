@@ -101,6 +101,58 @@ final class EngineContractTests: XCTestCase {
         XCTAssertEqual(store.reads, 2)
     }
 
+    /// 状态读取不能在唤醒日志扫描持有引擎时等待。
+    func testCurrentStateDoesNotWaitForTheWakeLogScan() {
+        let reader = BlockingWakeLogReader()
+        let queued = QueuedExecutor()
+        let fixture = Fixture(
+            wakeLogReader: reader,
+            wakeScanExecutor: queued.executor
+        )
+        let scanFinished = expectation(description: "wake scan finished")
+        fixture.engine.start()
+        DispatchQueue.global(qos: .userInteractive).async {
+            queued.runNext()
+            scanFinished.fulfill()
+        }
+        XCTAssertEqual(reader.readStarted.wait(timeout: .now() + 2), .success)
+
+        let startedAt = Date()
+        let state = fixture.engine.currentState
+        let elapsed = Date().timeIntervalSince(startedAt)
+        reader.release.signal()
+        wait(for: [scanFinished], timeout: 2)
+
+        XCTAssertTrue(state.darkWake.scanning)
+        XCTAssertLessThan(elapsed, 0.5)
+    }
+
+    /// 唤醒日志扫描占用引擎时，周期 tick 必须让出本轮。
+    func testTickSkipsWhileTheWakeLogScanOwnsTheEngine() {
+        let reader = BlockingWakeLogReader()
+        let queued = QueuedExecutor()
+        let fixture = Fixture(
+            wakeLogReader: reader,
+            wakeScanExecutor: queued.executor
+        )
+        let scanFinished = expectation(description: "wake scan finished")
+        fixture.engine.start()
+        DispatchQueue.global(qos: .userInteractive).async {
+            queued.runNext()
+            scanFinished.fulfill()
+        }
+        XCTAssertEqual(reader.readStarted.wait(timeout: .now() + 2), .success)
+
+        let startedAt = Date()
+        let ran = fixture.engine.tick(nowMillis: fixture.nowMillis())
+        let elapsed = Date().timeIntervalSince(startedAt)
+        reader.release.signal()
+        wait(for: [scanFinished], timeout: 2)
+
+        XCTAssertFalse(ran)
+        XCTAssertLessThan(elapsed, 0.5)
+    }
+
     /// 对应 `wake scan retries an unchanged log snapshot`。
     func testWakeScanRetriesAnUnchangedLogSnapshot() {
         let initial = WakeLogSnapshot(

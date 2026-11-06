@@ -395,11 +395,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 它监视真实截图目录，还会写真实 `shelf.json`。
         // 界面装配照旧，所以 `testHostApplicationRunsTheShell` 仍然有效。
         // 测试要的运行时由测试自己用假实现构造。
-        if !LaunchEnvironment.isRunningTests() {
-            runtime.start()
-        }
-
         shell.start()
+
+        // 菜单栏入口必须先安装。运行时会启动最长 20 秒的唤醒日志扫描。
+        let statusItemController = StatusItemController(shell: shell, runtime: runtime)
+        self.statusItemController = statusItemController
 
         #if DEBUG
         if liveClipboardPreview {
@@ -410,6 +410,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         #endif
+
+        if !LaunchEnvironment.isRunningTests() {
+            runtime.start()
+        }
 
         if !LaunchEnvironment.isRunningTests() {
             let shell = self.shell
@@ -424,9 +428,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             twoFingerSwipeMonitor = monitor
         }
-
-        let statusItemController = StatusItemController(shell: shell, runtime: runtime)
-        self.statusItemController = statusItemController
 
         if LaunchEnvironment.isSlimInstallProfile() {
             Task { @MainActor in

@@ -376,7 +376,11 @@ final class AppRuntime {
             // 用 `SendableBox` 把「按约定跨线程」这件事写在一处。
             wakeScanExecutor: { @Sendable block in
                 let box = SendableBox(block)
-                DispatchQueue.global(qos: .utility).async { _ = box.value() }
+                // 等 applicationDidFinishLaunching 返回并显示 UI。
+                // 然后把扫描送到 utility 队列，启动路径不等待。
+                DispatchQueue.main.async {
+                    DispatchQueue.global(qos: .utility).async { _ = box.value() }
+                }
             },
             wakeDelay: { @Sendable millis in
                 let seconds = Double(millis.int64Value) / 1_000
@@ -662,7 +666,7 @@ final class AppRuntime {
     }
 
     private func tick() {
-        engine.tick(nowMillis: AppRuntime.nowMillis())
+        guard engine.tick(nowMillis: AppRuntime.nowMillis()) else { return }
         powerRuntime.refresh()
         ticks += 1
         syncState()

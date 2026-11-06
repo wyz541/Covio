@@ -148,6 +148,18 @@ final class WakeLogStore: NSObject, WakeLogReader {
     }
 }
 
+/// 模拟 `pmset -g log` 长时间不返回。
+final class BlockingWakeLogReader: NSObject, WakeLogReader {
+    let readStarted = DispatchSemaphore(value: 0)
+    let release = DispatchSemaphore(value: 0)
+
+    func read() -> WakeLogSnapshot? {
+        readStarted.signal()
+        _ = release.wait(timeout: .now() + 5)
+        return nil
+    }
+}
+
 /// 把交给 `wakeScanExecutor` 的任务排队，由测试决定何时执行。
 ///
 /// 用来证明「同时到达的唤醒信号只扫一次日志」。
