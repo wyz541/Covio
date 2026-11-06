@@ -5,8 +5,12 @@ on:
   pull_request:
     paths-ignore:
       - "**/*.md"
-      - "docs/**"
+      - "docs/design/previews/**"
+      - "docs/research/**"
+      - "guide/**"
+      - "assets/Covio.iconset/**"
       - ".github/ISSUE_TEMPLATE/**"
+      - "LICENSE"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -17,19 +21,18 @@ permissions:
   pull-requests: read
 
 # Hosted CI covers Linux and Windows. All macOS builds and acceptance run locally.
+# Portable checks always run. Windows hosts run for relevant source paths.
+# The package job also runs on release branches. Manual runs use the full gate.
 jobs:
-  windows-host:
-    name: Windows host (${{ matrix.label }})
-    runs-on: ${{ matrix.runner }}
+  windows-x64:
+    name: Windows host (windows-2025-x64)
+    needs: portable
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.portable.outputs.full == 'true' ||
+      needs.portable.outputs.windows == 'true'
+    runs-on: windows-2025
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: windows-11-arm
-            label: windows-11-arm64
-          - runner: windows-2025
-            label: windows-2025-x64
     steps:
       - uses: actions/checkout@v7
 
@@ -52,25 +55,79 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-          key: rust-windows-v1-${{ hashFiles('rust/Cargo.lock') }}
+          key: rust-windows-x64-v1-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: |
-            rust-windows-v1-${{ hashFiles('rust/Cargo.lock') }}-
-            rust-windows-v1-
+            rust-windows-x64-v1-${{ hashFiles('rust/Cargo.lock') }}-
+            rust-windows-x64-v1-
 
       - name: Test Windows host
         shell: bash
         run: bash scripts/test-windows-rust.sh
 
-      - name: Upload Windows host screenshot
+      - name: Upload Windows x64 host screenshot
         uses: actions/upload-artifact@v4
         with:
-          name: windows-host-${{ matrix.label }}-${{ github.run_id }}
+          name: windows-host-x64-${{ github.run_id }}
+          path: build/windows-host-screenshots/*.png
+          if-no-files-found: error
+          retention-days: 30
+
+  windows-arm64:
+    name: Windows host (windows-11-arm64)
+    needs: portable
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.portable.outputs.full == 'true' ||
+      needs.portable.outputs.windows_arm == 'true'
+    runs-on: windows-11-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Record Windows environment
+        shell: pwsh
+        run: |
+          Get-ComputerInfo |
+            Select-Object WindowsProductName, WindowsVersion, OsBuildNumber, OsArchitecture |
+            Format-List
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Restore Rust cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-windows-arm64-v1-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            rust-windows-arm64-v1-${{ hashFiles('rust/Cargo.lock') }}-
+            rust-windows-arm64-v1-
+
+      - name: Test Windows host
+        shell: bash
+        run: bash scripts/test-windows-rust.sh
+
+      - name: Upload Windows ARM64 host screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-host-arm64-${{ github.run_id }}
           path: build/windows-host-screenshots/*.png
           if-no-files-found: error
           retention-days: 30
 
   windows-package:
     name: Windows package and installer
+    needs: portable
+    if: >-
+      github.event_name != 'pull_request' ||
+      startsWith(github.head_ref, 'release/') ||
+      needs.portable.outputs.full == 'true' ||
+      needs.portable.outputs.installer == 'true'
     runs-on: windows-2025
     timeout-minutes: 30
     steps:
@@ -133,6 +190,11 @@ jobs:
     name: Portable gate
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      full: ${{ steps.changes.outputs.full }}
+      windows: ${{ steps.changes.outputs.windows }}
+      windows_arm: ${{ steps.changes.outputs.windows_arm }}
+      installer: ${{ steps.changes.outputs.installer }}
     steps:
       - uses: actions/checkout@v7
 
@@ -141,22 +203,69 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@v4
         with:
+          predicate-quantifier: some-with-excludes
+          # Unknown non-doc paths fall through to the full Windows gate.
           filters: |
-            rust:
+            full:
+              - ".github/workflows/ci.yml"
+              - "scripts/test-all.sh"
+              - "scripts/validate-workflow.py"
+              - "**"
+              - "!macosApp/**"
+              - "!assets/Covio.iconset/**"
+              - "!assets/windows/**"
+              - "!docs/**"
+              - "!guide/**"
+              - "!**/*.md"
+              - "!.github/ISSUE_TEMPLATE/**"
+              - "!LICENSE"
+              - "!rust/**"
+              - "!installer/windows/**"
+              - "!release/release-manifest.json"
+              - "!scripts/*macos*"
+              - "!scripts/package-windows.sh"
+              - "!scripts/verify-agent-bundle.sh"
+              - "!scripts/verify-file-naming-bundle.sh"
+              - "!scripts/release_manifest.py"
+              - "!scripts/test-rust.sh"
+              - "!scripts/test-rust-macos-ffi.sh"
+              - "!scripts/test-verify-windows-artifact.sh"
+              - "!scripts/test-windows-installer.ps1"
+              - "!scripts/test-windows-rust.sh"
+              - "!scripts/verify-windows-artifact.sh"
+            windows:
+              - ".github/workflows/ci.yml"
+              - "assets/windows/**"
+              - "rust/**"
+              - "scripts/test-all.sh"
+              - "scripts/test-windows-rust.sh"
+              - "scripts/validate-workflow.py"
+            windows_arm:
+              - ".github/workflows/ci.yml"
+              - "rust/Cargo.toml"
+              - "rust/Cargo.lock"
+              - "rust/crates/covio-platform/**"
+              - "scripts/test-all.sh"
+              - "scripts/test-windows-rust.sh"
+              - "scripts/validate-workflow.py"
+            installer:
               - ".github/workflows/ci.yml"
               - "assets/windows/**"
               - "installer/windows/**"
-              - "rust/**"
+              - "release/release-manifest.json"
               - "scripts/package-windows.sh"
-              - "scripts/test-verify-macos-artifact.sh"
+              - "scripts/release_manifest.py"
+              - "scripts/test-all.sh"
               - "scripts/test-verify-windows-artifact.sh"
               - "scripts/test-windows-installer.ps1"
+              - "scripts/validate-workflow.py"
+              - "scripts/verify-windows-artifact.sh"
+            rust:
+              - ".github/workflows/ci.yml"
+              - "rust/**"
               - "scripts/test-all.sh"
               - "scripts/test-rust.sh"
               - "scripts/test-rust-macos-ffi.sh"
-              - "scripts/test-windows-rust.sh"
-              - "scripts/verify-windows-artifact.sh"
-              - "scripts/verify-macos-artifact.sh"
               - "scripts/validate-workflow.py"
 
       - name: Check portable files

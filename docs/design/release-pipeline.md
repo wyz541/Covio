@@ -20,9 +20,10 @@
 
 | 门禁 | 执行位置 | 产物 |
 | --- | --- | --- |
-| Portable tests | `ci.yml` 的 Ubuntu job | Rust、KMP removal、合同和发布脚本测试结果 |
-| Windows host | `ci.yml` 的 Windows ARM64 和 x64 jobs | host tests、screenshots、capability smoke |
-| Windows package | `ci.yml` 的 Windows package job | Inno Setup installer、checksum、artifact boundary、installer test report |
+| Portable tests | `ci.yml` 的 Ubuntu job | 每个代码 PR；Rust、KMP removal、合同和发布脚本测试结果 |
+| Windows x64 host | `ci.yml` 的 Windows x64 job | Windows 或 Rust 路径、完整门禁、手动运行 |
+| Windows ARM64 host | `ci.yml` 的 Windows ARM64 job | 共享平台路径、完整门禁、手动运行 |
+| Windows package | `ci.yml` 的 Windows package job | 安装器或发布身份路径、发布分支、完整门禁、手动运行 |
 | macOS package | 本地 Apple Silicon Mac | DMG、PKG、app zip、update zip、artifact boundary |
 | Runtime acceptance | #613 的 Windows 和 macOS 真实设备 | 日期、设备、OS、artifact、commit 和结果 |
 

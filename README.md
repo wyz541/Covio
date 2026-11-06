@@ -388,7 +388,7 @@ bash scripts/test-rust.sh
 ```
 
 The Rust script runs `cargo fmt --check`, Clippy with warnings denied, and the workspace tests.
-CI runs the same script in the `Rust core` job.
+CI runs the same script in the `Portable gate` job when Rust inputs change.
 
 After you change the design contract, run these two:
 
@@ -565,8 +565,8 @@ Publish the verified Draft with:
 bash scripts/publish-release.sh v<clientVersion>
 ```
 
-The Windows package job uploads `Covio-<clientVersion>-windows-x64-setup.exe` with its checksum, package manifest, boundary scan, and installer test report.
-The manual `macOS full acceptance` workflow runs the full gate, builds the macOS package, and uploads the DMG, PKG, app zip, update zip, and boundary scan.
+CI runs the Windows package job for installer or release inputs, release branches, and manual runs. The job uploads `Covio-<clientVersion>-windows-x64-setup.exe` with its checksum, package manifest, boundary scan, and installer test report.
+Build the macOS package locally with `bash scripts/create-release.sh`. Verify the DMG, PKG, app zip, update zip, and boundary scan before publishing.
 Hosted artifacts prove build and installer behavior. Physical Windows and macOS acceptance remains #613.
 
 `.pkg` is the transactional install and upgrade entry.
