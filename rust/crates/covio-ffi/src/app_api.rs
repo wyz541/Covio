@@ -737,6 +737,17 @@ impl AppCore {
                     now_epoch_seconds,
                 )
             })),
+            "pmset.wake.parseFile" => {
+                let path = string_field(payload, "path")?;
+                let file = std::fs::File::open(path)
+                    .map_err(|error| format!("cannot open pmset wake log: {error}"))?;
+                let snapshot = covio_core::power::PmsetWakeLogParser::parse_reader(
+                    std::io::BufReader::new(file),
+                    now_epoch_seconds,
+                )
+                .map_err(|error| format!("cannot read pmset wake log: {error}"))?;
+                Ok(json!({"snapshot": snapshot}))
+            }
             "pmset.wake.parseTimestamp" => Ok(json!({
                 "seconds": covio_core::power::PmsetWakeLogParser::parse_timestamp(
                     string_field(payload, "value")?

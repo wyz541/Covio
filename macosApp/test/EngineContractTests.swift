@@ -153,6 +153,29 @@ final class EngineContractTests: XCTestCase {
         XCTAssertLessThan(elapsed, 0.5)
     }
 
+    func testWakeLogFileParserReadsWithoutSwiftTextInput() throws {
+        let now = Date()
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 8 * 3_600)
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss +0800"
+        let timestamp = formatter.string(from: now)
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covio-wake-file-\(UUID().uuidString).log")
+        defer { try? FileManager.default.removeItem(at: output) }
+        try "\(timestamp) DarkWake\tDarkWake from Deep Idle [CDNP] : due to RTC Using BATT (Charge:80%)\n"
+            .write(to: output, atomically: true, encoding: .utf8)
+
+        let snapshot = PmsetWakeLogParser.parseFile(
+            path: output.path,
+            nowEpochSeconds: Int64(now.timeIntervalSince1970)
+        )
+
+        XCTAssertEqual(snapshot?.events.count, 1)
+        XCTAssertEqual(snapshot?.events.first?.kind, .dark)
+        XCTAssertEqual(snapshot?.events.first?.reason, "RTC")
+    }
+
     /// 对应 `wake scan retries an unchanged log snapshot`。
     func testWakeScanRetriesAnUnchangedLogSnapshot() {
         let initial = WakeLogSnapshot(

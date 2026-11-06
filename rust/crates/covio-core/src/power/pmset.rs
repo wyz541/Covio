@@ -2,6 +2,7 @@
 
 use super::models::{WakeEvent, WakeKind, WakeLogSnapshot};
 use regex::Regex;
+use std::io::{self, BufRead};
 use std::sync::OnceLock;
 
 /// Parses current `pmset -g` settings.
@@ -46,52 +47,23 @@ impl PmsetWakeLogParser {
     /// Parses wake events retained by the 24-hour window.
     #[must_use]
     pub fn parse(text: &str, now_epoch_seconds: i64) -> WakeLogSnapshot {
-        let cutoff = now_epoch_seconds.saturating_sub(24 * 60 * 60);
-        let future_limit = now_epoch_seconds.saturating_add(5 * 60);
-        let timestamp_pattern = timestamp_pattern();
-        let reason_pattern = reason_pattern();
-        let mut events = Vec::new();
+        let mut accumulator = WakeLogAccumulator::new(now_epoch_seconds);
         for raw_line in text.lines() {
-            let line = raw_line.trim();
-            let Some(captures) = timestamp_pattern.captures(line) else {
-                continue;
-            };
-            let Some(timestamp) = captures.get(1).map(|value| value.as_str()) else {
-                continue;
-            };
-            let Some(at_epoch_seconds) = Self::parse_timestamp(timestamp) else {
-                continue;
-            };
-            if at_epoch_seconds < cutoff || at_epoch_seconds > future_limit {
-                continue;
-            }
-            let Some(remainder) = captures.get(2).map(|value| value.as_str()) else {
-                continue;
-            };
-            let Some(kind) = classify(remainder) else {
-                continue;
-            };
-            let reason = reason_pattern
-                .captures(remainder)
-                .and_then(|capture| capture.get(1))
-                .map_or("", |value| value.as_str())
-                .trim()
-                .to_owned();
-            events.push(WakeEvent {
-                kind,
-                at_epoch_seconds,
-                reason,
-            });
+            accumulator.push(raw_line);
         }
-        events.sort_by_key(|event| event.at_epoch_seconds);
-        let dark_wake_count_24h = events
-            .iter()
-            .filter(|event| event.kind == WakeKind::Dark)
-            .count() as i32;
-        WakeLogSnapshot {
-            events,
-            dark_wake_count_24h,
+        accumulator.finish()
+    }
+
+    /// Parses wake events from a bounded reader without loading the full log.
+    pub fn parse_reader<R: BufRead>(
+        reader: R,
+        now_epoch_seconds: i64,
+    ) -> io::Result<WakeLogSnapshot> {
+        let mut accumulator = WakeLogAccumulator::new(now_epoch_seconds);
+        for raw_line in reader.lines() {
+            accumulator.push(&raw_line?);
         }
+        Ok(accumulator.finish())
     }
 
     /// Parses `yyyy-MM-dd HH:mm:ss +0800` into Unix seconds.
@@ -134,6 +106,69 @@ impl PmsetWakeLogParser {
     }
 }
 
+struct WakeLogAccumulator {
+    cutoff: i64,
+    future_limit: i64,
+    events: Vec<WakeEvent>,
+}
+
+impl WakeLogAccumulator {
+    fn new(now_epoch_seconds: i64) -> Self {
+        Self {
+            cutoff: now_epoch_seconds.saturating_sub(24 * 60 * 60),
+            future_limit: now_epoch_seconds.saturating_add(5 * 60),
+            events: Vec::new(),
+        }
+    }
+
+    fn push(&mut self, raw_line: &str) {
+        let line = raw_line.trim();
+        let timestamp_pattern = timestamp_pattern();
+        let Some(captures) = timestamp_pattern.captures(line) else {
+            return;
+        };
+        let Some(timestamp) = captures.get(1).map(|value| value.as_str()) else {
+            return;
+        };
+        let Some(at_epoch_seconds) = PmsetWakeLogParser::parse_timestamp(timestamp) else {
+            return;
+        };
+        if at_epoch_seconds < self.cutoff || at_epoch_seconds > self.future_limit {
+            return;
+        }
+        let Some(remainder) = captures.get(2).map(|value| value.as_str()) else {
+            return;
+        };
+        let Some(kind) = classify(remainder) else {
+            return;
+        };
+        let reason = reason_pattern()
+            .captures(remainder)
+            .and_then(|capture| capture.get(1))
+            .map_or("", |value| value.as_str())
+            .trim()
+            .to_owned();
+        self.events.push(WakeEvent {
+            kind,
+            at_epoch_seconds,
+            reason,
+        });
+    }
+
+    fn finish(mut self) -> WakeLogSnapshot {
+        self.events.sort_by_key(|event| event.at_epoch_seconds);
+        let dark_wake_count_24h = self
+            .events
+            .iter()
+            .filter(|event| event.kind == WakeKind::Dark)
+            .count() as i32;
+        WakeLogSnapshot {
+            events: self.events,
+            dark_wake_count_24h,
+        }
+    }
+}
+
 fn timestamp_pattern() -> &'static Regex {
     static PATTERN: OnceLock<Regex> = OnceLock::new();
     PATTERN.get_or_init(|| {
@@ -158,16 +193,30 @@ fn reason_pattern() -> &'static Regex {
 
 fn classify(remainder: &str) -> Option<WakeKind> {
     let event_text = remainder.split(" from ").next().unwrap_or(remainder).trim();
-    let dark_to_full = Regex::new(r"(?i)\bDarkWake\s+to\s+FullWake\b").ok()?;
-    let full_wake = Regex::new(r"(?i)(?:^|\s)Wake(?:\s|\[|$)").ok()?;
-    let dark_wake = Regex::new(r"(?i)(?:^|\s)DarkWake(?:\s|\[|$)").ok()?;
-    if dark_to_full.is_match(event_text) || full_wake.is_match(event_text) {
+    if dark_to_full_pattern().is_match(event_text) || full_wake_pattern().is_match(event_text) {
         Some(WakeKind::Full)
-    } else if dark_wake.is_match(event_text) {
+    } else if dark_wake_pattern().is_match(event_text) {
         Some(WakeKind::Dark)
     } else {
         None
     }
+}
+
+fn dark_to_full_pattern() -> &'static Regex {
+    static PATTERN: OnceLock<Regex> = OnceLock::new();
+    PATTERN.get_or_init(|| {
+        Regex::new(r"(?i)\bDarkWake\s+to\s+FullWake\b").expect("dark-to-full regex")
+    })
+}
+
+fn full_wake_pattern() -> &'static Regex {
+    static PATTERN: OnceLock<Regex> = OnceLock::new();
+    PATTERN.get_or_init(|| Regex::new(r"(?i)(?:^|\s)Wake(?:\s|\[|$)").expect("full wake regex"))
+}
+
+fn dark_wake_pattern() -> &'static Regex {
+    static PATTERN: OnceLock<Regex> = OnceLock::new();
+    PATTERN.get_or_init(|| Regex::new(r"(?i)(?:^|\s)DarkWake(?:\s|\[|$)").expect("dark wake regex"))
 }
 
 fn is_leap_year(year: i32) -> bool {
@@ -305,6 +354,14 @@ AC Power:
             "smc.sysState.Wake(0x70070000) USB-C_plug SMC.OutboxNotEmpty/Notification"
         );
         assert_eq!(snapshot.dark_wake_count_24h, 1);
+    }
+
+    #[test]
+    fn wake_parser_reader_matches_text_parse() {
+        let text = "2026-10-08 11:01:01 +0800 DarkWake\tDarkWake from Deep Idle [CDNP] : due to RTC Using BATT (Charge:80%)\n2026-10-08 13:34:53 +0800 Wake\tWake from Deep Idle [CDNVA] : due to UserActivity Assertion Using AC (Charge:80%)\n";
+        let streamed = PmsetWakeLogParser::parse_reader(std::io::Cursor::new(text.as_bytes()), NOW)
+            .expect("in-memory reader");
+        assert_eq!(streamed, PmsetWakeLogParser::parse(text, NOW));
     }
 
     #[test]
