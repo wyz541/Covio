@@ -77,7 +77,7 @@ Validation results are in `docs/research/installer-size-reduction/validation/`.
 - [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.32/checksums.txt)
 - [Covio 0.6.0-internal.31](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.31) is the previous internal test.
 - [Covio 0.6.0-internal.30](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.30) is an older internal test.
-- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.31/Covio-0.6.0-internal.31-windows-x64-setup.exe)
+- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.32/Covio-0.6.0-internal.32-windows-x64-setup.exe)
 - [Covio 0.6.0-internal.29](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.29) is an older internal test.
 - [Covio 0.6.0-internal.28](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.28) is an older internal test.
 - [Covio 0.6.0-internal.27](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.27) is an older internal test.
@@ -103,7 +103,7 @@ Validation results are in `docs/research/installer-size-reduction/validation/`.
 
 Install steps:
 
-1. Download `Covio-0.6.0-internal.31.pkg`.
+1. Download `Covio-0.6.0-internal.32.pkg`.
 2. Open the PKG and complete one administrator authorization.
 3. Open `Covio.app`.
 4. Open Settings and confirm the automatic update state.
