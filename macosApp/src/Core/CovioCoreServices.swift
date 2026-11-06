@@ -824,6 +824,18 @@ enum PmsetWakeLogParser {
         return (try? coreDecode(WakeLogSnapshot.self, from: snapshot)) ?? WakeLogSnapshot()
     }
 
+    static func parseFile(path: String, nowEpochSeconds: Int64) -> WakeLogSnapshot? {
+        guard let value = try? CovioCoreRuntime.shared.call(
+            "pmset.wake.parseFile",
+            payload: ["path": path],
+            nowEpochSeconds: nowEpochSeconds
+        ) as? [String: Any],
+              let snapshot = value["snapshot"] else {
+            return nil
+        }
+        return try? coreDecode(WakeLogSnapshot.self, from: snapshot)
+    }
+
     static func parseTimestamp(value: String) -> Int64? {
         guard let result = try? CovioCoreRuntime.shared.call(
             "pmset.wake.parseTimestamp",

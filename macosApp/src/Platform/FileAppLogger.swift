@@ -104,16 +104,23 @@ final class PmsetWakeLogReader: NSObject, WakeLogReader {
 
     func read() -> WakeLogSnapshot? {
         guard timeout > 0 else { return nil }
-        guard let text = PmsetWakeLogReader.runPmsetLog(timeout: timeout) else { return nil }
-        return PmsetWakeLogParser.parse(text: text, nowEpochSeconds: nowEpochSeconds())
+        guard let output = PmsetWakeLogReader.runPmsetLogFile(timeout: timeout) else { return nil }
+        defer { try? FileManager.default.removeItem(at: output) }
+        return PmsetWakeLogParser.parseFile(
+            path: output.path,
+            nowEpochSeconds: nowEpochSeconds()
+        )
     }
 
     /// 跑 `pmset -g log`。超时或非零退出返回 nil。
-    static func runPmsetLog(timeout: TimeInterval) -> String? {
+    static func runPmsetLogFile(timeout: TimeInterval) -> URL? {
         let output = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("covio-pmset-\(UUID().uuidString).log")
         guard FileManager.default.createFile(atPath: output.path, contents: nil) else { return nil }
-        defer { try? FileManager.default.removeItem(at: output) }
+        var keepOutput = false
+        defer {
+            if !keepOutput { try? FileManager.default.removeItem(at: output) }
+        }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
@@ -127,6 +134,7 @@ final class PmsetWakeLogReader: NSObject, WakeLogReader {
         PmsetCommand.wait(for: process, timeout: timeout)
         guard !process.isRunning, process.terminationStatus == 0 else { return nil }
         try? handle.close()
-        return try? String(contentsOf: output, encoding: .utf8)
+        keepOutput = true
+        return output
     }
 }
