@@ -42,6 +42,8 @@ bash scripts/test-all.sh
 
 高风险改动和正式发布必须通过此命令。
 
+Release app target 会裁剪可执行文件的本地符号。dSYM 单独生成并保留，用于崩溃符号化。不要把发布 app 的未裁剪二进制归档为正式产物。
+
 ## 4. Agent 验收
 
 在仓库根目录运行：
