@@ -155,6 +155,25 @@ def main() -> int:
             "runs-on: ubuntu-latest",
             "cancel-in-progress: true",
             "python3 -I scripts/verify-kmp-removal.py",
+            "predicate-quantifier: some-with-excludes",
+            "docs/design/previews/**",
+            "docs/research/**",
+            "guide/**",
+            "windows-x64:",
+            "windows-arm64:",
+            "windows-package:",
+            "needs.portable.outputs.full == 'true'",
+            "needs.portable.outputs.windows == 'true'",
+            "needs.portable.outputs.windows_arm == 'true'",
+            "needs.portable.outputs.installer == 'true'",
+            "startsWith(github.head_ref, 'release/')",
+            "!macosApp/**",
+            "!docs/**",
+            "!guide/**",
+            "!rust/**",
+            "!assets/windows/**",
+            "!installer/windows/**",
+            "!scripts/*macos*",
         ),
     )
     forbid(
@@ -165,6 +184,9 @@ def main() -> int:
             "setup-java",
             "kotlin test",
             "kmpDomain",
+            "windows-host:",
+            "matrix.runner",
+            '      - "docs/**"',
         ),
     )
 
@@ -188,7 +210,7 @@ def main() -> int:
         print(f"{len(errors)} 条问题。", file=sys.stderr)
         return 1
 
-    print("工作流校验通过：流程、无 KMP 产品路径和本地 macOS 验收边界正确。")
+    print("工作流校验通过：流程、按路径运行的托管门禁和本地 macOS 验收边界正确。")
     return 0
 
 
