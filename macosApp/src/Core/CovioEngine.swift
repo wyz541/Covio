@@ -81,10 +81,28 @@ final class Engine: @unchecked Sendable {
         covio_engine_release(handle)
     }
 
+    /// 引擎空闲时读取 Rust 实时状态，忙碌时读取最近发布的状态。
+    ///
+    /// 唤醒日志扫描可能持有引擎调用锁直到 `pmset` 超时。
+    /// UI 读取不能等待这个扫描。
     var currentState: AppState {
-        if let root = perform("currentState") as? [String: Any],
-           let state = try? coreDecode(AppState.self, from: root["state"] ?? [:]) {
-            return state
+        if callLock.try() {
+            let result: Any?
+            do {
+                result = try call("currentState", payload: [:], nowMillis: nil)
+            } catch {
+                callbacks.logger.error(
+                    message: "Rust engine command currentState failed",
+                    error: error
+                )
+                result = nil
+            }
+            callLock.unlock()
+            drainPendingWakeScans()
+            if let root = result as? [String: Any],
+               let state = try? coreDecode(AppState.self, from: root["state"] ?? [:]) {
+                return state
+            }
         }
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -118,8 +136,29 @@ final class Engine: @unchecked Sendable {
         callbacks.sleepWatcher.stop()
     }
 
-    func tick(nowMillis: Int64) {
-        _ = perform("tick", payload: ["nowMillis": nowMillis], nowMillis: nowMillis)
+    /// 只有后台命令未占用引擎时才运行周期 tick。
+    ///
+    /// 唤醒扫描仍在读取 `pmset -g log` 时返回 `false`。
+    @discardableResult
+    func tick(nowMillis: Int64) -> Bool {
+        guard callLock.try() else { return false }
+        let result: Any?
+        do {
+            result = try call(
+                "tick",
+                payload: ["nowMillis": nowMillis],
+                nowMillis: nowMillis
+            )
+        } catch {
+            callbacks.logger.error(
+                message: "Rust engine command tick failed",
+                error: error
+            )
+            result = nil
+        }
+        callLock.unlock()
+        drainPendingWakeScans()
+        return result != nil
     }
 
     @discardableResult
