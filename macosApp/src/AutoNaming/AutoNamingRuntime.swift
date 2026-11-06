@@ -681,8 +681,8 @@ struct AutoNamingPolicySnapshot: Sendable {
             separator: separator,
             lowercaseLatin: lowercaseLatin,
             preserveExtension: preserveExtension,
-            dateSource: dateSource.kmpValue,
-            conflictPolicy: conflictPolicy.kmpValue,
+            dateSource: dateSource.bridgeValue,
+            conflictPolicy: conflictPolicy.bridgeValue,
             conflictSuffix: conflictSuffix,
             minConfidence: minConfidence,
             requirePreview: requirePreview,
@@ -692,7 +692,7 @@ struct AutoNamingPolicySnapshot: Sendable {
 }
 
 private extension AutoNamingPolicySnapshot.DateSource {
-    var kmpValue: FileNamingDateSource {
+    var bridgeValue: FileNamingDateSource {
         switch self {
         case .none: .none
         case .content: .content
@@ -702,7 +702,7 @@ private extension AutoNamingPolicySnapshot.DateSource {
 }
 
 private extension AutoNamingPolicySnapshot.ConflictPolicy {
-    var kmpValue: FileNamingConflictPolicy {
+    var bridgeValue: FileNamingConflictPolicy {
         switch self {
         case .appendNumber: .appendNumber
         case .block: .block
