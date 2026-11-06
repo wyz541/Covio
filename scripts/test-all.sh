@@ -14,11 +14,12 @@ set -euo pipefail
 #   7. 合同的跨段规则。schema 表达不了的那些。
 #   8. Issue 与 PR 模板是否把视觉证据放在正确对象。
 #   9. Release 缓存路径与 linked worktree 解析。
-#   10. 割接脚本的断言。
-#   11. 本机 app-helper 升级与回滚事务。
-#   12. Updater launcher、XPC engine 和回退状态机。
-#   13. 文件自动命名模型清单。
-#   14. macOS SwiftUI 宿主的 XCTest。
+#   10. 性能门禁工具。
+#   11. 割接脚本的断言。
+#   12. 本机 app-helper 升级与回滚事务。
+#   13. Updater launcher、XPC engine 和回退状态机。
+#   14. 文件自动命名模型清单。
+#   15. macOS SwiftUI 宿主的 XCTest。
 #
 # 安装事务步骤也会跑合同检查。分开列是为了让它们单独报错。
 
@@ -61,6 +62,9 @@ python3 -I "$ROOT/scripts/validate-workflow.py"
 
 step "Release 缓存"
 bash "$ROOT/scripts/test-release-cache.sh"
+
+step "性能门禁工具"
+python3 -I "$ROOT/scripts/test_performance_benchmark.py"
 
 step "本机 helper 固定路径验证"
 bash "$ROOT/scripts/verify-helper-cutover.sh" selftest

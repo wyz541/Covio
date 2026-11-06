@@ -71,7 +71,72 @@ COVIO_FILE_NAMING_ACCEPTANCE=1 \
 
 预期结果：12 个样例全部通过，验证器输出成功结果。
 
-## 6. 证据
+## 6. 性能门禁
+
+性能门禁使用同一台机器、同一电源状态和隔离的 HOME 目录交替运行 baseline 与 candidate。
+
+macOS 命令：
+
+```sh
+python3 -I scripts/performance/macos_benchmark.py \
+  --baseline-label "KMP 0.0.2.3" \
+  --baseline-app "$HOME/workspace/active/covio-rust-cutover-605/rollback-0.0.2.3/Covio.app" \
+  --candidate-label "Rust current" \
+  --candidate-app "$PWD/build/release-xcode-cache/Build/Products/Release/Covio.app" \
+  --baseline-artifact "App ZIP=$PWD/dist/kmp-Covio.zip" \
+  --candidate-artifact "App ZIP=$PWD/dist/Covio.zip" \
+  --runs 10 \
+  --settle-seconds 30 \
+  --sample-seconds 5 \
+  --stop-running \
+  --enforce \
+  --output "$PWD/build/performance/$(date +%Y%m%d-%H%M%S)"
+```
+
+参数规则：
+
+- `--baseline-app` 和 `--candidate-app` 可以只给一个。
+- `--enforce` 只在两边都有至少 3 次成功样本时给出 pass 或 fail。
+- 默认门禁禁止 candidate 在 warm launch、RSS、私有足迹和 CPU 上回退。
+- `--max-*-regression-percent` 和 `--max-cpu-increase-points` 可以调整阈值。
+- 不传 `--stop-running` 时，已有 Covio 进程会让命令失败。
+
+输出：
+
+| 文件 | 内容 |
+| --- | --- |
+| `results.csv` | 每次 warm launch 的原始数据 |
+| `results.json` | 环境、样本、聚合、比较和门禁结果 |
+| `summary.md` | 人类可读摘要 |
+
+数据质量取值：
+
+- `complete`：baseline 和 candidate 都达到请求次数。
+- `contaminated`：样本完整，但背景负载或背景 CPU 超出门禁阈值。
+- `partial`：两边都有至少 3 次成功样本，但少于请求次数。
+- `insufficient`：任一结果少于 3 次。
+- `single-app`：只测量了一个 app。
+
+Windows 11 x64 命令：
+
+```powershell
+pwsh -File scripts/performance/windows_benchmark.ps1 `
+  -BaselinePath C:\bench\kmp\Covio.exe `
+  -CandidatePath C:\bench\rust\Covio.exe `
+  -Runs 10 `
+  -SettleSeconds 30 `
+  -SampleSeconds 5 `
+  -OutputDirectory build\performance\windows
+```
+
+Windows 前置条件：
+
+- Windows 11 x64 固定测试机。
+- baseline 是仍包含 KMP 产品的 x64 构建。
+- 不把 `.26` 用作 KMP baseline。
+- 不把 Windows ARM64 结果当作 x64 结论。
+
+## 7. 证据
 
 PR 的 `Proof` 至少记录：
 
@@ -87,7 +152,7 @@ UI 改动还要按 `.github/pull_request_template.md` 提供 Before/After。
 
 测试失败、证据缺失或环境不完整时，PR 保持 draft。
 
-## 7. 清理
+## 8. 清理
 
 验收生成的文件留在 `build/` 和 `dist/`，由仓库忽略规则管理。
 
