@@ -407,6 +407,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
+				COPY_PHASE_STRIP = YES;
+				DEPLOYMENT_POSTPROCESSING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -425,6 +427,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.wyz.covio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_INSTALLED_PRODUCT = YES;
+				STRIP_STYLE = all;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Release;

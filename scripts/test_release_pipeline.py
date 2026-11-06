@@ -115,6 +115,19 @@ class ReleasePipelineTests(unittest.TestCase):
                 self.assertIn('if [[ "$CHANNEL" == "public" ]]; then', script)
                 self.assertNotIn("SIGN_RUNTIME_FLAGS", script)
 
+    def test_macos_release_strips_symbols_from_the_app_target(self):
+        project = (SCRIPT.parent.parent / "macosApp" / "Covio.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+        marker = "C0000000000000000000001B /* Release */ = {"
+        start = project.index(marker)
+        end = project.index("name = Release;", start)
+        target_release = project[start:end]
+        self.assertIn("COPY_PHASE_STRIP = YES;", target_release)
+        self.assertIn("DEPLOYMENT_POSTPROCESSING = YES;", target_release)
+        self.assertIn("STRIP_INSTALLED_PRODUCT = YES;", target_release)
+        self.assertIn("STRIP_STYLE = all;", target_release)
+        self.assertEqual(project.count("STRIP_INSTALLED_PRODUCT = YES;"), 1)
+        self.assertEqual(project.count("STRIP_STYLE = all;"), 1)
+
     def test_release_package_uses_shared_package_cache_without_kmp(self):
         script = SCRIPT.with_name("package-macos-swift.sh").read_text(encoding="utf-8")
         self.assertIn('source "$ROOT/scripts/release-cache.sh"', script)
