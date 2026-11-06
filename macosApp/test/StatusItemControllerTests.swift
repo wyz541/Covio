@@ -12,10 +12,18 @@ final class StatusItemControllerTests: XCTestCase {
         XCTAssertTrue(controller.isVisible)
     }
 
-    /// 状态栏菜单中的设置项直接接到固定页面入口。
+    /// 状态栏菜单中的设置项接到独立窗口入口。
     func testTheStatusMenuWiresSettingsToTheFixedAction() throws {
-        let controller = StatusItemController(shell: NotchShellController())
+        let shell = NotchShellController()
+        let controller = StatusItemController(shell: shell)
         defer { controller.tearDown() }
+
+        var didOpenSettings = false
+        var receivedHit: SettingsSearchHit?
+        shell.onOpenSettings = { hit in
+            didOpenSettings = true
+            receivedHit = hit
+        }
 
         let item = try XCTUnwrap(
             controller.menu.items.first { $0.title == ContractCopy.copyTrayActionSettings.text }
@@ -24,5 +32,9 @@ final class StatusItemControllerTests: XCTestCase {
 
         XCTAssertTrue(item.target === controller)
         XCTAssertEqual(NSStringFromSelector(action), "openSettings")
+
+        item.target?.perform(action, with: item)
+        XCTAssertTrue(didOpenSettings)
+        XCTAssertNil(receivedHit)
     }
 }

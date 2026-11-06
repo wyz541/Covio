@@ -86,7 +86,7 @@ struct AgentTabView: View {
                 RoundedRectangle(cornerRadius: HubMetrics.bentoCardRadius, style: .continuous)
                     .strokeBorder(MacTheme.divider, lineWidth: 1)
             )
-            .glassSurface(cornerRadius: HubMetrics.bentoCardRadius)
+            .settingsAwareGlassSurface(cornerRadius: HubMetrics.bentoCardRadius)
             .onChange(of: agent.messages.count) { _, _ in
                 withAnimation(.easeOut(duration: 0.16)) {
                     proxy.scrollTo(Self.bottomID, anchor: .bottom)

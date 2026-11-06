@@ -5,7 +5,7 @@ import Foundation
 /// 名称与顺序来自设计合同的导航文案。
 /// 每节的标题与说明来自 `copy/page/*/title` 与 `copy/page/*/summary`。
 ///
-/// 切换由顶部胶囊里的分段控件驱动，状态住在 `HubChromeModel.settingsSection`。
+/// 切换由原生 Settings 工具栏驱动，状态住在 `HubChromeModel.settingsSection`。
 enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
     case overview
     case battery
@@ -49,6 +49,18 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
         case .clipboard: ContractCopy.copyPageClipboardSummary
         case .assistant: ContractCopy.copyHubTabAgentSummary
         case .general: ContractCopy.copyPageGeneralSummary
+        }
+    }
+
+    /// 设置工具栏使用的系统图标。
+    var symbolName: String {
+        switch self {
+        case .overview: "switch.2"
+        case .battery: "battery.50percent"
+        case .idle: "moon.zzz"
+        case .clipboard: "doc.on.clipboard"
+        case .assistant: "sparkles"
+        case .general: "gearshape"
         }
     }
 }

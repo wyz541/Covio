@@ -10,7 +10,7 @@ import SwiftUI
 /// - Debug 构建另有充电命令，用来验证 helper 的原始回复。
 ///
 /// Hub 是 NSPanel，由 `AppDelegate` 与 `NotchShellController` 管理。
-/// 这里不提供任何窗口。`Settings` 场景是让 `App` 协议有一个非空 `Scene` 的最小写法。
+/// 独立设置窗口使用 SwiftUI 的 `Settings` 场景和原生分页工具栏。
 @main
 enum CovioMain {
     static func main() async {
@@ -410,12 +410,16 @@ struct CovioApp: App {
 
     var body: some Scene {
         Settings {
-            EmptyView()
+            SettingsSceneRoot(
+                runtimeProvider: appDelegate.settingsRuntime,
+                chrome: appDelegate.settingsChrome,
+                onSettingsAppear: appDelegate.settingsWindowDidAppear
+            )
         }
         .commands {
             CommandGroup(replacing: .appSettings) {
-                Button(ContractCopy.copyTrayActionSettings.text) {
-                    appDelegate.openSettingsFromApplicationMenu()
+                SettingsLink {
+                    Text(ContractCopy.copyTrayActionSettings.text)
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }

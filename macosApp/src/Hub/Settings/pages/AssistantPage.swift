@@ -8,24 +8,30 @@ struct AssistantPage: View {
     let runtime: AppRuntime
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MacTheme.space6) {
-            HStack(spacing: MacTheme.space2) {
-                Spacer(minLength: 0)
-                AgentHeadingActions(agent: runtime.agent, language: runtime.language)
+        ScrollView {
+            VStack(alignment: .leading, spacing: MacTheme.space6) {
+                HStack(spacing: MacTheme.space2) {
+                    Spacer(minLength: 0)
+                    AgentHeadingActions(agent: runtime.agent, language: runtime.language)
+                }
+
+                AgentTabView(
+                    agent: runtime.agent,
+                    language: runtime.language,
+                    modelSetup: runtime.modelSetup
+                )
+                .settingsRowAnchor(SettingsRowID.assistantChat)
+
+                LocalModelPackagesCard(runtime: runtime)
+                    .settingsRowAnchor(SettingsRowID.assistantModel)
+
+                AgentExternalServiceCard(runtime: runtime)
+                    .settingsRowAnchor(SettingsRowID.assistantExternalAgent)
             }
-
-            AgentTabView(
-                agent: runtime.agent,
-                language: runtime.language,
-                modelSetup: runtime.modelSetup
-            )
-            .settingsRowAnchor(SettingsRowID.assistantChat)
-
-            LocalModelPackagesCard(runtime: runtime)
-                .settingsRowAnchor(SettingsRowID.assistantModel)
-
-            AgentExternalServiceCard(runtime: runtime)
-                .settingsRowAnchor(SettingsRowID.assistantExternalAgent)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, MacTheme.space6)
+            .padding(.vertical, MacTheme.space5)
         }
     }
 }

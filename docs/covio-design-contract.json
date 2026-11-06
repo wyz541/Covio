@@ -6917,6 +6917,10 @@
       "en": "Assistant",
       "zh-Hans": "助手"
     },
+    "copy/settings/search-placeholder": {
+      "en": "Search settings",
+      "zh-Hans": "搜索设置"
+    },
     "copy/monitor/power/state/battery": {
       "en": "On battery",
       "zh-Hans": "电池供电"

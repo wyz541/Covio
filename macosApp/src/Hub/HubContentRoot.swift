@@ -19,7 +19,8 @@ struct HubContentRoot: View {
                 workbench: controller.workbench,
                 chrome: controller.chrome,
                 runtime: runtime,
-                popoverCoordinator: controller.popoverCoordinator
+                popoverCoordinator: controller.popoverCoordinator,
+                onOpenSettings: controller.onOpenSettings
             )
         } else {
             Color.clear

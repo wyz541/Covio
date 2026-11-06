@@ -29,8 +29,8 @@ struct SettingsSearchResults: View {
         .padding(MacTheme.space2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
-                .fill(MacTheme.surface)
+            .regularMaterial,
+            in: RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: MacTheme.cardRadius, style: .continuous)

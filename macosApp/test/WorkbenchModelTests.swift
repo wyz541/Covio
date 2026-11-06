@@ -89,15 +89,6 @@ final class WorkbenchModelTests: XCTestCase {
         XCTAssertNotEqual(model.destination, .pane(id: "no-such-pane"))
     }
 
-    /// 设置是固定入口。它不在页签里，但模型仍能直接打开。
-    func testSettingsOpensWithoutAWorkbenchTab() {
-        let model = model()
-
-        XCTAssertTrue(model.openSettings())
-        XCTAssertEqual(model.destination, .pane(id: PaneKind.settings.defaultId))
-        XCTAssertFalse(model.panes(language: CopyLocale.language).contains { $0.tab == .settings })
-    }
-
     /// 旧截图入口进入文件区，并携带一次截图筛选。消费后不重复套用。
     func testTheLegacyScreenshotEntryOpensFilesWithAScreenshotFilter() {
         let model = model()
