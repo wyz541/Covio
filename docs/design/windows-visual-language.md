@@ -82,3 +82,14 @@ Clipboard 和 Workspace 使用全宽卡片。
 - 危险动作使用 error text 和 error stroke。
 - 空列表时禁用 Clear 动作。
 - Shelf 卡片在悬停时显示完整路径。
+## Settings shell
+
+Settings 使用完整页面内容表面。Windows 不再把默认 egui Window 作为产品外观。
+
+- 分段为 Overview、Appearance、Triggers、Capabilities 和 Updates。
+- 分段栏使用 surface-muted 背景和蓝色选中胶囊。
+- 每个分段内容放在全宽卡片内。
+- 能力状态使用 success、warning 和 disabled 语义颜色。
+- Save changes 使用主按钮。Done 返回 Home。
+- 窄窗口使用两行顶部导航。Settings 分段和内容保持可见并可滚动。
+- Windows 不绘制 macOS traffic-light 控件。
