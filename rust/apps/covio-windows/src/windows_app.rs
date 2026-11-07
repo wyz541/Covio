@@ -1,6 +1,9 @@
 //! Windows-only egui composition root.
 
-use crate::visuals::{CovioTheme, PAGE_MAX_WIDTH};
+use crate::visuals::{
+    CovioTheme, PAGE_MAX_WIDTH, WIDGET_TINT_AMBER, WIDGET_TINT_APRICOT, WIDGET_TINT_MINT,
+    WIDGET_TINT_ROSE, WIDGET_TINT_SKY, WIDGET_TINT_SLATE,
+};
 use covio_core::AppConfig;
 use covio_core::clipboard::ClipItem;
 use covio_core::workspace::{WorkspaceState, suggested_text_name};
@@ -713,47 +716,313 @@ impl CovioWindowsApp {
 
     fn home_view(&mut self, ui: &mut egui::Ui) {
         let theme = self.covio_theme();
-        ui.heading("Covio");
-        ui.label("Rust core running in the Windows host.");
-        if let Some(error) = &self.tray_error {
-            ui.colored_label(theme.warning, error);
-        }
-        ui.add_space(12.0);
-
-        let snapshot = self.model.snapshot().cloned();
-        if let Some(snapshot) = snapshot {
-            theme.card_frame().show(ui, |ui| {
-                egui::Grid::new("core-state-grid")
-                    .num_columns(2)
-                    .spacing([24.0, 10.0])
-                    .show(ui, |ui| {
-                        ui.label("Screenshot shelf");
-                        ui.monospace(snapshot.shelf_item_count.to_string());
-                        ui.end_row();
-                        ui.label("Clipboard history");
-                        ui.monospace(snapshot.clipboard_item_count.to_string());
-                        ui.end_row();
-                        ui.label("Workspace");
-                        ui.monospace(snapshot.workspace_entry_count.to_string());
-                        ui.end_row();
-                        ui.label("Loaded at");
-                        ui.monospace(snapshot.loaded_at_epoch_seconds.to_string());
-                        ui.end_row();
-                    });
-            });
-        } else {
+        let Some(snapshot) = self.model.snapshot().cloned() else {
             ui.spinner();
+            return;
+        };
+
+        let gap = 12.0_f32;
+        ui.spacing_mut().item_spacing = egui::Vec2::new(gap, gap);
+        if let Some(error) = &self.tray_error {
+            theme.muted_frame().show(ui, |ui| {
+                ui.colored_label(theme.warning, error);
+            });
         }
 
-        ui.add_space(16.0);
-        ui.horizontal(|ui| {
-            if ui.add(theme.primary_button("Refresh")).clicked() {
-                self.refresh_snapshot();
+        let columns = dashboard_columns(ui.available_width());
+        let available = ui.available_width();
+        let column_width =
+            ((available - gap * (columns.saturating_sub(1) as f32)) / columns as f32).max(180.0);
+        let wide_width = if columns >= 3 {
+            (column_width * 2.0 + gap).min(available)
+        } else {
+            available
+        };
+        let card_height = 148.0_f32;
+        let shelf_names: Vec<String> = snapshot
+            .shelf
+            .items
+            .iter()
+            .take(2)
+            .map(|item| display_name(&item.path))
+            .collect();
+
+        match columns {
+            3 => {
+                ui.horizontal(|ui| {
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(wide_width, card_height),
+                        WIDGET_TINT_AMBER,
+                        "Now",
+                        &format!(
+                            "{} · {} · {}",
+                            count_label(snapshot.shelf_item_count, "screenshot", "screenshots"),
+                            count_label(
+                                snapshot.clipboard_item_count,
+                                "clipboard item",
+                                "clipboard items"
+                            ),
+                            count_label(
+                                snapshot.workspace_entry_count,
+                                "workspace entry",
+                                "workspace entries"
+                            )
+                        ),
+                        |_ui| {},
+                    );
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(column_width, card_height),
+                        WIDGET_TINT_MINT,
+                        "Battery",
+                        "Not available on Windows",
+                        |ui| {
+                            ui.small("Windows power data is outside the current adapter scope.");
+                        },
+                    );
+                });
+                ui.horizontal(|ui| {
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(column_width, card_height),
+                        WIDGET_TINT_SKY,
+                        "Transfer",
+                        &count_label(
+                            snapshot.workspace_entry_count,
+                            "local workspace item",
+                            "local workspace items",
+                        ),
+                        |_ui| {},
+                    );
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(column_width, card_height),
+                        WIDGET_TINT_SLATE,
+                        "Monitor",
+                        "Not available on Windows",
+                        |ui| {
+                            ui.small("The macOS monitor dashboard has no Windows adapter yet.");
+                        },
+                    );
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(column_width, card_height),
+                        WIDGET_TINT_ROSE,
+                        "Recent screenshots",
+                        &format!("{} in the shelf", snapshot.shelf_item_count),
+                        |ui| {
+                            if shelf_names.is_empty() {
+                                ui.small("No screenshots yet.");
+                            } else {
+                                for name in &shelf_names {
+                                    ui.small(name);
+                                }
+                            }
+                        },
+                    );
+                });
+                ui.horizontal(|ui| {
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(available, card_height),
+                        WIDGET_TINT_APRICOT,
+                        "Quick actions",
+                        "Refresh state or open Settings.",
+                        |ui| {
+                            if ui.add(theme.primary_button("Refresh")).clicked() {
+                                self.refresh_snapshot();
+                            }
+                            if ui.add(theme.secondary_button("Settings")).clicked() {
+                                self.model.show_settings();
+                            }
+                        },
+                    );
+                });
             }
-            if ui.add(theme.secondary_button("Settings")).clicked() {
-                self.model.show_settings();
+            2 => {
+                ui.horizontal(|ui| {
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(available, card_height),
+                        WIDGET_TINT_AMBER,
+                        "Now",
+                        &format!(
+                            "{} · {} · {}",
+                            count_label(snapshot.shelf_item_count, "screenshot", "screenshots"),
+                            count_label(
+                                snapshot.clipboard_item_count,
+                                "clipboard item",
+                                "clipboard items"
+                            ),
+                            count_label(
+                                snapshot.workspace_entry_count,
+                                "workspace entry",
+                                "workspace entries"
+                            )
+                        ),
+                        |_ui| {},
+                    );
+                });
+                ui.horizontal(|ui| {
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(column_width, card_height),
+                        WIDGET_TINT_MINT,
+                        "Battery",
+                        "Not available on Windows",
+                        |ui| {
+                            ui.small("Windows power data is outside the current adapter scope.");
+                        },
+                    );
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(column_width, card_height),
+                        WIDGET_TINT_SKY,
+                        "Transfer",
+                        &count_label(
+                            snapshot.workspace_entry_count,
+                            "local workspace item",
+                            "local workspace items",
+                        ),
+                        |_ui| {},
+                    );
+                });
+                ui.horizontal(|ui| {
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(column_width, card_height),
+                        WIDGET_TINT_SLATE,
+                        "Monitor",
+                        "Not available on Windows",
+                        |ui| {
+                            ui.small("The macOS monitor dashboard has no Windows adapter yet.");
+                        },
+                    );
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(column_width, card_height),
+                        WIDGET_TINT_ROSE,
+                        "Recent screenshots",
+                        &format!("{} in the shelf", snapshot.shelf_item_count),
+                        |ui| {
+                            if shelf_names.is_empty() {
+                                ui.small("No screenshots yet.");
+                            } else {
+                                for name in &shelf_names {
+                                    ui.small(name);
+                                }
+                            }
+                        },
+                    );
+                });
+                ui.horizontal(|ui| {
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(available, card_height),
+                        WIDGET_TINT_APRICOT,
+                        "Quick actions",
+                        "Refresh state or open Settings.",
+                        |ui| {
+                            if ui.add(theme.primary_button("Refresh")).clicked() {
+                                self.refresh_snapshot();
+                            }
+                            if ui.add(theme.secondary_button("Settings")).clicked() {
+                                self.model.show_settings();
+                            }
+                        },
+                    );
+                });
             }
-        });
+            _ => {
+                for (title, tint, detail) in [
+                    (
+                        "Now",
+                        WIDGET_TINT_AMBER,
+                        format!(
+                            "{} · {} · {}",
+                            count_label(snapshot.shelf_item_count, "screenshot", "screenshots"),
+                            count_label(
+                                snapshot.clipboard_item_count,
+                                "clipboard item",
+                                "clipboard items"
+                            ),
+                            count_label(
+                                snapshot.workspace_entry_count,
+                                "workspace entry",
+                                "workspace entries"
+                            )
+                        ),
+                    ),
+                    (
+                        "Battery",
+                        WIDGET_TINT_MINT,
+                        "Not available on Windows".to_owned(),
+                    ),
+                    (
+                        "Transfer",
+                        WIDGET_TINT_SKY,
+                        count_label(
+                            snapshot.workspace_entry_count,
+                            "local workspace item",
+                            "local workspace items",
+                        ),
+                    ),
+                    (
+                        "Monitor",
+                        WIDGET_TINT_SLATE,
+                        "Not available on Windows".to_owned(),
+                    ),
+                    (
+                        "Recent screenshots",
+                        WIDGET_TINT_ROSE,
+                        format!("{} in the shelf", snapshot.shelf_item_count),
+                    ),
+                ] {
+                    ui.horizontal(|ui| {
+                        dashboard_card(
+                            ui,
+                            theme,
+                            egui::Vec2::new(available, card_height),
+                            tint,
+                            title,
+                            &detail,
+                            |_ui| {},
+                        );
+                    });
+                }
+                ui.horizontal(|ui| {
+                    dashboard_card(
+                        ui,
+                        theme,
+                        egui::Vec2::new(available, card_height),
+                        WIDGET_TINT_APRICOT,
+                        "Quick actions",
+                        "Refresh state or open Settings.",
+                        |ui| {
+                            if ui.add(theme.primary_button("Refresh")).clicked() {
+                                self.refresh_snapshot();
+                            }
+                            if ui.add(theme.secondary_button("Settings")).clicked() {
+                                self.model.show_settings();
+                            }
+                        },
+                    );
+                });
+            }
+        }
     }
 
     fn shelf_view(&mut self, ui: &mut egui::Ui) {
@@ -1237,6 +1506,60 @@ impl CovioWindowsApp {
     }
 }
 
+fn count_label(count: usize, singular: &str, plural: &str) -> String {
+    if count == 1 {
+        format!("1 {singular}")
+    } else {
+        format!("{count} {plural}")
+    }
+}
+
+fn dashboard_columns(available_width: f32) -> usize {
+    if available_width >= 720.0 {
+        3
+    } else if available_width >= 480.0 {
+        2
+    } else {
+        1
+    }
+}
+
+fn dashboard_card(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    size: egui::Vec2,
+    tint: egui::Color32,
+    title: &str,
+    detail: &str,
+    add_body: impl FnOnce(&mut egui::Ui),
+) {
+    ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
+        theme
+            .card_frame()
+            .fill(theme.widget_fill(tint))
+            .show(ui, |ui| {
+                ui.set_min_size(egui::Vec2::new(
+                    (size.x - 32.0).max(0.0),
+                    (size.y - 32.0).max(0.0),
+                ));
+                ui.label(
+                    egui::RichText::new(title)
+                        .size(13.5)
+                        .strong()
+                        .color(theme.text_primary),
+                );
+                ui.add_space(2.0);
+                ui.label(
+                    egui::RichText::new(detail)
+                        .size(11.5)
+                        .color(theme.text_secondary),
+                );
+                ui.add_space(8.0);
+                add_body(ui);
+            });
+    });
+}
+
 fn with_page_width<R>(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui) -> R) -> R {
     let available = ui.available_width();
     let width = available.min(PAGE_MAX_WIDTH);
@@ -1665,6 +1988,21 @@ mod tests {
         assert!(is_hub_toggle_event(pressed, Some(7)));
         assert!(!is_hub_toggle_event(released, Some(7)));
         assert!(!is_hub_toggle_event(pressed, Some(8)));
+    }
+
+    #[test]
+    fn dashboard_counts_use_singular_and_plural_labels() {
+        assert_eq!(count_label(1, "screenshot", "screenshots"), "1 screenshot");
+        assert_eq!(count_label(2, "screenshot", "screenshots"), "2 screenshots");
+    }
+
+    #[test]
+    fn dashboard_layout_is_responsive() {
+        assert_eq!(dashboard_columns(900.0), 3);
+        assert_eq!(dashboard_columns(720.0), 3);
+        assert_eq!(dashboard_columns(719.0), 2);
+        assert_eq!(dashboard_columns(480.0), 2);
+        assert_eq!(dashboard_columns(479.0), 1);
     }
 
     #[test]

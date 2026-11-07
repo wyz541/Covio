@@ -15,6 +15,19 @@ pub(crate) const CONTROL_RADIUS: u8 = 12;
 /// Maximum readable content width.
 pub(crate) const PAGE_MAX_WIDTH: f32 = 1120.0;
 
+/// Warm dashboard tint.
+pub(crate) const WIDGET_TINT_AMBER: Color32 = rgb(0xfff2bd);
+/// Green dashboard tint.
+pub(crate) const WIDGET_TINT_MINT: Color32 = rgb(0xe5f8ea);
+/// Blue dashboard tint.
+pub(crate) const WIDGET_TINT_SKY: Color32 = rgb(0xdde7f8);
+/// Rose dashboard tint.
+pub(crate) const WIDGET_TINT_ROSE: Color32 = rgb(0xffe8ea);
+/// Apricot dashboard tint.
+pub(crate) const WIDGET_TINT_APRICOT: Color32 = rgb(0xfff1dd);
+/// Cool neutral dashboard tint.
+pub(crate) const WIDGET_TINT_SLATE: Color32 = rgb(0xe9edf5);
+
 const fn rgb(value: u32) -> Color32 {
     Color32::from_rgb(
         ((value >> 16) & 0xff) as u8,
@@ -178,6 +191,10 @@ impl CovioTheme {
             ]
             .into();
         });
+    }
+
+    pub(crate) fn widget_fill(self, light_tint: Color32) -> Color32 {
+        if self.dark { self.surface } else { light_tint }
     }
 
     pub(crate) fn card_frame(self) -> Frame {
