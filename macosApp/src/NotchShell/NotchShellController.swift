@@ -401,6 +401,20 @@ final class NotchShellController {
         hubPanel = panel
     }
 
+    /// 在菜单栏入口出现后预先创建隐藏的 Hub 面板。
+    ///
+    /// 面板保持 `orderOut`，不会进入屏幕、接收鼠标或改变可见状态。
+    /// 如果用户已经打开 Hub，这里不会再次创建。
+    func prepareHubPanel() {
+        makeHubPanel()
+        guard let hubPanel else { return }
+        if let geometry = ScreenGeometry.current(location: pointerLocation()) {
+            hubPanel.setFrame(geometry.expandedRect, display: false)
+        }
+        hubPanel.contentView?.layoutSubtreeIfNeeded()
+        hubPanel.contentView?.displayIfNeeded()
+    }
+
     private func hubContentView() -> some View {
         // 外壳尺寸由屏幕决定。这里用一个稳定的几何快照，
         // 屏幕变化时由 rebuild 重建面板。
