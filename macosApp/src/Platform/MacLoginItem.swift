@@ -149,7 +149,7 @@ final class GithubUpdateChecker: NSObject, UpdateChecker {
     private let session: URLSession
 
     init(
-        endpoint: URL = URL(string: "https://github.com/wises231/kmp-Covio/releases")!,
+        endpoint: URL = URL(string: "https://github.com/\(UpdaterContract.repository)/releases")!,
         session: URLSession = .shared
     ) {
         self.endpoint = endpoint

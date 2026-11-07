@@ -13,16 +13,26 @@ final class UpdaterFeedTests: XCTestCase {
         XCTAssertEqual(candidate.publishedAt, "2026-11-05T00:00:00Z")
         XCTAssertEqual(
             candidate.manifestURL.absoluteString,
-            "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.json"
+            "https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.json"
         )
         XCTAssertEqual(
             candidate.signatureURL.absoluteString,
-            "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.sig.json"
+            "https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.sig.json"
         )
         XCTAssertEqual(
             candidate.archiveURL.absoluteString,
-            "https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.zip"
+            "https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.zip"
         )
+    }
+
+    func testParserAcceptsLegacyRepositoryLinks() throws {
+        let data = atom(
+            entries: [("v0.6.0-internal.20", "2026-11-05T00:00:00Z")],
+            path: "/wyz541/kmp-Covio/releases/tag"
+        )
+        let candidate = try XCTUnwrap(try GithubUpdaterFeed.parseReleases(data).first)
+        XCTAssertEqual(candidate.tagName, "v0.6.0-internal.20")
+        XCTAssertEqual(candidate.clientVersion, "0.6.0-internal.20")
     }
 
     func testParserSortsNewestSemanticVersionFirst() throws {
@@ -54,7 +64,7 @@ final class UpdaterFeedTests: XCTestCase {
         )
         let wrongPath = atom(
             entries: [("v0.6.0-internal.21", "2026-11-05T00:00:00Z")],
-            path: "/wyz541/kmp-Covio/other"
+            path: "/wyz541/other/other"
         )
         XCTAssertTrue(try GithubUpdaterFeed.parseReleases(wrongHost).isEmpty)
         XCTAssertTrue(try GithubUpdaterFeed.parseReleases(wrongPath).isEmpty)
@@ -85,7 +95,7 @@ final class UpdaterFeedTests: XCTestCase {
     private func atom(
         entries: [(tag: String, updatedAt: String)],
         host: String = "github.com",
-        path: String = "/wyz541/kmp-Covio/releases/tag"
+        path: String = "/wyz541/Covio/releases/tag"
     ) -> Data {
         let body = entries.map { entry in
             """

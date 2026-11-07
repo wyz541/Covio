@@ -157,6 +157,17 @@ final class UpdateManifestTests: XCTestCase {
         }
     }
 
+    func testLegacyRepositoryArchiveURLIsAccepted() throws {
+        let manifest = makeManifest(
+            archiveURL: (
+                "https://github.com/wyz541/kmp-Covio/releases/download/"
+                    + "v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.zip"
+            )
+        )
+        let signed = try signedManifest(manifest)
+        XCTAssertNoThrow(try verify(signed))
+    }
+
     func testProtocolMismatchIsRejected() throws {
         let manifest = makeManifest(helperProtocolVersion: 9)
         let signed = try signedManifest(manifest)
@@ -207,7 +218,7 @@ final class UpdateManifestTests: XCTestCase {
             updaterProtocolVersion: 1,
             minimumMacOSVersion: minimumMacOSVersion,
             archiveURL: archiveURL
-                ?? "https://github.com/wyz541/kmp-Covio/releases/download/v\(clientVersion)/CovioUpdate-\(clientVersion).zip",
+                ?? "https://github.com/wyz541/Covio/releases/download/v\(clientVersion)/CovioUpdate-\(clientVersion).zip",
             archiveSHA256: archiveSHA256,
             archiveSize: archiveSize,
             componentHashes: .init(

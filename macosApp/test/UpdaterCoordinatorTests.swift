@@ -15,16 +15,20 @@ final class UpdaterCoordinatorTests: XCTestCase {
         let releaseTag = "v\(nextClientVersion)"
         let signingKey = Curve25519.Signing.PrivateKey()
         let manifestURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).json"
+            string: "https://github.com/wyz541/Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).json"
         ))
         let signatureURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).sig.json"
+            string: "https://github.com/wyz541/Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).sig.json"
         ))
         let archiveURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).zip"
+            string: "https://github.com/wyz541/Covio/releases/download/\(releaseTag)/CovioUpdate-\(nextClientVersion).zip"
         ))
+        let legacyArchiveURL = (
+            "https://github.com/wyz541/kmp-Covio/releases/download/"
+                + "\(releaseTag)/CovioUpdate-\(nextClientVersion).zip"
+        )
         let manifest = makeManifest(
-            archiveURL: archiveURL.absoluteString,
+            archiveURL: legacyArchiveURL,
             clientVersion: nextClientVersion,
             buildNumber: nextBuild
         )
@@ -104,13 +108,13 @@ final class UpdaterCoordinatorTests: XCTestCase {
         let currentVersion = GeneratedReleaseIdentity.clientVersion
         let releaseTag = "v\(currentVersion)"
         let manifestURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).json"
+            string: "https://github.com/wyz541/Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).json"
         ))
         let signatureURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).sig.json"
+            string: "https://github.com/wyz541/Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).sig.json"
         ))
         let archiveURL = try XCTUnwrap(URL(
-            string: "https://github.com/wyz541/kmp-Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).zip"
+            string: "https://github.com/wyz541/Covio/releases/download/\(releaseTag)/CovioUpdate-\(currentVersion).zip"
         ))
         UpdaterCoordinatorURLProtocol.responses = [:]
         let configuration = URLSessionConfiguration.ephemeral

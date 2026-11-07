@@ -75,6 +75,10 @@ class UpdateManifestTests(unittest.TestCase):
         self.assertEqual(manifest["buildNumber"], 20)
         self.assertEqual(manifest["clientVersion"], "0.6.0-internal.20")
         self.assertEqual(manifest["releaseId"], f"0.6.0-internal.20-g{'a' * 40}")
+        self.assertEqual(
+            manifest["archiveURL"],
+            "https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.20/CovioUpdate-0.6.0-internal.20.zip",
+        )
         self.assertEqual(signature["schemaVersion"], 1)
         self.assertEqual(
             signature["manifestSHA256"],

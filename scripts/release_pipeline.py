@@ -493,7 +493,7 @@ def verify_update_assets(
         if manifest.get(key) != value:
             raise ReleaseVerificationError(f"update manifest {key} differs from release identity")
     expected_url = (
-        f"https://github.com/wyz541/kmp-Covio/releases/download/"
+        "https://github.com/wyz541/Covio/releases/download/"
         f"v{source.client_version}/CovioUpdate-{source.client_version}.zip"
     )
     if manifest.get("archiveURL") != expected_url:
