@@ -82,6 +82,16 @@ final class NotchShellControllerTests: XCTestCase {
         XCTAssertLessThanOrEqual(expectedWidth, HubMetrics.panelWidth)
     }
 
+    func testPreparingTheHubKeepsThePanelHidden() throws {
+        let controller = try controllerWithPointerAway()
+        controller.start()
+        defer { controller.stop() }
+
+        controller.prepareHubPanel()
+        XCTAssertNotNil(controller.hubPanelFrame)
+        XCTAssertFalse(controller.isHubPanelOnScreen)
+    }
+
     /// 非刘海屏降级热区：每块屏幕的热区都必须落在该屏幕内，且贴在该屏幕顶部。
     func testHotZonesStayInsideTheirScreens() throws {
         let controller = try controllerWithPointerAway()

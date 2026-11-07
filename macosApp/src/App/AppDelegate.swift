@@ -488,6 +488,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.hotKey = hotKey
         statusItemController?.setReady()
+
+        guard !LaunchEnvironment.isRunningTests() else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            self?.shell.prepareHubPanel()
+        }
     }
 
     /// 应用菜单和 ⌘, 打开独立设置窗口。
