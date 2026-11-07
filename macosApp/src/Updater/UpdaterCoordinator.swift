@@ -173,7 +173,10 @@ final class UpdaterCoordinator: @unchecked Sendable {
                     )
                     guard release.clientVersion == manifest.clientVersion,
                           release.tagName == "v\(manifest.clientVersion)",
-                          release.archiveURL.absoluteString == manifest.archiveURL
+                          UpdaterContract.isTrustedArchiveURL(
+                              release.archiveURL,
+                              clientVersion: manifest.clientVersion
+                          )
                     else {
                         throw UpdaterCoordinatorError.releaseMetadataMismatch
                     }

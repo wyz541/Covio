@@ -15,7 +15,7 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
-REPOSITORY = "wyz541/kmp-Covio"
+REPOSITORY = "wyz541/Covio"
 CHANNEL = "internal"
 UPDATER_PROTOCOL_VERSION = 1
 MANIFEST_SCHEMA_VERSION = 2

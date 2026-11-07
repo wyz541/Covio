@@ -96,7 +96,6 @@ enum UpdateManifestVerifier {
     static let schemaVersion = 2
     static let signatureEnvelopeSchemaVersion = 1
     static let maximumArchiveBytes = 500_000_000
-    static let repository = "wyz541/kmp-Covio"
 
     static func verify(
         manifestData: Data,
@@ -216,7 +215,10 @@ enum UpdateManifestVerifier {
         else {
             throw UpdateManifestError.invalidArchiveSize
         }
-        guard isTrustedArchiveURL(manifest.archiveURL, clientVersion: manifest.clientVersion) else {
+        guard UpdaterContract.isTrustedArchiveURL(
+            manifest.archiveURL,
+            clientVersion: manifest.clientVersion
+        ) else {
             throw UpdateManifestError.invalidArchiveURL
         }
         guard isLowercaseHex(manifest.componentHashes.app, count: 64),
@@ -234,22 +236,6 @@ enum UpdateManifestVerifier {
         guard ISO8601DateFormatter().date(from: manifest.publishedAt) != nil else {
             throw UpdateManifestError.invalidManifest
         }
-    }
-
-    private static func isTrustedArchiveURL(_ value: String, clientVersion: String) -> Bool {
-        guard let components = URLComponents(string: value),
-              components.scheme == "https",
-              components.host == "github.com",
-              components.user == nil,
-              components.password == nil,
-              components.port == nil,
-              components.query == nil,
-              components.fragment == nil
-        else {
-            return false
-        }
-        let expected = "/\(repository)/releases/download/v\(clientVersion)/CovioUpdate-\(clientVersion).zip"
-        return components.percentEncodedPath == expected
     }
 
     private static func isLowercaseHex(_ value: String, count: Int) -> Bool {

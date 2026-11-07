@@ -436,7 +436,7 @@ final class AppRuntime {
             availableUpdate = UpdateInfo(
                 version: version,
                 title: "Covio \(version)",
-                releaseUrl: "https://github.com/wyz541/kmp-Covio/releases",
+                releaseUrl: "https://github.com/\(UpdaterContract.repository)/releases",
                 publishedAt: ""
             )
         }

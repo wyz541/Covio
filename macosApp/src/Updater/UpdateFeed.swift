@@ -18,7 +18,7 @@ protocol UpdaterFeedProviding: Sendable {
 final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
     // The REST API is limited per public IP. The Atom feed is not.
     private static let endpoint = URL(
-        string: "https://github.com/wyz541/kmp-Covio/releases.atom"
+        string: "https://github.com/\(UpdaterContract.repository)/releases.atom"
     )!
     private let session: URLSession
 
@@ -87,7 +87,7 @@ final class GithubUpdaterFeed: UpdaterFeedProviding, @unchecked Sendable {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "github.com"
-        components.path = "/wyz541/kmp-Covio/releases/download/\(tag)/\(name)"
+        components.path = "/\(UpdaterContract.repository)/releases/download/\(tag)/\(name)"
         return components.url
     }
 
@@ -137,7 +137,7 @@ private final class AtomReleaseParser: NSObject, XMLParserDelegate {
             else {
                 return
             }
-            currentEntry?.tag = releaseTag(from: href)
+            currentEntry?.tag = UpdaterContract.releaseTag(from: href)
         default:
             break
         }
@@ -173,25 +173,6 @@ private final class AtomReleaseParser: NSObject, XMLParserDelegate {
         }
     }
 
-    private func releaseTag(from href: String) -> String? {
-        guard let url = URL(string: href),
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              components.scheme == "https",
-              components.host == "github.com",
-              components.user == nil,
-              components.password == nil,
-              components.port == nil,
-              components.query == nil,
-              components.fragment == nil,
-              components.path.hasPrefix("/wyz541/kmp-Covio/releases/tag/")
-        else {
-            return nil
-        }
-        let tag = String(
-            components.path.dropFirst("/wyz541/kmp-Covio/releases/tag/".count)
-        )
-        return tag.isEmpty || tag.contains("/") ? nil : tag
-    }
 }
 
 enum UpdaterFeedError: Error, Equatable, LocalizedError {

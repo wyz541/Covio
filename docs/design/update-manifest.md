@@ -7,7 +7,7 @@
 | 项目 | 值 |
 | --- | --- |
 | 渠道 | `internal` |
-| 固定仓库 | `wyz541/kmp-Covio` |
+| 固定仓库 | `wyz541/Covio` |
 | Manifest schema | `2` |
 | Signature schema | `1` |
 | Updater protocol | `1` |
@@ -67,6 +67,9 @@ archive size、SHA-256 和 component hashes
 ```
 
 任一步失败时，updater 保留当前版本。
+
+仓库从 `kmp-Covio` 改名为 `Covio`。Updater 接受两个固定仓库路径。
+新清单使用 `wyz541/Covio`。旧签名清单继续使用 `wyz541/kmp-Covio`。
 
 ## 版本顺序
 
