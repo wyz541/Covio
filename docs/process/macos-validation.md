@@ -119,12 +119,12 @@ python3 -I scripts/performance/macos_benchmark.py \
 - `insufficient`：任一结果少于 3 次。
 - `single-app`：只测量了一个 app。
 
-Windows 11 x64 命令：
+Windows 11 x64 单产品命令：
 
 ```powershell
 pwsh -File scripts/performance/windows_benchmark.ps1 `
-  -BaselinePath C:\bench\kmp\Covio.exe `
   -CandidatePath C:\bench\rust\Covio.exe `
+  -CandidateLabel "Rust current" `
   -Runs 10 `
   -SettleSeconds 30 `
   -SampleSeconds 5 `
@@ -134,9 +134,11 @@ pwsh -File scripts/performance/windows_benchmark.ps1 `
 Windows 前置条件：
 
 - Windows 11 x64 固定测试机。
-- baseline 是仍包含 KMP 产品的 x64 构建。
-- 不把 `.26` 用作 KMP baseline。
+- 单产品模式记录 Rust 性能预算。
+- Covio 没有 Windows x64 KMP 产品，因此单产品结果不是 KMP 对比。
 - 不把 Windows ARM64 结果当作 x64 结论。
+
+有可比 baseline 时，脚本仍支持同时传入 `-BaselinePath` 和 `-CandidatePath`。
 
 ## 7. 证据
 

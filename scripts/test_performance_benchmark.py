@@ -172,6 +172,9 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             "MainWindowHandle",
             "WorkingSet64",
             "PrivateMemorySize64",
+            "Get-AppSummary",
+            "single-app",
+            "summary.md",
             "results.csv",
             "results.json",
         ):
