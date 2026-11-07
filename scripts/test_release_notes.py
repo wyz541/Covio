@@ -43,10 +43,13 @@ Covio 0.6.0-internal.15 is the current internal build.
 - [Transactional PKG](https://github.com/o/r/releases/download/v0.6.0-internal.15/Covio-0.6.0-internal.15.pkg)
 - [Release page](https://github.com/o/r/releases/tag/v0.6.0-internal.15)
 - [Checksums](https://github.com/o/r/releases/download/v0.6.0-internal.15/checksums.txt)
+- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.15/Covio-0.6.0-internal.15-windows-x64-setup.exe)
 - [Covio 0.6.0 internal build 13](https://github.com/o/r/releases/tag/v0.6.0-internal.13) is the previous internal test.
 - [Covio 0.6.0 internal build 12](https://github.com/o/r/releases/tag/v0.6.0-internal.12) is an older internal test.
 
 Install steps:
+
+1. Download `Covio-0.6.0-internal.15.pkg`.
 """
 
 
@@ -114,6 +117,12 @@ class ReleaseNotesTests(unittest.TestCase):
     def test_update_readme_moves_links(self):
         text = notes.update_readme(README, self.previous, self.current)
         self.assertIn("Covio 0.6.0-internal.16 is the current internal build.", text)
+        self.assertIn(
+            "- [Windows x64 installer](https://github.com/wyz541/Covio/releases/download/"
+            "v0.6.0-internal.16/Covio-0.6.0-internal.16-windows-x64-setup.exe)",
+            text,
+        )
+        self.assertIn("1. Download `Covio-0.6.0-internal.16.pkg`.", text)
         self.assertIn("/download/v0.6.0-internal.16/Covio-0.6.0-internal.16.dmg", text)
         self.assertIn("/tag/v0.6.0-internal.16)", text)
         self.assertNotIn("/download/v0.6.0-internal.15/", text)

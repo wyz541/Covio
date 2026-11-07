@@ -61,7 +61,7 @@ The repository no longer contains the old KMP module, Amper project, Kotlin wrap
 ## Download (internal test)
 
 Covio is under internal test.
-Covio 0.6.0-internal.33 is the current internal build.
+Covio 0.6.0-internal.34 is the current internal build.
 The macOS build requires macOS 26 or later on Apple Silicon.
 The Windows build supports Windows 11 x64.
 The default installer does not contain model weights.
@@ -70,42 +70,44 @@ This release does not provide an offline model installer.
 Covio 0.0.2.0 includes the migration for passwordless internal updates.
 Existing 0.0.2.3 and earlier users must install the transactional PKG once for the first SemVer build.
 Later internal updates do not request administrator credentials.
+Users running internal builds .32 or .33 must install the .34 PKG manually once.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
-- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.33/Covio-0.6.0-internal.33.dmg)
-- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.33/Covio-0.6.0-internal.33.pkg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.33)
-- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.33/checksums.txt)
-- [Covio 0.6.0-internal.32](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.32) is the previous internal test.
-- [Covio 0.6.0-internal.31](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.31) is an older internal test.
-- [Covio 0.6.0-internal.30](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.30) is an older internal test.
-- [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.33/Covio-0.6.0-internal.33-windows-x64-setup.exe)
-- [Covio 0.6.0-internal.29](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.29) is an older internal test.
-- [Covio 0.6.0-internal.28](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.28) is an older internal test.
-- [Covio 0.6.0-internal.27](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.27) is an older internal test.
-- [Covio 0.6.0-internal.26](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.26) is an older internal test.
-- [Covio 0.0.2.3](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.3-internal) is an older internal test.
-- [Covio 0.0.2.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.1-internal) is an older internal test.
-- [Covio 0.0.2.0](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.2.0-internal) is an older internal test.
-- [Covio 0.0.1.8](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.8-internal) is an older internal test.
-- [Covio 0.0.1.7](https://github.com/wyz541/kmp-Covio/releases/tag/v0.0.1.7-internal) is an older internal test.
-- [Covio 0.6.0 internal build 15](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.15) is an older internal test.
-- [Covio 0.6.0 internal build 14](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.14) is an older internal test.
-- [Covio 0.6.0 internal build 13](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.13) is an older internal test.
-- [Covio 0.6.0 internal build 12](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.12) is an older internal test.
-- [Covio 0.6.0 internal build 11](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.11) is an older internal test.
-- [Covio 0.6.0 internal build 10](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.10) is an older internal test.
-- [Covio 0.6.0 internal build 9](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.9) is the previous internal test.
-- [Covio 0.6.0 internal build 8](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.8) is the previous internal test.
-- [Covio 0.6.0 internal build 7](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.7) is the previous internal test.
-- [Covio 0.6.0 internal build 6](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.6) is an older internal test.
-- [Covio 0.5.2 internal build 5](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.2-internal.5) is an older internal test.
-- [Covio 0.5.1](https://github.com/wyz541/kmp-Covio/releases/tag/v0.5.1) is an older internal test.
-- [Covio 0.4.2](https://github.com/wyz541/kmp-Covio/releases/tag/v0.4.2) is an older internal test.
+- [Default DMG](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.34/Covio-0.6.0-internal.34.dmg)
+- [Transactional PKG](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.34/Covio-0.6.0-internal.34.pkg)
+- [Release page](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.34)
+- [Checksums](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.34/checksums.txt)
+- [Covio 0.6.0-internal.33](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.33) is the previous internal test.
+- [Covio 0.6.0-internal.32](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.32) is an older internal test.
+- [Covio 0.6.0-internal.31](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.31) is an older internal test.
+- [Covio 0.6.0-internal.30](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.30) is an older internal test.
+- [Windows x64 installer](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.34/Covio-0.6.0-internal.34-windows-x64-setup.exe)
+- [Covio 0.6.0-internal.29](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.29) is an older internal test.
+- [Covio 0.6.0-internal.28](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.28) is an older internal test.
+- [Covio 0.6.0-internal.27](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.27) is an older internal test.
+- [Covio 0.6.0-internal.26](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.26) is an older internal test.
+- [Covio 0.0.2.3](https://github.com/wyz541/Covio/releases/tag/v0.0.2.3-internal) is an older internal test.
+- [Covio 0.0.2.1](https://github.com/wyz541/Covio/releases/tag/v0.0.2.1-internal) is an older internal test.
+- [Covio 0.0.2.0](https://github.com/wyz541/Covio/releases/tag/v0.0.2.0-internal) is an older internal test.
+- [Covio 0.0.1.8](https://github.com/wyz541/Covio/releases/tag/v0.0.1.8-internal) is an older internal test.
+- [Covio 0.0.1.7](https://github.com/wyz541/Covio/releases/tag/v0.0.1.7-internal) is an older internal test.
+- [Covio 0.6.0 internal build 15](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.15) is an older internal test.
+- [Covio 0.6.0 internal build 14](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.14) is an older internal test.
+- [Covio 0.6.0 internal build 13](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.13) is an older internal test.
+- [Covio 0.6.0 internal build 12](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.12) is an older internal test.
+- [Covio 0.6.0 internal build 11](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.11) is an older internal test.
+- [Covio 0.6.0 internal build 10](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.10) is an older internal test.
+- [Covio 0.6.0 internal build 9](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.9) is the previous internal test.
+- [Covio 0.6.0 internal build 8](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.8) is the previous internal test.
+- [Covio 0.6.0 internal build 7](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.7) is the previous internal test.
+- [Covio 0.6.0 internal build 6](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.6) is an older internal test.
+- [Covio 0.5.2 internal build 5](https://github.com/wyz541/Covio/releases/tag/v0.5.2-internal.5) is an older internal test.
+- [Covio 0.5.1](https://github.com/wyz541/Covio/releases/tag/v0.5.1) is an older internal test.
+- [Covio 0.4.2](https://github.com/wyz541/Covio/releases/tag/v0.4.2) is an older internal test.
 
 Install steps:
 
-1. Download `Covio-0.6.0-internal.33.pkg`.
+1. Download `Covio-0.6.0-internal.34.pkg`.
 2. Open the PKG and complete one administrator authorization.
 3. Open `Covio.app`.
 4. Open Settings and confirm the automatic update state.

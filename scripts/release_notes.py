@@ -18,6 +18,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TODO_MARKER = "TODO(release)"
+LEGACY_REPOSITORY = "https://github.com/wyz541/kmp-Covio/releases/"
+CURRENT_REPOSITORY = "https://github.com/wyz541/Covio/releases/"
 MERGE_SUBJECT = re.compile(r"^Merge pull request #(\d+) from [^/\s]+/(\S+)$")
 SQUASH_SUBJECT = re.compile(r"^(.*\S)\s+\(#(\d+)\)$")
 SEMVER_INTERNAL_TAG = re.compile(
@@ -142,6 +144,7 @@ def draft_notes(text: str, previous: InternalTag, current: InternalTag, pulls: l
 
 
 def update_readme(text: str, previous: InternalTag, current: InternalTag) -> str:
+    text = text.replace(LEGACY_REPOSITORY, CURRENT_REPOSITORY)
     current_line = re.compile(r"^Covio \S+(?:-internal\.\d+)? is the current internal build\.$", re.M)
     if not current_line.search(text):
         raise NotesError("README.md has no 'is the current internal build.' line")
@@ -153,20 +156,33 @@ def update_readme(text: str, previous: InternalTag, current: InternalTag) -> str
     base = f"https://github.com/{repository.group(1)}/releases"
 
     lines = text.splitlines(keepends=True)
-    download_prefixes = ("- [Default DMG]", "- [Transactional PKG]", "- [Release page]", "- [Checksums]")
+    download_prefixes = (
+        "- [Default DMG]",
+        "- [Transactional PKG]",
+        "- [Release page]",
+        "- [Checksums]",
+        "- [Windows x64 installer]",
+    )
     checksums_index = None
+    last_download_index = None
     for index, line in enumerate(lines):
         if line.startswith(download_prefixes):
             line = line.replace(f"/{previous.name}/", f"/{current.name}/")
             line = line.replace(f"/{previous.name})", f"/{current.name})")
             line = line.replace(f"Covio-{previous.version}.", f"Covio-{current.version}.")
+            line = line.replace(f"Covio-{previous.version}-", f"Covio-{current.version}-")
             lines[index] = line
+            last_download_index = index
             if line.startswith("- [Checksums]"):
                 checksums_index = index
+        elif line.startswith("1. Download `Covio-"):
+            lines[index] = f"1. Download `Covio-{current.version}.pkg`.\n"
     if checksums_index is None:
         raise NotesError("README.md has no '- [Checksums]' download line")
 
-    following = checksums_index + 1
+    if last_download_index is None:
+        raise NotesError("README.md has no release download lines")
+    following = last_download_index + 1
     if following < len(lines) and lines[following].rstrip().endswith("is the previous internal test."):
         lines[following] = lines[following].replace(
             "is the previous internal test.", "is an older internal test."
