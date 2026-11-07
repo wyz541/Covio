@@ -313,6 +313,7 @@ final class FakeSleepWatcher: NSObject, SleepWatcher {
 
 final class FakePrivilegedOps: NSObject, PrivilegedOps {
     var statusValue: HelperStatus = .missing
+    var statusDelay: TimeInterval = 0
     var match: Bool {
         get { statusValue == .match }
         set { statusValue = newValue ? .match : .missing }
@@ -327,7 +328,12 @@ final class FakePrivilegedOps: NSObject, PrivilegedOps {
 
     func isInstalled() -> Bool { statusValue != .missing }
 
-    func status() -> HelperStatus { statusValue }
+    func status() -> HelperStatus {
+        if statusDelay > 0 {
+            Thread.sleep(forTimeInterval: statusDelay)
+        }
+        return statusValue
+    }
 
     func helperVersion() -> String? { CovioReleaseIdentity.APP_VERSION }
 

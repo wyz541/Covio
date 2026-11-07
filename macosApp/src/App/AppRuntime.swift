@@ -135,6 +135,7 @@ final class AppRuntime {
     private var updateTimer: Timer?
     private var updaterTimeoutTask: Task<Void, Never>?
     private var updaterRequestGeneration = 0
+    private var pendingHelperSnapshot: HelperStatusSnapshot?
     private var ticks = 0
 
     /// 每秒一次的心跳间隔。
@@ -446,7 +447,9 @@ final class AppRuntime {
         }
         resolvedHelperMonitor?.setUpdateHandler { [weak self] snapshot in
             Task { @MainActor [weak self] in
-                self?.applyHelperSnapshot(snapshot)
+                // Helper probes can finish while the wake-log scan owns the engine lock.
+                // Keep the latest snapshot and apply it after a successful tick.
+                self?.pendingHelperSnapshot = snapshot
             }
         }
     }
@@ -657,6 +660,7 @@ final class AppRuntime {
         shelf.stop()
         clipboard.stop()
         powerRuntime.stop()
+        pendingHelperSnapshot = nil
         monitorHistorySampler.stop()
         agentExternalService?.stop()
         engine.stop()
@@ -667,6 +671,7 @@ final class AppRuntime {
         powerRuntime.refresh()
         ticks += 1
         syncState()
+        applyPendingHelperSnapshotIfNeeded()
         if ticks % Self.helperRefreshTicks == 0 {
             // 心跳里不等待：缓存立即返回，真实探测在后台执行。
             if let helperMonitor {
@@ -1031,6 +1036,13 @@ final class AppRuntime {
     }
 
     private func applyHelperSnapshot(_ snapshot: HelperStatusSnapshot) {
+        pendingHelperSnapshot = nil
+        applyHelperStatus(snapshot.status)
+    }
+
+    private func applyPendingHelperSnapshotIfNeeded() {
+        guard let snapshot = pendingHelperSnapshot else { return }
+        pendingHelperSnapshot = nil
         applyHelperStatus(snapshot.status)
     }
 

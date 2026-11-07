@@ -45,6 +45,7 @@ final class AppRuntimeTests: XCTestCase {
         helperInstalled: Bool = false,
         helperStatus: HelperStatus? = nil,
         helperServiceState: HelperServiceState? = nil,
+        privilegedOverride: (any PrivilegedOps)? = nil,
         updateRelease: UpdateInfo? = nil,
         updaterClient: (any CovioUpdaterClientProtocol)? = nil,
         updaterRequestTimeout: TimeInterval = 8,
@@ -53,6 +54,7 @@ final class AppRuntimeTests: XCTestCase {
     ) -> AppRuntime {
         privileged = FakePrivilegedOps()
         privileged.statusValue = helperStatus ?? (helperInstalled ? .match : .missing)
+        let runtimePrivileged: any PrivilegedOps = privilegedOverride ?? privileged
         powerObservation = FakePowerObservationSource()
         powerObservation = FakePowerObservationSource()
         chargeLimitClient = FakeChargeLimitClient()
@@ -94,7 +96,7 @@ final class AppRuntimeTests: XCTestCase {
             sleepController: FakeSleepController(),
             sleepWatcher: FakeSleepWatcher(),
             wakeLogReader: WakeLogStore(nil),
-            privileged: privileged,
+            privileged: runtimePrivileged,
             helperServiceManager: helperServiceManager,
             chargeLimitClient: chargeLimitClient,
             loginItem: loginItem,
@@ -709,6 +711,22 @@ final class AppRuntimeTests: XCTestCase {
 
         XCTAssertEqual(chargeLimitClient.setActiveValues, [true])
         XCTAssertTrue(created.config.chargeLimitActiveDischarge)
+    }
+
+    func testStartupDefersHelperStatusUntilTheFirstTick() async throws {
+        let upstream = FakePrivilegedOps()
+        upstream.statusValue = .match
+        upstream.statusDelay = 0.2
+        let monitor = HelperStatusMonitor(upstream: upstream)
+        let created = makeRuntime(privilegedOverride: monitor)
+
+        created.start()
+
+        XCTAssertEqual(created.helperStatus, .missing)
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertEqual(created.helperStatus, .missing)
+        try await Task.sleep(for: .milliseconds(900))
+        XCTAssertEqual(created.helperStatus, .match)
     }
 
     // MARK: - 清除配置
