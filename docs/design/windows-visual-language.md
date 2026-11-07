@@ -59,3 +59,14 @@ Windows 优先加载系统 `Segoe UI`。
 - Windows 不绘制 macOS traffic-light controls。
 - Windows 不复制 Liquid Glass blur。
 - Windows 不支持的能力继续显示 unavailable 状态。
+
+## Home dashboard
+
+Home 使用 Bento 卡片网格。
+
+- 宽度大于等于 720 时使用 3 列。
+- 宽度大于等于 480 时使用 2 列。
+- 更窄窗口使用 1 列。
+- Now、Battery、Transfer、Monitor、Recent screenshots 和 Quick actions 各有一张卡。
+- Windows 不支持的数据显示 unavailable。Windows 不伪造 macOS 数据。
+- 计数文案区分单数和复数。
