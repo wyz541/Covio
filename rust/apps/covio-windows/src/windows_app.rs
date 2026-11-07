@@ -1,5 +1,6 @@
 //! Windows-only egui composition root.
 
+use crate::visuals::{CovioTheme, PAGE_MAX_WIDTH};
 use covio_core::AppConfig;
 use covio_core::clipboard::ClipItem;
 use covio_core::workspace::{WorkspaceState, suggested_text_name};
@@ -28,6 +29,13 @@ use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 const INSTANCE_NAME: &str = "Local\\com.wyz.covio.windows";
 const RELEASES_URL: &str = "https://github.com/wyz541/kmp-Covio/releases";
 const HUB_TOGGLE_SHORTCUT: &str = "Ctrl+Alt+T";
+const NAV_ITEMS: [(HostView, &str); 5] = [
+    (HostView::Home, "Home"),
+    (HostView::Shelf, "Shelf"),
+    (HostView::Clipboard, "Clipboard"),
+    (HostView::Workspace, "Workspace"),
+    (HostView::Settings, "Settings"),
+];
 const CURRENT_VERSION: &str = match option_env!("COVIO_RELEASE_ID") {
     Some(value) => value,
     None => env!("CARGO_PKG_VERSION"),
@@ -644,17 +652,17 @@ impl CovioWindowsApp {
         }
     }
 
-    fn apply_visuals(&self, context: &egui::Context) {
+    fn covio_theme(&self) -> CovioTheme {
         let dark = match self.model.theme() {
             ThemePreference::System => dark_light::detect() == dark_light::Mode::Dark,
             ThemePreference::Light => false,
             ThemePreference::Dark => true,
         };
-        context.set_visuals(if dark {
-            egui::Visuals::dark()
-        } else {
-            egui::Visuals::light()
-        });
+        CovioTheme::from_dark(dark)
+    }
+
+    fn apply_visuals(&self, context: &egui::Context) {
+        self.covio_theme().apply(context);
         context.style_mut(|style| {
             style.animation_time = if self.model.reduced_motion() {
                 0.0
@@ -664,59 +672,102 @@ impl CovioWindowsApp {
         });
     }
 
+    fn navigation_bar(&mut self, ui: &mut egui::Ui, theme: CovioTheme) {
+        theme.toolbar_frame().show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new("Covio")
+                        .size(18.0)
+                        .strong()
+                        .color(theme.text_primary),
+                );
+                ui.add_space(14.0);
+                let mut selected = None;
+                ui.scope(|ui| {
+                    let widgets = &mut ui.visuals_mut().widgets;
+                    widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
+                    widgets.inactive.bg_stroke = egui::Stroke::NONE;
+                    widgets.hovered.weak_bg_fill = theme.surface_hover;
+                    widgets.hovered.bg_stroke = egui::Stroke::NONE;
+                    for (view, label) in NAV_ITEMS {
+                        if ui
+                            .add(theme.nav_button(label, self.model.view() == view))
+                            .clicked()
+                        {
+                            selected = Some(view);
+                        }
+                    }
+                });
+                if let Some(view) = selected {
+                    self.model.select_view(view);
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.add(theme.secondary_button("Hide")).clicked() {
+                        self.model.hide();
+                        hide_window(ui.ctx());
+                    }
+                });
+            });
+        });
+    }
+
     fn home_view(&mut self, ui: &mut egui::Ui) {
+        let theme = self.covio_theme();
         ui.heading("Covio");
         ui.label("Rust core running in the Windows host.");
         if let Some(error) = &self.tray_error {
-            ui.colored_label(egui::Color32::from_rgb(154, 86, 0), error);
+            ui.colored_label(theme.warning, error);
         }
         ui.add_space(12.0);
 
         let snapshot = self.model.snapshot().cloned();
         if let Some(snapshot) = snapshot {
-            egui::Grid::new("core-state-grid")
-                .num_columns(2)
-                .spacing([24.0, 10.0])
-                .show(ui, |ui| {
-                    ui.label("Screenshot shelf");
-                    ui.monospace(snapshot.shelf_item_count.to_string());
-                    ui.end_row();
-                    ui.label("Clipboard history");
-                    ui.monospace(snapshot.clipboard_item_count.to_string());
-                    ui.end_row();
-                    ui.label("Workspace");
-                    ui.monospace(snapshot.workspace_entry_count.to_string());
-                    ui.end_row();
-                    ui.label("Loaded at");
-                    ui.monospace(snapshot.loaded_at_epoch_seconds.to_string());
-                    ui.end_row();
-                });
+            theme.card_frame().show(ui, |ui| {
+                egui::Grid::new("core-state-grid")
+                    .num_columns(2)
+                    .spacing([24.0, 10.0])
+                    .show(ui, |ui| {
+                        ui.label("Screenshot shelf");
+                        ui.monospace(snapshot.shelf_item_count.to_string());
+                        ui.end_row();
+                        ui.label("Clipboard history");
+                        ui.monospace(snapshot.clipboard_item_count.to_string());
+                        ui.end_row();
+                        ui.label("Workspace");
+                        ui.monospace(snapshot.workspace_entry_count.to_string());
+                        ui.end_row();
+                        ui.label("Loaded at");
+                        ui.monospace(snapshot.loaded_at_epoch_seconds.to_string());
+                        ui.end_row();
+                    });
+            });
         } else {
             ui.spinner();
         }
 
         ui.add_space(16.0);
         ui.horizontal(|ui| {
-            if ui.button("Refresh").clicked() {
+            if ui.add(theme.primary_button("Refresh")).clicked() {
                 self.refresh_snapshot();
             }
-            if ui.button("Settings").clicked() {
+            if ui.add(theme.secondary_button("Settings")).clicked() {
                 self.model.show_settings();
             }
         });
     }
 
     fn shelf_view(&mut self, ui: &mut egui::Ui) {
+        let theme = self.covio_theme();
         ui.heading("Screenshot shelf");
         ui.label("Windows screenshots enter the shelf automatically. You can also add files.");
         ui.horizontal(|ui| {
             if ui.button("Add screenshots").clicked() {
                 self.add_shelf_files();
             }
-            if ui.button("Clear shelf").clicked() {
+            if ui.add(theme.destructive_button("Clear shelf")).clicked() {
                 self.clear_shelf();
             }
-            if ui.button("Refresh").clicked() {
+            if ui.add(theme.secondary_button("Refresh")).clicked() {
                 self.refresh_snapshot();
             }
         });
@@ -751,6 +802,7 @@ impl CovioWindowsApp {
     }
 
     fn clipboard_view(&mut self, ui: &mut egui::Ui) {
+        let theme = self.covio_theme();
         ui.heading("Clipboard history");
         let Some(snapshot) = self.model.snapshot().cloned() else {
             ui.spinner();
@@ -773,10 +825,10 @@ impl CovioWindowsApp {
             if ui.button(pause_label).clicked() {
                 self.set_clipboard_paused(!snapshot.clipboard.paused);
             }
-            if ui.button("Clear history").clicked() {
+            if ui.add(theme.destructive_button("Clear history")).clicked() {
                 self.clear_clipboard();
             }
-            if ui.button("Refresh").clicked() {
+            if ui.add(theme.secondary_button("Refresh")).clicked() {
                 self.refresh_snapshot();
             }
         });
@@ -819,6 +871,7 @@ impl CovioWindowsApp {
     }
 
     fn workspace_view(&mut self, ui: &mut egui::Ui) {
+        let theme = self.covio_theme();
         ui.heading("Workspace");
         let Some(snapshot) = self.model.snapshot().cloned() else {
             ui.spinner();
@@ -828,10 +881,13 @@ impl CovioWindowsApp {
             if ui.button("Add files").clicked() {
                 self.add_workspace_files();
             }
-            if ui.button("Clear workspace").clicked() {
+            if ui
+                .add(theme.destructive_button("Clear workspace"))
+                .clicked()
+            {
                 self.clear_workspace();
             }
-            if ui.button("Refresh").clicked() {
+            if ui.add(theme.secondary_button("Refresh")).clicked() {
                 self.refresh_snapshot();
             }
         });
@@ -841,7 +897,7 @@ impl CovioWindowsApp {
                     .desired_width(420.0)
                     .hint_text("Save text to the workspace"),
             );
-            if ui.button("Save text").clicked() {
+            if ui.add(theme.primary_button("Save text")).clicked() {
                 self.save_workspace_text();
             }
         });
@@ -884,6 +940,7 @@ impl CovioWindowsApp {
     }
 
     fn settings_view(&mut self, ui: &mut egui::Ui) {
+        let theme = self.covio_theme();
         ui.label("These settings are stored by the Rust core.");
         ui.label("Windows capability adapters are active in this process.");
         ui.add_space(12.0);
@@ -934,7 +991,7 @@ impl CovioWindowsApp {
         ui.label("Triggers");
         ui.small(format!("Global Hub shortcut: {HUB_TOGGLE_SHORTCUT}"));
         if let Some(error) = &self.global_hotkey_error {
-            ui.colored_label(egui::Color32::from_rgb(154, 86, 0), error);
+            ui.colored_label(theme.warning, error);
         } else {
             ui.small("Global Hub shortcut is active.");
         }
@@ -966,49 +1023,51 @@ impl CovioWindowsApp {
 
         ui.add_space(12.0);
         ui.separator();
-        ui.label("Windows capabilities");
-        ui.small(format!(
-            "Credential Manager: {}",
-            available_label(
-                self.adapters
+        theme.muted_frame().show(ui, |ui| {
+            ui.label("Windows capabilities");
+            ui.small(format!(
+                "Credential Manager: {}",
+                available_label(
+                    self.adapters
+                        .capabilities
+                        .status(covio_platform::CapabilityKind::SecureStorage)
+                        .available
+                )
+            ));
+            ui.small(format!(
+                "Clipboard: {}",
+                available_label(
+                    self.adapters
+                        .capabilities
+                        .status(covio_platform::CapabilityKind::Clipboard)
+                        .available
+                )
+            ));
+            ui.small(format!(
+                "Screenshot directory: {}",
+                if self.screenshot_directory.is_some() {
+                    "available"
+                } else {
+                    "unavailable"
+                }
+            ));
+            ui.small(format!(
+                "Sleep and lid control: {}",
+                if self
+                    .adapters
                     .capabilities
-                    .status(covio_platform::CapabilityKind::SecureStorage)
+                    .status(covio_platform::CapabilityKind::Power)
                     .available
-            )
-        ));
-        ui.small(format!(
-            "Clipboard: {}",
-            available_label(
-                self.adapters
-                    .capabilities
-                    .status(covio_platform::CapabilityKind::Clipboard)
-                    .available
-            )
-        ));
-        ui.small(format!(
-            "Screenshot directory: {}",
-            if self.screenshot_directory.is_some() {
-                "available"
-            } else {
-                "unavailable"
-            }
-        ));
-        ui.small(format!(
-            "Sleep and lid control: {}",
-            if self
-                .adapters
-                .capabilities
-                .status(covio_platform::CapabilityKind::Power)
-                .available
-            {
-                "available"
-            } else {
-                "not available on Windows"
-            }
-        ));
+                {
+                    "available"
+                } else {
+                    "not available on Windows"
+                }
+            ));
+        });
 
         ui.add_space(16.0);
-        let save = ui.button("Save").clicked();
+        let save = ui.add(theme.primary_button("Save")).clicked();
         let config = draft.clone();
         self.draft_config = Some(draft);
         if save {
@@ -1017,7 +1076,7 @@ impl CovioWindowsApp {
 
         if self.tray.is_none() {
             ui.colored_label(
-                egui::Color32::from_rgb(154, 86, 0),
+                theme.warning,
                 self.tray_error
                     .as_deref()
                     .unwrap_or("Windows tray is unavailable."),
@@ -1026,6 +1085,7 @@ impl CovioWindowsApp {
     }
 
     fn render_status(&self, ui: &mut egui::Ui) {
+        let theme = self.covio_theme();
         match self.model.status() {
             HostStatus::Idle => {}
             HostStatus::Loading => {
@@ -1038,7 +1098,7 @@ impl CovioWindowsApp {
                 ui.label("Core state is current.");
             }
             HostStatus::Error(message) => {
-                ui.colored_label(egui::Color32::from_rgb(180, 54, 54), message);
+                ui.colored_label(theme.error, message);
             }
         }
         if let Some(message) = &self.local_message {
@@ -1081,59 +1141,31 @@ impl eframe::App for CovioWindowsApp {
             return;
         }
 
-        egui::TopBottomPanel::top("navigation").show(context, |ui| {
-            ui.horizontal(|ui| {
-                ui.heading("Covio");
-                ui.separator();
-                if ui
-                    .selectable_label(self.model.view() == HostView::Home, "Home")
-                    .clicked()
-                {
-                    self.model.select_view(HostView::Home);
-                }
-                if ui
-                    .selectable_label(self.model.view() == HostView::Shelf, "Shelf")
-                    .clicked()
-                {
-                    self.model.select_view(HostView::Shelf);
-                }
-                if ui
-                    .selectable_label(self.model.view() == HostView::Clipboard, "Clipboard")
-                    .clicked()
-                {
-                    self.model.select_view(HostView::Clipboard);
-                }
-                if ui
-                    .selectable_label(self.model.view() == HostView::Workspace, "Workspace")
-                    .clicked()
-                {
-                    self.model.select_view(HostView::Workspace);
-                }
-                if ui
-                    .selectable_label(self.model.view() == HostView::Settings, "Settings")
-                    .clicked()
-                {
-                    self.model.select_view(HostView::Settings);
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Hide").clicked() {
-                        self.model.hide();
-                        hide_window(context);
-                    }
-                });
+        let theme = self.covio_theme();
+        egui::CentralPanel::default()
+            .frame(
+                egui::Frame::new()
+                    .fill(theme.canvas)
+                    .inner_margin(egui::Margin::symmetric(16, 14)),
+            )
+            .show(context, |ui| {
+                self.navigation_bar(ui, theme);
+                ui.add_space(16.0);
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        with_page_width(ui, |ui| {
+                            self.render_status(ui);
+                            ui.add_space(8.0);
+                            match self.model.view() {
+                                HostView::Home | HostView::Settings => self.home_view(ui),
+                                HostView::Shelf => self.shelf_view(ui),
+                                HostView::Clipboard => self.clipboard_view(ui),
+                                HostView::Workspace => self.workspace_view(ui),
+                            }
+                        });
+                    });
             });
-        });
-
-        egui::CentralPanel::default().show(context, |ui| {
-            self.render_status(ui);
-            ui.add_space(8.0);
-            match self.model.view() {
-                HostView::Home | HostView::Settings => self.home_view(ui),
-                HostView::Shelf => self.shelf_view(ui),
-                HostView::Clipboard => self.clipboard_view(ui),
-                HostView::Workspace => self.workspace_view(ui),
-            }
-        });
 
         if self.model.view() == HostView::Settings {
             let mut open = true;
@@ -1203,6 +1235,22 @@ impl CovioWindowsApp {
         context.send_viewport_cmd(egui::ViewportCommand::Close);
         true
     }
+}
+
+fn with_page_width<R>(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    let available = ui.available_width();
+    let width = available.min(PAGE_MAX_WIDTH);
+    let padding = ((available - width) / 2.0).max(0.0);
+    ui.horizontal(|ui| {
+        ui.add_space(padding);
+        ui.allocate_ui_with_layout(
+            egui::Vec2::new(width, ui.available_height()),
+            egui::Layout::top_down(egui::Align::Min),
+            add_contents,
+        )
+        .inner
+    })
+    .inner
 }
 
 fn show_window(context: &egui::Context) {
@@ -1617,6 +1665,21 @@ mod tests {
         assert!(is_hub_toggle_event(pressed, Some(7)));
         assert!(!is_hub_toggle_event(released, Some(7)));
         assert!(!is_hub_toggle_event(pressed, Some(8)));
+    }
+
+    #[test]
+    fn navigation_items_cover_every_product_view_once() {
+        let views: Vec<HostView> = NAV_ITEMS.iter().map(|(view, _)| *view).collect();
+        assert_eq!(
+            views,
+            vec![
+                HostView::Home,
+                HostView::Shelf,
+                HostView::Clipboard,
+                HostView::Workspace,
+                HostView::Settings,
+            ]
+        );
     }
 
     #[test]

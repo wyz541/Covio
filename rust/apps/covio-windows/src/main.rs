@@ -1,4 +1,6 @@
 #[cfg(target_os = "windows")]
+mod visuals;
+#[cfg(target_os = "windows")]
 mod windows_app;
 
 fn main() {

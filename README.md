@@ -56,6 +56,7 @@ The repository no longer contains the old KMP module, Amper project, Kotlin wrap
 - Repository removal: [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md)
 - Plan: [Rust core migration plan](docs/design/rust-core-migration.md)
 - Windows triggers: [Windows Hub triggers](docs/design/windows-triggers.md)
+- Windows visuals: [Windows egui visual language](docs/design/windows-visual-language.md)
 - Tracking: [Feature #595](https://github.com/wyz541/kmp-Covio/issues/595)
 
 ## Download (internal test)
