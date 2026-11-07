@@ -1028,44 +1028,79 @@ impl CovioWindowsApp {
     fn shelf_view(&mut self, ui: &mut egui::Ui) {
         let theme = self.covio_theme();
         ui.heading("Screenshot shelf");
-        ui.label("Windows screenshots enter the shelf automatically. You can also add files.");
-        ui.horizontal(|ui| {
-            if ui.button("Add screenshots").clicked() {
-                self.add_shelf_files();
-            }
-            if ui.add(theme.destructive_button("Clear shelf")).clicked() {
-                self.clear_shelf();
-            }
-            if ui.add(theme.secondary_button("Refresh")).clicked() {
-                self.refresh_snapshot();
-            }
-        });
-        ui.add_space(12.0);
+        ui.label("Screenshots enter the shelf automatically. You can also add files.");
         let Some(snapshot) = self.model.snapshot().cloned() else {
             ui.spinner();
             return;
         };
+        ui.add_space(12.0);
+        theme.toolbar_frame().show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.add(theme.primary_button("Add screenshots")).clicked() {
+                    self.add_shelf_files();
+                }
+                if ui
+                    .add_enabled(
+                        !snapshot.shelf.items.is_empty(),
+                        theme.destructive_button("Clear shelf"),
+                    )
+                    .clicked()
+                {
+                    self.clear_shelf();
+                }
+                if ui.add(theme.secondary_button("Refresh")).clicked() {
+                    self.refresh_snapshot();
+                }
+            });
+        });
+        ui.add_space(16.0);
+
         if snapshot.shelf.items.is_empty() {
-            ui.label("The shelf is empty.");
+            empty_state(
+                ui,
+                theme,
+                "No screenshots yet",
+                "Add screenshots or save them in the Windows Screenshots folder.",
+                |ui| {
+                    if ui.add(theme.primary_button("Add screenshots")).clicked() {
+                        self.add_shelf_files();
+                    }
+                },
+            );
             return;
         }
-        egui::ScrollArea::vertical().show(ui, |ui| {
+
+        ui.spacing_mut().item_spacing = egui::Vec2::new(12.0, 12.0);
+        ui.horizontal_wrapped(|ui| {
             for item in snapshot.shelf.items {
-                ui.group(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.strong(display_name(&item.path));
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Remove").clicked() {
-                                self.remove_shelf_item(&item.path);
-                            }
-                            if ui.button("Open").clicked() {
-                                self.open_path(Path::new(&item.path));
-                            }
+                let extension = extension_label(&item.path);
+                let card_size = egui::Vec2::new(192.0, 202.0);
+                ui.allocate_ui_with_layout(
+                    card_size,
+                    egui::Layout::top_down(egui::Align::Min),
+                    |ui| {
+                        theme.card_frame().show(ui, |ui| {
+                            ui.set_min_size(egui::Vec2::new(160.0, 170.0));
+                            file_preview(ui, theme, &extension, WIDGET_TINT_SLATE);
+                            ui.add_space(8.0);
+                            ui.label(
+                                egui::RichText::new(display_name(&item.path))
+                                    .strong()
+                                    .color(theme.text_primary),
+                            )
+                            .on_hover_text(&item.path);
+                            ui.add_space(8.0);
+                            ui.horizontal(|ui| {
+                                if ui.add(theme.secondary_button("Open")).clicked() {
+                                    self.open_path(Path::new(&item.path));
+                                }
+                                if ui.add(theme.destructive_button("Remove")).clicked() {
+                                    self.remove_shelf_item(&item.path);
+                                }
+                            });
                         });
-                    });
-                    ui.small(&item.path);
-                });
-                ui.add_space(6.0);
+                    },
+                );
             }
         });
     }
@@ -1082,61 +1117,85 @@ impl CovioWindowsApp {
         } else {
             "Recording is active while the clipboard preference is enabled."
         });
-        ui.horizontal(|ui| {
-            if ui.button("Capture current text").clicked() {
-                self.capture_clipboard_now();
-            }
-            let pause_label = if snapshot.clipboard.paused {
-                "Resume recording"
-            } else {
-                "Pause recording"
-            };
-            if ui.button(pause_label).clicked() {
-                self.set_clipboard_paused(!snapshot.clipboard.paused);
-            }
-            if ui.add(theme.destructive_button("Clear history")).clicked() {
-                self.clear_clipboard();
-            }
-            if ui.add(theme.secondary_button("Refresh")).clicked() {
-                self.refresh_snapshot();
-            }
-        });
         ui.add_space(12.0);
+        theme.toolbar_frame().show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui
+                    .add(theme.secondary_button("Capture current text"))
+                    .clicked()
+                {
+                    self.capture_clipboard_now();
+                }
+                let pause_label = if snapshot.clipboard.paused {
+                    "Resume recording"
+                } else {
+                    "Pause recording"
+                };
+                if ui.add(theme.secondary_button(pause_label)).clicked() {
+                    self.set_clipboard_paused(!snapshot.clipboard.paused);
+                }
+                if ui
+                    .add_enabled(
+                        !snapshot.clipboard.items.is_empty(),
+                        theme.destructive_button("Clear history"),
+                    )
+                    .clicked()
+                {
+                    self.clear_clipboard();
+                }
+                if ui.add(theme.secondary_button("Refresh")).clicked() {
+                    self.refresh_snapshot();
+                }
+            });
+        });
+        ui.add_space(16.0);
         if snapshot.clipboard.items.is_empty() {
-            ui.label("Clipboard history is empty.");
+            empty_state(
+                ui,
+                theme,
+                "Clipboard history is empty",
+                "Capture the current clipboard text to create the first item.",
+                |ui| {
+                    if ui
+                        .add(theme.primary_button("Capture current text"))
+                        .clicked()
+                    {
+                        self.capture_clipboard_now();
+                    }
+                },
+            );
             return;
         }
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            for item in snapshot.clipboard.items {
-                ui.group(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.strong(format!("{:?}", item.kind));
-                        ui.small(format!("{} bytes", item.byte_size));
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Remove").clicked() {
-                                self.remove_clipboard_item(&item);
-                            }
-                            if ui
-                                .button(if item.pinned { "Unpin" } else { "Pin" })
-                                .clicked()
-                            {
-                                self.toggle_clipboard_pin(&item);
-                            }
-                            if ui.button("Use").clicked() {
-                                self.copy_clipboard_item(&item);
-                            }
-                        });
+        for item in snapshot.clipboard.items {
+            content_card(ui, theme, |ui| {
+                ui.horizontal(|ui| {
+                    type_badge(ui, theme, clipboard_kind_label(item.kind));
+                    ui.small(format!("{} bytes", item.byte_size));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add(theme.destructive_button("Remove")).clicked() {
+                            self.remove_clipboard_item(&item);
+                        }
+                        if ui
+                            .add(theme.secondary_button(if item.pinned { "Unpin" } else { "Pin" }))
+                            .clicked()
+                        {
+                            self.toggle_clipboard_pin(&item);
+                        }
+                        if ui.add(theme.primary_button("Use")).clicked() {
+                            self.copy_clipboard_item(&item);
+                        }
                     });
-                    let preview = if item.text.is_empty() {
-                        item.file_path.clone()
-                    } else {
-                        item.text.clone()
-                    };
-                    ui.label(single_line_preview(&preview, 160));
                 });
-                ui.add_space(6.0);
-            }
-        });
+                ui.add_space(8.0);
+                let preview = if item.text.is_empty() {
+                    item.file_path.clone()
+                } else {
+                    item.text.clone()
+                };
+                ui.label(single_line_preview(&preview, 180));
+            });
+            ui.add_space(10.0);
+        }
     }
 
     fn workspace_view(&mut self, ui: &mut egui::Ui) {
@@ -1146,66 +1205,78 @@ impl CovioWindowsApp {
             ui.spinner();
             return;
         };
-        ui.horizontal(|ui| {
-            if ui.button("Add files").clicked() {
-                self.add_workspace_files();
-            }
-            if ui
-                .add(theme.destructive_button("Clear workspace"))
-                .clicked()
-            {
-                self.clear_workspace();
-            }
-            if ui.add(theme.secondary_button("Refresh")).clicked() {
-                self.refresh_snapshot();
-            }
-        });
-        ui.horizontal(|ui| {
-            ui.add(
-                egui::TextEdit::singleline(&mut self.workspace_text)
-                    .desired_width(420.0)
-                    .hint_text("Save text to the workspace"),
-            );
-            if ui.add(theme.primary_button("Save text")).clicked() {
-                self.save_workspace_text();
-            }
-        });
         ui.add_space(12.0);
+        theme.toolbar_frame().show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.add(theme.primary_button("Add files")).clicked() {
+                    self.add_workspace_files();
+                }
+                if ui
+                    .add_enabled(
+                        !snapshot.workspace.entries.is_empty(),
+                        theme.destructive_button("Clear workspace"),
+                    )
+                    .clicked()
+                {
+                    self.clear_workspace();
+                }
+                if ui.add(theme.secondary_button("Refresh")).clicked() {
+                    self.refresh_snapshot();
+                }
+            });
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.workspace_text)
+                        .desired_width(420.0)
+                        .hint_text("Save text to the workspace"),
+                );
+                if ui.add(theme.primary_button("Save text")).clicked() {
+                    self.save_workspace_text();
+                }
+            });
+        });
+        ui.add_space(16.0);
         if snapshot.workspace.entries.is_empty() {
-            ui.label("The workspace is empty.");
+            empty_state(
+                ui,
+                theme,
+                "The workspace is empty",
+                "Add files or save text to start a local workspace.",
+                |ui| {
+                    if ui.add(theme.primary_button("Add files")).clicked() {
+                        self.add_workspace_files();
+                    }
+                },
+            );
             return;
         }
         let workspace = snapshot.workspace;
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            for entry in workspace.entries.clone() {
-                ui.group(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.strong(&entry.display_name);
-                        ui.small(format!("{:?} · {} bytes", entry.kind, entry.byte_size));
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("Remove").clicked() {
-                                self.remove_workspace_entry(&workspace, &entry.entry_id);
-                            }
-                            if ui
-                                .button(if entry.pinned { "Unpin" } else { "Pin" })
-                                .clicked()
-                            {
-                                self.toggle_workspace_pin(
-                                    &workspace,
-                                    &entry.entry_id,
-                                    entry.pinned,
-                                );
-                            }
-                            if ui.button("Open").clicked() {
-                                self.open_workspace_entry(&entry.entry_id);
-                            }
-                        });
+        for entry in workspace.entries.clone() {
+            content_card(ui, theme, |ui| {
+                ui.horizontal(|ui| {
+                    ui.strong(&entry.display_name);
+                    ui.small(format!("{:?} · {} bytes", entry.kind, entry.byte_size));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add(theme.destructive_button("Remove")).clicked() {
+                            self.remove_workspace_entry(&workspace, &entry.entry_id);
+                        }
+                        if ui
+                            .add(theme.secondary_button(if entry.pinned { "Unpin" } else { "Pin" }))
+                            .clicked()
+                        {
+                            self.toggle_workspace_pin(&workspace, &entry.entry_id, entry.pinned);
+                        }
+                        if ui.add(theme.primary_button("Open")).clicked() {
+                            self.open_workspace_entry(&entry.entry_id);
+                        }
                     });
-                    ui.small(format!("{} · {:?}", entry.content_type, entry.availability));
                 });
                 ui.add_space(6.0);
-            }
-        });
+                ui.small(format!("{} · {:?}", entry.content_type, entry.availability));
+            });
+            ui.add_space(10.0);
+        }
     }
 
     fn settings_view(&mut self, ui: &mut egui::Ui) {
@@ -1504,6 +1575,90 @@ impl CovioWindowsApp {
         context.send_viewport_cmd(egui::ViewportCommand::Close);
         true
     }
+}
+
+fn extension_label(path: &str) -> String {
+    Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map_or_else(
+            || "FILE".to_owned(),
+            |extension| extension.to_ascii_uppercase(),
+        )
+}
+
+fn clipboard_kind_label(kind: covio_core::clipboard::ClipKind) -> &'static str {
+    match kind {
+        covio_core::clipboard::ClipKind::Text => "Text",
+        covio_core::clipboard::ClipKind::Link => "Link",
+        covio_core::clipboard::ClipKind::Color => "Color",
+        covio_core::clipboard::ClipKind::Image => "Image",
+        covio_core::clipboard::ClipKind::Files => "Files",
+    }
+}
+
+fn content_card(ui: &mut egui::Ui, theme: CovioTheme, add_body: impl FnOnce(&mut egui::Ui)) {
+    let width = ui.available_width();
+    theme.card_frame().show(ui, |ui| {
+        ui.set_min_width((width - 32.0).max(0.0));
+        add_body(ui);
+    });
+}
+
+fn empty_state(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    title: &str,
+    detail: &str,
+    add_action: impl FnOnce(&mut egui::Ui),
+) {
+    content_card(ui, theme, |ui| {
+        ui.label(
+            egui::RichText::new(title)
+                .size(16.0)
+                .strong()
+                .color(theme.text_primary),
+        );
+        ui.label(egui::RichText::new(detail).color(theme.text_secondary));
+        ui.add_space(10.0);
+        add_action(ui);
+    });
+}
+
+fn file_preview(ui: &mut egui::Ui, theme: CovioTheme, extension: &str, tint: egui::Color32) {
+    let fill = if theme.dark {
+        theme.surface_muted
+    } else {
+        theme.widget_fill(tint)
+    };
+    let (rect, _) = ui.allocate_exact_size(
+        egui::Vec2::new(ui.available_width(), 82.0),
+        egui::Sense::hover(),
+    );
+    ui.painter()
+        .rect_filled(rect, egui::CornerRadius::same(12), fill);
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        extension,
+        egui::FontId::proportional(12.0),
+        theme.text_secondary,
+    );
+}
+
+fn type_badge(ui: &mut egui::Ui, theme: CovioTheme, label: &str) {
+    egui::Frame::new()
+        .fill(theme.surface_muted)
+        .stroke(egui::Stroke::new(1.0_f32, theme.separator))
+        .corner_radius(egui::CornerRadius::same(20))
+        .inner_margin(egui::Margin::symmetric(8, 3))
+        .show(ui, |ui| {
+            ui.label(
+                egui::RichText::new(label)
+                    .size(11.0)
+                    .color(theme.text_secondary),
+            );
+        });
 }
 
 fn count_label(count: usize, singular: &str, plural: &str) -> String {
@@ -1988,6 +2143,12 @@ mod tests {
         assert!(is_hub_toggle_event(pressed, Some(7)));
         assert!(!is_hub_toggle_event(released, Some(7)));
         assert!(!is_hub_toggle_event(pressed, Some(8)));
+    }
+
+    #[test]
+    fn file_extension_label_is_bounded_and_uppercase() {
+        assert_eq!(extension_label("Covio demo.png"), "PNG");
+        assert_eq!(extension_label("README"), "FILE");
     }
 
     #[test]
