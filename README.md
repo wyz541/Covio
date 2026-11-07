@@ -61,7 +61,7 @@ The repository no longer contains the old KMP module, Amper project, Kotlin wrap
 ## Download (internal test)
 
 Covio is under internal test.
-Covio 0.6.0-internal.33 is the current internal build.
+Covio 0.6.0-internal.34 is the current internal build.
 The macOS build requires macOS 26 or later on Apple Silicon.
 The Windows build supports Windows 11 x64.
 The default installer does not contain model weights.
@@ -72,11 +72,12 @@ Existing 0.0.2.3 and earlier users must install the transactional PKG once for t
 Later internal updates do not request administrator credentials.
 Validation results are in `docs/research/installer-size-reduction/validation/`.
 
-- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.33/Covio-0.6.0-internal.33.dmg)
-- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.33/Covio-0.6.0-internal.33.pkg)
-- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.33)
-- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.33/checksums.txt)
-- [Covio 0.6.0-internal.32](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.32) is the previous internal test.
+- [Default DMG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.34/Covio-0.6.0-internal.34.dmg)
+- [Transactional PKG](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.34/Covio-0.6.0-internal.34.pkg)
+- [Release page](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.34)
+- [Checksums](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.34/checksums.txt)
+- [Covio 0.6.0-internal.33](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.33) is the previous internal test.
+- [Covio 0.6.0-internal.32](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.32) is an older internal test.
 - [Covio 0.6.0-internal.31](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.31) is an older internal test.
 - [Covio 0.6.0-internal.30](https://github.com/wyz541/kmp-Covio/releases/tag/v0.6.0-internal.30) is an older internal test.
 - [Windows x64 installer](https://github.com/wyz541/kmp-Covio/releases/download/v0.6.0-internal.33/Covio-0.6.0-internal.33-windows-x64-setup.exe)
