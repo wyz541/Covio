@@ -107,6 +107,7 @@ struct FilesTabView: View {
             intake(providers)
         }
         .onAppear(perform: consumeRequestedFilter)
+        .task { await modelSetup?.refresh() }
         .onChange(of: requestedFilter) { _, _ in consumeRequestedFilter() }
         .onChange(of: snapshot.filteredItems.map(\.id)) { _, ids in
             guard let firstID = ids.first else {

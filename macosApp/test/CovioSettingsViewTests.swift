@@ -92,12 +92,16 @@ final class CovioSettingsViewTests: XCTestCase {
     func testDockReopenShowsTheWorkbenchWhenSettingsIsClosed() throws {
         let appDelegate = try appDelegate()
         appDelegate.settingsWindow?.orderOut(nil)
-        let hub = try XCTUnwrap(NSApp.windows.compactMap { $0 as? HubPanel }.first)
 
         XCTAssertTrue(appDelegate.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false))
-        waitUntil { hub.isVisible }
+        var hub: HubPanel?
+        waitUntil {
+            hub = NSApp.windows.compactMap { $0 as? HubPanel }.first
+            return hub?.isVisible == true
+        }
 
-        XCTAssertTrue(hub.isVisible)
-        hub.orderOut(nil)
+        XCTAssertNotNil(hub)
+        XCTAssertEqual(hub?.isVisible, true)
+        hub?.orderOut(nil)
     }
 }

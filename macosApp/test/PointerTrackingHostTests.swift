@@ -14,6 +14,10 @@ final class PointerTrackingHostTests: XCTestCase {
         PointerTrackingHost(rootView: .clear)
     }
 
+    private func makeBareView() -> PointerTrackingView {
+        PointerTrackingView(frame: .zero)
+    }
+
     private func event() throws -> NSEvent {
         try XCTUnwrap(
             NSEvent.mouseEvent(
@@ -57,6 +61,17 @@ final class PointerTrackingHostTests: XCTestCase {
         let host = makeHost()
         host.mouseEntered(with: try event())
         host.mouseExited(with: try event())
+    }
+
+    /// 空白热区只使用 AppKit 视图，不创建 SwiftUI hosting view。
+    func testTheBareViewDoesNotCreateAHostingView() throws {
+        let view = makeBareView()
+        var entered = 0
+        view.onPointerEnter = { entered += 1 }
+
+        XCTAssertTrue(view.subviews.isEmpty)
+        view.mouseEntered(with: try event())
+        XCTAssertEqual(entered, 1)
     }
 
     /// 跟踪区按窗口可见矩形铺满，进出都能覆盖到。

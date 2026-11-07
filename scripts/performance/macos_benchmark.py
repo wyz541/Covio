@@ -104,6 +104,48 @@ def app_identity(app_path: pathlib.Path) -> Dict[str, Optional[str]]:
     }
 
 
+def parse_helper_probe(
+    stdout: str,
+    stderr: str,
+    exit_code: int,
+) -> Dict[str, Any]:
+    payload: Optional[Dict[str, Any]] = None
+    for stream in (stdout, stderr):
+        for line in stream.splitlines():
+            try:
+                candidate = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(candidate, dict) and candidate.get("status"):
+                payload = dict(candidate)
+                break
+        if payload is not None:
+            break
+    if payload is None:
+        detail = (stderr or stdout).strip()
+        return {
+            "status": "unavailable",
+            "exitCode": exit_code,
+            "detail": detail[:500] if detail else None,
+        }
+    payload["exitCode"] = exit_code
+    return payload
+
+
+def helper_status(executable: pathlib.Path) -> Dict[str, Any]:
+    try:
+        result = run_command(
+            [str(executable), "--verify-install-transaction"],
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return {
+            "status": "unavailable",
+            "error": str(error),
+        }
+    return parse_helper_probe(result.stdout, result.stderr, result.returncode)
+
+
 def app_disk_size(path: pathlib.Path) -> Dict[str, int]:
     root = path.expanduser().resolve()
     if root.is_file():
@@ -300,6 +342,45 @@ def compile_window_ready(source: pathlib.Path, output: pathlib.Path) -> pathlib.
     return output
 
 
+class WindowReadyWatcher:
+    def __init__(self, executable: pathlib.Path) -> None:
+        self.executable = executable
+        self.process = subprocess.Popen(
+            [str(executable), "--serve"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+        assert self.process.stdout is not None
+        ready = self.process.stdout.readline().strip()
+        if ready != "warm":
+            stderr = ""
+            if self.process.stderr is not None:
+                stderr = self.process.stderr.read().strip()
+            self.close()
+            raise RuntimeError("window readiness helper warmup failed: %s" % stderr)
+
+    def wait(self, pid: int, timeout: float) -> bool:
+        if self.process.poll() is not None:
+            raise RuntimeError("window readiness helper exited")
+        assert self.process.stdin is not None
+        assert self.process.stdout is not None
+        self.process.stdin.write("%d %.3f\n" % (pid, timeout))
+        self.process.stdin.flush()
+        return self.process.stdout.readline().strip() == "ready"
+
+    def close(self) -> None:
+        if self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait(timeout=3)
+
+
 def wait_for_no_existing_app(stop_existing: bool) -> None:
     result = run_command(["/usr/bin/pgrep", "-x", "Covio"])
     pids = [int(value) for value in result.stdout.split() if value.isdigit()]
@@ -398,7 +479,7 @@ def launch_once(
     run_index: int,
     warm_measured: bool,
     output: pathlib.Path,
-    window_ready: pathlib.Path,
+    window_ready: WindowReadyWatcher,
     settle_seconds: float,
     sample_seconds: int,
     launch_timeout_seconds: float,
@@ -447,12 +528,9 @@ def launch_once(
             start_new_session=True,
         )
         row["pid"] = process.pid
-        ready = run_command(
-            [str(window_ready), str(process.pid), str(launch_timeout_seconds)],
-            timeout=launch_timeout_seconds + 5,
-        )
+        ready = window_ready.wait(process.pid, launch_timeout_seconds)
         row["launchMs"] = (time.monotonic() - started) * 1000
-        if ready.returncode != 0:
+        if not ready:
             row["status"] = "timeout"
             row["error"] = "menu bar item did not appear"
             return row
@@ -494,7 +572,7 @@ def launch_once(
         else:
             row["status"] = "ok"
         return row
-    except (OSError, subprocess.TimeoutExpired, ValueError) as error:
+    except (OSError, RuntimeError, subprocess.TimeoutExpired, ValueError) as error:
         row["error"] = str(error)
         return row
     finally:
@@ -753,6 +831,28 @@ def write_summary(path: pathlib.Path, result: Dict[str, Any]) -> None:
         for metric in COMPARISON_METRICS:
             item = summary["metrics"][metric]
             lines.append("| %s | %s | %s |" % (metric_label(metric), format_value(metric, item["median"]), format_value(metric, item["p95"])))
+    helper_apps = [app for app in apps if app.get("helperStatus")]
+    if helper_apps:
+        lines.extend(
+            [
+                "## Helper status",
+                "",
+                "| App | Status | Release | Helper SHA-256 |",
+                "| --- | --- | --- | --- |",
+            ]
+        )
+        for app in helper_apps:
+            helper = app["helperStatus"]
+            lines.append(
+                "| %s | `%s` | `%s` | `%s` |"
+                % (
+                    app["label"],
+                    helper.get("status", "unknown"),
+                    helper.get("releaseId", ""),
+                    helper.get("helperSHA256", ""),
+                )
+            )
+        lines.append("")
     if result["artifacts"]:
         lines.extend(["", "## Artifacts", "", "| App | Label | Bytes |", "| --- | --- | ---: |"])
         for artifact in result["artifacts"]:
@@ -821,12 +921,14 @@ def main(argv: Sequence[str]) -> int:
     output = output.expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
     warnings: List[str] = []
+    watcher: Optional[WindowReadyWatcher] = None
     try:
         wait_for_no_existing_app(args.stop_running)
         window_source = pathlib.Path(__file__).with_name("window_ready.swift")
         window_ready = args.window_ready.expanduser().resolve() if args.window_ready else compile_window_ready(window_source, output / ".window-ready")
         if not window_ready.is_file():
             raise RuntimeError("window readiness helper does not exist: %s" % window_ready)
+        watcher = WindowReadyWatcher(window_ready)
         apps: List[Dict[str, Any]] = []
         specs = []
         if args.baseline_app is not None:
@@ -836,6 +938,7 @@ def main(argv: Sequence[str]) -> int:
         for label, path, artifact_specs in specs:
             executable = executable_for(path)
             identity = app_identity(path)
+            helper = helper_status(executable)
             artifacts = []
             for spec in artifact_specs:
                 artifact = parse_artifact(spec)
@@ -847,11 +950,22 @@ def main(argv: Sequence[str]) -> int:
                     "path": str(path.expanduser().resolve()),
                     "executable": str(executable),
                     "identity": identity,
+                    "helperStatus": helper,
                     "diskSize": app_disk_size(path),
                     "artifacts": artifacts,
                 }
             )
         all_artifacts = [artifact for app in apps for artifact in app["artifacts"]]
+        if len(apps) == 2:
+            baseline_helper = str(apps[0]["helperStatus"].get("status") or "unknown")
+            candidate_helper = str(apps[1]["helperStatus"].get("status") or "unknown")
+            if baseline_helper != candidate_helper:
+                warnings.append(
+                    "helper status differs: %s=%s, %s=%s"
+                    % (apps[0]["label"], baseline_helper, apps[1]["label"], candidate_helper)
+                )
+            if candidate_helper != "MATCH":
+                warnings.append("candidate helper status is %s" % candidate_helper)
         rows: List[Dict[str, Any]] = []
         for app in apps:
             row = launch_once(
@@ -859,7 +973,7 @@ def main(argv: Sequence[str]) -> int:
                 0,
                 False,
                 output,
-                window_ready,
+                watcher,
                 args.settle_seconds,
                 args.sample_seconds,
                 args.launch_timeout_seconds,
@@ -877,7 +991,7 @@ def main(argv: Sequence[str]) -> int:
                     run_index,
                     True,
                     output,
-                    window_ready,
+                    watcher,
                     args.settle_seconds,
                     args.sample_seconds,
                     args.launch_timeout_seconds,
@@ -937,6 +1051,9 @@ def main(argv: Sequence[str]) -> int:
     except (OSError, RuntimeError, ValueError) as error:
         print("performance benchmark failed: %s" % error, file=sys.stderr)
         return 1
+    finally:
+        if watcher is not None:
+            watcher.close()
 
 
 if __name__ == "__main__":
