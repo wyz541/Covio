@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-07",
+  "productCommit": "3dd723a8f8447cd297901f97a80c1856d830f823",
+  "release": "v0.6.0-internal.33",
+  "machine": {
+    "manufacturer": "Maxsun",
+    "model": "Default string",
+    "cpu": "Intel Core i5-14600KF",
+    "architecture": "x64",
+    "os": "Windows 11 Enterprise",
+    "osVersion": "10.0.26200",
+    "hypervisorPresent": true
+  },
+  "displays": [
+    {
+      "name": "DISPLAY1",
+      "primary": true,
+      "left": 0,
+      "top": 0,
+      "width": 2560,
+      "height": 1440,
+      "model": "HKC V2719Q"
+    },
+    {
+      "name": "DISPLAY2",
+      "primary": false,
+      "left": -2560,
+      "top": -60,
+      "width": 2560,
+      "height": 1440,
+      "model": "HKC V2719Q"
+    }
+  ],
+  "installer": {
+    "name": "Covio-0.6.0-internal.33-windows-x64-setup.exe",
+    "sha256": "0404981eef1a11139e8057b560fe1d18fd133c9a96c5212dcbd9cb5b9fb9f4e9"
+  },
+  "previousInstaller": {
+    "name": "Covio-0.6.0-internal.32-windows-x64-setup.exe",
+    "sha256": "987a3c345c848b91d1373d5de900fbd2b8705ae579ee40ae66df2a7d05f4adbf"
+  },
+  "installedExecutableSha256": "5ba258f5f17608d9752fd4f921ab13ccd89832600395ea89910207944119c17f"
+}

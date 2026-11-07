@@ -1,0 +1,25 @@
+{
+  "result": "partial",
+  "capability": {
+    "appDataAvailable": true,
+    "atomicWrite": true,
+    "credentialManager": true,
+    "clipboard": true,
+    "startup": true,
+    "screenshotDirectory": true,
+    "filePicker": true,
+    "notification": true,
+    "updateHandoff": true,
+    "powerUnavailable": true
+  },
+  "forbiddenRuntimeModules": [],
+  "screenshotDirectoryInitial": "missing",
+  "screenshotDirectoryAfterStandardFolder": "available",
+  "manualChecksPending": [
+    "tray icon appearance",
+    "notification appearance",
+    "file picker selection",
+    "online update download"
+  ],
+  "sleepAndLidControl": "unavailable_on_windows"
+}
