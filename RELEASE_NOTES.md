@@ -1,8 +1,8 @@
 # Covio 0.6.0-internal.33
 
 Covio 0.6.0-internal.33 是内测版。
-本版重写 macOS 设置界面。
-本版增加 Dock 图标和聚焦入口。
+本版改进 macOS 启动路径、空闲资源和 Hub 首次打开速度。
+本版缩小 macOS 发布包，并增加可重复的跨平台性能门禁。
 Windows 和 macOS 继续使用 Rust core 与平台原生 UI。
 macOS 使用 SwiftUI 和 AppKit。
 Windows 使用 egui。
@@ -25,26 +25,28 @@ Windows 包含当前用户安装的 x64 安装包。
 
 从 0.0.2.3 或更早版本升级时，请使用事务安装 PKG。
 `0.6.0-internal.26` 和 `.27` 的更新服务可能一直显示忙碌。
-如果你当前运行 `.26` 或 `.27`，请手动安装 `.32` PKG 一次。
-运行 `.28` 到 `.31` 时，可以使用自动更新升级到 `.32`。
+如果你当前运行 `.26` 或 `.27`，请手动安装 `.33` PKG 一次。
+运行 `.28` 到 `.32` 时，可以使用自动更新升级到 `.33`。
 事务安装 PKG 最多请求 1 次管理员授权。
 
 ## 从 0.6.0-internal.32 到 0.6.0-internal.33 的变化
 
-<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+- 菜单栏入口先出现，再启动唤醒日志扫描（#669）。
+- 唤醒日志流式进入 Rust parser，减少启动等待和内存峰值（#671）。
+- macOS 启动和空闲资源开销降低（#675）。
+- macOS Hub 首次打开不再承担视图首次构建成本（#679）。
+- macOS Release 包移除本地符号，保留单独 dSYM（#673）。
+- 性能门禁覆盖 macOS 双版本对比和 Windows x64 单产品测量（#672、#677）。
 
-- Warm the macOS Hub after launch（#679）
-- Support single-app Windows performance gates（#677）
-- Trim macOS startup and idle overhead（#675）
-- Strip symbols from macOS release builds（#673）
-- Add a repeatable performance gate（#672）
-- Stream wake logs into the Rust parser（#671）
-- Show the menu bar item before wake log scans（#669）
-- Rename the remaining KMP source identifier（#659）
+在 #678 的 10 轮 macOS 门禁中，Hub 窗口可见时间比 KMP 基线快 `1.49%`。同一门禁中，warm launch 快 `4.22%`，进程树 RSS 低 `53.01%`，私有足迹低 `78.05%`，idle CPU 低 `32.09%`。
 
 ## 验证
 
-<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
+- `bash scripts/test-all.sh`：通过。
+- macOS XCTest：执行 1,093 个测试，3 个跳过，0 个失败。
+- macOS 真机：`MacBookPro18,2`、macOS `27.0.1 (26A434)`、arm64、AC 电源。
+- #678 交互和资源门禁：两个产品均为 `10/10` 样本，门禁通过。
+- Windows x64 CI：构建当前用户安装包，并验证 clean install、upgrade、crash recovery、rollback 和 uninstall。
 
 ## 安装
 
