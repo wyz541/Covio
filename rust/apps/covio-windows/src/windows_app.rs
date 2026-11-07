@@ -32,6 +32,23 @@ use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 const INSTANCE_NAME: &str = "Local\\com.wyz.covio.windows";
 const RELEASES_URL: &str = "https://github.com/wyz541/kmp-Covio/releases";
 const HUB_TOGGLE_SHORTCUT: &str = "Ctrl+Alt+T";
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SettingsSection {
+    Overview,
+    Appearance,
+    Triggers,
+    Capabilities,
+    Updates,
+}
+
+const SETTINGS_SECTIONS: [(SettingsSection, &str); 5] = [
+    (SettingsSection::Overview, "Overview"),
+    (SettingsSection::Appearance, "Appearance"),
+    (SettingsSection::Triggers, "Triggers"),
+    (SettingsSection::Capabilities, "Capabilities"),
+    (SettingsSection::Updates, "Updates"),
+];
+
 const NAV_ITEMS: [(HostView, &str); 5] = [
     (HostView::Home, "Home"),
     (HostView::Shelf, "Shelf"),
@@ -81,6 +98,7 @@ pub fn run() -> Result<(), String> {
     let start_hidden = arguments.iter().any(|argument| argument == "--background");
     let initial_theme = theme_from_arguments(&arguments);
     let initial_view = view_from_arguments(&arguments);
+    let initial_settings_section = settings_section_from_arguments(&arguments);
     let ui_scale = ui_scale_from_arguments(&arguments);
     let window_position = window_position_from_arguments(&arguments);
     let screenshot_path = screenshot_path_from_arguments(&arguments);
@@ -115,6 +133,7 @@ pub fn run() -> Result<(), String> {
                     initial_view,
                     screenshot_path,
                     ui_scale,
+                    settings_section: initial_settings_section,
                 },
             )))
         }),
@@ -129,6 +148,7 @@ struct LaunchOptions {
     initial_view: Option<HostView>,
     screenshot_path: Option<PathBuf>,
     ui_scale: Option<f32>,
+    settings_section: Option<SettingsSection>,
 }
 
 struct CovioWindowsApp {
@@ -141,6 +161,7 @@ struct CovioWindowsApp {
     global_hotkey: Option<HubHotKey>,
     global_hotkey_error: Option<String>,
     draft_config: Option<AppConfig>,
+    settings_section: SettingsSection,
     needs_refresh: bool,
     auto_exit_frames: Option<u32>,
     screenshot_path: Option<PathBuf>,
@@ -190,6 +211,9 @@ impl CovioWindowsApp {
             global_hotkey,
             global_hotkey_error,
             draft_config: None,
+            settings_section: options
+                .settings_section
+                .unwrap_or(SettingsSection::Overview),
             needs_refresh: true,
             auto_exit_frames: options.auto_exit_frames,
             screenshot_path: options.screenshot_path,
@@ -677,41 +701,65 @@ impl CovioWindowsApp {
 
     fn navigation_bar(&mut self, ui: &mut egui::Ui, theme: CovioTheme) {
         theme.toolbar_frame().show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new("Covio")
-                        .size(18.0)
-                        .strong()
-                        .color(theme.text_primary),
-                );
-                ui.add_space(14.0);
-                let mut selected = None;
-                ui.scope(|ui| {
-                    let widgets = &mut ui.visuals_mut().widgets;
-                    widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
-                    widgets.inactive.bg_stroke = egui::Stroke::NONE;
-                    widgets.hovered.weak_bg_fill = theme.surface_hover;
-                    widgets.hovered.bg_stroke = egui::Stroke::NONE;
-                    for (view, label) in NAV_ITEMS {
-                        if ui
-                            .add(theme.nav_button(label, self.model.view() == view))
-                            .clicked()
-                        {
-                            selected = Some(view);
+            if ui.available_width() < 640.0 {
+                ui.horizontal(|ui| {
+                    self.brand_label(ui, theme);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add(theme.secondary_button("Hide")).clicked() {
+                            self.model.hide();
+                            hide_window(ui.ctx());
                         }
-                    }
+                    });
                 });
-                if let Some(view) = selected {
-                    self.model.select_view(view);
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(theme.secondary_button("Hide")).clicked() {
-                        self.model.hide();
-                        hide_window(ui.ctx());
-                    }
+                ui.add_space(4.0);
+                ui.horizontal_wrapped(|ui| {
+                    self.navigation_items(ui, theme);
                 });
-            });
+            } else {
+                ui.horizontal(|ui| {
+                    self.brand_label(ui, theme);
+                    ui.add_space(14.0);
+                    self.navigation_items(ui, theme);
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.add(theme.secondary_button("Hide")).clicked() {
+                            self.model.hide();
+                            hide_window(ui.ctx());
+                        }
+                    });
+                });
+            }
         });
+    }
+
+    fn brand_label(&self, ui: &mut egui::Ui, theme: CovioTheme) {
+        ui.label(
+            egui::RichText::new("Covio")
+                .size(18.0)
+                .strong()
+                .color(theme.text_primary),
+        );
+    }
+
+    fn navigation_items(&mut self, ui: &mut egui::Ui, theme: CovioTheme) {
+        let mut selected = None;
+        ui.scope(|ui| {
+            let widgets = &mut ui.visuals_mut().widgets;
+            widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
+            widgets.inactive.bg_stroke = egui::Stroke::NONE;
+            widgets.hovered.weak_bg_fill = theme.surface_hover;
+            widgets.hovered.bg_stroke = egui::Stroke::NONE;
+            for (view, label) in NAV_ITEMS {
+                if ui
+                    .add(theme.nav_button(label, self.model.view() == view))
+                    .clicked()
+                {
+                    selected = Some(view);
+                }
+            }
+        });
+        if let Some(view) = selected {
+            self.model.select_view(view);
+        }
     }
 
     fn home_view(&mut self, ui: &mut egui::Ui) {
@@ -1281,10 +1329,6 @@ impl CovioWindowsApp {
 
     fn settings_view(&mut self, ui: &mut egui::Ui) {
         let theme = self.covio_theme();
-        ui.label("These settings are stored by the Rust core.");
-        ui.label("Windows capability adapters are active in this process.");
-        ui.add_space(12.0);
-
         let Some(snapshot) = self.model.snapshot().cloned() else {
             ui.spinner();
             return;
@@ -1293,128 +1337,221 @@ impl CovioWindowsApp {
             .draft_config
             .take()
             .unwrap_or_else(|| AppConfig::from_json_value(&snapshot.config));
-        ui.checkbox(&mut draft.launch_at_login, "Launch at login preference");
-        ui.checkbox(&mut draft.clipboard_enabled, "Capture clipboard history");
-        ui.checkbox(&mut draft.notifications_enabled, "Show notifications");
-        ui.checkbox(&mut draft.update_check_enabled, "Check for updates");
 
-        ui.add_space(12.0);
-        ui.separator();
-        ui.label("Appearance");
         ui.horizontal(|ui| {
-            if ui
-                .selectable_label(self.model.theme() == ThemePreference::System, "System")
-                .clicked()
-            {
-                self.model.set_theme(ThemePreference::System);
-            }
-            if ui
-                .selectable_label(self.model.theme() == ThemePreference::Light, "Light")
-                .clicked()
-            {
-                self.model.set_theme(ThemePreference::Light);
-            }
-            if ui
-                .selectable_label(self.model.theme() == ThemePreference::Dark, "Dark")
-                .clicked()
-            {
-                self.model.set_theme(ThemePreference::Dark);
-            }
-        });
-        let mut reduced_motion = self.model.reduced_motion();
-        if ui.checkbox(&mut reduced_motion, "Reduce motion").changed() {
-            self.model.set_reduced_motion(reduced_motion);
-        }
-
-        ui.add_space(12.0);
-        ui.separator();
-        ui.label("Triggers");
-        ui.small(format!("Global Hub shortcut: {HUB_TOGGLE_SHORTCUT}"));
-        if let Some(error) = &self.global_hotkey_error {
-            ui.colored_label(theme.warning, error);
-        } else {
-            ui.small("Global Hub shortcut is active.");
-        }
-        ui.small("Tray left click toggles the window. Right click opens commands.");
-
-        ui.add_space(12.0);
-        ui.separator();
-        ui.label("Updates");
-        egui::Grid::new("windows-update-grid")
-            .num_columns(2)
-            .spacing([24.0, 8.0])
-            .show(ui, |ui| {
-                ui.label("Installed release");
-                ui.monospace(CURRENT_VERSION);
-                ui.end_row();
-                ui.label("Check status");
-                ui.label(if covio_core::should_check(&draft, now_epoch_seconds()) {
-                    "Due"
-                } else if draft.update_check_enabled {
-                    "Not due"
-                } else {
-                    "Disabled"
-                });
-                ui.end_row();
+            ui.heading("Settings");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.add(theme.secondary_button("Done")).clicked() {
+                    self.model.show_home();
+                }
             });
-        if ui.button("Open releases").clicked() {
-            self.open_releases();
-        }
-
+        });
+        ui.label("These settings are stored by the Rust core.");
         ui.add_space(12.0);
-        ui.separator();
-        theme.muted_frame().show(ui, |ui| {
-            ui.label("Windows capabilities");
-            ui.small(format!(
-                "Credential Manager: {}",
-                available_label(
+
+        egui::Frame::new()
+            .fill(theme.surface_muted)
+            .stroke(egui::Stroke::new(1.0_f32, theme.separator))
+            .corner_radius(egui::CornerRadius::same(12))
+            .inner_margin(egui::Margin::same(4))
+            .show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    let widgets = &mut ui.visuals_mut().widgets;
+                    widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
+                    widgets.inactive.bg_stroke = egui::Stroke::NONE;
+                    widgets.hovered.weak_bg_fill = theme.surface_hover;
+                    widgets.hovered.bg_stroke = egui::Stroke::NONE;
+                    for (section, label) in SETTINGS_SECTIONS {
+                        if ui
+                            .add(theme.nav_button(label, self.settings_section == section))
+                            .clicked()
+                        {
+                            self.settings_section = section;
+                        }
+                    }
+                });
+            });
+        ui.add_space(14.0);
+
+        content_card(ui, theme, |ui| match self.settings_section {
+            SettingsSection::Overview => {
+                ui.label(
+                    egui::RichText::new("General behavior")
+                        .size(16.0)
+                        .strong()
+                        .color(theme.text_primary),
+                );
+                ui.label(
+                    egui::RichText::new("Choose what Covio does on this Windows account.")
+                        .color(theme.text_secondary),
+                );
+                ui.add_space(10.0);
+                ui.checkbox(&mut draft.launch_at_login, "Launch at login preference");
+                ui.checkbox(&mut draft.clipboard_enabled, "Capture clipboard history");
+                ui.checkbox(&mut draft.notifications_enabled, "Show notifications");
+                ui.checkbox(&mut draft.update_check_enabled, "Check for updates");
+            }
+            SettingsSection::Appearance => {
+                ui.label(
+                    egui::RichText::new("Appearance")
+                        .size(16.0)
+                        .strong()
+                        .color(theme.text_primary),
+                );
+                ui.label(
+                    egui::RichText::new("Match Windows or choose a fixed theme.")
+                        .color(theme.text_secondary),
+                );
+                ui.add_space(10.0);
+                ui.horizontal_wrapped(|ui| {
+                    for (preference, label) in [
+                        (ThemePreference::System, "System"),
+                        (ThemePreference::Light, "Light"),
+                        (ThemePreference::Dark, "Dark"),
+                    ] {
+                        if ui
+                            .add(theme.nav_button(label, self.model.theme() == preference))
+                            .clicked()
+                        {
+                            self.model.set_theme(preference);
+                        }
+                    }
+                });
+                let mut reduced_motion = self.model.reduced_motion();
+                if ui.checkbox(&mut reduced_motion, "Reduce motion").changed() {
+                    self.model.set_reduced_motion(reduced_motion);
+                }
+            }
+            SettingsSection::Triggers => {
+                ui.label(
+                    egui::RichText::new("Hub triggers")
+                        .size(16.0)
+                        .strong()
+                        .color(theme.text_primary),
+                );
+                ui.label(
+                    egui::RichText::new("Use the same entry points as the macOS product where Windows supports them.")
+                        .color(theme.text_secondary),
+                );
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    ui.label("Global shortcut");
+                    status_badge(
+                        ui,
+                        theme,
+                        HUB_TOGGLE_SHORTCUT,
+                        if self.global_hotkey_error.is_some() {
+                            theme.warning
+                        } else {
+                            theme.success
+                        },
+                    );
+                });
+                if let Some(error) = &self.global_hotkey_error {
+                    ui.colored_label(theme.warning, error);
+                } else {
+                    ui.small("Shortcut is registered.");
+                }
+                ui.add_space(8.0);
+                ui.small("Tray left click toggles the window. Right click opens commands.");
+                ui.small("The macOS two-finger gesture is unavailable to egui on Windows.");
+            }
+            SettingsSection::Capabilities => {
+                ui.label(
+                    egui::RichText::new("Windows capabilities")
+                        .size(16.0)
+                        .strong()
+                        .color(theme.text_primary),
+                );
+                ui.label(
+                    egui::RichText::new("Only supported adapters expose actions.")
+                        .color(theme.text_secondary),
+                );
+                ui.add_space(10.0);
+                capability_row(
+                    ui,
+                    theme,
+                    "Credential Manager",
                     self.adapters
                         .capabilities
                         .status(covio_platform::CapabilityKind::SecureStorage)
-                        .available
-                )
-            ));
-            ui.small(format!(
-                "Clipboard: {}",
-                available_label(
+                        .available,
+                );
+                capability_row(
+                    ui,
+                    theme,
+                    "Clipboard",
                     self.adapters
                         .capabilities
                         .status(covio_platform::CapabilityKind::Clipboard)
-                        .available
-                )
-            ));
-            ui.small(format!(
-                "Screenshot directory: {}",
-                if self.screenshot_directory.is_some() {
-                    "available"
-                } else {
-                    "unavailable"
+                        .available,
+                );
+                capability_row(
+                    ui,
+                    theme,
+                    "Screenshot directory",
+                    self.screenshot_directory.is_some(),
+                );
+                capability_row(
+                    ui,
+                    theme,
+                    "Sleep and lid control",
+                    self.adapters
+                        .capabilities
+                        .status(covio_platform::CapabilityKind::Power)
+                        .available,
+                );
+            }
+            SettingsSection::Updates => {
+                ui.label(
+                    egui::RichText::new("Updates")
+                        .size(16.0)
+                        .strong()
+                        .color(theme.text_primary),
+                );
+                ui.label(
+                    egui::RichText::new("Installed identity and check status.")
+                        .color(theme.text_secondary),
+                );
+                ui.add_space(10.0);
+                egui::Grid::new("windows-update-grid")
+                    .num_columns(2)
+                    .spacing([24.0, 8.0])
+                    .show(ui, |ui| {
+                        ui.label("Installed release");
+                        ui.monospace(CURRENT_VERSION);
+                        ui.end_row();
+                        ui.label("Check status");
+                        ui.label(if covio_core::should_check(&draft, now_epoch_seconds()) {
+                            "Due"
+                        } else if draft.update_check_enabled {
+                            "Not due"
+                        } else {
+                            "Disabled"
+                        });
+                        ui.end_row();
+                    });
+                ui.add_space(8.0);
+                if ui.add(theme.secondary_button("Open releases")).clicked() {
+                    self.open_releases();
                 }
-            ));
-            ui.small(format!(
-                "Sleep and lid control: {}",
-                if self
-                    .adapters
-                    .capabilities
-                    .status(covio_platform::CapabilityKind::Power)
-                    .available
-                {
-                    "available"
-                } else {
-                    "not available on Windows"
-                }
-            ));
+            }
         });
 
         ui.add_space(16.0);
-        let save = ui.add(theme.primary_button("Save")).clicked();
-        let config = draft.clone();
+        ui.horizontal(|ui| {
+            let save = ui.add(theme.primary_button("Save changes")).clicked();
+            if save {
+                self.save_config(draft.clone());
+            }
+            if ui.add(theme.secondary_button("Done")).clicked() {
+                self.model.show_home();
+            }
+        });
         self.draft_config = Some(draft);
-        if save {
-            self.save_config(config);
-        }
 
         if self.tray.is_none() {
+            ui.add_space(10.0);
             ui.colored_label(
                 theme.warning,
                 self.tray_error
@@ -1498,27 +1635,15 @@ impl eframe::App for CovioWindowsApp {
                             self.render_status(ui);
                             ui.add_space(8.0);
                             match self.model.view() {
-                                HostView::Home | HostView::Settings => self.home_view(ui),
+                                HostView::Home => self.home_view(ui),
                                 HostView::Shelf => self.shelf_view(ui),
                                 HostView::Clipboard => self.clipboard_view(ui),
                                 HostView::Workspace => self.workspace_view(ui),
+                                HostView::Settings => self.settings_view(ui),
                             }
                         });
                     });
             });
-
-        if self.model.view() == HostView::Settings {
-            let mut open = true;
-            egui::Window::new("Covio Settings")
-                .open(&mut open)
-                .collapsible(false)
-                .resizable(true)
-                .default_width(520.0)
-                .show(context, |ui| self.settings_view(ui));
-            if !open {
-                self.model.select_view(HostView::Home);
-            }
-        }
 
         if self.screenshot_path.is_some()
             && !self.screenshot_requested
@@ -1575,6 +1700,39 @@ impl CovioWindowsApp {
         context.send_viewport_cmd(egui::ViewportCommand::Close);
         true
     }
+}
+
+fn status_badge(ui: &mut egui::Ui, theme: CovioTheme, label: &str, color: egui::Color32) {
+    egui::Frame::new()
+        .fill(theme.surface_muted)
+        .stroke(egui::Stroke::new(1.0_f32, color))
+        .corner_radius(egui::CornerRadius::same(20))
+        .inner_margin(egui::Margin::symmetric(9, 3))
+        .show(ui, |ui| {
+            ui.label(egui::RichText::new(label).size(11.0).color(color));
+        });
+}
+
+fn capability_row(ui: &mut egui::Ui, theme: CovioTheme, label: &str, available: bool) {
+    ui.horizontal(|ui| {
+        ui.label(label);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            status_badge(
+                ui,
+                theme,
+                if available {
+                    "Available"
+                } else {
+                    "Unavailable"
+                },
+                if available {
+                    theme.success
+                } else {
+                    theme.text_disabled
+                },
+            );
+        });
+    });
 }
 
 fn extension_label(path: &str) -> String {
@@ -1797,6 +1955,22 @@ fn view_from_arguments(arguments: &[String]) -> Option<HostView> {
         "clipboard" => Some(HostView::Clipboard),
         "workspace" => Some(HostView::Workspace),
         "settings" => Some(HostView::Settings),
+        _ => None,
+    }
+}
+
+fn settings_section_from_arguments(arguments: &[String]) -> Option<SettingsSection> {
+    let value = arguments
+        .iter()
+        .position(|argument| argument == "--settings-section")
+        .and_then(|index| arguments.get(index + 1))
+        .map(String::as_str)?;
+    match value {
+        "overview" => Some(SettingsSection::Overview),
+        "appearance" => Some(SettingsSection::Appearance),
+        "triggers" => Some(SettingsSection::Triggers),
+        "capabilities" => Some(SettingsSection::Capabilities),
+        "updates" => Some(SettingsSection::Updates),
         _ => None,
     }
 }
@@ -2043,14 +2217,6 @@ fn single_line_preview(value: &str, limit: usize) -> String {
     preview
 }
 
-fn available_label(available: bool) -> &'static str {
-    if available {
-        "available"
-    } else {
-        "unavailable"
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2094,6 +2260,37 @@ mod tests {
         ];
         assert_eq!(theme_from_arguments(&light), ThemePreference::Light);
         assert_eq!(theme_from_arguments(&dark), ThemePreference::Dark);
+    }
+
+    #[test]
+    fn settings_section_argument_selects_product_sections() {
+        let arguments = vec![
+            "covio-windows.exe".to_owned(),
+            "--settings-section".to_owned(),
+            "triggers".to_owned(),
+        ];
+        assert_eq!(
+            settings_section_from_arguments(&arguments),
+            Some(SettingsSection::Triggers)
+        );
+    }
+
+    #[test]
+    fn settings_sections_cover_every_section_once() {
+        let sections: Vec<SettingsSection> = SETTINGS_SECTIONS
+            .iter()
+            .map(|(section, _)| *section)
+            .collect();
+        assert_eq!(
+            sections,
+            vec![
+                SettingsSection::Overview,
+                SettingsSection::Appearance,
+                SettingsSection::Triggers,
+                SettingsSection::Capabilities,
+                SettingsSection::Updates,
+            ]
+        );
     }
 
     #[test]
