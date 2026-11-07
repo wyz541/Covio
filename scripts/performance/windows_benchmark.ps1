@@ -1,10 +1,10 @@
 param(
-    [Parameter(Mandatory = $true)][string]$BaselinePath,
-    [Parameter(Mandatory = $true)][string]$CandidatePath,
+    [string]$BaselinePath = "",
+    [string]$CandidatePath = "",
     [string]$BaselineLabel = "baseline",
     [string]$CandidateLabel = "candidate",
-    [int]$Runs = 5,
-    [int]$SettleSeconds = 25,
+    [int]$Runs = 10,
+    [int]$SettleSeconds = 30,
     [int]$SampleSeconds = 5,
     [int]$LaunchTimeoutSeconds = 30,
     [string]$OutputDirectory = "build\performance\windows",
@@ -12,14 +12,36 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
 if (-not $IsWindows) {
     throw "windows_benchmark.ps1 requires Windows 11 x64."
 }
-if (-not (Test-Path -LiteralPath $BaselinePath)) {
+$architecture = if ($env:PROCESSOR_ARCHITEW6432) {
+    $env:PROCESSOR_ARCHITEW6432
+} else {
+    $env:PROCESSOR_ARCHITECTURE
+}
+if ($architecture -ne "AMD64") {
+    throw "windows_benchmark.ps1 requires Windows x64; found $architecture."
+}
+$operatingSystem = Get-CimInstance Win32_OperatingSystem
+if ([int]$operatingSystem.BuildNumber -lt 22000) {
+    throw "windows_benchmark.ps1 requires Windows 11 or newer."
+}
+if (-not $BaselinePath -and -not $CandidatePath) {
+    throw "Specify -BaselinePath, -CandidatePath, or both."
+}
+if ($Runs -lt 1 -or $SampleSeconds -lt 1 -or $SettleSeconds -lt 0) {
+    throw "Runs and sample seconds must be positive; settle seconds must be non-negative."
+}
+if ($BaselinePath -and -not (Test-Path -LiteralPath $BaselinePath)) {
     throw "Baseline path does not exist: $BaselinePath"
 }
-if (-not (Test-Path -LiteralPath $CandidatePath)) {
+if ($CandidatePath -and -not (Test-Path -LiteralPath $CandidatePath)) {
     throw "Candidate path does not exist: $CandidatePath"
+}
+if ($BaselinePath -and $CandidatePath -and $BaselineLabel -eq $CandidateLabel) {
+    throw "Baseline and candidate labels must differ."
 }
 
 function Resolve-AppExecutable([string]$Path) {
@@ -40,14 +62,27 @@ function Resolve-AppExecutable([string]$Path) {
     return $item.FullName
 }
 
+function Get-AppIdentity([string]$Executable) {
+    $file = Get-Item -LiteralPath $Executable
+    $version = $file.VersionInfo
+    return [pscustomobject]@{
+        fileVersion = $version.FileVersion
+        productVersion = $version.ProductVersion
+        description = $version.FileDescription
+        bytes = $file.Length
+        sha256 = (Get-FileHash -LiteralPath $Executable -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+}
+
 function Get-DescendantProcesses([int]$RootPid) {
     $all = Get-CimInstance Win32_Process
     $children = @{}
     foreach ($process in $all) {
-        if (-not $children.ContainsKey([int]$process.ParentProcessId)) {
-            $children[[int]$process.ParentProcessId] = @()
+        $parent = [int]$process.ParentProcessId
+        if (-not $children.ContainsKey($parent)) {
+            $children[$parent] = @()
         }
-        $children[[int]$process.ParentProcessId] += [int]$process.ProcessId
+        $children[$parent] += [int]$process.ProcessId
     }
     $result = @()
     $pending = [System.Collections.Generic.Queue[int]]::new()
@@ -114,6 +149,14 @@ function Wait-MainWindow($Process, [int]$TimeoutSeconds) {
     return $false
 }
 
+function Get-Median([object[]]$Values) {
+    $sorted = @($Values | Where-Object { $null -ne $_ } | Sort-Object)
+    if ($sorted.Count -eq 0) { return $null }
+    $middle = [int][Math]::Floor($sorted.Count / 2)
+    if ($sorted.Count % 2 -eq 1) { return $sorted[$middle] }
+    return ($sorted[$middle - 1] + $sorted[$middle]) / 2.0
+}
+
 function Measure-App(
     [string]$Label,
     [string]$Executable,
@@ -168,24 +211,17 @@ function Measure-App(
                 processCount = $after.processCount
             }
         }
-        function Median([object[]]$Values) {
-            $sorted = @($Values | Sort-Object)
-            if ($sorted.Count -eq 0) { return $null }
-            $middle = [int][Math]::Floor($sorted.Count / 2)
-            if ($sorted.Count % 2 -eq 1) { return $sorted[$middle] }
-            return ($sorted[$middle - 1] + $sorted[$middle]) / 2.0
-        }
         return [pscustomobject]@{
             label = $Label
             run = $Run
             status = "ok"
             launchMs = $launchMs
-            rssBytes = Median @($samples.rssBytes)
-            privateBytes = Median @($samples.privateBytes)
+            rssBytes = Get-Median @($samples.rssBytes)
+            privateBytes = Get-Median @($samples.privateBytes)
             cpuPercent = ($samples | Measure-Object -Property cpuPercent -Average).Average
-            threads = Median @($samples.threads)
-            handles = Median @($samples.handles)
-            processCount = Median @($samples.processCount)
+            threads = Get-Median @($samples.threads)
+            handles = Get-Median @($samples.handles)
+            processCount = Get-Median @($samples.processCount)
         }
     } finally {
         if ($null -ne $process) { Stop-AppTree -RootPid $process.Id }
@@ -195,49 +231,216 @@ function Measure-App(
     }
 }
 
-New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
-$baselineExecutable = Resolve-AppExecutable $BaselinePath
-$candidateExecutable = Resolve-AppExecutable $CandidatePath
-$apps = @(
-    [pscustomobject]@{ label = $BaselineLabel; executable = $baselineExecutable; path = (Get-Item $BaselinePath).FullName },
-    [pscustomobject]@{ label = $CandidateLabel; executable = $candidateExecutable; path = (Get-Item $CandidatePath).FullName }
+$metricNames = @(
+    "launchMs",
+    "rssBytes",
+    "privateBytes",
+    "cpuPercent",
+    "threads",
+    "handles",
+    "processCount"
 )
+
+function Get-AppSummary($App, $Rows) {
+    $all = @($Rows | Where-Object label -eq $App.label)
+    $ok = @($all | Where-Object status -eq "ok")
+    $metrics = [ordered]@{}
+    foreach ($metric in $metricNames) {
+        $values = @($ok | ForEach-Object { $_.$metric } | Where-Object { $null -ne $_ })
+        $metrics[$metric] = [pscustomobject]@{
+            count = $values.Count
+            median = Get-Median $values
+            min = if ($values.Count -gt 0) { ($values | Measure-Object -Minimum).Minimum } else { $null }
+            max = if ($values.Count -gt 0) { ($values | Measure-Object -Maximum).Maximum } else { $null }
+        }
+    }
+    return [pscustomobject]@{
+        okRuns = $ok.Count
+        totalRuns = $all.Count
+        metrics = [pscustomobject]$metrics
+    }
+}
+
+function Get-Comparison($Baseline, $Candidate) {
+    $result = [ordered]@{}
+    foreach ($metric in $metricNames) {
+        $baseValue = $Baseline.metrics.$metric.median
+        $candidateValue = $Candidate.metrics.$metric.median
+        $delta = if ($null -ne $baseValue -and $null -ne $candidateValue) {
+            $candidateValue - $baseValue
+        } else {
+            $null
+        }
+        $percent = if ($null -ne $baseValue -and $baseValue -ne 0 -and $null -ne $delta) {
+            ($delta / $baseValue) * 100.0
+        } else {
+            $null
+        }
+        $result[$metric] = [pscustomobject]@{
+            baselineMedian = $baseValue
+            candidateMedian = $candidateValue
+            deltaAbsolute = $delta
+            deltaPercent = $percent
+        }
+    }
+    return [pscustomobject]$result
+}
+
+function Format-Metric([string]$Metric, $Value) {
+    if ($null -eq $Value) { return "n/a" }
+    switch ($Metric) {
+        "launchMs" { return ("{0:N3} ms" -f $Value) }
+        "rssBytes" { return ("{0:N0} B" -f $Value) }
+        "privateBytes" { return ("{0:N0} B" -f $Value) }
+        "cpuPercent" { return ("{0:N3}%" -f $Value) }
+        "threads" { return ("{0:N1}" -f $Value) }
+        "handles" { return ("{0:N1}" -f $Value) }
+        "processCount" { return ("{0:N1}" -f $Value) }
+        default { return $Value }
+    }
+}
+
+function Write-Summary(
+    [string]$Path,
+    [string]$Quality,
+    $Environment,
+    $Summaries,
+    $Comparison,
+    [int]$RequestedRuns
+) {
+    $lines = @(
+        "# Covio Windows performance summary",
+        "",
+        "Data quality: **$Quality**",
+        "",
+        "## Environment",
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+        "| Machine | `$($Environment.machine)` |",
+        "| OS | $($Environment.osCaption) $($Environment.osVersion) build $($Environment.osBuild) |",
+        "| Architecture | `$($Environment.architecture)` |",
+        "| Processor | $($Environment.processorName) |",
+        "| Logical processors | $($Environment.logicalProcessors) |",
+        "| Memory | $($Environment.memoryBytes) B |",
+        "| Power plan | `$($Environment.powerPlan)` |",
+        ""
+    )
+    if ($null -ne $Comparison) {
+        $labels = @($Summaries.PSObject.Properties.Name)
+        $lines += "## Median comparison"
+        $lines += ""
+        $lines += "| Metric | $($labels[0]) | $($labels[1]) | Change |"
+        $lines += "| --- | ---: | ---: | ---: |"
+        foreach ($metric in $metricNames) {
+            $item = $Comparison.$metric
+            $change = if ($null -eq $item.deltaPercent) { "n/a" } else { "{0:+0.00;-0.00;0.00}%" -f $item.deltaPercent }
+            $lines += "| $metric | $(Format-Metric $metric $item.baselineMedian) | $(Format-Metric $metric $item.candidateMedian) | $change |"
+        }
+    } else {
+        $label = @($Summaries.PSObject.Properties.Name)[0]
+        $summary = $Summaries.$label
+        $lines += "## $label"
+        $lines += ""
+        $lines += "| Metric | Median | Min | Max |"
+        $lines += "| --- | ---: | ---: | ---: |"
+        foreach ($metric in $metricNames) {
+            $item = $summary.metrics.$metric
+            $lines += "| $metric | $(Format-Metric $metric $item.median) | $(Format-Metric $metric $item.min) | $(Format-Metric $metric $item.max) |"
+        }
+    }
+    $lines += ""
+    $lines += "## Result files"
+    $lines += ""
+    $lines += "- results.csv"
+    $lines += "- results.json"
+    $lines += "- summary.md"
+    $lines += "- requested runs: $RequestedRuns"
+    Set-Content -LiteralPath $Path -Value $lines -Encoding utf8
+}
+
+New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
+$specs = @()
+if ($BaselinePath) { $specs += [pscustomobject]@{ label = $BaselineLabel; path = $BaselinePath } }
+if ($CandidatePath) { $specs += [pscustomobject]@{ label = $CandidateLabel; path = $CandidatePath } }
+$apps = @()
+foreach ($spec in $specs) {
+    $executable = Resolve-AppExecutable $spec.path
+    $apps += [pscustomobject]@{
+        label = $spec.label
+        executable = $executable
+        path = (Get-Item -LiteralPath $spec.path).FullName
+        identity = Get-AppIdentity $executable
+    }
+}
 
 foreach ($app in $apps) {
     Measure-App -Label $app.label -Executable $app.executable -Run 0 -MeasureSteady $false | Out-Null
 }
 
-$rows = @()
+$rows = [System.Collections.Generic.List[object]]::new()
 for ($run = 1; $run -le $Runs; $run++) {
-    $ordered = if ($run % 2 -eq 0) { @($apps[1], $apps[0]) } else { $apps }
+    $ordered = @($apps)
+    if ($ordered.Count -eq 2 -and $run % 2 -eq 0) {
+        $ordered = @($ordered[1], $ordered[0])
+    }
     foreach ($app in $ordered) {
         $row = Measure-App -Label $app.label -Executable $app.executable -Run $run -MeasureSteady $true
-        $rows += $row
+        $rows.Add($row) | Out-Null
         Write-Host "$($app.label) run ${run}: $($row.status)"
     }
 }
 
+$summaryMap = [ordered]@{}
+foreach ($app in $apps) {
+    $summaryMap[$app.label] = Get-AppSummary $app $rows
+}
+$summaries = [pscustomobject]$summaryMap
+$comparison = $null
+if ($apps.Count -eq 2) {
+    $comparison = Get-Comparison $summaries.$BaselineLabel $summaries.$CandidateLabel
+}
+$okCount = @($rows | Where-Object status -eq "ok").Count
+$expectedCount = $Runs * $apps.Count
+$quality = if ($okCount -eq $expectedCount) {
+    if ($apps.Count -eq 1) { "single-app" } else { "complete" }
+} elseif ($okCount -ge 3 * $apps.Count) {
+    "partial"
+} else {
+    "insufficient"
+}
+$environment = [pscustomobject]@{
+    platform = "Windows"
+    machine = $env:COMPUTERNAME
+    osCaption = $operatingSystem.Caption
+    osVersion = $operatingSystem.Version
+    osBuild = $operatingSystem.BuildNumber
+    architecture = $architecture
+    processorName = (Get-CimInstance Win32_Processor | Select-Object -First 1).Name.Trim()
+    logicalProcessors = [Environment]::ProcessorCount
+    memoryBytes = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory
+    powerPlan = (powercfg /getactivescheme | Out-String).Trim()
+}
+
 $csvPath = Join-Path $OutputDirectory "results.csv"
 $jsonPath = Join-Path $OutputDirectory "results.json"
-$rows | Export-Csv -NoTypeInformation -Encoding UTF8 -Path $csvPath
+$summaryPath = Join-Path $OutputDirectory "summary.md"
+$rows | Export-Csv -NoTypeInformation -Encoding utf8 -Path $csvPath
 $result = [pscustomobject]@{
-    schemaVersion = 1
+    schemaVersion = 2
     generatedAt = [DateTime]::UtcNow.ToString("o")
-    quality = if (@($rows | Where-Object status -eq "ok").Count -ge ($Runs * 2)) { "complete" } else { "partial" }
-    environment = [pscustomobject]@{
-        platform = "Windows"
-        os = [System.Environment]::OSVersion.VersionString
-        architecture = $env:PROCESSOR_ARCHITECTURE
-        processorCount = [Environment]::ProcessorCount
-        machine = $env:COMPUTERNAME
-    }
+    quality = $quality
+    environment = $environment
     config = [pscustomobject]@{
         runs = $Runs
         settleSeconds = $SettleSeconds
         sampleSeconds = $SampleSeconds
     }
     apps = $apps
+    summaries = $summaries
+    comparison = $comparison
     runs = $rows
 }
-$result | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 -Path $jsonPath
+$result | ConvertTo-Json -Depth 12 | Set-Content -Encoding utf8 -Path $jsonPath
+Write-Summary -Path $summaryPath -Quality $quality -Environment $environment -Summaries $summaries -Comparison $comparison -RequestedRuns $Runs
 Write-Host "Windows performance results: $OutputDirectory"

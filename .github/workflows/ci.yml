@@ -60,6 +60,10 @@ jobs:
             rust-windows-x64-v1-${{ hashFiles('rust/Cargo.lock') }}-
             rust-windows-x64-v1-
 
+      - name: Test Windows performance benchmark
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/test-windows-benchmark.ps1
+
       - name: Test Windows host
         shell: bash
         run: bash scripts/test-windows-rust.sh
