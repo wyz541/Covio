@@ -14,6 +14,8 @@ use covio_windows::{
 use eframe::egui;
 use eframe::egui_wgpu::{WgpuConfiguration, WgpuSetup, WgpuSetupCreateNew};
 use eframe::wgpu;
+use global_hotkey::hotkey::{Code, HotKey, Modifiers as GlobalHotKeyModifiers};
+use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use serde_json::json;
 use single_instance::SingleInstance;
 use std::collections::BTreeSet;
@@ -25,6 +27,7 @@ use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 const INSTANCE_NAME: &str = "Local\\com.wyz.covio.windows";
 const RELEASES_URL: &str = "https://github.com/wyz541/kmp-Covio/releases";
+const HUB_TOGGLE_SHORTCUT: &str = "Ctrl+Alt+T";
 const CURRENT_VERSION: &str = match option_env!("COVIO_RELEASE_ID") {
     Some(value) => value,
     None => env!("CARGO_PKG_VERSION"),
@@ -124,6 +127,8 @@ struct CovioWindowsApp {
     model: HostModel,
     tray: Option<TrayController>,
     tray_error: Option<String>,
+    global_hotkey: Option<HubHotKey>,
+    global_hotkey_error: Option<String>,
     draft_config: Option<AppConfig>,
     needs_refresh: bool,
     auto_exit_frames: Option<u32>,
@@ -158,6 +163,10 @@ impl CovioWindowsApp {
             Ok(tray) => (Some(tray), None),
             Err(error) => (None, Some(error)),
         };
+        let (global_hotkey, global_hotkey_error) = match HubHotKey::register() {
+            Ok(hotkey) => (Some(hotkey), None),
+            Err(error) => (None, Some(error)),
+        };
         let adapters = WindowsPlatformAdapters::default();
         let screenshot_directory = adapters.screenshots.directory().ok();
         let mut app = Self {
@@ -167,6 +176,8 @@ impl CovioWindowsApp {
             model,
             tray,
             tray_error,
+            global_hotkey,
+            global_hotkey_error,
             draft_config: None,
             needs_refresh: true,
             auto_exit_frames: options.auto_exit_frames,
@@ -553,8 +564,8 @@ impl CovioWindowsApp {
         }
         for action in actions {
             match action {
-                TrayAction::OpenHome => {
-                    self.model.show_home();
+                TrayAction::OpenScreenshots => {
+                    self.model.show_shelf();
                     show_window(context);
                 }
                 TrayAction::OpenSettings => {
@@ -562,7 +573,7 @@ impl CovioWindowsApp {
                     show_window(context);
                 }
                 TrayAction::ToggleWindow => {
-                    self.model.toggle_from_tray();
+                    self.model.toggle_window();
                     if self.model.is_visible() {
                         show_window(context);
                     } else {
@@ -575,6 +586,22 @@ impl CovioWindowsApp {
                     context.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             }
+        }
+    }
+
+    fn poll_global_hotkey(&mut self, context: &egui::Context) {
+        let target_id = self.global_hotkey.as_ref().map(HubHotKey::id);
+        while let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+            if !is_hub_toggle_event(event, target_id) {
+                continue;
+            }
+            self.model.toggle_window();
+            if self.model.is_visible() {
+                show_window(context);
+            } else {
+                hide_window(context);
+            }
+            context.request_repaint();
         }
     }
 
@@ -904,6 +931,17 @@ impl CovioWindowsApp {
 
         ui.add_space(12.0);
         ui.separator();
+        ui.label("Triggers");
+        ui.small(format!("Global Hub shortcut: {HUB_TOGGLE_SHORTCUT}"));
+        if let Some(error) = &self.global_hotkey_error {
+            ui.colored_label(egui::Color32::from_rgb(154, 86, 0), error);
+        } else {
+            ui.small("Global Hub shortcut is active.");
+        }
+        ui.small("Tray left click toggles the window. Right click opens commands.");
+
+        ui.add_space(12.0);
+        ui.separator();
         ui.label("Updates");
         egui::Grid::new("windows-update-grid")
             .num_columns(2)
@@ -1031,6 +1069,7 @@ impl eframe::App for CovioWindowsApp {
 
         context.request_repaint_after(Duration::from_millis(100));
         self.poll_tray(context);
+        self.poll_global_hotkey(context);
         self.poll_core();
         self.poll_clipboard_capture();
         self.poll_screenshot_shelf();
@@ -1305,8 +1344,38 @@ fn run_single_instance_smoke() -> Result<(), String> {
     Ok(())
 }
 
+struct HubHotKey {
+    manager: GlobalHotKeyManager,
+    hotkey: HotKey,
+}
+
+impl HubHotKey {
+    fn register() -> Result<Self, String> {
+        let manager = GlobalHotKeyManager::new()
+            .map_err(|error| format!("Cannot create the global hotkey manager: {error}"))?;
+        let hotkey = hub_toggle_hotkey();
+        if let Err(error) = manager.register(hotkey) {
+            eprintln!("{HUB_TOGGLE_SHORTCUT} registration failed: {error}");
+            return Err(format!(
+                "{HUB_TOGGLE_SHORTCUT} is unavailable. Another app owns it."
+            ));
+        }
+        Ok(Self { manager, hotkey })
+    }
+
+    fn id(&self) -> u32 {
+        self.hotkey.id()
+    }
+}
+
+impl Drop for HubHotKey {
+    fn drop(&mut self) {
+        let _ = self.manager.unregister(self.hotkey);
+    }
+}
+
 enum TrayAction {
-    OpenHome,
+    OpenScreenshots,
     OpenSettings,
     ToggleWindow,
     Quit,
@@ -1314,7 +1383,7 @@ enum TrayAction {
 
 struct TrayController {
     _tray: TrayIcon,
-    open_id: MenuId,
+    screenshots_id: MenuId,
     settings_id: MenuId,
     quit_id: MenuId,
 }
@@ -1322,11 +1391,11 @@ struct TrayController {
 impl TrayController {
     fn new() -> Result<Self, String> {
         let menu = Menu::new();
-        let open = MenuItem::with_id("open", "Open Covio", true, None);
+        let screenshots = MenuItem::with_id("show-screenshots", "Show screenshots", true, None);
         let settings = MenuItem::with_id("settings", "Settings", true, None);
         let separator = PredefinedMenuItem::separator();
         let quit = MenuItem::with_id("quit", "Quit Covio", true, None);
-        menu.append_items(&[&open, &settings, &separator, &quit])
+        menu.append_items(&[&screenshots, &settings, &separator, &quit])
             .map_err(|error| error.to_string())?;
         let tray = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
@@ -1337,7 +1406,7 @@ impl TrayController {
             .map_err(|error| error.to_string())?;
         Ok(Self {
             _tray: tray,
-            open_id: open.id().clone(),
+            screenshots_id: screenshots.id().clone(),
             settings_id: settings.id().clone(),
             quit_id: quit.id().clone(),
         })
@@ -1345,8 +1414,8 @@ impl TrayController {
 
     fn poll(&self) -> Option<TrayAction> {
         while let Ok(event) = MenuEvent::receiver().try_recv() {
-            if event.id == self.open_id {
-                return Some(TrayAction::OpenHome);
+            if event.id == self.screenshots_id {
+                return Some(TrayAction::OpenScreenshots);
             }
             if event.id == self.settings_id {
                 return Some(TrayAction::OpenSettings);
@@ -1372,6 +1441,17 @@ impl TrayController {
         }
         None
     }
+}
+
+fn hub_toggle_hotkey() -> HotKey {
+    HotKey::new(
+        Some(GlobalHotKeyModifiers::CONTROL | GlobalHotKeyModifiers::ALT),
+        Code::KeyT,
+    )
+}
+
+fn is_hub_toggle_event(event: GlobalHotKeyEvent, target_id: Option<u32>) -> bool {
+    target_id == Some(event.id()) && event.state() == HotKeyState::Pressed
 }
 
 fn tray_icon_image() -> Result<tray_icon::Icon, String> {
@@ -1512,6 +1592,31 @@ mod tests {
             ]),
             None
         );
+    }
+
+    #[test]
+    fn hub_hotkey_is_control_alt_t() {
+        let hotkey = hub_toggle_hotkey();
+        assert_eq!(hotkey.key, Code::KeyT);
+        assert_eq!(
+            hotkey.mods,
+            GlobalHotKeyModifiers::CONTROL | GlobalHotKeyModifiers::ALT
+        );
+    }
+
+    #[test]
+    fn hub_toggle_ignores_release_events() {
+        let pressed = GlobalHotKeyEvent {
+            id: 7,
+            state: HotKeyState::Pressed,
+        };
+        let released = GlobalHotKeyEvent {
+            id: pressed.id,
+            state: HotKeyState::Released,
+        };
+        assert!(is_hub_toggle_event(pressed, Some(7)));
+        assert!(!is_hub_toggle_event(released, Some(7)));
+        assert!(!is_hub_toggle_event(pressed, Some(8)));
     }
 
     #[test]

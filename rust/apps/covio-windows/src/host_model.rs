@@ -96,6 +96,13 @@ impl HostModel {
         self.allow_exit = false;
     }
 
+    /// Selects the Shelf view and shows the window.
+    pub fn show_shelf(&mut self) {
+        self.view = HostView::Shelf;
+        self.visible = true;
+        self.allow_exit = false;
+    }
+
     /// Selects the Settings view and shows the window.
     pub fn show_settings(&mut self) {
         self.view = HostView::Settings;
@@ -108,8 +115,8 @@ impl HostModel {
         self.visible = false;
     }
 
-    /// Toggles the main window from the tray icon.
-    pub fn toggle_from_tray(&mut self) {
+    /// Toggles the main window from a global trigger.
+    pub fn toggle_window(&mut self) {
         if self.visible {
             self.hide();
         } else {
@@ -272,15 +279,24 @@ mod tests {
     }
 
     #[test]
-    fn tray_toggle_and_settings_control_window_visibility() {
+    fn global_toggle_and_navigation_control_window_visibility() {
         let mut model = HostModel::new(ThemePreference::Dark, true);
-        model.toggle_from_tray();
+        model.toggle_window();
         assert!(!model.is_visible());
         model.show_settings();
         assert!(model.is_visible());
         assert_eq!(model.view(), HostView::Settings);
         assert_eq!(model.theme(), ThemePreference::Dark);
         assert!(model.reduced_motion());
+    }
+
+    #[test]
+    fn shelf_trigger_shows_the_requested_surface() {
+        let mut model = HostModel::new(ThemePreference::Light, false);
+        model.hide();
+        model.show_shelf();
+        assert!(model.is_visible());
+        assert_eq!(model.view(), HostView::Shelf);
     }
 
     #[test]
