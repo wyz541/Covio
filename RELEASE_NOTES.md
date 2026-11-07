@@ -1,6 +1,6 @@
-# Covio 0.6.0-internal.32
+# Covio 0.6.0-internal.33
 
-Covio 0.6.0-internal.32 是内测版。
+Covio 0.6.0-internal.33 是内测版。
 本版重写 macOS 设置界面。
 本版增加 Dock 图标和聚焦入口。
 Windows 和 macOS 继续使用 Rust core 与平台原生 UI。
@@ -29,29 +29,28 @@ Windows 包含当前用户安装的 x64 安装包。
 运行 `.28` 到 `.31` 时，可以使用自动更新升级到 `.32`。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.6.0-internal.31 到 0.6.0-internal.32 的变化
+## 从 0.6.0-internal.32 到 0.6.0-internal.33 的变化
 
-- 设置改为独立的 SwiftUI `Settings` 窗口（#655）。
-- 设置窗口使用 macOS 原生工具栏、固定窗格和系统搜索框（#655）。
-- 概览、电池、闲置、剪贴板和通用页面改为分组 `Form` 布局（#655）。
-- Liquid Glass 只用于系统工具栏和系统控件，设置内容使用标准分组表面（#655）。
-- Covio 显示 Dock 图标（#655）。
-- 点击 Dock 图标会聚焦设置窗口或恢复工作台（#655）。
-- 关闭设置窗口不会退出 Covio（#655）。
+<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+
+- Warm the macOS Hub after launch（#679）
+- Support single-app Windows performance gates（#677）
+- Trim macOS startup and idle overhead（#675）
+- Strip symbols from macOS release builds（#673）
+- Add a repeatable performance gate（#672）
+- Stream wake logs into the Rust parser（#671）
+- Show the menu bar item before wake log scans（#669）
+- Rename the remaining KMP source identifier（#659）
 
 ## 验证
 
-- `bash scripts/test-all.sh`：通过。
-- macOS XCTest：执行 1,086 个测试，3 个跳过，0 个失败。
-- macOS 真机：macOS 27.0.1，arm64。
-- #655 完成独立设置窗口、原生工具栏、搜索、Dock 聚焦和明暗模式截图验收。
-- Windows CI 覆盖 Windows 11 ARM64、Windows 11 x64 和 x64 安装包流程。
+<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
 
 ## 安装
 
 ### macOS
 
-1. 下载 `Covio-0.6.0-internal.32.pkg`。
+1. 下载 `Covio-0.6.0-internal.33.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。
@@ -59,7 +58,7 @@ Windows 包含当前用户安装的 x64 安装包。
 
 ### Windows
 
-1. 下载 `Covio-0.6.0-internal.32-windows-x64-setup.exe`。
+1. 下载 `Covio-0.6.0-internal.33-windows-x64-setup.exe`。
 2. 运行安装包。
 3. 安装到当前用户目录。
 4. 从开始菜单启动 Covio。
