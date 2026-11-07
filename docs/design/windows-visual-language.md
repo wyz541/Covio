@@ -70,3 +70,15 @@ Home 使用 Bento 卡片网格。
 - Now、Battery、Transfer、Monitor、Recent screenshots 和 Quick actions 各有一张卡。
 - Windows 不支持的数据显示 unavailable。Windows 不伪造 macOS 数据。
 - 计数文案区分单数和复数。
+## Content surfaces
+
+Shelf 使用固定尺寸文件卡片和预览占位区。
+
+Clipboard 和 Workspace 使用全宽卡片。
+
+- 工具栏使用 chrome surface。
+- 空状态使用 muted 或 surface 卡片，并提供一个主行动。
+- 普通动作使用蓝色或白色按钮。
+- 危险动作使用 error text 和 error stroke。
+- 空列表时禁用 Clear 动作。
+- Shelf 卡片在悬停时显示完整路径。
