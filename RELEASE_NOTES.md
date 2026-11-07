@@ -1,8 +1,8 @@
-# Covio 0.6.0-internal.32
+# Covio 0.6.0-internal.33
 
-Covio 0.6.0-internal.32 是内测版。
-本版重写 macOS 设置界面。
-本版增加 Dock 图标和聚焦入口。
+Covio 0.6.0-internal.33 是内测版。
+本版改进 macOS 启动路径、空闲资源和 Hub 首次打开速度。
+本版缩小 macOS 发布包，并增加可重复的跨平台性能门禁。
 Windows 和 macOS 继续使用 Rust core 与平台原生 UI。
 macOS 使用 SwiftUI 和 AppKit。
 Windows 使用 egui。
@@ -25,33 +25,34 @@ Windows 包含当前用户安装的 x64 安装包。
 
 从 0.0.2.3 或更早版本升级时，请使用事务安装 PKG。
 `0.6.0-internal.26` 和 `.27` 的更新服务可能一直显示忙碌。
-如果你当前运行 `.26` 或 `.27`，请手动安装 `.32` PKG 一次。
-运行 `.28` 到 `.31` 时，可以使用自动更新升级到 `.32`。
+如果你当前运行 `.26` 或 `.27`，请手动安装 `.33` PKG 一次。
+运行 `.28` 到 `.32` 时，可以使用自动更新升级到 `.33`。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.6.0-internal.31 到 0.6.0-internal.32 的变化
+## 从 0.6.0-internal.32 到 0.6.0-internal.33 的变化
 
-- 设置改为独立的 SwiftUI `Settings` 窗口（#655）。
-- 设置窗口使用 macOS 原生工具栏、固定窗格和系统搜索框（#655）。
-- 概览、电池、闲置、剪贴板和通用页面改为分组 `Form` 布局（#655）。
-- Liquid Glass 只用于系统工具栏和系统控件，设置内容使用标准分组表面（#655）。
-- Covio 显示 Dock 图标（#655）。
-- 点击 Dock 图标会聚焦设置窗口或恢复工作台（#655）。
-- 关闭设置窗口不会退出 Covio（#655）。
+- 菜单栏入口先出现，再启动唤醒日志扫描（#669）。
+- 唤醒日志流式进入 Rust parser，减少启动等待和内存峰值（#671）。
+- macOS 启动和空闲资源开销降低（#675）。
+- macOS Hub 首次打开不再承担视图首次构建成本（#679）。
+- macOS Release 包移除本地符号，保留单独 dSYM（#673）。
+- 性能门禁覆盖 macOS 双版本对比和 Windows x64 单产品测量（#672、#677）。
+
+在 #678 的 10 轮 macOS 门禁中，Hub 窗口可见时间比 KMP 基线快 `1.49%`。同一门禁中，warm launch 快 `4.22%`，进程树 RSS 低 `53.01%`，私有足迹低 `78.05%`，idle CPU 低 `32.09%`。
 
 ## 验证
 
 - `bash scripts/test-all.sh`：通过。
-- macOS XCTest：执行 1,086 个测试，3 个跳过，0 个失败。
-- macOS 真机：macOS 27.0.1，arm64。
-- #655 完成独立设置窗口、原生工具栏、搜索、Dock 聚焦和明暗模式截图验收。
-- Windows CI 覆盖 Windows 11 ARM64、Windows 11 x64 和 x64 安装包流程。
+- macOS XCTest：执行 1,093 个测试，3 个跳过，0 个失败。
+- macOS 真机：`MacBookPro18,2`、macOS `27.0.1 (26A434)`、arm64、AC 电源。
+- #678 交互和资源门禁：两个产品均为 `10/10` 样本，门禁通过。
+- Windows x64 CI：构建当前用户安装包，并验证 clean install、upgrade、crash recovery、rollback 和 uninstall。
 
 ## 安装
 
 ### macOS
 
-1. 下载 `Covio-0.6.0-internal.32.pkg`。
+1. 下载 `Covio-0.6.0-internal.33.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。
@@ -59,7 +60,7 @@ Windows 包含当前用户安装的 x64 安装包。
 
 ### Windows
 
-1. 下载 `Covio-0.6.0-internal.32-windows-x64-setup.exe`。
+1. 下载 `Covio-0.6.0-internal.33-windows-x64-setup.exe`。
 2. 运行安装包。
 3. 安装到当前用户目录。
 4. 从开始菜单启动 Covio。
