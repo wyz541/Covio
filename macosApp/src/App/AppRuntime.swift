@@ -141,8 +141,9 @@ final class AppRuntime {
     static let tickInterval: TimeInterval = 1
     /// 每五次心跳刷新一次 helper 状态。
     static let helperRefreshTicks = 5
-    /// 启动后 30 秒做第一次自动更新检查。
-    static let firstUpdateCheckDelay: TimeInterval = 30
+    /// 启动后 60 秒做第一次自动更新检查。
+    /// 前 30 秒留给菜单栏、首屏和系统适配器完成初始化。
+    static let firstUpdateCheckDelay: TimeInterval = 60
 
     /// 端口都按协议收。默认值是 macOS 的真实实现，测试传假的。
     init(
@@ -615,10 +616,6 @@ final class AppRuntime {
         powerRuntime.start()
         monitorHistorySampler.start()
         syncState()
-        Task {
-            await modelSetup.refresh()
-            await agent.restoreHistory()
-        }
         if agentExternalServiceEnabled {
             agentExternalService?.start()
         }

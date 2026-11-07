@@ -5,11 +5,23 @@ import XCTest
 /// Covio 使用一个原生菜单栏状态项。
 @MainActor
 final class StatusItemControllerTests: XCTestCase {
-    func testTheNativeStatusItemIsVisible() {
+    func testTheNativeStatusItemIsVisibleAfterPresentation() {
         let controller = StatusItemController(shell: NotchShellController())
         defer { controller.tearDown() }
 
+        XCTAssertFalse(controller.isVisible)
+        controller.present()
         XCTAssertTrue(controller.isVisible)
+    }
+
+    /// 菜单栏入口先出现，宿主完成装配后才接受点击。
+    func testTheStatusItemWaitsForTheHostToFinishLaunching() {
+        let controller = StatusItemController(shell: NotchShellController())
+        defer { controller.tearDown() }
+
+        XCTAssertFalse(controller.isReady)
+        controller.setReady()
+        XCTAssertTrue(controller.isReady)
     }
 
     /// 状态栏菜单中的设置项接到独立窗口入口。

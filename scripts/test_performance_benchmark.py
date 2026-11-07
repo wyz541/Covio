@@ -49,6 +49,20 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             [101, 103],
         )
 
+    def test_helper_probe_parser_records_status_and_identity(self) -> None:
+        output = '{"status":"IDENTITY_MISMATCH","releaseId":"0.6.0-internal.32","helperSHA256":"abc"}\n'
+        parsed = benchmark.parse_helper_probe(output, "", 1)
+        self.assertEqual(parsed["status"], "IDENTITY_MISMATCH")
+        self.assertEqual(parsed["releaseId"], "0.6.0-internal.32")
+        self.assertEqual(parsed["helperSHA256"], "abc")
+        self.assertEqual(parsed["exitCode"], 1)
+
+    def test_helper_probe_parser_marks_non_json_output_unavailable(self) -> None:
+        parsed = benchmark.parse_helper_probe("", "unsupported", 2)
+        self.assertEqual(parsed["status"], "unavailable")
+        self.assertEqual(parsed["exitCode"], 2)
+        self.assertEqual(parsed["detail"], "unsupported")
+
     def test_footprint_parser(self) -> None:
         output = """
  202702848 B           0 B           0 B         11    Malloc Large
@@ -140,6 +154,8 @@ class PerformanceBenchmarkTests(unittest.TestCase):
 
     def test_window_ready_source_contract(self) -> None:
         text = WINDOW_SOURCE.read_text()
+        self.assertIn("AXExtrasMenuBar", text)
+        self.assertIn("--serve", text)
         self.assertIn("CGWindowListCopyWindowInfo", text)
         self.assertIn("kCGWindowOwnerPID", text)
         if sys.platform == "darwin":

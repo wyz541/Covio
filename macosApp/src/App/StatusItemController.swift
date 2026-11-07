@@ -9,23 +9,32 @@ import AppKit
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let shell: NotchShellController
-    /// 运行时。菜单里的命令直接调它，与设置页走同一批方法。
-    private let runtime: AppRuntime?
     private let statusItem: NSStatusItem
     private(set) var menu = NSMenu()
+    /// 菜单栏入口可见后，宿主仍可能在装配运行时。
+    private(set) var isReady = false
 
-    init(shell: NotchShellController, runtime: AppRuntime? = nil) {
+    init(shell: NotchShellController) {
         self.shell = shell
-        self.runtime = runtime
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
         configureButton()
         configureMenu()
-        statusItem.isVisible = true
+        statusItem.isVisible = false
     }
 
     /// 状态项是否显示。
     var isVisible: Bool { statusItem.isVisible }
+
+    /// 让菜单栏入口进入 WindowServer。可以在运行时装配之前调用。
+    func present() {
+        statusItem.isVisible = true
+    }
+
+    /// 宿主完成运行时和 Hub 装配后开放点击。
+    func setReady() {
+        isReady = true
+    }
 
     private func configureButton() {
         guard let button = statusItem.button else { return }
@@ -83,6 +92,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     /// 左键开合挂帘，右键弹菜单。合同 `component/tray-icon.swiftMapping` 的写法。
     @objc private func handleClick() {
+        guard isReady else { return }
         let event = NSApp.currentEvent
         let wantsMenu = event?.type == .rightMouseUp
             || event?.modifierFlags.contains(.control) == true

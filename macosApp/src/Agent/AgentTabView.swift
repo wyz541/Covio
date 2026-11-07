@@ -34,7 +34,10 @@ struct AgentTabView: View {
             }
         }
         .frame(height: HubMetrics.agentBodyHeight, alignment: .top)
-        .task { await modelSetup?.refresh() }
+        .task {
+            await agent.restoreHistory()
+            await modelSetup?.refresh()
+        }
         .onAppear { agent.language = language }
         .onChange(of: language) { _, next in agent.language = next }
     }

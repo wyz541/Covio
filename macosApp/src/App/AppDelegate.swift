@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKey: GlobalHotKey?
     private var twoFingerSwipeMonitor: TwoFingerSwipeMonitor?
     private var instanceLock: SingleInstanceLock?
+    private var launchObserver: CFRunLoopObserver?
     #if DEBUG
     private var monitorPreview: NSWindowController?
     private var glassPlatePreviewWindow: NSWindow?
@@ -365,8 +366,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("剪切板原生预览数据未准备成功。")
             return
         }
+        #else
+        let liveClipboardPreview = false
         #endif
 
+        // 菜单栏入口先于运行时和 Hub 构造。状态项只依赖 shell。
+        // 后续初始化让出一个短暂的 RunLoop 窗口，先让菜单栏窗口提交到 WindowServer。
+        let statusItemController = StatusItemController(shell: shell)
+        self.statusItemController = statusItemController
+        statusItemController.present()
+        let observer = CFRunLoopObserverCreateWithHandler(
+            kCFAllocatorDefault,
+            CFRunLoopActivity.beforeWaiting.rawValue,
+            false,
+            0
+        ) { [weak self] _, _ in
+            guard let self else { return }
+            if let launchObserver = self.launchObserver {
+                CFRunLoopRemoveObserver(CFRunLoopGetMain(), launchObserver, .commonModes)
+                CFRunLoopObserverInvalidate(launchObserver)
+                self.launchObserver = nil
+            }
+            self.finishLaunching(liveClipboardPreview: liveClipboardPreview)
+        }
+        launchObserver = observer
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+    }
+
+    /// 在菜单栏入口出现后完成运行时、Hub 和系统适配器装配。
+    private func finishLaunching(liveClipboardPreview: Bool) {
         let runtime = AppRuntime()
         self.runtime = runtime
         settingsRuntime.runtime = runtime
@@ -396,10 +424,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 界面装配照旧，所以 `testHostApplicationRunsTheShell` 仍然有效。
         // 测试要的运行时由测试自己用假实现构造。
         shell.start()
-
-        // 菜单栏入口必须先安装。运行时会启动最长 20 秒的唤醒日志扫描。
-        let statusItemController = StatusItemController(shell: shell, runtime: runtime)
-        self.statusItemController = statusItemController
 
         #if DEBUG
         if liveClipboardPreview {
@@ -463,6 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("Control+Option+T 注册失败。快捷键可能已被其它应用占用。")
         }
         self.hotKey = hotKey
+        statusItemController?.setReady()
     }
 
     /// 应用菜单和 ⌘, 打开独立设置窗口。

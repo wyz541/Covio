@@ -59,16 +59,24 @@ final class NotchShellControllerTests: XCTestCase {
 
     // MARK: - 启动
 
-    func testStartCreatesOneHotZonePerScreenAndKeepsTheHubHidden() throws {
+    func testStartCreatesHotZonesWithoutBuildingTheHub() throws {
         let controller = try controllerWithPointerAway()
         controller.start()
         defer { controller.stop() }
 
         XCTAssertEqual(controller.state, .hidden)
         XCTAssertEqual(controller.hotZoneRects.count, NSScreen.screens.count)
-        // 面板先按展开矩形建好，但不在屏幕上。
+        XCTAssertNil(controller.hubPanelFrame)
         XCTAssertFalse(controller.isHubPanelOnScreen)
-        // 窄屏上面板比 panelWidth 窄，所以比展开矩形，不比 panelWidth。
+    }
+
+    /// 首次显示才创建 Hub 的 SwiftUI hosting view。
+    func testFirstShowBuildsTheHubAtTheExpectedWidth() throws {
+        let controller = try controllerWithPointerInsideHub()
+        controller.start()
+        defer { controller.stop() }
+
+        controller.show()
         let expectedWidth = try hubPanelRect().width
         XCTAssertEqual(controller.hubPanelFrame?.width, expectedWidth)
         XCTAssertLessThanOrEqual(expectedWidth, HubMetrics.panelWidth)
@@ -398,12 +406,15 @@ final class NotchShellControllerTests: XCTestCase {
         let hubs = NSApp.windows.compactMap { $0 as? HubPanel }
 
         XCTAssertEqual(hotZones.count, NSScreen.screens.count, "宿主进程里每块屏幕应该有一个热区面板")
-        XCTAssertEqual(hubs.count, 1, "宿主进程里应该只有一个 Hub 面板")
+        XCTAssertLessThanOrEqual(hubs.count, 1, "宿主进程里最多只有一个 Hub 面板")
 
         for panel in hotZones {
             XCTAssertEqual(panel.level, .statusBar, "热区面板的层级必须高于菜单栏")
         }
-        XCTAssertEqual(hubs.first?.level, .statusBar, "Hub 面板的层级必须高于菜单栏")
+        XCTAssertTrue(
+            hubs.allSatisfy { $0.level == .statusBar },
+            "Hub 面板的层级必须高于菜单栏"
+        )
         // 本用例只验证宿主接线。启动时收起由 testStartCreatesOneHotZonePerScreenAndKeepsTheHubHidden 覆盖；
         // 这里再读可见性会受真实鼠标是否停在胶囊上影响。
     }

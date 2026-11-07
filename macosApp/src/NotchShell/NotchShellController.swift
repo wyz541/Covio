@@ -79,7 +79,6 @@ final class NotchShellController {
         popoverCoordinator.onActivityChanged = { [weak self] active in
             self?.popoverActivityChanged(active)
         }
-        makeHubPanel()
         rebuildHotZones()
         observeSystemChanges()
         applyVisibility()
@@ -242,6 +241,7 @@ final class NotchShellController {
     // MARK: - 面板动作
 
     private func presentHub() {
+        makeHubPanel()
         guard let hubPanel else { return }
         guard let geometry = ScreenGeometry.current(location: pointerLocation()) else { return }
         self.geometry = geometry
@@ -375,6 +375,7 @@ final class NotchShellController {
     // MARK: - 面板与屏幕
 
     private func makeHubPanel() {
+        guard hubPanel == nil else { return }
         let initial = ScreenGeometry.current(location: pointerLocation())?.expandedRect
             ?? CGRect(
                 x: 0,
@@ -415,7 +416,7 @@ final class NotchShellController {
         for screen in NSScreen.screens {
             let geometry = ScreenGeometry(screen: screen)
             let panel = HotZonePanel(rect: geometry.hotZoneRect)
-            let host = PointerTrackingHost(rootView: Color.clear)
+            let host = PointerTrackingView(frame: .zero)
             host.onPointerEnter = { [weak self] in self?.send(.pointerEnteredHotZone) }
             host.onPointerExit = { [weak self] in
                 guard let self else { return }
