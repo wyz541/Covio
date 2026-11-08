@@ -800,6 +800,31 @@ final class AppRuntimeTests: XCTestCase {
         XCTAssertEqual(json["updateCheckEnabled"] as? Bool, false)
     }
 
+    func testTrackpadGesturePreferenceNotifiesTheMonitorController() throws {
+        let created = makeRuntime()
+        var changes: [Bool] = []
+        created.onTrackpadGesturePreferenceChanged = { changes.append($0) }
+
+        created.setTrackpadGestureEnabled(true)
+        created.setTrackpadGestureEnabled(false)
+
+        XCTAssertEqual(changes, [true, false])
+        XCTAssertFalse(created.config.trackpadGestureEnabled)
+    }
+
+    func testGlobalTriggerStatusUpdatesFromStartupResults() throws {
+        let created = makeRuntime()
+
+        created.updateGlobalTriggerStatus(
+            hotKeyRegistered: true,
+            swipeStartResult: .started(deviceCount: 1)
+        )
+
+        XCTAssertEqual(created.globalTriggerStatus.hotKeyRegistered, true)
+        XCTAssertEqual(created.globalTriggerStatus.swipeAvailable, true)
+        XCTAssertEqual(created.globalTriggerStatus.swipeDeviceCount, 1)
+    }
+
     /// 提示语可以清掉。
     func testStatusMessageCanBeCleared() throws {
         let created = makeRuntime(engineStarted: true)

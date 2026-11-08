@@ -68,7 +68,7 @@ final class ConfigCompatibilityTests: XCTestCase {
         try write(legacyConfig)
         let config = store().load()
 
-        XCTAssertEqual(config.schemaVersion, 3)
+        XCTAssertEqual(config.schemaVersion, 4)
         XCTAssertEqual(config.language, "zh")
         XCTAssertFalse(config.enabled)
         XCTAssertTrue(config.launchAtLogin)
@@ -81,6 +81,7 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertFalse(config.darkWakeAwarenessEnabled)
         XCTAssertTrue(config.lidSleepImmediateOnClose)
         XCTAssertFalse(config.notificationsEnabled)
+        XCTAssertFalse(config.trackpadGestureEnabled)
         XCTAssertFalse(config.updateCheckEnabled)
         XCTAssertEqual(config.updateCheckIntervalHours, 12)
         XCTAssertEqual(config.lastUpdateCheckEpochSeconds, 1_700_000_000)
@@ -249,6 +250,7 @@ final class ConfigCompatibilityTests: XCTestCase {
             disableLidSleepOnBattery: true,
             darkWakeAwarenessEnabled: false,
             lidSleepImmediateOnClose: false,
+            trackpadGestureEnabled: true,
             enabled: false,
             display: DisplayConfig(
                 schemaVersion: 2,
@@ -269,6 +271,7 @@ final class ConfigCompatibilityTests: XCTestCase {
         XCTAssertTrue(reloaded.disableLidSleepOnBattery)
         XCTAssertFalse(reloaded.darkWakeAwarenessEnabled)
         XCTAssertTrue(reloaded.lidSleepImmediateOnClose)
+        XCTAssertTrue(reloaded.trackpadGestureEnabled)
         XCTAssertFalse(reloaded.enabled)
     }
 
@@ -284,7 +287,8 @@ final class ConfigCompatibilityTests: XCTestCase {
             "lowBatteryCapacitySleep", "lowBatteryCapacity", "lowTimeRemaining",
             "disableIdleSleepInCharging", "disableLidSleepInCharging",
             "disableLidSleepOnBattery", "darkWakeAwarenessEnabled",
-            "lidSleepImmediateOnClose", "notificationsEnabled", "updateCheckEnabled",
+            "lidSleepImmediateOnClose", "notificationsEnabled", "trackpadGestureEnabled",
+            "updateCheckEnabled",
             "updateCheckIntervalHours", "lastUpdateCheckEpochSeconds",
             "hibernateMode", "firstRun", "shelfEnabled",
             "screenshotInboxEnabled", "shelfSoundsEnabled",

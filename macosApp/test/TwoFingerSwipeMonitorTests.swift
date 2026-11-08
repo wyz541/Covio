@@ -8,7 +8,8 @@ final class TwoFingerSwipeMonitorTests: XCTestCase {
             fingerCount: 2,
             meanNormalizedX: 0,
             meanNormalizedY: y,
-            timestamp: timestamp
+            timestamp: timestamp,
+            optionKeyDown: true
         )
     }
 
@@ -31,6 +32,36 @@ final class TwoFingerSwipeMonitorTests: XCTestCase {
         XCTAssertTrue(source.didStop)
     }
 
+    func testDoesNotEmitWithoutOption() async {
+        let source = FakeContactSource(result: .started(deviceCount: 1))
+        let triggered = expectation(description: "缺少 Option 不触发")
+        triggered.isInverted = true
+        let monitor = TwoFingerSwipeMonitor(source: source) {
+            triggered.fulfill()
+        }
+
+        monitor.start()
+        source.emit(
+            TouchFrame(
+                fingerCount: 2,
+                meanNormalizedX: 0,
+                meanNormalizedY: 0.45,
+                timestamp: 1.00
+            )
+        )
+        source.emit(
+            TouchFrame(
+                fingerCount: 2,
+                meanNormalizedX: 0,
+                meanNormalizedY: 0.20,
+                timestamp: 1.15
+            )
+        )
+
+        await fulfillment(of: [triggered], timeout: 0.2)
+        monitor.stop()
+    }
+
     func testDoesNotEmitForARejectedSwipe() async {
         let source = FakeContactSource(result: .started(deviceCount: 1))
         let triggered = expectation(description: "错误手势不触发")
@@ -45,7 +76,8 @@ final class TwoFingerSwipeMonitorTests: XCTestCase {
                 fingerCount: 3,
                 meanNormalizedX: 0,
                 meanNormalizedY: 0.20,
-                timestamp: 1.00
+                timestamp: 1.00,
+                optionKeyDown: true
             )
         )
         source.emit(
@@ -53,7 +85,8 @@ final class TwoFingerSwipeMonitorTests: XCTestCase {
                 fingerCount: 3,
                 meanNormalizedX: 0,
                 meanNormalizedY: 0.60,
-                timestamp: 1.15
+                timestamp: 1.15,
+                optionKeyDown: true
             )
         )
 

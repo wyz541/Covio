@@ -122,7 +122,7 @@ final class NotchShellController {
 
     /// 手势入口打开工作台。
     ///
-    /// 双指手势不移动指针。面板出现时指针通常不在工作台内，
+    /// Option + 双指手势不移动指针。面板出现时指针通常不在工作台内，
     /// 所以手势打开要等指针进入后再恢复普通的移出收起规则。
     func showFromGesture() {
         guard state == .hidden || state == .exit else {
@@ -263,7 +263,7 @@ final class NotchShellController {
 
         // 面板出现时指针可能已经在外面。tracking area 的 mouseEntered 要等下一次鼠标移动，
         // 所以在建立面板后主动查一次真实指针位置，避免 Hub 卡在展开态。
-        // 手势打开是例外：双指手势不移动指针，必须等工作台收到指针交互后再恢复自动收起。
+        // 手势打开是例外：Option + 双指手势不移动指针，必须等工作台收到指针交互后再恢复自动收起。
         if !pointerIsInsideHubPanel && !keepOpenAfterGesturePresentation {
             send(.pointerExitedHub)
         }

@@ -1,4 +1,5 @@
 import CoreFoundation
+import CoreGraphics
 import Darwin
 import Foundation
 
@@ -158,7 +159,13 @@ private func multitouchContactCallback(
 ) -> Int32 {
     _ = device
     _ = frameNumber
-    let frame = TouchFrame.parse(touches: touches, count: count, timestamp: timestamp)
+    let optionKeyDown = CGEventSource.flagsState(.combinedSessionState).contains(.maskAlternate)
+    let frame = TouchFrame.parse(
+        touches: touches,
+        count: count,
+        timestamp: timestamp,
+        optionKeyDown: optionKeyDown
+    )
     MultitouchCallbackRouter.shared.deliver(frame)
     return 0
 }

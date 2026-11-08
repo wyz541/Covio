@@ -4,6 +4,7 @@ import Foundation
 @objc final class CovioUpdaterService: NSObject, CovioUpdaterXPCProtocol, @unchecked Sendable {
     typealias CheckHandler = (@escaping (UpdaterOperationResult) -> Void) -> Void
     typealias InstallHandler = (@escaping (UpdaterOperationResult) -> Void) -> Void
+    typealias StatusProvider = () -> UpdaterCoordinator.PersistedStatus
 
     private struct Caller {
         let uid: uid_t
@@ -16,11 +17,13 @@ import Foundation
     private let releaseId: String
     private let checkHandler: CheckHandler?
     private let installHandler: InstallHandler?
+    private let statusProvider: StatusProvider?
     private let stateLock = NSLock()
     private var state: UpdaterEngineState
     private var lastCheckAt: String?
     private var availableVersion: String?
     private var message: String?
+    private var downloadProgress: Double?
     private var lastManualCheckByUid: [uid_t: Date] = [:]
 
     init(
@@ -30,8 +33,10 @@ import Foundation
         lastCheckAt: String? = nil,
         availableVersion: String? = nil,
         message: String? = nil,
+        downloadProgress: Double? = nil,
         checkHandler: CheckHandler? = nil,
-        installHandler: InstallHandler? = nil
+        installHandler: InstallHandler? = nil,
+        statusProvider: StatusProvider? = nil
     ) {
         self.paths = paths
         self.releaseId = releaseId
@@ -41,6 +46,8 @@ import Foundation
         self.lastCheckAt = lastCheckAt
         self.availableVersion = availableVersion
         self.message = message
+        self.downloadProgress = downloadProgress
+        self.statusProvider = statusProvider
         super.init()
     }
 
@@ -54,6 +61,7 @@ import Foundation
             )))
             return
         }
+        refreshPersistedStatus()
         reply(encoded(status(for: caller.uid)))
     }
 
@@ -212,7 +220,13 @@ import Foundation
 
     func status(for uid: uid_t) -> UpdaterStatus {
         stateLock.lock()
-        let snapshot = (state, lastCheckAt, availableVersion, message)
+        let snapshot = (
+            state,
+            lastCheckAt,
+            availableVersion,
+            message,
+            downloadProgress
+        )
         stateLock.unlock()
         return UpdaterStatus(
             schemaVersion: 1,
@@ -224,7 +238,8 @@ import Foundation
             ).isAutomaticUpdateEnabled(for: uid),
             lastCheckAt: snapshot.1,
             availableVersion: snapshot.2,
-            message: snapshot.3
+            message: snapshot.3,
+            downloadProgress: snapshot.4
         )
     }
 
@@ -245,7 +260,20 @@ import Foundation
         state = result.state
         availableVersion = result.availableVersion
         message = result.message
+        downloadProgress = result.downloadProgress
         lastCheckAt = Self.timestamp()
+        stateLock.unlock()
+    }
+
+    private func refreshPersistedStatus() {
+        guard let statusProvider else { return }
+        let status = statusProvider()
+        stateLock.lock()
+        state = status.state
+        lastCheckAt = status.lastCheckAt
+        availableVersion = status.availableVersion
+        message = status.message
+        downloadProgress = status.downloadProgress
         stateLock.unlock()
     }
 

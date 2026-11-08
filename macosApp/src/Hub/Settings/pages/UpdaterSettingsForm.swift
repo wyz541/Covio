@@ -38,6 +38,13 @@ struct UpdaterSettingsFormContent: View {
             .accessibilityElement(children: .combine)
         }
 
+        if let progress = presentation.downloadProgress {
+            ProgressView(value: progress)
+                .progressViewStyle(.linear)
+                .accessibilityLabel(ContractCopy.copyGeneralUpdateDownloading.text(for: language))
+                .accessibilityValue(presentation.downloadPercentText ?? "")
+        }
+
         LabeledContent(ContractCopy.copyGeneralUpdateLastCheck.text(for: language)) {
             Text(presentation.lastCheckText)
                 .foregroundStyle(.secondary)

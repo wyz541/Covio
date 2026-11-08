@@ -36,6 +36,24 @@ final class UpdaterSettingsPresentationTests: XCTestCase {
         )
     }
 
+    func testDownloadingStateShowsPercent() {
+        let value = UpdaterSettingsPresentation(
+            status: status(
+                state: .downloading,
+                availableVersion: "0.6.0-internal.24",
+                downloadProgress: 0.42
+            ),
+            busy: true,
+            unavailable: false,
+            language: .simplifiedChinese
+        )
+        XCTAssertEqual(value.downloadPercentText, "42%")
+        XCTAssertEqual(
+            value.stateText,
+            "正在下载更新 42%"
+        )
+    }
+
     func testBusyStateShowsChecking() {
         let value = UpdaterSettingsPresentation(
             status: status(state: .idle),
@@ -136,7 +154,8 @@ final class UpdaterSettingsPresentationTests: XCTestCase {
     private func status(
         state: UpdaterEngineState,
         lastCheckAt: String? = "2026-11-04T00:00:00Z",
-        availableVersion: String? = nil
+        availableVersion: String? = nil,
+        downloadProgress: Double? = nil
     ) -> UpdaterStatus {
         UpdaterStatus(
             schemaVersion: 1,
@@ -146,7 +165,8 @@ final class UpdaterSettingsPresentationTests: XCTestCase {
             automaticUpdatesEnabled: true,
             lastCheckAt: lastCheckAt,
             availableVersion: availableVersion,
-            message: nil
+            message: nil,
+            downloadProgress: downloadProgress
         )
     }
 }

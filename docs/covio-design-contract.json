@@ -7484,6 +7484,42 @@
     "copy/general/external-agent/copied": {
       "en": "Pairing copied.",
       "zh-Hans": "配对信息已复制。"
+    },
+    "copy/general/section/triggers": {
+      "en": "Global triggers",
+      "zh-Hans": "全局触发"
+    },
+    "copy/general/trigger/shortcut": {
+      "en": "Global shortcut",
+      "zh-Hans": "全局快捷键"
+    },
+    "copy/general/trigger/gesture": {
+      "en": "Enable trackpad gesture",
+      "zh-Hans": "启用触控板手势"
+    },
+    "copy/general/trigger/top-edge": {
+      "en": "Top edge hover",
+      "zh-Hans": "顶部边缘悬停"
+    },
+    "copy/general/trigger/swipe-down": {
+      "en": "Option + two-finger swipe down",
+      "zh-Hans": "Option + 双指下滑"
+    },
+    "copy/general/trigger/available": {
+      "en": "Available",
+      "zh-Hans": "可用"
+    },
+    "copy/general/trigger/unavailable": {
+      "en": "Unavailable",
+      "zh-Hans": "不可用"
+    },
+    "copy/general/trigger/footer": {
+      "en": "Use any trigger to open Workbench.",
+      "zh-Hans": "使用任一触发入口打开工作台。"
+    },
+    "copy/general/trigger/off": {
+      "en": "Off",
+      "zh-Hans": "关闭"
     }
   },
   "platformMapping": {

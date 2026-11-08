@@ -399,6 +399,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.runtime = runtime
         settingsRuntime.runtime = runtime
         shell.runtime = runtime
+        runtime.onTrackpadGesturePreferenceChanged = { [weak self] enabled in
+            self?.applyTrackpadGesturePreference(enabled)
+        }
         shell.onOpenSettings = { [weak self] hit in
             self?.showSettingsWindow(reveal: hit)
         }
@@ -439,20 +442,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             runtime.start()
         }
 
-        if !LaunchEnvironment.isRunningTests() {
-            let shell = self.shell
-            let monitor = TwoFingerSwipeMonitor { [weak shell] in
-                shell?.showFromGesture()
-            }
-            let result = monitor.start()
-            if case let .started(deviceCount) = result {
-                NSLog("双指下滑入口已启动，设备数：%d", deviceCount)
-            } else if let errorCode = result.errorCode {
-                NSLog("双指下滑入口不可用：%@", errorCode)
-            }
-            twoFingerSwipeMonitor = monitor
-        }
-
         if LaunchEnvironment.isSlimInstallProfile() {
             Task { @MainActor in
                 self.shell.show()
@@ -483,16 +472,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.shell.toggle()
         }
         if !hotKey.register() {
-            // Carbon 在快捷键冲突时静默失败。计划的 M4 要求设置页暴露这个状态。
+            // Carbon 在快捷键冲突时静默失败。设置页需要暴露这个状态。
             NSLog("Control+Option+T 注册失败。快捷键可能已被其它应用占用。")
         }
         self.hotKey = hotKey
+        applyTrackpadGesturePreference(runtime.config.trackpadGestureEnabled)
         statusItemController?.setReady()
 
         guard !LaunchEnvironment.isRunningTests() else { return }
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
             self?.shell.prepareHubPanel()
+        }
+    }
+
+    private func applyTrackpadGesturePreference(_ enabled: Bool) {
+        guard !LaunchEnvironment.isRunningTests() else { return }
+        if enabled {
+            guard twoFingerSwipeMonitor == nil else {
+                runtime?.updateGlobalTriggerStatus(
+                    hotKeyRegistered: hotKey?.isRegistered ?? false,
+                    swipeStartResult: twoFingerSwipeMonitor?.startResult
+                )
+                return
+            }
+            let shell = self.shell
+            let monitor = TwoFingerSwipeMonitor { [weak shell] in
+                shell?.showFromGesture()
+            }
+            let result = monitor.start()
+            twoFingerSwipeMonitor = monitor
+            if case let .started(deviceCount) = result {
+                NSLog("Option + 双指下滑入口已启动，设备数：%d", deviceCount)
+            } else if let errorCode = result.errorCode {
+                NSLog("Option + 双指下滑入口不可用：%@", errorCode)
+            }
+            runtime?.updateGlobalTriggerStatus(
+                hotKeyRegistered: hotKey?.isRegistered ?? false,
+                swipeStartResult: result
+            )
+        } else {
+            twoFingerSwipeMonitor?.stop()
+            twoFingerSwipeMonitor = nil
+            runtime?.updateGlobalTriggerStatus(
+                hotKeyRegistered: hotKey?.isRegistered ?? false,
+                swipeStartResult: nil
+            )
         }
     }
 

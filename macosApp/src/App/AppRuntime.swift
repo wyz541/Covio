@@ -11,6 +11,12 @@ import Foundation
 /// 只跑在主线程。`Engine` 自己加锁，所以后台的端口回调进来也安全。
 ///
 /// 截图目录监听在 `ShelfRuntime` 里，剪贴板属于 M4。
+struct GlobalTriggerStatus: Equatable, Sendable {
+    var hotKeyRegistered: Bool?
+    var swipeAvailable: Bool?
+    var swipeDeviceCount: Int?
+}
+
 @MainActor
 @Observable
 final class AppRuntime {
@@ -38,6 +44,8 @@ final class AppRuntime {
     private(set) var updaterBusy = false
     /// Root updater 不可用。Migration PKG 或 repair PKG 缺失时保持 true。
     private(set) var updaterUnavailable = false
+    /// 全局触发入口的启动状态。
+    private(set) var globalTriggerStatus = GlobalTriggerStatus()
     /// 首次启动的引导是否可见。
     private(set) var welcomeVisible: Bool
 
@@ -129,11 +137,15 @@ final class AppRuntime {
     /// 通知开关的持有者。`MacNotifier` 要一个读开关的闭包，
     /// 那个闭包必须在 `self` 建好之前交出去，所以开关放在这个独立对象里。
     private let notificationGate: NotificationGate
+    @ObservationIgnored var onTrackpadGesturePreferenceChanged: ((Bool) -> Void)?
 
     private let stateForwarder: StateForwarder
     private var tickTimer: Timer?
     private var updateTimer: Timer?
     private var updaterTimeoutTask: Task<Void, Never>?
+    private var updaterStatusMonitorTask: Task<Void, Never>?
+    private var updaterStatusPollTask: Task<Void, Never>?
+    private var updaterStatusPollInFlight = false
     private var updaterRequestGeneration = 0
     private var pendingHelperSnapshot: HelperStatusSnapshot?
     private var ticks = 0
@@ -657,6 +669,8 @@ final class AppRuntime {
         tickTimer = nil
         updateTimer?.invalidate()
         updateTimer = nil
+        stopUpdaterStatusMonitoring()
+        stopUpdaterStatusPolling()
         shelf.stop()
         clipboard.stop()
         powerRuntime.stop()
@@ -871,6 +885,14 @@ final class AppRuntime {
 
     func setDarkWakeAwareness(_ enabled: Bool) { write { $0.darkWakeAwarenessEnabled = enabled } }
     func setNotifications(_ enabled: Bool) { write { $0.notificationsEnabled = enabled } }
+    func setTrackpadGestureEnabled(_ enabled: Bool) {
+        guard config.trackpadGestureEnabled != enabled else { return }
+        guard updateConfigDraft({ $0.trackpadGestureEnabled = enabled }) else {
+            statusMessage = ContractCopy.copyToastError.text(for: language)
+            return
+        }
+        onTrackpadGesturePreferenceChanged?(enabled)
+    }
     func setUpdateChecks(_ enabled: Bool) {
         if !enabled { availableUpdate = nil }
         write { $0.updateCheckEnabled = enabled }
@@ -947,6 +969,7 @@ final class AppRuntime {
         let defaults = ConfigStore.companion.defaults()
         configStore.save(config: defaults)
         config = defaults
+        onTrackpadGesturePreferenceChanged?(defaults.trackpadGestureEnabled)
         clipboardBridge.config = defaults
         _ = engine.updateConfig(newConfig: defaults)
         powerRuntime.updateConfig(
@@ -1188,6 +1211,30 @@ final class AppRuntime {
         return true
     }
 
+    func updateGlobalTriggerStatus(
+        hotKeyRegistered: Bool,
+        swipeStartResult: MultitouchStartResult?
+    ) {
+        let swipeAvailable: Bool?
+        let swipeDeviceCount: Int?
+        switch swipeStartResult {
+        case .started(let count):
+            swipeAvailable = true
+            swipeDeviceCount = count
+        case .frameworkMissing, .symbolMissing, .noDevice:
+            swipeAvailable = false
+            swipeDeviceCount = nil
+        case nil:
+            swipeAvailable = nil
+            swipeDeviceCount = nil
+        }
+        globalTriggerStatus = GlobalTriggerStatus(
+            hotKeyRegistered: hotKeyRegistered,
+            swipeAvailable: swipeAvailable,
+            swipeDeviceCount: swipeDeviceCount
+        )
+    }
+
     // MARK: - 更新
 
 
@@ -1201,9 +1248,11 @@ final class AppRuntime {
                 case .success(let status):
                     self.updaterStatus = status
                     self.updaterUnavailable = false
+                    self.updateUpdaterStatusPolling()
                 case .failure:
                     self.updaterStatus = nil
                     self.updaterUnavailable = true
+                    self.stopUpdaterStatusPolling()
                 }
             }
         }
@@ -1253,6 +1302,7 @@ final class AppRuntime {
 
     func installAvailableUpdate() {
         guard let generation = beginUpdaterRequest(timeout: updaterOperationTimeout) else { return }
+        startUpdaterStatusPolling()
         updaterClient.installAvailable { [weak self] result in
             Task { @MainActor in
                 guard let self, self.updaterRequestGeneration == generation else { return }
@@ -1266,6 +1316,7 @@ final class AppRuntime {
                     )
                     self.refreshUpdaterStatus()
                 case .failure:
+                    self.stopUpdaterStatusPolling()
                     self.updaterUnavailable = true
                     self.statusMessage = ContractCopy.copyToastError.text(for: self.language)
                 }
@@ -1295,6 +1346,78 @@ final class AppRuntime {
         }
     }
 
+    func startUpdaterStatusMonitoring() {
+        guard updaterStatusMonitorTask == nil else { return }
+        updaterStatusMonitorTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(2))
+                } catch {
+                    return
+                }
+                guard let self, !Task.isCancelled else { return }
+                if !self.updaterBusy, self.updaterStatusPollTask == nil {
+                    self.fetchUpdaterStatusForProgress()
+                }
+            }
+        }
+    }
+
+    func stopUpdaterStatusMonitoring() {
+        updaterStatusMonitorTask?.cancel()
+        updaterStatusMonitorTask = nil
+    }
+
+    private func updateUpdaterStatusPolling() {
+        if updaterBusy || updaterStatus?.state == .downloading {
+            startUpdaterStatusPolling()
+        } else {
+            stopUpdaterStatusPolling()
+        }
+    }
+
+    private func startUpdaterStatusPolling() {
+        guard updaterStatusPollTask == nil else { return }
+        updaterStatusPollTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .milliseconds(500))
+                } catch {
+                    return
+                }
+                guard let self, !Task.isCancelled else { return }
+                self.fetchUpdaterStatusForProgress()
+            }
+        }
+    }
+
+    private func stopUpdaterStatusPolling() {
+        updaterStatusPollTask?.cancel()
+        updaterStatusPollTask = nil
+        updaterStatusPollInFlight = false
+    }
+
+    private func fetchUpdaterStatusForProgress() {
+        guard !updaterStatusPollInFlight else { return }
+        updaterStatusPollInFlight = true
+        updaterClient.getStatus { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.updaterStatusPollInFlight = false
+                switch result {
+                case .success(let status):
+                    self.updaterStatus = status
+                    self.updaterUnavailable = false
+                case .failure:
+                    if self.updaterStatus == nil {
+                        self.updaterUnavailable = true
+                    }
+                }
+                self.updateUpdaterStatusPolling()
+            }
+        }
+    }
+
     private func beginUpdaterRequest(timeout requestedTimeout: TimeInterval? = nil) -> Int? {
         guard !updaterBusy else { return nil }
         updaterBusy = true
@@ -1310,6 +1433,7 @@ final class AppRuntime {
             else { return }
             self.updaterClient.invalidate()
             self.finishUpdaterRequest(generation: generation)
+            self.stopUpdaterStatusPolling()
             self.updaterStatus = nil
             self.updaterUnavailable = true
             self.statusMessage = ContractCopy.copyToastError.text(for: self.language)
@@ -1626,6 +1750,7 @@ final class ConfigDraft {
     var darkWakeAwarenessEnabled: Bool
     var lidSleepImmediateOnClose: Bool
     var notificationsEnabled: Bool
+    var trackpadGestureEnabled: Bool
     var updateCheckEnabled: Bool
     var updateCheckIntervalHours: Int32
     var lastUpdateCheckEpochSeconds: Int64
@@ -1655,6 +1780,7 @@ final class ConfigDraft {
         darkWakeAwarenessEnabled = config.darkWakeAwarenessEnabled
         lidSleepImmediateOnClose = config.lidSleepImmediateOnClose
         notificationsEnabled = config.notificationsEnabled
+        trackpadGestureEnabled = config.trackpadGestureEnabled
         updateCheckEnabled = config.updateCheckEnabled
         updateCheckIntervalHours = config.updateCheckIntervalHours
         lastUpdateCheckEpochSeconds = config.lastUpdateCheckEpochSeconds
@@ -1686,6 +1812,7 @@ final class ConfigDraft {
             darkWakeAwarenessEnabled: darkWakeAwarenessEnabled,
             lidSleepImmediateOnClose: lidSleepImmediateOnClose,
             notificationsEnabled: notificationsEnabled,
+            trackpadGestureEnabled: trackpadGestureEnabled,
             updateCheckEnabled: updateCheckEnabled,
             updateCheckIntervalHours: updateCheckIntervalHours,
             lastUpdateCheckEpochSeconds: lastUpdateCheckEpochSeconds,

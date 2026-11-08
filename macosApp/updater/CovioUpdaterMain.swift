@@ -25,8 +25,10 @@ enum CovioUpdaterMain {
             lastCheckAt: persisted.lastCheckAt,
             availableVersion: persisted.availableVersion,
             message: persisted.message,
+            downloadProgress: persisted.downloadProgress,
             checkHandler: coordinator.check,
-            installHandler: coordinator.install
+            installHandler: coordinator.install,
+            statusProvider: { coordinator.persistedStatus }
         )
         if arguments.contains("--selftest") {
             do {

@@ -331,6 +331,8 @@ enum ContractCopy {
     static let copyGeneralNotifications = LocalizedCopy(key: "copy/general/notifications", en: "Notifications", zhHans: "通知")
     /// `copy/general/section/diagnostics`
     static let copyGeneralSectionDiagnostics = LocalizedCopy(key: "copy/general/section/diagnostics", en: "Diagnostics", zhHans: "诊断")
+    /// `copy/general/section/triggers`
+    static let copyGeneralSectionTriggers = LocalizedCopy(key: "copy/general/section/triggers", en: "Global triggers", zhHans: "全局触发")
     /// `copy/general/section/updates`
     static let copyGeneralSectionUpdates = LocalizedCopy(key: "copy/general/section/updates", en: "Updates", zhHans: "更新")
     /// `copy/general/sleep-mode`
@@ -341,6 +343,22 @@ enum ContractCopy {
     static let copyGeneralSleepModeFastest = LocalizedCopy(key: "copy/general/sleep-mode/fastest", en: "0 · Fastest", zhHans: "0 · 最快")
     /// `copy/general/sleep-mode/lowest-power`
     static let copyGeneralSleepModeLowestPower = LocalizedCopy(key: "copy/general/sleep-mode/lowest-power", en: "25 · Lowest power", zhHans: "25 · 最省电")
+    /// `copy/general/trigger/available`
+    static let copyGeneralTriggerAvailable = LocalizedCopy(key: "copy/general/trigger/available", en: "Available", zhHans: "可用")
+    /// `copy/general/trigger/footer`
+    static let copyGeneralTriggerFooter = LocalizedCopy(key: "copy/general/trigger/footer", en: "Use any trigger to open Workbench.", zhHans: "使用任一触发入口打开工作台。")
+    /// `copy/general/trigger/gesture`
+    static let copyGeneralTriggerGesture = LocalizedCopy(key: "copy/general/trigger/gesture", en: "Enable trackpad gesture", zhHans: "启用触控板手势")
+    /// `copy/general/trigger/off`
+    static let copyGeneralTriggerOff = LocalizedCopy(key: "copy/general/trigger/off", en: "Off", zhHans: "关闭")
+    /// `copy/general/trigger/shortcut`
+    static let copyGeneralTriggerShortcut = LocalizedCopy(key: "copy/general/trigger/shortcut", en: "Global shortcut", zhHans: "全局快捷键")
+    /// `copy/general/trigger/swipe-down`
+    static let copyGeneralTriggerSwipeDown = LocalizedCopy(key: "copy/general/trigger/swipe-down", en: "Option + two-finger swipe down", zhHans: "Option + 双指下滑")
+    /// `copy/general/trigger/top-edge`
+    static let copyGeneralTriggerTopEdge = LocalizedCopy(key: "copy/general/trigger/top-edge", en: "Top edge hover", zhHans: "顶部边缘悬停")
+    /// `copy/general/trigger/unavailable`
+    static let copyGeneralTriggerUnavailable = LocalizedCopy(key: "copy/general/trigger/unavailable", en: "Unavailable", zhHans: "不可用")
     /// `copy/general/update/automatic`
     static let copyGeneralUpdateAutomatic = LocalizedCopy(key: "copy/general/update/automatic", en: "Install updates automatically", zhHans: "自动安装更新")
     /// `copy/general/update/available-version`
@@ -1951,11 +1969,20 @@ enum ContractCopy {
         copyGeneralLocalModelVerifying,
         copyGeneralNotifications,
         copyGeneralSectionDiagnostics,
+        copyGeneralSectionTriggers,
         copyGeneralSectionUpdates,
         copyGeneralSleepMode,
         copyGeneralSleepModeDefault,
         copyGeneralSleepModeFastest,
         copyGeneralSleepModeLowestPower,
+        copyGeneralTriggerAvailable,
+        copyGeneralTriggerFooter,
+        copyGeneralTriggerGesture,
+        copyGeneralTriggerOff,
+        copyGeneralTriggerShortcut,
+        copyGeneralTriggerSwipeDown,
+        copyGeneralTriggerTopEdge,
+        copyGeneralTriggerUnavailable,
         copyGeneralUpdateAutomatic,
         copyGeneralUpdateAvailableVersion,
         copyGeneralUpdateChecking,

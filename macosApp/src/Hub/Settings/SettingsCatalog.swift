@@ -34,6 +34,9 @@ enum SettingsRowID {
     static let generalLanguage = "general.language"
     static let generalLogin = "general.login"
     static let generalNotifications = "general.notifications"
+    static let generalTriggerShortcut = "general.trigger.shortcut"
+    static let generalTriggerGesture = "general.trigger.gesture"
+    static let generalTriggerTopEdge = "general.trigger.top-edge"
     static let generalUpdates = "general.updates"
     static let generalVersion = "general.version"
     static let generalLogs = "general.logs"
@@ -205,6 +208,36 @@ enum SettingsCatalog {
             title: ContractCopy.copyGeneralNotifications,
             summary: nil,
             keywords: ["notification", "alert", "通知", "提醒"]
+        ),
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.generalTriggerShortcut,
+            section: .general,
+            title: ContractCopy.copyGeneralTriggerShortcut,
+            summary: ContractCopy.copyGeneralSectionTriggers,
+            keywords: [
+                "trigger", "global", "shortcut", "hotkey", "keyboard",
+                "触发", "全局", "快捷键", "键盘",
+            ]
+        ),
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.generalTriggerGesture,
+            section: .general,
+            title: ContractCopy.copyGeneralTriggerGesture,
+            summary: ContractCopy.copyGeneralTriggerSwipeDown,
+            keywords: [
+                "trigger", "gesture", "trackpad", "swipe", "two finger", "option", "⌥",
+                "触发", "手势", "触控板", "双指", "下滑", "Option", "⌥",
+            ]
+        ),
+        SettingsCatalogEntry(
+            rowID: SettingsRowID.generalTriggerTopEdge,
+            section: .general,
+            title: ContractCopy.copyGeneralTriggerTopEdge,
+            summary: ContractCopy.copyGeneralTriggerFooter,
+            keywords: [
+                "trigger", "top edge", "hover", "pointer",
+                "触发", "顶边", "顶部边缘", "悬停", "指针",
+            ]
         ),
         SettingsCatalogEntry(
             rowID: SettingsRowID.generalUpdates,

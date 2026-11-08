@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 const CONFIG_PATH: &str = "/tmp/covio/config.json";
 const LEGACY_FIXTURE: &str = include_str!("fixtures/config-v3-legacy-21.json");
-const CURRENT_FIXTURE: &str = include_str!("fixtures/config-v3-current.json");
+const CURRENT_FIXTURE: &str = include_str!("fixtures/config-v4-current.json");
 
 #[derive(Default)]
 struct MemoryInner {
@@ -111,7 +111,7 @@ fn legacy_fixture_loads_every_old_field_and_adds_clipboard_defaults() {
     assert_eq!(loaded.source, ConfigLoadSource::Loaded);
     assert_eq!(loaded.warning, None);
     let config = loaded.config;
-    assert_eq!(config.schema_version, 3);
+    assert_eq!(config.schema_version, 4);
     assert_eq!(config.language, "zh-Hans");
     assert!(!config.enabled);
     assert!(config.launch_at_login);
@@ -124,6 +124,7 @@ fn legacy_fixture_loads_every_old_field_and_adds_clipboard_defaults() {
     assert!(!config.dark_wake_awareness_enabled);
     assert!(config.lid_sleep_immediate_on_close);
     assert!(!config.notifications_enabled);
+    assert!(!config.trackpad_gesture_enabled);
     assert!(!config.update_check_enabled);
     assert_eq!(config.update_check_interval_hours, 12);
     assert_eq!(config.last_update_check_epoch_seconds, 1_700_000_000);
@@ -272,6 +273,7 @@ fn missing_file_creates_a_full_default_config() {
         "darkWakeAwarenessEnabled",
         "lidSleepImmediateOnClose",
         "notificationsEnabled",
+        "trackpadGestureEnabled",
         "updateCheckEnabled",
         "updateCheckIntervalHours",
         "lastUpdateCheckEpochSeconds",

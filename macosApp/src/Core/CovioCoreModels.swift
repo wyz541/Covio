@@ -287,6 +287,7 @@ struct AppConfig: Codable, Equatable, Sendable {
     var darkWakeAwarenessEnabled: Bool = true
     var lidSleepImmediateOnClose: Bool = true
     var notificationsEnabled: Bool = true
+    var trackpadGestureEnabled: Bool = false
     var updateCheckEnabled: Bool = true
     var updateCheckIntervalHours: Int32 = 24
     var lastUpdateCheckEpochSeconds: Int64 = 0
@@ -319,6 +320,7 @@ struct AppConfig: Codable, Equatable, Sendable {
         case darkWakeAwarenessEnabled
         case lidSleepImmediateOnClose
         case notificationsEnabled
+        case trackpadGestureEnabled
         case updateCheckEnabled
         case updateCheckIntervalHours
         case lastUpdateCheckEpochSeconds

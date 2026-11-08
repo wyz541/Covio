@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "language": "zh-Hans",
   "enabled": false,
   "launchAtLogin": true,
@@ -12,6 +12,7 @@
   "darkWakeAwarenessEnabled": false,
   "lidSleepImmediateOnClose": true,
   "notificationsEnabled": false,
+  "trackpadGestureEnabled": false,
   "updateCheckEnabled": false,
   "updateCheckIntervalHours": 12,
   "lastUpdateCheckEpochSeconds": 1700000000,

@@ -1,6 +1,6 @@
 //! Windows-only egui composition root.
 
-use crate::top_edge::{TopEdgeMonitor, WindowsUiSettings};
+use crate::top_edge::{TopEdgeMonitor, WindowsUiSettings, configure_overlay_window};
 use crate::visuals::{
     BENTO_CARD_PADDING, BENTO_COLUMNS, BENTO_GAP, BENTO_MAX_ROWS, BENTO_ROW_HEIGHT, CovioTheme,
     HUB_ACTION_WIDTH, HUB_HOME_WIDTH, HUB_ITEM_GAP, HUB_NAV_HEIGHT, HUB_PANEL_PADDING,
@@ -129,7 +129,7 @@ pub fn run() -> Result<(), String> {
     }
     let data_paths = WindowsDataPaths::new(data_root);
     let core = data_paths.app_core();
-    let start_hidden = arguments.iter().any(|argument| argument == "--background");
+    let start_hidden = start_hidden_from_arguments(&arguments);
     let initial_theme = theme_from_arguments(&arguments);
     let initial_view = view_from_arguments(&arguments);
     let initial_settings_section = settings_section_from_arguments(&arguments);
@@ -152,6 +152,10 @@ pub fn run() -> Result<(), String> {
             .with_inner_size(inner_size)
             .with_min_inner_size(min_inner_size)
             .with_position(window_position.unwrap_or([120.0, 120.0]))
+            .with_decorations(false)
+            .with_taskbar(false)
+            .with_always_on_top()
+            .with_resizable(false)
             .with_visible(!start_hidden),
         renderer: eframe::Renderer::Wgpu,
         wgpu_options: wgpu_configuration(),
@@ -204,6 +208,7 @@ struct CovioWindowsApp {
     top_edge_runtime_error: Option<String>,
     pending_background_hide: bool,
     last_view: HostView,
+    overlay_style_frames: u8,
     workbench_search: String,
     settings_search: String,
     pending_config_save: Option<AppConfig>,
@@ -282,6 +287,7 @@ impl CovioWindowsApp {
             top_edge_runtime_error,
             pending_background_hide: options.start_hidden,
             last_view,
+            overlay_style_frames: 3,
             workbench_search: String::new(),
             settings_search: String::new(),
             pending_config_save: None,
@@ -727,12 +733,22 @@ impl CovioWindowsApp {
     }
 
     fn poll_top_edge_trigger(&mut self, context: &egui::Context) {
+        self.top_edge_monitor
+            .set_auto_hide_enabled(self.model.view() != HostView::Settings);
+        let hide_requested = self.top_edge_monitor.take_hide_requested();
+        if hide_requested && self.model.is_visible() && self.model.view() != HostView::Settings {
+            self.model.hide();
+            self.top_edge_monitor.set_window_visible(false);
+            hide_window(context);
+            return;
+        }
         let triggered = self.top_edge_monitor.take_triggered();
         if !triggered || !self.top_edge_monitor.is_enabled() || self.model.is_visible() {
             return;
         }
         self.model.show();
         self.top_edge_monitor.set_window_visible(true);
+        self.overlay_style_frames = 3;
         show_window(context);
     }
 
@@ -1595,8 +1611,14 @@ impl CovioWindowsApp {
 }
 
 impl eframe::App for CovioWindowsApp {
-    fn update(&mut self, context: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, context: &egui::Context, frame: &mut eframe::Frame) {
         self.rendered_frames = self.rendered_frames.saturating_add(1);
+        if self.overlay_style_frames > 0 {
+            if let Some(window_handle) = frame_window_handle(frame) {
+                configure_overlay_window(window_handle);
+            }
+            self.overlay_style_frames -= 1;
+        }
         if self.capture_screenshot(context) {
             return;
         }
@@ -1648,6 +1670,10 @@ impl eframe::App for CovioWindowsApp {
                     self.workbench_view(ui);
                 }
             });
+
+        if self.model.is_visible() {
+            self.top_edge_monitor.mark_window_rendered();
+        }
 
         if self.screenshot_path.is_some()
             && !self.screenshot_requested
@@ -2586,6 +2612,28 @@ fn window_inner_size(view: HostView) -> [f32; 2] {
     }
 }
 
+fn frame_window_handle(frame: &eframe::Frame) -> Option<isize> {
+    frame
+        .window_handle()
+        .ok()
+        .and_then(|handle| match handle.as_raw() {
+            RawWindowHandle::Win32(handle) => Some(handle.hwnd.get()),
+            _ => None,
+        })
+}
+
+fn start_hidden_from_arguments(arguments: &[String]) -> bool {
+    if arguments.iter().any(|argument| argument == "--background") {
+        return true;
+    }
+    let foreground = arguments.iter().any(|argument| argument == "--show")
+        || arguments
+            .iter()
+            .any(|argument| argument == "--window-smoke")
+        || screenshot_path_from_arguments(arguments).is_some();
+    !foreground
+}
+
 fn instance_name_for_arguments(arguments: &[String]) -> &'static str {
     let isolated = screenshot_path_from_arguments(arguments).is_some()
         || arguments
@@ -3100,6 +3148,28 @@ mod tests {
     fn window_size_tracks_the_macos_surface() {
         assert_eq!(window_inner_size(HostView::Home), [960.0, 880.0]);
         assert_eq!(window_inner_size(HostView::Settings), [900.0, 640.0]);
+    }
+
+    #[test]
+    fn normal_launch_starts_hidden_and_foreground_modes_show() {
+        assert!(start_hidden_from_arguments(&[]));
+        assert!(start_hidden_from_arguments(&[
+            "covio-windows.exe".to_owned(),
+            "--background".to_owned(),
+        ]));
+        assert!(!start_hidden_from_arguments(&[
+            "covio-windows.exe".to_owned(),
+            "--show".to_owned(),
+        ]));
+        assert!(!start_hidden_from_arguments(&[
+            "covio-windows.exe".to_owned(),
+            "--window-smoke".to_owned(),
+        ]));
+        assert!(!start_hidden_from_arguments(&[
+            "covio-windows.exe".to_owned(),
+            "--screenshot".to_owned(),
+            "home.png".to_owned(),
+        ]));
     }
 
     #[test]

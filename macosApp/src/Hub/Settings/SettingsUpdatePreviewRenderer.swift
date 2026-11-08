@@ -89,6 +89,8 @@ enum SettingsUpdatePreviewRenderer {
             state = .restartRequired
         case "idle":
             state = .idle
+        case "downloading":
+            state = .downloading
         default:
             state = .available
         }
@@ -100,8 +102,11 @@ enum SettingsUpdatePreviewRenderer {
                 state: state,
                 automaticUpdatesEnabled: true,
                 lastCheckAt: "2026-11-04T00:00:00Z",
-                availableVersion: state == .available ? "0.6.0-internal.24" : nil,
-                message: nil
+                availableVersion: state == .available || state == .downloading
+                    ? "0.6.0-internal.24"
+                    : nil,
+                message: nil,
+                downloadProgress: state == .downloading ? 0.42 : nil
             ),
             busy: false,
             unavailable: false,

@@ -578,7 +578,7 @@ mod tests {
         let contract = result.contract.expect("contract");
         assert_eq!(contract.schema_version, "1.4.0");
         assert_eq!(contract.tokens.len(), 163);
-        assert_eq!(contract.copy.len(), 889);
+        assert_eq!(contract.copy.len(), 898);
         assert_eq!(contract.components.len(), 30);
         assert_eq!(contract.platform_mappings.len(), 33);
         assert_eq!(contract.motion_tokens().count(), 11);
