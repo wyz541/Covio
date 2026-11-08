@@ -6,13 +6,15 @@ final class TwoFingerSwipeRecognizerTests: XCTestCase {
         _ fingerCount: Int = 2,
         x: Double = 0,
         y: Double,
+        optionKeyDown: Bool = true,
         at timestamp: TimeInterval
     ) -> TouchFrame {
         TouchFrame(
             fingerCount: fingerCount,
             meanNormalizedX: x,
             meanNormalizedY: y,
-            timestamp: timestamp
+            timestamp: timestamp,
+            optionKeyDown: optionKeyDown
         )
     }
 
@@ -27,6 +29,12 @@ final class TwoFingerSwipeRecognizerTests: XCTestCase {
         XCTAssertFalse(recognizer.process(frame(y: 0.45, at: 1.00)))
         XCTAssertTrue(recognizer.process(frame(y: 0.20, at: 1.15)))
         XCTAssertFalse(recognizer.process(frame(y: 0.00, at: 1.25)))
+    }
+
+    func testTwoFingerSwipeWithoutOptionDoesNotTrigger() {
+        var recognizer = TwoFingerSwipeRecognizer()
+        XCTAssertFalse(recognizer.process(frame(y: 0.45, optionKeyDown: false, at: 1.00)))
+        XCTAssertFalse(recognizer.process(frame(y: 0.20, optionKeyDown: false, at: 1.15)))
     }
 
     func testUpwardMotionDoesNotTrigger() {
@@ -189,7 +197,7 @@ final class TwoFingerSwipeRecognizerTests: XCTestCase {
         }
     }
 
-    func testParsesNormalizedCoordinatesFromTwoTouchRecords() {
+    func testParsesNormalizedCoordinatesAndOptionState() {
         var bytes = [UInt8](repeating: 0, count: TouchFrame.bytesPerTouch * 2)
         bytes.withUnsafeMutableBytes { buffer in
             buffer.storeBytes(
@@ -219,7 +227,8 @@ final class TwoFingerSwipeRecognizerTests: XCTestCase {
             TouchFrame.parse(
                 touches: buffer.baseAddress,
                 count: 2,
-                timestamp: 12.5
+                timestamp: 12.5,
+                optionKeyDown: true
             )
         }
 
@@ -227,6 +236,7 @@ final class TwoFingerSwipeRecognizerTests: XCTestCase {
         XCTAssertEqual(frame.meanNormalizedX, 0.30, accuracy: 0.0001)
         XCTAssertEqual(frame.meanNormalizedY, 0.40, accuracy: 0.0001)
         XCTAssertEqual(frame.timestamp, 12.5)
+        XCTAssertTrue(frame.optionKeyDown)
     }
 
     func testInvalidTouchCountResetsTheFrame() {

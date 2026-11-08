@@ -78,11 +78,17 @@ struct CovioSettingsView: View {
             width: SettingsWindowMetrics.contentSize.width,
             height: SettingsWindowMetrics.contentSize.height
         )
-        .searchable(
-            text: $chrome.searchText,
-            placement: .toolbar,
-            prompt: Text(ContractCopy.copySettingsSearchPlaceholder.text(for: runtime.language))
-        )
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                SettingsSearchField(
+                    text: $chrome.searchText,
+                    placeholder: ContractCopy.copySettingsSearchPlaceholder.text(
+                        for: runtime.language
+                    )
+                )
+                .frame(width: 220, height: 24)
+            }
+        }
         .onExitCommand { chrome.clearSearch() }
         .environment(\.settingsContentSurface, true)
         .onAppear(perform: onSettingsAppear)
@@ -106,6 +112,63 @@ struct CovioSettingsView: View {
             value: section,
             content: content
         )
+    }
+}
+
+/// AppKit 搜索框避免 macOS 工具栏同时显示系统搜索标签。
+private struct SettingsSearchField: NSViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let field = NSSearchField()
+        field.delegate = context.coordinator
+        field.sendsSearchStringImmediately = true
+        field.maximumRecents = 0
+        field.placeholderString = placeholder
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return field
+    }
+
+    func updateNSView(_ field: NSSearchField, context: Context) {
+        context.coordinator.parent = self
+        field.placeholderString = placeholder
+        if field.stringValue != text {
+            field.stringValue = text
+        }
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, NSSearchFieldDelegate {
+        var parent: SettingsSearchField
+
+        init(parent: SettingsSearchField) {
+            self.parent = parent
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let field = notification.object as? NSSearchField else { return }
+            parent.text = field.stringValue
+        }
+
+        func control(
+            _ control: NSControl,
+            textView: NSTextView,
+            doCommandBy commandSelector: Selector
+        ) -> Bool {
+            guard commandSelector == #selector(NSResponder.cancelOperation(_:)) else {
+                return false
+            }
+            parent.text = ""
+            control.stringValue = ""
+            control.window?.makeFirstResponder(nil)
+            return true
+        }
     }
 }
 

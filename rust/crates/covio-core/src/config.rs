@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
 
 /// Current configuration schema version.
-pub const CONFIG_SCHEMA_VERSION: i32 = 3;
+pub const CONFIG_SCHEMA_VERSION: i32 = 4;
 
 /// Supported hibernate mode values.
 pub const SUPPORTED_HIBERNATE_MODES: [i32; 3] = [0, 3, 25];
@@ -382,6 +382,8 @@ pub struct AppConfig {
     pub lid_sleep_immediate_on_close: bool,
     /// Whether notifications are enabled.
     pub notifications_enabled: bool,
+    /// Whether the opt-in four-finger trackpad gesture is enabled.
+    pub trackpad_gesture_enabled: bool,
     /// Whether update checks are enabled.
     pub update_check_enabled: bool,
     /// Update-check interval in hours.
@@ -434,6 +436,7 @@ impl Default for AppConfig {
             dark_wake_awareness_enabled: true,
             lid_sleep_immediate_on_close: true,
             notifications_enabled: true,
+            trackpad_gesture_enabled: false,
             update_check_enabled: true,
             update_check_interval_hours: 24,
             last_update_check_epoch_seconds: 0,
@@ -735,6 +738,8 @@ fn decode_config(root: &Map<String, Value>) -> AppConfig {
             .unwrap_or(defaults.lid_sleep_immediate_on_close),
         notifications_enabled: bool_value(root, "notificationsEnabled")
             .unwrap_or(defaults.notifications_enabled),
+        trackpad_gesture_enabled: bool_value(root, "trackpadGestureEnabled")
+            .unwrap_or(defaults.trackpad_gesture_enabled),
         update_check_enabled: bool_value(root, "updateCheckEnabled")
             .unwrap_or(defaults.update_check_enabled),
         update_check_interval_hours: int_value(root, "updateCheckIntervalHours")

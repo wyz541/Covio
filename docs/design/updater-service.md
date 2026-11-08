@@ -77,6 +77,8 @@ restartApp() -> UpdaterOperationResult
 ```
 
 XPC 不接受调用方提供的路径、命令、URL 或任意字典。
+下载期间 `UpdaterStatus.downloadProgress` 保存 0 到 1 的比例。
+设置页用进度条和百分比显示该比例。
 自动更新偏好按调用 UID 写入 root-owned 文件。
 
 ## 调用方验证

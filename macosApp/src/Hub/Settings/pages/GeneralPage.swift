@@ -15,6 +15,7 @@ struct GeneralPage: View {
         Form {
             behaviorSection
             startupSection
+            triggerSection
             updateSection
             versionSection
             diagnosticsSection
@@ -96,6 +97,58 @@ struct GeneralPage: View {
         }
     }
 
+    private var triggerSection: some View {
+        Section {
+            LabeledContent(ContractCopy.copyGeneralTriggerShortcut.text(for: runtime.language)) {
+                HStack(spacing: MacTheme.space2) {
+                    Text(GlobalHotKey.hubToggle.displayName)
+                        .font(.system(.body, design: .monospaced))
+                    TriggerAvailabilityLabel(
+                        available: runtime.globalTriggerStatus.hotKeyRegistered,
+                        language: runtime.language
+                    )
+                }
+            }
+            .settingsRowAnchor(SettingsRowID.generalTriggerShortcut)
+
+            Toggle(
+                isOn: Binding(
+                    get: { runtime.config.trackpadGestureEnabled },
+                    set: { runtime.setTrackpadGestureEnabled($0) }
+                )
+            ) {
+                Text(ContractCopy.copyGeneralTriggerGesture.text(for: runtime.language))
+            }
+            .toggleStyle(.switch)
+            .settingsRowAnchor(SettingsRowID.generalTriggerGesture)
+
+            LabeledContent(ContractCopy.copyGeneralTriggerSwipeDown.text(for: runtime.language)) {
+                if runtime.config.trackpadGestureEnabled {
+                    TriggerAvailabilityLabel(
+                        available: runtime.globalTriggerStatus.swipeAvailable,
+                        language: runtime.language
+                    )
+                } else {
+                    Label(
+                        ContractCopy.copyGeneralTriggerOff.text(for: runtime.language),
+                        systemImage: "minus.circle"
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            LabeledContent(ContractCopy.copyGeneralTriggerTopEdge.text(for: runtime.language)) {
+                TriggerAvailabilityLabel(available: true, language: runtime.language)
+            }
+            .settingsRowAnchor(SettingsRowID.generalTriggerTopEdge)
+        } header: {
+            Text(ContractCopy.copyGeneralSectionTriggers.text(for: runtime.language))
+        } footer: {
+            Text(ContractCopy.copyGeneralTriggerFooter.text(for: runtime.language))
+        }
+    }
+
     private var updateSection: some View {
         Section {
             UpdaterSettingsFormContent(
@@ -115,7 +168,13 @@ struct GeneralPage: View {
         } header: {
             Text(ContractCopy.copyGeneralSectionUpdates.text(for: runtime.language))
         }
-        .onAppear { runtime.refreshUpdaterStatus() }
+        .onAppear {
+            runtime.refreshUpdaterStatus()
+            runtime.startUpdaterStatusMonitoring()
+        }
+        .onDisappear {
+            runtime.stopUpdaterStatusMonitoring()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             runtime.refreshUpdaterStatus()
         }
@@ -203,6 +262,45 @@ struct GeneralPage: View {
         alert.alertStyle = .warning
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         runtime.clearConfig()
+    }
+}
+
+private struct TriggerAvailabilityLabel: View {
+    let available: Bool?
+    let language: AppLanguage
+
+    var body: some View {
+        Label(text, systemImage: symbol)
+            .font(.callout)
+            .foregroundStyle(color)
+            .accessibilityElement(children: .combine)
+    }
+
+    private var text: String {
+        switch available {
+        case true:
+            ContractCopy.copyGeneralTriggerAvailable.text(for: language)
+        case false:
+            ContractCopy.copyGeneralTriggerUnavailable.text(for: language)
+        case nil:
+            ContractCopy.copyStateLoading.text(for: language)
+        }
+    }
+
+    private var symbol: String {
+        switch available {
+        case true: "checkmark.circle.fill"
+        case false: "xmark.circle.fill"
+        case nil: "clock"
+        }
+    }
+
+    private var color: Color {
+        switch available {
+        case true: .green
+        case false: .red
+        case nil: .secondary
+        }
     }
 }
 

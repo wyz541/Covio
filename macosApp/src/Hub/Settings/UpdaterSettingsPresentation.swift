@@ -12,13 +12,36 @@ struct UpdaterSettingsPresentation: Equatable {
     var canCheck: Bool { !busy && status != nil }
 
     var stateText: String {
-        if busy {
+        guard let status else {
+            return busy
+                ? ContractCopy.copyGeneralUpdateChecking.text(for: language)
+                : ContractCopy.copyGeneralUpdateUnavailableState.text(for: language)
+        }
+        if busy, status.state != .downloading, status.state != .installing {
             return ContractCopy.copyGeneralUpdateChecking.text(for: language)
         }
-        guard let status else {
-            return ContractCopy.copyGeneralUpdateUnavailableState.text(for: language)
+        let text = Self.stateText(status.state, language: language)
+        guard status.state == .downloading,
+              let percent = downloadPercentText
+        else {
+            return text
         }
-        return Self.stateText(status.state, language: language)
+        return "\(text) \(percent)"
+    }
+
+    var downloadProgress: Double? {
+        guard status?.state == .downloading,
+              let value = status?.downloadProgress,
+              value.isFinite
+        else {
+            return nil
+        }
+        return min(max(value, 0), 1)
+    }
+
+    var downloadPercentText: String? {
+        guard let downloadProgress else { return nil }
+        return "\(Int((downloadProgress * 100).rounded(.down)))%"
     }
 
     var lastCheckText: String {

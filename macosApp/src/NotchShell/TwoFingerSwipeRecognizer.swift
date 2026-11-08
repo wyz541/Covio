@@ -8,6 +8,21 @@ struct TouchFrame: Equatable, Sendable {
     let meanNormalizedX: Double
     let meanNormalizedY: Double
     let timestamp: TimeInterval
+    let optionKeyDown: Bool
+
+    init(
+        fingerCount: Int,
+        meanNormalizedX: Double,
+        meanNormalizedY: Double,
+        timestamp: TimeInterval,
+        optionKeyDown: Bool = false
+    ) {
+        self.fingerCount = fingerCount
+        self.meanNormalizedX = meanNormalizedX
+        self.meanNormalizedY = meanNormalizedY
+        self.timestamp = timestamp
+        self.optionKeyDown = optionKeyDown
+    }
 
     static let bytesPerTouch = 96
     static let normalizedXOffset = 32
@@ -21,7 +36,8 @@ struct TouchFrame: Equatable, Sendable {
     static func parse(
         touches: UnsafeRawPointer?,
         count: Int32,
-        timestamp: TimeInterval
+        timestamp: TimeInterval,
+        optionKeyDown: Bool = false
     ) -> TouchFrame {
         let fingerCount = Int(count)
         guard fingerCount >= 0,
@@ -33,7 +49,8 @@ struct TouchFrame: Equatable, Sendable {
                 fingerCount: 0,
                 meanNormalizedX: 0,
                 meanNormalizedY: 0,
-                timestamp: timestamp
+                timestamp: timestamp,
+                optionKeyDown: optionKeyDown
             )
         }
 
@@ -48,7 +65,8 @@ struct TouchFrame: Equatable, Sendable {
                     fingerCount: 0,
                     meanNormalizedX: 0,
                     meanNormalizedY: 0,
-                    timestamp: timestamp
+                    timestamp: timestamp,
+                    optionKeyDown: optionKeyDown
                 )
             }
             sumX += Double(x)
@@ -59,12 +77,13 @@ struct TouchFrame: Equatable, Sendable {
             fingerCount: fingerCount,
             meanNormalizedX: sumX / Double(fingerCount),
             meanNormalizedY: sumY / Double(fingerCount),
-            timestamp: timestamp
+            timestamp: timestamp,
+            optionKeyDown: optionKeyDown
         )
     }
 }
 
-/// 双指下滑的识别门槛。
+/// Option + 双指下滑的识别门槛。
 ///
 /// 这些值是可测试的起点，不等于真机标定结果。
 /// 真机结果由 issue #407 回填，并据此调整。
@@ -85,7 +104,7 @@ struct TwoFingerSwipeMatch: Equatable, Sendable {
     let velocity: Double
 }
 
-/// 双指下滑识别器。
+/// Option + 双指下滑识别器。
 ///
 /// 识别器是纯值类型。接触回调线程只在锁内调用 `process`。
 /// 一次接触段最多产生一个触发结果。
@@ -109,6 +128,7 @@ struct TwoFingerSwipeRecognizer: Sendable {
     /// 处理一帧，并在识别到一次有效下滑时返回 true。
     mutating func process(_ frame: TouchFrame) -> Bool {
         guard frame.fingerCount == 2,
+              frame.optionKeyDown,
               frame.timestamp.isFinite
         else {
             resetContact()

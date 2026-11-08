@@ -73,14 +73,23 @@ final class UpdaterContractTests: XCTestCase {
             schemaVersion: 1,
             updaterProtocolVersion: 1,
             releaseId: releaseId,
-            state: .idle,
+            state: .downloading,
             automaticUpdatesEnabled: true,
             lastCheckAt: "2026-11-04T00:00:00Z",
-            availableVersion: nil,
-            message: "Ready"
+            availableVersion: "0.6.0-internal.24",
+            message: "Downloading update",
+            downloadProgress: 0.42
         )
         let data = try JSONEncoder().encode(status)
         XCTAssertEqual(try JSONDecoder().decode(UpdaterStatus.self, from: data), status)
+    }
+
+    func testPersistedStateAcceptsMissingDownloadProgress() throws {
+        let data = Data(
+            #"{"schemaVersion":1,"state":"idle","lastCheckAt":null,"availableVersion":null,"targetReleaseId":null,"message":null}"#.utf8
+        )
+        let state = try JSONDecoder().decode(UpdaterPersistedState.self, from: data)
+        XCTAssertNil(state.downloadProgress)
     }
 
     func testClientIsUnavailableWithoutUpdaterRequirement() {

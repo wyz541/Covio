@@ -21,6 +21,7 @@ struct UpdaterStatus: Codable, Equatable, Sendable {
     let lastCheckAt: String?
     let availableVersion: String?
     let message: String?
+    let downloadProgress: Double?
 }
 
 struct UpdaterOperationResult: Codable, Equatable, Sendable {
@@ -28,6 +29,7 @@ struct UpdaterOperationResult: Codable, Equatable, Sendable {
     let state: UpdaterEngineState
     let message: String
     let availableVersion: String?
+    var downloadProgress: Double? = nil
 }
 
 struct UpdaterHealth: Codable, Equatable, Sendable {
@@ -56,6 +58,7 @@ struct UpdaterPersistedState: Codable, Equatable, Sendable {
     let availableVersion: String?
     let targetReleaseId: String?
     let message: String?
+    var downloadProgress: Double? = nil
 }
 
 struct UpdaterTransactionResult: Codable, Equatable, Sendable {

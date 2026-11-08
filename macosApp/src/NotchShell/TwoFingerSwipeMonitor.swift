@@ -29,7 +29,7 @@ final class TwoFingerSwipeMonitor {
         let result = source.start { frame in
             guard let match = recognizer.process(frame) else { return }
             NSLog(
-                "双指下滑识别成功：distance=%.3f horizontal=%.3f duration=%.3f velocity=%.3f",
+                "Option + 双指下滑识别成功：distance=%.3f horizontal=%.3f duration=%.3f velocity=%.3f",
                 match.downwardTravel,
                 match.horizontalDeviation,
                 match.duration,

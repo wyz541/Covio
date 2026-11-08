@@ -9,6 +9,7 @@ final class UpdaterCoordinator: @unchecked Sendable {
         let availableVersion: String?
         let targetReleaseId: String?
         let message: String?
+        let downloadProgress: Double?
     }
 
     private struct VerifiedCandidate {
@@ -59,7 +60,8 @@ final class UpdaterCoordinator: @unchecked Sendable {
                 lastCheckAt: state.lastCheckAt,
                 availableVersion: state.availableVersion,
                 targetReleaseId: state.targetReleaseId,
-                message: state.message
+                message: state.message,
+                downloadProgress: state.downloadProgress
             )
         }
         return PersistedStatus(
@@ -67,7 +69,8 @@ final class UpdaterCoordinator: @unchecked Sendable {
             lastCheckAt: nil,
             availableVersion: nil,
             targetReleaseId: nil,
-            message: nil
+            message: nil,
+            downloadProgress: nil
         )
     }
 
@@ -248,14 +251,39 @@ final class UpdaterCoordinator: @unchecked Sendable {
             guard let archiveURL = URL(string: candidate.manifest.archiveURL) else {
                 throw UpdaterCoordinatorError.invalidHTTPResponse
             }
+            try persist(
+                .downloading,
+                availableVersion: candidate.manifest.clientVersion,
+                target: candidate.manifest.releaseId,
+                downloadProgress: 0
+            )
+            let downloadVersion = candidate.manifest.clientVersion
+            let downloadReleaseId = candidate.manifest.releaseId
             try await downloadArchive(
                 archiveURL,
                 to: archive,
                 expectedSize: candidate.manifest.archiveSize
+            ) { [weak self] fraction in
+                guard let self else { return }
+                try? self.persistDownloadProgress(
+                    fraction,
+                    clientVersion: downloadVersion,
+                    releaseId: downloadReleaseId
+                )
+            }
+            try persistDownloadProgress(
+                1,
+                clientVersion: downloadVersion,
+                releaseId: downloadReleaseId
             )
             guard Self.sha256File(archive) == candidate.manifest.archiveSHA256 else {
                 throw UpdaterCoordinatorError.archiveDigestMismatch
             }
+            try persist(
+                .installing,
+                availableVersion: candidate.manifest.clientVersion,
+                target: candidate.manifest.releaseId
+            )
 
             let extracted = transaction.appendingPathComponent("staging", isDirectory: true)
             try FileManager.default.createDirectory(at: extracted, withIntermediateDirectories: false)
@@ -286,11 +314,6 @@ final class UpdaterCoordinator: @unchecked Sendable {
             try writeInstallPlist(
                 label: transactionLabel(transactionId),
                 transaction: transaction
-            )
-            try persist(
-                .installing,
-                availableVersion: candidate.manifest.clientVersion,
-                target: candidate.manifest.releaseId
             )
             if environment["COVIO_UPDATER_SKIP_LAUNCHD"] != "1" {
                 let label = transactionLabel(transactionId)
@@ -622,9 +645,17 @@ final class UpdaterCoordinator: @unchecked Sendable {
     private func downloadArchive(
         _ url: URL,
         to destination: URL,
-        expectedSize: Int
+        expectedSize: Int,
+        progress: @escaping @Sendable (Double) -> Void
     ) async throws {
-        let (temporary, response) = try await session.download(from: url)
+        let delegate = UpdaterDownloadProgressDelegate(
+            expectedBytes: Int64(expectedSize),
+            progress: progress
+        )
+        let (temporary, response) = try await session.download(
+            for: URLRequest(url: url),
+            delegate: delegate
+        )
         try validateHTTP(response)
         let size = (try? FileManager.default.attributesOfItem(atPath: temporary.path)[.size]
             as? NSNumber)?.intValue ?? 0
@@ -655,14 +686,32 @@ final class UpdaterCoordinator: @unchecked Sendable {
         _ state: UpdaterEngineState,
         availableVersion: String?,
         target: String?,
-        message: String? = nil
+        message: String? = nil,
+        downloadProgress: Double? = nil
     ) throws {
         try writeState(
             state,
             availableVersion: availableVersion,
             target: target,
             message: message,
-            lastCheckAt: ISO8601DateFormatter().string(from: Date())
+            lastCheckAt: ISO8601DateFormatter().string(from: Date()),
+            downloadProgress: downloadProgress
+        )
+    }
+
+    private func persistDownloadProgress(
+        _ progress: Double,
+        clientVersion: String,
+        releaseId: String
+    ) throws {
+        try writeState(
+            .downloading,
+            availableVersion: clientVersion,
+            target: releaseId,
+            message: nil,
+            lastCheckAt: persistedStatus.lastCheckAt
+                ?? ISO8601DateFormatter().string(from: Date()),
+            downloadProgress: progress
         )
     }
 
@@ -671,7 +720,8 @@ final class UpdaterCoordinator: @unchecked Sendable {
         availableVersion: String?,
         target: String?,
         message: String?,
-        lastCheckAt: String
+        lastCheckAt: String,
+        downloadProgress: Double? = nil
     ) throws {
         let record = UpdaterPersistedState(
             schemaVersion: 1,
@@ -679,7 +729,8 @@ final class UpdaterCoordinator: @unchecked Sendable {
             lastCheckAt: lastCheckAt,
             availableVersion: availableVersion,
             targetReleaseId: target,
-            message: message
+            message: message,
+            downloadProgress: downloadProgress
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -725,7 +776,8 @@ final class UpdaterCoordinator: @unchecked Sendable {
             availableVersion: nil,
             target: result.targetReleaseId,
             message: result.rollbackReason ?? result.result,
-            lastCheckAt: result.recordedAt
+            lastCheckAt: result.recordedAt,
+            downloadProgress: nil
         )
         if state == .idle {
             try? clearCandidate()
@@ -937,6 +989,50 @@ final class UpdaterCoordinator: @unchecked Sendable {
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
+}
+
+private final class UpdaterDownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let expectedBytes: Int64
+    private let progress: @Sendable (Double) -> Void
+    private let lock = NSLock()
+    private var lastPercent = -1
+
+    init(
+        expectedBytes: Int64,
+        progress: @escaping @Sendable (Double) -> Void
+    ) {
+        self.expectedBytes = expectedBytes
+        self.progress = progress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        let total = totalBytesExpectedToWrite > 0
+            ? totalBytesExpectedToWrite
+            : expectedBytes
+        guard total > 0 else { return }
+        let fraction = min(max(Double(totalBytesWritten) / Double(total), 0), 1)
+        let percent = Int((fraction * 100).rounded(.down))
+        lock.lock()
+        let changed = percent != lastPercent
+        if changed {
+            lastPercent = percent
+        }
+        lock.unlock()
+        guard changed else { return }
+        progress(fraction)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {}
 }
 
 private final class CallbackBox<Value>: @unchecked Sendable {

@@ -52,7 +52,7 @@ UI 线程随后更新 HostModel。此顺序保证页面状态只在 UI 线程修
 
 ## 平台差异
 
-macOS 的双指下滑入口依赖 macOS 触摸板和系统手势事件。
+macOS 的 `Option` + 双指下滑入口依赖 macOS 触摸板和系统手势事件。
 
 Windows `winit` 和 egui 不提供等价的全局触摸板手势。
 
