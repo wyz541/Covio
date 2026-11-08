@@ -6,14 +6,52 @@ use eframe::egui::{
 };
 use std::sync::Arc;
 
-/// Large card radius from the design contract.
+/// Large card radius from the macOS visual baseline.
 pub(crate) const CARD_RADIUS: u8 = 16;
-/// Hub panel radius from the design contract.
+/// Hub panel radius from the macOS visual baseline.
 pub(crate) const PANEL_RADIUS: u8 = 22;
-/// Shared control radius from the design contract.
-pub(crate) const CONTROL_RADIUS: u8 = 12;
+/// Shared control radius from the macOS visual baseline.
+pub(crate) const CONTROL_RADIUS: u8 = 8;
+/// Workbench panel width from `HubMetrics.panelWidth`.
+pub(crate) const HUB_PANEL_WIDTH: f32 = 960.0;
+/// Workbench panel padding from `HubMetrics.panelPadding`.
+pub(crate) const HUB_PANEL_PADDING: f32 = 24.0;
+/// Workbench content width from `HubMetrics.contentColumnWidth`.
+pub(crate) const HUB_CONTENT_WIDTH: f32 = HUB_PANEL_WIDTH - HUB_PANEL_PADDING * 2.0;
+/// Workbench top bar height from `HubMetrics.tabBarHeight`.
+pub(crate) const HUB_TAB_BAR_HEIGHT: f32 = 46.0;
+/// Workbench search width from `HubMetrics.searchFieldWidth`.
+pub(crate) const HUB_SEARCH_WIDTH: f32 = 190.0;
+/// Workbench navigation control height from `HubMetrics.tabHeight`.
+pub(crate) const HUB_NAV_HEIGHT: f32 = 30.0;
+/// Workbench tab width from `HubMetrics.tabWidth`.
+pub(crate) const HUB_TAB_WIDTH: f32 = 72.0;
+/// Workbench home action width from `HubMetrics.homeEntryWidth`.
+pub(crate) const HUB_HOME_WIDTH: f32 = 52.0;
+/// Workbench page action width from `HubMetrics.actionButtonMinWidth`.
+pub(crate) const HUB_ACTION_WIDTH: f32 = 52.0;
+/// Workbench top bar item gap from `HubMetrics.tabBarItemGap`.
+pub(crate) const HUB_ITEM_GAP: f32 = 8.0;
+/// Workbench tab gap from `HubMetrics.tabGap`.
+pub(crate) const HUB_TAB_GAP: f32 = 4.0;
+/// Bento column count from `HubMetrics.bentoColumns`.
+pub(crate) const BENTO_COLUMNS: usize = 4;
+/// Bento row height from `HubMetrics.bentoRowHeight`.
+pub(crate) const BENTO_ROW_HEIGHT: f32 = 96.0;
+/// Bento grid gap from `HubMetrics.bentoGap`.
+pub(crate) const BENTO_GAP: f32 = 12.0;
+/// Bento card padding from `HubMetrics.bentoCardPadding`.
+pub(crate) const BENTO_CARD_PADDING: f32 = 14.0;
+/// Bento grid maximum rows in the default Workbench layout.
+pub(crate) const BENTO_MAX_ROWS: usize = 4;
+/// Settings content width from the macOS settings search overlay.
+pub(crate) const SETTINGS_CONTENT_WIDTH: f32 = 620.0;
+/// Settings toolbar height aligned with the macOS Settings window.
+pub(crate) const SETTINGS_TOOLBAR_HEIGHT: f32 = 54.0;
+/// Settings grouped-form row height.
+pub(crate) const SETTINGS_ROW_HEIGHT: f32 = 44.0;
 /// Maximum readable content width.
-pub(crate) const PAGE_MAX_WIDTH: f32 = 1120.0;
+pub(crate) const PAGE_MAX_WIDTH: f32 = HUB_CONTENT_WIDTH;
 
 /// Warm dashboard tint.
 pub(crate) const WIDGET_TINT_AMBER: Color32 = rgb(0xfff2bd);
@@ -165,36 +203,56 @@ impl CovioTheme {
         context.style_mut(|style| {
             style.animation_time = 0.16;
             style.spacing.item_spacing = Vec2::new(8.0, 8.0);
-            style.spacing.button_padding = Vec2::new(12.0, 7.0);
-            style.spacing.interact_size = Vec2::new(36.0, 32.0);
+            style.spacing.button_padding = Vec2::new(10.0, 5.0);
+            style.spacing.interact_size = Vec2::new(36.0, 30.0);
             style.spacing.window_margin = Margin::same(16);
             style.spacing.menu_margin = Margin::same(8);
             style.spacing.scroll = egui::style::ScrollStyle::thin();
             style.text_styles = [
                 (
                     TextStyle::Heading,
-                    FontId::new(24.0, FontFamily::Proportional),
+                    FontId::new(20.0, FontFamily::Proportional),
                 ),
-                (TextStyle::Body, FontId::new(14.0, FontFamily::Proportional)),
+                (TextStyle::Body, FontId::new(13.0, FontFamily::Proportional)),
                 (
                     TextStyle::Button,
-                    FontId::new(13.0, FontFamily::Proportional),
+                    FontId::new(12.0, FontFamily::Proportional),
                 ),
                 (
                     TextStyle::Small,
-                    FontId::new(11.5, FontFamily::Proportional),
+                    FontId::new(11.0, FontFamily::Proportional),
                 ),
                 (
                     TextStyle::Monospace,
-                    FontId::new(12.0, FontFamily::Monospace),
+                    FontId::new(11.0, FontFamily::Monospace),
                 ),
             ]
             .into();
         });
     }
 
-    pub(crate) fn widget_fill(self, light_tint: Color32) -> Color32 {
-        if self.dark { self.surface } else { light_tint }
+    pub(crate) fn widget_fill(self, tint: Color32) -> Color32 {
+        let [r, g, b, _] = tint.to_array();
+        Color32::from_rgba_unmultiplied(r, g, b, 26)
+    }
+
+    pub(crate) fn workbench_plate_frame(self) -> Frame {
+        Frame::new()
+            .fill(if self.dark {
+                self.chrome
+            } else {
+                Color32::from_rgba_unmultiplied(255, 255, 255, 235)
+            })
+            .stroke(Stroke::new(1.0_f32, self.separator))
+            .corner_radius(CornerRadius::same(PANEL_RADIUS))
+            .shadow(self.shadow(18, 0, 4))
+    }
+
+    pub(crate) fn settings_group_frame(self) -> Frame {
+        Frame::new()
+            .fill(if self.dark { self.surface } else { self.chrome })
+            .corner_radius(CornerRadius::same(CARD_RADIUS))
+            .inner_margin(Margin::symmetric(16, 2))
     }
 
     pub(crate) fn card_frame(self) -> Frame {
@@ -245,17 +303,6 @@ impl CovioTheme {
             .stroke(Stroke::new(1.0_f32, self.error))
             .corner_radius(CornerRadius::same(CONTROL_RADIUS))
             .min_size(Vec2::new(0.0, 32.0))
-    }
-
-    pub(crate) fn nav_button<'a>(
-        self,
-        text: impl Into<egui::WidgetText>,
-        selected: bool,
-    ) -> Button<'a> {
-        Button::new(text)
-            .selected(selected)
-            .corner_radius(CornerRadius::same(CONTROL_RADIUS))
-            .min_size(Vec2::new(72.0, 30.0))
     }
 
     fn shadow(self, blur: u8, x: i8, y: i8) -> Shadow {
@@ -311,6 +358,6 @@ mod tests {
     fn shared_radii_match_the_contract() {
         assert_eq!(CARD_RADIUS, 16);
         assert_eq!(PANEL_RADIUS, 22);
-        assert_eq!(CONTROL_RADIUS, 12);
+        assert_eq!(CONTROL_RADIUS, 8);
     }
 }
