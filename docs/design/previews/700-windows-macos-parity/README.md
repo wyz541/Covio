@@ -9,7 +9,7 @@
 - 截图参数：`--ui-scale 1.0`。
 - Workbench 逻辑尺寸：`960 × 880`。
 - Settings 逻辑尺寸：`900 × 640`。
-- 实现 commit：`7eb9d00`、`11e5ac0`。
+- 实现 commit：`7eb9d00`、`11e5ac0`、`1ccfa85`。
 - Before 来源：#689 和 #692 的历史视觉证据。
 
 ## macOS 基准
@@ -82,3 +82,9 @@
 - Windows 不绘制 traffic-light controls。
 - egui 不复制 Liquid Glass blur。颜色、圆角、间距和层级已对齐。
 - Windows 不伪造 Battery、Transfer 和 Monitor 数据。
+## 验证结果
+
+- `cargo test -p covio-platform -p covio-windows --all-targets` 通过。
+- `cargo clippy -p covio-platform -p covio-windows --all-targets -- -D warnings` 通过。
+- `scripts/test-windows-rust.sh` 通过。
+- `Ctrl+Alt+T` 在本机被其他应用占用。该冲突不阻止应用启动。
