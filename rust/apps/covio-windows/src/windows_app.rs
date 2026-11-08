@@ -2,8 +2,12 @@
 
 use crate::top_edge::{TopEdgeMonitor, WindowsUiSettings};
 use crate::visuals::{
-    CovioTheme, PAGE_MAX_WIDTH, WIDGET_TINT_AMBER, WIDGET_TINT_APRICOT, WIDGET_TINT_MINT,
-    WIDGET_TINT_ROSE, WIDGET_TINT_SKY, WIDGET_TINT_SLATE,
+    BENTO_CARD_PADDING, BENTO_COLUMNS, BENTO_GAP, BENTO_MAX_ROWS, BENTO_ROW_HEIGHT, CovioTheme,
+    HUB_ACTION_WIDTH, HUB_HOME_WIDTH, HUB_ITEM_GAP, HUB_NAV_HEIGHT, HUB_PANEL_PADDING,
+    HUB_PANEL_WIDTH, HUB_SEARCH_WIDTH, HUB_TAB_BAR_HEIGHT, HUB_TAB_GAP, HUB_TAB_WIDTH,
+    PAGE_MAX_WIDTH, SETTINGS_CONTENT_WIDTH, SETTINGS_ROW_HEIGHT, SETTINGS_TOOLBAR_HEIGHT,
+    WIDGET_TINT_AMBER, WIDGET_TINT_APRICOT, WIDGET_TINT_MINT, WIDGET_TINT_ROSE, WIDGET_TINT_SKY,
+    WIDGET_TINT_SLATE,
 };
 use covio_core::AppConfig;
 use covio_core::clipboard::ClipItem;
@@ -14,7 +18,7 @@ use covio_platform::{
     WindowsPlatformAdapters,
 };
 use covio_windows::{
-    CloseDisposition, CoreRuntime, HostModel, HostStatus, HostView, ThemePreference,
+    CloseDisposition, CoreRuntime, HostModel, HostSnapshot, HostStatus, HostView, ThemePreference,
     WindowsDataPaths, now_epoch_seconds,
 };
 use eframe::egui;
@@ -31,8 +35,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tray_icon::menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
+use windows_sys::Win32::Foundation::SYSTEMTIME;
+use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
 const INSTANCE_NAME: &str = "Local\\com.wyz.covio.windows";
+const ISOLATED_INSTANCE_NAME: &str = "Local\\com.wyz.covio.windows.isolated";
+const SINGLE_INSTANCE_SMOKE_NAME: &str = "Local\\com.wyz.covio.windows.single-instance-smoke";
 const RELEASES_URL: &str = "https://github.com/wyz541/kmp-Covio/releases";
 const HUB_TOGGLE_SHORTCUT: &str = "Ctrl+Alt+T";
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,6 +52,28 @@ enum SettingsSection {
     Updates,
 }
 
+impl SettingsSection {
+    fn summary(self) -> &'static str {
+        match self {
+            Self::Overview => "General behavior and startup",
+            Self::Appearance => "Theme and motion",
+            Self::Triggers => "Workbench entry points",
+            Self::Capabilities => "Windows adapter status",
+            Self::Updates => "Release and update status",
+        }
+    }
+
+    fn search_terms(self) -> &'static str {
+        match self {
+            Self::Overview => "covio enabled launch login clipboard notifications updates status",
+            Self::Appearance => "theme light dark system motion",
+            Self::Triggers => "workbench top edge shortcut tray pointer 180",
+            Self::Capabilities => "credential manager clipboard screenshot sleep adapter",
+            Self::Updates => "release update check version",
+        }
+    }
+}
+
 const SETTINGS_SECTIONS: [(SettingsSection, &str); 5] = [
     (SettingsSection::Overview, "Overview"),
     (SettingsSection::Appearance, "Appearance"),
@@ -52,12 +82,10 @@ const SETTINGS_SECTIONS: [(SettingsSection, &str); 5] = [
     (SettingsSection::Updates, "Updates"),
 ];
 
-const NAV_ITEMS: [(HostView, &str); 5] = [
-    (HostView::Home, "Home"),
+const WORKBENCH_TABS: [(HostView, &str); 3] = [
     (HostView::Shelf, "Shelf"),
     (HostView::Clipboard, "Clipboard"),
     (HostView::Workspace, "Workspace"),
-    (HostView::Settings, "Settings"),
 ];
 const CURRENT_VERSION: &str = match option_env!("COVIO_RELEASE_ID") {
     Some(value) => value,
@@ -71,7 +99,8 @@ pub fn run() -> Result<(), String> {
         .iter()
         .any(|argument| argument == "--single-instance-secondary")
     {
-        let instance = SingleInstance::new(INSTANCE_NAME).map_err(|error| error.to_string())?;
+        let instance =
+            SingleInstance::new(SINGLE_INSTANCE_SMOKE_NAME).map_err(|error| error.to_string())?;
         if instance.is_single() {
             return Err("secondary single-instance probe became the primary instance".to_owned());
         }
@@ -84,7 +113,9 @@ pub fn run() -> Result<(), String> {
         return run_single_instance_smoke();
     }
 
-    let instance = SingleInstance::new(INSTANCE_NAME).map_err(|error| error.to_string())?;
+    let screenshot_path = screenshot_path_from_arguments(&arguments);
+    let instance_name = instance_name_for_arguments(&arguments);
+    let instance = SingleInstance::new(instance_name).map_err(|error| error.to_string())?;
     if !instance.is_single() {
         return Ok(());
     }
@@ -104,16 +135,22 @@ pub fn run() -> Result<(), String> {
     let initial_settings_section = settings_section_from_arguments(&arguments);
     let ui_scale = ui_scale_from_arguments(&arguments);
     let window_position = window_position_from_arguments(&arguments);
-    let screenshot_path = screenshot_path_from_arguments(&arguments);
     let auto_exit_frames = arguments
         .iter()
         .any(|argument| argument == "--window-smoke")
         .then_some(8_u32);
+    let settings_initial = matches!(initial_view, Some(HostView::Settings));
+    let inner_size = window_inner_size(initial_view.unwrap_or(HostView::Home));
+    let min_inner_size = if settings_initial {
+        [720.0, 560.0]
+    } else {
+        [720.0, 640.0]
+    };
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Covio")
-            .with_inner_size([980.0, 720.0])
-            .with_min_inner_size([640.0, 480.0])
+            .with_inner_size(inner_size)
+            .with_min_inner_size(min_inner_size)
             .with_position(window_position.unwrap_or([120.0, 120.0]))
             .with_visible(!start_hidden),
         renderer: eframe::Renderer::Wgpu,
@@ -166,6 +203,10 @@ struct CovioWindowsApp {
     top_edge_monitor: TopEdgeMonitor,
     top_edge_runtime_error: Option<String>,
     pending_background_hide: bool,
+    last_view: HostView,
+    workbench_search: String,
+    settings_search: String,
+    pending_config_save: Option<AppConfig>,
     ui_settings_path: PathBuf,
     ui_settings_error: Option<String>,
     draft_config: Option<AppConfig>,
@@ -227,6 +268,7 @@ impl CovioWindowsApp {
         );
         let top_edge_runtime_error = top_edge_monitor.startup_error().map(str::to_owned);
         let screenshot_directory = adapters.screenshots.directory().ok();
+        let last_view = model.view();
         let mut app = Self {
             core: CoreRuntime::new(core),
             data_paths,
@@ -239,6 +281,10 @@ impl CovioWindowsApp {
             top_edge_monitor,
             top_edge_runtime_error,
             pending_background_hide: options.start_hidden,
+            last_view,
+            workbench_search: String::new(),
+            settings_search: String::new(),
+            pending_config_save: None,
             ui_settings_path,
             ui_settings_error,
             draft_config: None,
@@ -339,13 +385,22 @@ impl CovioWindowsApp {
         self.send_core_command("config.save", json!({"config": config}));
     }
 
+    fn flush_pending_config_save(&mut self) {
+        if self.model.pending_request().is_some() {
+            return;
+        }
+        if let Some(config) = self.pending_config_save.take() {
+            self.save_config(config);
+        }
+    }
+
     fn poll_core(&mut self) {
         while let Some(response) = self.core.try_response() {
             let command = response.command.clone();
             let succeeded = response.ok;
             let result = response.result.clone();
             if self.model.apply_response(response) {
-                if command == "config.save" {
+                if command == "config.save" && self.pending_config_save.is_none() {
                     self.draft_config = None;
                 }
                 if succeeded && command != "host.snapshot" {
@@ -722,9 +777,26 @@ impl CovioWindowsApp {
             self.model.select_view(HostView::Workspace);
         }
         if context.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            self.model.hide();
-            hide_window(context);
+            if self.model.view() == HostView::Settings {
+                self.settings_search.clear();
+                self.model.show_home();
+            } else {
+                self.model.hide();
+                hide_window(context);
+            }
         }
+    }
+
+    fn sync_window_size(&mut self, context: &egui::Context) {
+        let view = self.model.view();
+        if view == self.last_view {
+            return;
+        }
+        let [width, height] = window_inner_size(view);
+        context.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::Vec2::new(
+            width, height,
+        )));
+        self.last_view = view;
     }
 
     fn handle_close(&mut self, context: &egui::Context) {
@@ -760,69 +832,83 @@ impl CovioWindowsApp {
         });
     }
 
-    fn navigation_bar(&mut self, ui: &mut egui::Ui, theme: CovioTheme) {
-        theme.toolbar_frame().show(ui, |ui| {
-            if ui.available_width() < 640.0 {
-                ui.horizontal(|ui| {
-                    self.brand_label(ui, theme);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add(theme.secondary_button("Hide")).clicked() {
-                            self.model.hide();
-                            hide_window(ui.ctx());
-                        }
+    fn workbench_view(&mut self, ui: &mut egui::Ui) {
+        let theme = self.covio_theme();
+        let available = ui.available_size();
+        let panel_width = available.x.min(HUB_PANEL_WIDTH);
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            theme.workbench_plate_frame().show(ui, |ui| {
+                ui.set_min_size(egui::Vec2::new(panel_width, available.y));
+                self.workbench_top_bar(ui, theme, panel_width);
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        ui.add_space(11.0 + HUB_PANEL_PADDING);
+                        with_page_width(ui, |ui| {
+                            self.render_status(ui);
+                            if let Some(message) = &self.local_message {
+                                theme.muted_frame().show(ui, |ui| {
+                                    ui.label(message);
+                                });
+                                ui.add_space(8.0);
+                            }
+                            match self.model.view() {
+                                HostView::Home => self.home_view(ui),
+                                HostView::Shelf => self.shelf_view(ui),
+                                HostView::Clipboard => self.clipboard_view(ui),
+                                HostView::Workspace => self.workspace_view(ui),
+                                HostView::Settings => {}
+                            }
+                        });
+                        ui.add_space(HUB_PANEL_PADDING);
                     });
-                });
-                ui.add_space(4.0);
-                ui.horizontal_wrapped(|ui| {
-                    self.navigation_items(ui, theme);
-                });
-            } else {
-                ui.horizontal(|ui| {
-                    self.brand_label(ui, theme);
-                    ui.add_space(14.0);
-                    self.navigation_items(ui, theme);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.add(theme.secondary_button("Hide")).clicked() {
-                            self.model.hide();
-                            hide_window(ui.ctx());
-                        }
-                    });
-                });
-            }
+            });
         });
     }
 
-    fn brand_label(&self, ui: &mut egui::Ui, theme: CovioTheme) {
-        ui.label(
-            egui::RichText::new("Covio")
-                .size(18.0)
-                .strong()
-                .color(theme.text_primary),
+    fn workbench_top_bar(&mut self, ui: &mut egui::Ui, theme: CovioTheme, panel_width: f32) {
+        ui.allocate_ui_with_layout(
+            egui::Vec2::new(panel_width, HUB_TAB_BAR_HEIGHT),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                ui.add_space(HUB_PANEL_PADDING);
+                workbench_search_field(ui, theme, &mut self.workbench_search);
+                ui.add_space(HUB_ITEM_GAP);
+                if workbench_nav_button(
+                    ui,
+                    theme,
+                    "Home",
+                    self.model.view() == HostView::Home,
+                    HUB_HOME_WIDTH,
+                )
+                .clicked()
+                {
+                    self.model.select_view(HostView::Home);
+                }
+                ui.add_space(HUB_ITEM_GAP);
+                for (view, label) in WORKBENCH_TABS {
+                    if workbench_nav_button(
+                        ui,
+                        theme,
+                        label,
+                        self.model.view() == view,
+                        HUB_TAB_WIDTH,
+                    )
+                    .clicked()
+                    {
+                        self.model.select_view(view);
+                    }
+                    ui.add_space(HUB_TAB_GAP);
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if workbench_action_button(ui, theme, "Settings", HUB_ACTION_WIDTH).clicked() {
+                        self.model.show_settings();
+                    }
+                    ui.add_space(HUB_PANEL_PADDING);
+                });
+            },
         );
     }
-
-    fn navigation_items(&mut self, ui: &mut egui::Ui, theme: CovioTheme) {
-        let mut selected = None;
-        ui.scope(|ui| {
-            let widgets = &mut ui.visuals_mut().widgets;
-            widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
-            widgets.inactive.bg_stroke = egui::Stroke::NONE;
-            widgets.hovered.weak_bg_fill = theme.surface_hover;
-            widgets.hovered.bg_stroke = egui::Stroke::NONE;
-            for (view, label) in NAV_ITEMS {
-                if ui
-                    .add(theme.nav_button(label, self.model.view() == view))
-                    .clicked()
-                {
-                    selected = Some(view);
-                }
-            }
-        });
-        if let Some(view) = selected {
-            self.model.select_view(view);
-        }
-    }
-
     fn home_view(&mut self, ui: &mut egui::Ui) {
         let theme = self.covio_theme();
         let Some(snapshot) = self.model.snapshot().cloned() else {
@@ -830,310 +916,46 @@ impl CovioWindowsApp {
             return;
         };
 
-        let gap = 12.0_f32;
-        ui.spacing_mut().item_spacing = egui::Vec2::new(gap, gap);
+        let cards = home_bento_cards(&snapshot);
+        let query = self.workbench_search.trim().to_lowercase();
+        if query.is_empty() {
+            bento_grid(ui, theme, &cards);
+        } else {
+            let matches: Vec<&BentoCard> = cards
+                .iter()
+                .filter(|card| {
+                    card.title.to_lowercase().contains(&query)
+                        || card.detail.to_lowercase().contains(&query)
+                })
+                .collect();
+            if matches.is_empty() {
+                empty_state(
+                    ui,
+                    theme,
+                    "No results",
+                    "No Workbench card matches the search.",
+                    |_ui| {},
+                );
+            } else {
+                for card in matches {
+                    let width = ui.available_width();
+                    let (rect, _) = ui.allocate_exact_size(
+                        egui::Vec2::new(width, BENTO_ROW_HEIGHT),
+                        egui::Sense::hover(),
+                    );
+                    draw_bento_card(ui, theme, rect, card);
+                    ui.add_space(BENTO_GAP);
+                }
+            }
+        }
+
         if let Some(error) = &self.tray_error {
+            ui.add_space(BENTO_GAP);
             theme.muted_frame().show(ui, |ui| {
                 ui.colored_label(theme.warning, error);
             });
         }
-
-        let columns = dashboard_columns(ui.available_width());
-        let available = ui.available_width();
-        let column_width =
-            ((available - gap * (columns.saturating_sub(1) as f32)) / columns as f32).max(180.0);
-        let wide_width = if columns >= 3 {
-            (column_width * 2.0 + gap).min(available)
-        } else {
-            available
-        };
-        let card_height = 148.0_f32;
-        let shelf_names: Vec<String> = snapshot
-            .shelf
-            .items
-            .iter()
-            .take(2)
-            .map(|item| display_name(&item.path))
-            .collect();
-
-        match columns {
-            3 => {
-                ui.horizontal(|ui| {
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(wide_width, card_height),
-                        WIDGET_TINT_AMBER,
-                        "Now",
-                        &format!(
-                            "{} · {} · {}",
-                            count_label(snapshot.shelf_item_count, "screenshot", "screenshots"),
-                            count_label(
-                                snapshot.clipboard_item_count,
-                                "clipboard item",
-                                "clipboard items"
-                            ),
-                            count_label(
-                                snapshot.workspace_entry_count,
-                                "workspace entry",
-                                "workspace entries"
-                            )
-                        ),
-                        |_ui| {},
-                    );
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(column_width, card_height),
-                        WIDGET_TINT_MINT,
-                        "Battery",
-                        "Not available on Windows",
-                        |ui| {
-                            ui.small("Windows power data is outside the current adapter scope.");
-                        },
-                    );
-                });
-                ui.horizontal(|ui| {
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(column_width, card_height),
-                        WIDGET_TINT_SKY,
-                        "Transfer",
-                        &count_label(
-                            snapshot.workspace_entry_count,
-                            "local workspace item",
-                            "local workspace items",
-                        ),
-                        |_ui| {},
-                    );
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(column_width, card_height),
-                        WIDGET_TINT_SLATE,
-                        "Monitor",
-                        "Not available on Windows",
-                        |ui| {
-                            ui.small("The macOS monitor dashboard has no Windows adapter yet.");
-                        },
-                    );
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(column_width, card_height),
-                        WIDGET_TINT_ROSE,
-                        "Recent screenshots",
-                        &format!("{} in the shelf", snapshot.shelf_item_count),
-                        |ui| {
-                            if shelf_names.is_empty() {
-                                ui.small("No screenshots yet.");
-                            } else {
-                                for name in &shelf_names {
-                                    ui.small(name);
-                                }
-                            }
-                        },
-                    );
-                });
-                ui.horizontal(|ui| {
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(available, card_height),
-                        WIDGET_TINT_APRICOT,
-                        "Quick actions",
-                        "Refresh state or open Settings.",
-                        |ui| {
-                            if ui.add(theme.primary_button("Refresh")).clicked() {
-                                self.refresh_snapshot();
-                            }
-                            if ui.add(theme.secondary_button("Settings")).clicked() {
-                                self.model.show_settings();
-                            }
-                        },
-                    );
-                });
-            }
-            2 => {
-                ui.horizontal(|ui| {
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(available, card_height),
-                        WIDGET_TINT_AMBER,
-                        "Now",
-                        &format!(
-                            "{} · {} · {}",
-                            count_label(snapshot.shelf_item_count, "screenshot", "screenshots"),
-                            count_label(
-                                snapshot.clipboard_item_count,
-                                "clipboard item",
-                                "clipboard items"
-                            ),
-                            count_label(
-                                snapshot.workspace_entry_count,
-                                "workspace entry",
-                                "workspace entries"
-                            )
-                        ),
-                        |_ui| {},
-                    );
-                });
-                ui.horizontal(|ui| {
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(column_width, card_height),
-                        WIDGET_TINT_MINT,
-                        "Battery",
-                        "Not available on Windows",
-                        |ui| {
-                            ui.small("Windows power data is outside the current adapter scope.");
-                        },
-                    );
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(column_width, card_height),
-                        WIDGET_TINT_SKY,
-                        "Transfer",
-                        &count_label(
-                            snapshot.workspace_entry_count,
-                            "local workspace item",
-                            "local workspace items",
-                        ),
-                        |_ui| {},
-                    );
-                });
-                ui.horizontal(|ui| {
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(column_width, card_height),
-                        WIDGET_TINT_SLATE,
-                        "Monitor",
-                        "Not available on Windows",
-                        |ui| {
-                            ui.small("The macOS monitor dashboard has no Windows adapter yet.");
-                        },
-                    );
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(column_width, card_height),
-                        WIDGET_TINT_ROSE,
-                        "Recent screenshots",
-                        &format!("{} in the shelf", snapshot.shelf_item_count),
-                        |ui| {
-                            if shelf_names.is_empty() {
-                                ui.small("No screenshots yet.");
-                            } else {
-                                for name in &shelf_names {
-                                    ui.small(name);
-                                }
-                            }
-                        },
-                    );
-                });
-                ui.horizontal(|ui| {
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(available, card_height),
-                        WIDGET_TINT_APRICOT,
-                        "Quick actions",
-                        "Refresh state or open Settings.",
-                        |ui| {
-                            if ui.add(theme.primary_button("Refresh")).clicked() {
-                                self.refresh_snapshot();
-                            }
-                            if ui.add(theme.secondary_button("Settings")).clicked() {
-                                self.model.show_settings();
-                            }
-                        },
-                    );
-                });
-            }
-            _ => {
-                for (title, tint, detail) in [
-                    (
-                        "Now",
-                        WIDGET_TINT_AMBER,
-                        format!(
-                            "{} · {} · {}",
-                            count_label(snapshot.shelf_item_count, "screenshot", "screenshots"),
-                            count_label(
-                                snapshot.clipboard_item_count,
-                                "clipboard item",
-                                "clipboard items"
-                            ),
-                            count_label(
-                                snapshot.workspace_entry_count,
-                                "workspace entry",
-                                "workspace entries"
-                            )
-                        ),
-                    ),
-                    (
-                        "Battery",
-                        WIDGET_TINT_MINT,
-                        "Not available on Windows".to_owned(),
-                    ),
-                    (
-                        "Transfer",
-                        WIDGET_TINT_SKY,
-                        count_label(
-                            snapshot.workspace_entry_count,
-                            "local workspace item",
-                            "local workspace items",
-                        ),
-                    ),
-                    (
-                        "Monitor",
-                        WIDGET_TINT_SLATE,
-                        "Not available on Windows".to_owned(),
-                    ),
-                    (
-                        "Recent screenshots",
-                        WIDGET_TINT_ROSE,
-                        format!("{} in the shelf", snapshot.shelf_item_count),
-                    ),
-                ] {
-                    ui.horizontal(|ui| {
-                        dashboard_card(
-                            ui,
-                            theme,
-                            egui::Vec2::new(available, card_height),
-                            tint,
-                            title,
-                            &detail,
-                            |_ui| {},
-                        );
-                    });
-                }
-                ui.horizontal(|ui| {
-                    dashboard_card(
-                        ui,
-                        theme,
-                        egui::Vec2::new(available, card_height),
-                        WIDGET_TINT_APRICOT,
-                        "Quick actions",
-                        "Refresh state or open Settings.",
-                        |ui| {
-                            if ui.add(theme.primary_button("Refresh")).clicked() {
-                                self.refresh_snapshot();
-                            }
-                            if ui.add(theme.secondary_button("Settings")).clicked() {
-                                self.model.show_settings();
-                            }
-                        },
-                    );
-                });
-            }
-        }
     }
-
     fn shelf_view(&mut self, ui: &mut egui::Ui) {
         let theme = self.covio_theme();
         ui.heading("Screenshot shelf");
@@ -1398,270 +1220,376 @@ impl CovioWindowsApp {
             .draft_config
             .take()
             .unwrap_or_else(|| AppConfig::from_json_value(&snapshot.config));
+        let mut config_changed = false;
 
-        ui.horizontal(|ui| {
-            ui.heading("Settings");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add(theme.secondary_button("Done")).clicked() {
+        ui.allocate_ui_with_layout(
+            egui::Vec2::new(ui.available_width(), SETTINGS_TOOLBAR_HEIGHT),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                ui.add_space(16.0);
+                if settings_back_button(ui, theme).clicked() {
+                    self.settings_search.clear();
                     self.model.show_home();
                 }
-            });
-        });
-        ui.label("These settings are stored by the Rust core.");
-        ui.add_space(12.0);
-
-        egui::Frame::new()
-            .fill(theme.surface_muted)
-            .stroke(egui::Stroke::new(1.0_f32, theme.separator))
-            .corner_radius(egui::CornerRadius::same(12))
-            .inner_margin(egui::Margin::same(4))
-            .show(ui, |ui| {
-                ui.horizontal_wrapped(|ui| {
-                    let widgets = &mut ui.visuals_mut().widgets;
-                    widgets.inactive.weak_bg_fill = egui::Color32::TRANSPARENT;
-                    widgets.inactive.bg_stroke = egui::Stroke::NONE;
-                    widgets.hovered.weak_bg_fill = theme.surface_hover;
-                    widgets.hovered.bg_stroke = egui::Stroke::NONE;
-                    for (section, label) in SETTINGS_SECTIONS {
-                        if ui
-                            .add(theme.nav_button(label, self.settings_section == section))
-                            .clicked()
-                        {
-                            self.settings_section = section;
-                        }
-                    }
-                });
-            });
-        ui.add_space(14.0);
-
-        content_card(ui, theme, |ui| match self.settings_section {
-            SettingsSection::Overview => {
-                ui.label(
-                    egui::RichText::new("General behavior")
-                        .size(16.0)
-                        .strong()
-                        .color(theme.text_primary),
-                );
-                ui.label(
-                    egui::RichText::new("Choose what Covio does on this Windows account.")
-                        .color(theme.text_secondary),
-                );
-                ui.add_space(10.0);
-                ui.checkbox(&mut draft.launch_at_login, "Launch at login preference");
-                ui.checkbox(&mut draft.clipboard_enabled, "Capture clipboard history");
-                ui.checkbox(&mut draft.notifications_enabled, "Show notifications");
-                ui.checkbox(&mut draft.update_check_enabled, "Check for updates");
-            }
-            SettingsSection::Appearance => {
-                ui.label(
-                    egui::RichText::new("Appearance")
-                        .size(16.0)
-                        .strong()
-                        .color(theme.text_primary),
-                );
-                ui.label(
-                    egui::RichText::new("Match Windows or choose a fixed theme.")
-                        .color(theme.text_secondary),
-                );
-                ui.add_space(10.0);
-                ui.horizontal_wrapped(|ui| {
-                    for (preference, label) in [
-                        (ThemePreference::System, "System"),
-                        (ThemePreference::Light, "Light"),
-                        (ThemePreference::Dark, "Dark"),
-                    ] {
-                        if ui
-                            .add(theme.nav_button(label, self.model.theme() == preference))
-                            .clicked()
-                        {
-                            self.model.set_theme(preference);
-                        }
-                    }
-                });
-                let mut reduced_motion = self.model.reduced_motion();
-                if ui.checkbox(&mut reduced_motion, "Reduce motion").changed() {
-                    self.model.set_reduced_motion(reduced_motion);
-                }
-            }
-            SettingsSection::Triggers => {
-                ui.label(
-                    egui::RichText::new("Hub triggers")
-                        .size(16.0)
-                        .strong()
-                        .color(theme.text_primary),
-                );
-                ui.label(
-                    egui::RichText::new("Use the same entry points as the macOS product where Windows supports them.")
-                        .color(theme.text_secondary),
-                );
-                ui.add_space(10.0);
-                let mut top_edge_enabled = self.top_edge_monitor.is_enabled();
-                if ui
-                    .checkbox(&mut top_edge_enabled, "Show Workbench at the top edge")
-                    .changed()
-                {
-                    self.set_top_edge_enabled(top_edge_enabled);
-                }
-                ui.small("Hold the pointer at the top of any display for 180 ms.");
-                if let Some(error) = &self.ui_settings_error {
-                    ui.colored_label(
-                        theme.warning,
-                        format!("Cannot save the Windows UI setting: {error}"),
-                    );
-                }
-                if let Some(error) = &self.top_edge_runtime_error {
-                    ui.colored_label(
-                        theme.warning,
-                        format!("Top-edge trigger is unavailable: {error}"),
-                    );
-                }
-                ui.add_space(12.0);
-                ui.horizontal(|ui| {
-                    ui.label("Global shortcut");
-                    status_badge(
+                ui.add_space(8.0);
+                for (section, label) in SETTINGS_SECTIONS {
+                    if settings_tab_button(
                         ui,
                         theme,
-                        HUB_TOGGLE_SHORTCUT,
-                        if self.global_hotkey_error.is_some() {
-                            theme.warning
-                        } else {
-                            theme.success
-                        },
-                    );
+                        section,
+                        label,
+                        self.settings_section == section,
+                    )
+                    .clicked()
+                    {
+                        self.settings_section = section;
+                        self.settings_search.clear();
+                    }
+                    ui.add_space(4.0);
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_space(16.0);
+                    settings_search_field(ui, theme, &mut self.settings_search);
                 });
-                if let Some(error) = &self.global_hotkey_error {
-                    ui.colored_label(theme.warning, error);
-                } else {
-                    ui.small("Shortcut is registered.");
-                }
-                ui.add_space(8.0);
-                ui.small("Tray left click toggles the window. Right click opens commands.");
-                ui.small("The macOS two-finger gesture is unavailable to egui on Windows.");
-            }
-            SettingsSection::Capabilities => {
-                ui.label(
-                    egui::RichText::new("Windows capabilities")
-                        .size(16.0)
-                        .strong()
-                        .color(theme.text_primary),
-                );
-                ui.label(
-                    egui::RichText::new("Only supported adapters expose actions.")
-                        .color(theme.text_secondary),
-                );
-                ui.add_space(10.0);
-                capability_row(
-                    ui,
-                    theme,
-                    "Credential Manager",
-                    self.adapters
-                        .capabilities
-                        .status(covio_platform::CapabilityKind::SecureStorage)
-                        .available,
-                );
-                capability_row(
-                    ui,
-                    theme,
-                    "Clipboard",
-                    self.adapters
-                        .capabilities
-                        .status(covio_platform::CapabilityKind::Clipboard)
-                        .available,
-                );
-                capability_row(
-                    ui,
-                    theme,
-                    "Screenshot directory",
-                    self.screenshot_directory.is_some(),
-                );
-                capability_row(
-                    ui,
-                    theme,
-                    "Sleep and lid control",
-                    self.adapters
-                        .capabilities
-                        .status(covio_platform::CapabilityKind::Power)
-                        .available,
-                );
-            }
-            SettingsSection::Updates => {
-                ui.label(
-                    egui::RichText::new("Updates")
-                        .size(16.0)
-                        .strong()
-                        .color(theme.text_primary),
-                );
-                ui.label(
-                    egui::RichText::new("Installed identity and check status.")
-                        .color(theme.text_secondary),
-                );
-                ui.add_space(10.0);
-                egui::Grid::new("windows-update-grid")
-                    .num_columns(2)
-                    .spacing([24.0, 8.0])
-                    .show(ui, |ui| {
-                        ui.label("Installed release");
-                        ui.monospace(CURRENT_VERSION);
-                        ui.end_row();
-                        ui.label("Check status");
-                        ui.label(if covio_core::should_check(&draft, now_epoch_seconds()) {
-                            "Due"
-                        } else if draft.update_check_enabled {
-                            "Not due"
+            },
+        );
+        ui.separator();
+
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.add_space(32.0);
+                with_settings_content_width(ui, |ui| {
+                    if !self.settings_search.trim().is_empty() {
+                        settings_group_title(ui, theme, "Search Results");
+                        let query = self.settings_search.trim().to_lowercase();
+                        let matches: Vec<(SettingsSection, &str)> = SETTINGS_SECTIONS
+                            .iter()
+                            .copied()
+                            .filter(|(section, label)| {
+                                settings_section_matches(*section, label, &query)
+                            })
+                            .collect();
+                        if matches.is_empty() {
+                            settings_group(ui, theme, |ui| {
+                                settings_label_row(ui, theme, "No settings match this search.");
+                            });
                         } else {
-                            "Disabled"
+                            settings_group(ui, theme, |ui| {
+                                for (index, (section, label)) in matches.iter().enumerate() {
+                                    if index > 0 {
+                                        settings_divider(ui, theme);
+                                    }
+                                    if settings_search_result_row(ui, theme, *section, label).clicked()
+                                    {
+                                        self.settings_section = *section;
+                                        self.settings_search.clear();
+                                    }
+                                }
+                            });
+                        }
+                    } else {
+                        match self.settings_section {
+                            SettingsSection::Overview => {
+                                settings_group_title(ui, theme, "Behavior");
+                                settings_group(ui, theme, |ui| {
+                                    config_changed |= settings_toggle_row(
+                                        ui,
+                                        theme,
+                                        "Covio enabled",
+                                        "covio-enabled",
+                                        &mut draft.enabled,
+                                    );
+                                    settings_divider(ui, theme);
+                                    config_changed |= settings_toggle_row(
+                                        ui,
+                                        theme,
+                                        "Launch at login",
+                                        "launch-at-login",
+                                        &mut draft.launch_at_login,
+                                    );
+                                    settings_divider(ui, theme);
+                                    config_changed |= settings_toggle_row(
+                                        ui,
+                                        theme,
+                                        "Capture clipboard history",
+                                        "capture-clipboard",
+                                        &mut draft.clipboard_enabled,
+                                    );
+                                    settings_divider(ui, theme);
+                                    config_changed |= settings_toggle_row(
+                                        ui,
+                                        theme,
+                                        "Show notifications",
+                                        "show-notifications",
+                                        &mut draft.notifications_enabled,
+                                    );
+                                    settings_divider(ui, theme);
+                                    config_changed |= settings_toggle_row(
+                                        ui,
+                                        theme,
+                                        "Check for updates",
+                                        "check-for-updates",
+                                        &mut draft.update_check_enabled,
+                                    );
+                                });
+
+                                settings_group_title(ui, theme, "Status");
+                                settings_group(ui, theme, |ui| {
+                                    settings_value_row(
+                                        ui,
+                                        theme,
+                                        "Core",
+                                        status_text(self.model.status()),
+                                    );
+                                    settings_divider(ui, theme);
+                                    settings_value_row(
+                                        ui,
+                                        theme,
+                                        "Screenshots",
+                                        &count_label(
+                                            snapshot.shelf_item_count,
+                                            "item",
+                                            "items",
+                                        ),
+                                    );
+                                    settings_divider(ui, theme);
+                                    settings_value_row(
+                                        ui,
+                                        theme,
+                                        "Clipboard",
+                                        &count_label(
+                                            snapshot.clipboard_item_count,
+                                            "item",
+                                            "items",
+                                        ),
+                                    );
+                                    settings_divider(ui, theme);
+                                    settings_value_row(
+                                        ui,
+                                        theme,
+                                        "Workspace",
+                                        &count_label(
+                                            snapshot.workspace_entry_count,
+                                            "entry",
+                                            "entries",
+                                        ),
+                                    );
+                                });
+                            }
+                            SettingsSection::Appearance => {
+                                settings_group_title(ui, theme, "Appearance");
+                                settings_group(ui, theme, |ui| {
+                                    if let Some(theme_preference) =
+                                        settings_theme_row(ui, theme, self.model.theme())
+                                    {
+                                        self.model.set_theme(theme_preference);
+                                    }
+                                    settings_divider(ui, theme);
+                                    let mut reduced_motion = self.model.reduced_motion();
+                                    if settings_toggle_row(
+                                        ui,
+                                        theme,
+                                        "Reduce motion",
+                                        "reduce-motion",
+                                        &mut reduced_motion,
+                                    ) {
+                                        self.model.set_reduced_motion(reduced_motion);
+                                    }
+                                });
+                            }
+                            SettingsSection::Triggers => {
+                                settings_group_title(ui, theme, "Workbench");
+                                settings_group(ui, theme, |ui| {
+                                    let mut top_edge_enabled = self.top_edge_monitor.is_enabled();
+                                    if settings_toggle_row(
+                                        ui,
+                                        theme,
+                                        "Show Workbench at the top edge",
+                                        "top-edge-trigger",
+                                        &mut top_edge_enabled,
+                                    ) {
+                                        self.set_top_edge_enabled(top_edge_enabled);
+                                    }
+                                    settings_divider(ui, theme);
+                                    settings_description_row(
+                                        ui,
+                                        theme,
+                                        "Hold the pointer at the top of any display for 180 ms.",
+                                    );
+                                    if let Some(error) = &self.ui_settings_error {
+                                        settings_warning_row(
+                                            ui,
+                                            theme,
+                                            &format!(
+                                                "Cannot save the Windows UI setting: {error}"
+                                            ),
+                                        );
+                                    }
+                                    if let Some(error) = &self.top_edge_runtime_error {
+                                        settings_warning_row(
+                                            ui,
+                                            theme,
+                                            &format!("Top-edge trigger is unavailable: {error}"),
+                                        );
+                                    }
+                                });
+
+                                settings_group_title(ui, theme, "Shortcut");
+                                settings_group(ui, theme, |ui| {
+                                    settings_status_row(
+                                        ui,
+                                        theme,
+                                        "Global shortcut",
+                                        HUB_TOGGLE_SHORTCUT,
+                                        if self.global_hotkey_error.is_some() {
+                                            theme.warning
+                                        } else {
+                                            theme.success
+                                        },
+                                    );
+                                    if let Some(error) = &self.global_hotkey_error {
+                                        settings_warning_row(ui, theme, error);
+                                    }
+                                });
+
+                                settings_group_title(ui, theme, "Tray");
+                                settings_group(ui, theme, |ui| {
+                                    settings_description_row(
+                                        ui,
+                                        theme,
+                                        "Left click toggles the window. Right click opens commands.",
+                                    );
+                                    settings_divider(ui, theme);
+                                    settings_description_row(
+                                        ui,
+                                        theme,
+                                        "The macOS two-finger gesture is unavailable to egui.",
+                                    );
+                                });
+                            }
+                            SettingsSection::Capabilities => {
+                                settings_group_title(ui, theme, "Windows capabilities");
+                                settings_group(ui, theme, |ui| {
+                                    settings_capability_row(
+                                        ui,
+                                        theme,
+                                        "Credential Manager",
+                                        self.adapters
+                                            .capabilities
+                                            .status(
+                                                covio_platform::CapabilityKind::SecureStorage,
+                                            )
+                                            .available,
+                                    );
+                                    settings_divider(ui, theme);
+                                    settings_capability_row(
+                                        ui,
+                                        theme,
+                                        "Clipboard",
+                                        self.adapters
+                                            .capabilities
+                                            .status(covio_platform::CapabilityKind::Clipboard)
+                                            .available,
+                                    );
+                                    settings_divider(ui, theme);
+                                    settings_capability_row(
+                                        ui,
+                                        theme,
+                                        "Screenshot directory",
+                                        self.screenshot_directory.is_some(),
+                                    );
+                                    settings_divider(ui, theme);
+                                    settings_capability_row(
+                                        ui,
+                                        theme,
+                                        "Sleep and lid control",
+                                        self.adapters
+                                            .capabilities
+                                            .status(covio_platform::CapabilityKind::Power)
+                                            .available,
+                                    );
+                                });
+                            }
+                            SettingsSection::Updates => {
+                                settings_group_title(ui, theme, "Updates");
+                                settings_group(ui, theme, |ui| {
+                                    config_changed |= settings_toggle_row(
+                                        ui,
+                                        theme,
+                                        "Automatically check for updates",
+                                        "automatic-update-check",
+                                        &mut draft.update_check_enabled,
+                                    );
+                                    settings_divider(ui, theme);
+                                    settings_value_row(ui, theme, "Installed release", CURRENT_VERSION);
+                                    settings_divider(ui, theme);
+                                    settings_value_row(
+                                        ui,
+                                        theme,
+                                        "Check status",
+                                        if covio_core::should_check(&draft, now_epoch_seconds()) {
+                                            "Due"
+                                        } else if draft.update_check_enabled {
+                                            "Not due"
+                                        } else {
+                                            "Disabled"
+                                        },
+                                    );
+                                });
+                                settings_group_title(ui, theme, "Release");
+                                settings_group(ui, theme, |ui| {
+                                    settings_action_row(ui, |ui| {
+                                        if ui.add(theme.secondary_button("Open releases")).clicked()
+                                        {
+                                            self.open_releases();
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                    }
+
+                    if self.tray.is_none() {
+                        ui.add_space(20.0);
+                        settings_group(ui, theme, |ui| {
+                            settings_warning_row(
+                                ui,
+                                theme,
+                                self.tray_error
+                                    .as_deref()
+                                    .unwrap_or("Windows tray is unavailable."),
+                            );
                         });
-                        ui.end_row();
-                    });
-                ui.add_space(8.0);
-                if ui.add(theme.secondary_button("Open releases")).clicked() {
-                    self.open_releases();
-                }
-            }
-        });
+                    }
+                });
+                ui.add_space(40.0);
+            });
 
-        ui.add_space(16.0);
-        ui.horizontal(|ui| {
-            let save = ui.add(theme.primary_button("Save changes")).clicked();
-            if save {
-                self.save_config(draft.clone());
-            }
-            if ui.add(theme.secondary_button("Done")).clicked() {
-                self.model.show_home();
-            }
-        });
-        self.draft_config = Some(draft);
-
-        if self.tray.is_none() {
-            ui.add_space(10.0);
-            ui.colored_label(
-                theme.warning,
-                self.tray_error
-                    .as_deref()
-                    .unwrap_or("Windows tray is unavailable."),
-            );
+        if config_changed {
+            self.draft_config = Some(draft.clone());
+            self.pending_config_save = Some(draft);
+        } else {
+            self.draft_config = Some(draft);
         }
     }
-
     fn render_status(&self, ui: &mut egui::Ui) {
         let theme = self.covio_theme();
         match self.model.status() {
-            HostStatus::Idle => {}
+            HostStatus::Idle | HostStatus::Ready => {}
             HostStatus::Loading => {
                 ui.horizontal(|ui| {
                     ui.spinner();
                     ui.label("Loading core state...");
                 });
-            }
-            HostStatus::Ready => {
-                ui.label("Core state is current.");
+                ui.add_space(8.0);
             }
             HostStatus::Error(message) => {
-                ui.colored_label(theme.error, message);
+                theme.muted_frame().show(ui, |ui| {
+                    ui.colored_label(theme.error, message);
+                });
+                ui.add_space(8.0);
             }
-        }
-        if let Some(message) = &self.local_message {
-            ui.label(message);
         }
     }
 }
@@ -1696,10 +1624,12 @@ impl eframe::App for CovioWindowsApp {
         self.poll_top_edge_trigger(context);
         self.poll_global_hotkey(context);
         self.poll_core();
+        self.flush_pending_config_save();
         self.poll_clipboard_capture();
         self.poll_screenshot_shelf();
         self.handle_keyboard(context);
         self.handle_close(context);
+        self.sync_window_size(context);
         self.top_edge_monitor
             .set_window_visible(self.model.is_visible());
         self.apply_visuals(context);
@@ -1710,29 +1640,13 @@ impl eframe::App for CovioWindowsApp {
 
         let theme = self.covio_theme();
         egui::CentralPanel::default()
-            .frame(
-                egui::Frame::new()
-                    .fill(theme.canvas)
-                    .inner_margin(egui::Margin::symmetric(16, 14)),
-            )
+            .frame(egui::Frame::new().fill(theme.canvas))
             .show(context, |ui| {
-                self.navigation_bar(ui, theme);
-                ui.add_space(16.0);
-                egui::ScrollArea::vertical()
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| {
-                        with_page_width(ui, |ui| {
-                            self.render_status(ui);
-                            ui.add_space(8.0);
-                            match self.model.view() {
-                                HostView::Home => self.home_view(ui),
-                                HostView::Shelf => self.shelf_view(ui),
-                                HostView::Clipboard => self.clipboard_view(ui),
-                                HostView::Workspace => self.workspace_view(ui),
-                                HostView::Settings => self.settings_view(ui),
-                            }
-                        });
-                    });
+                if self.model.view() == HostView::Settings {
+                    self.settings_view(ui);
+                } else {
+                    self.workbench_view(ui);
+                }
             });
 
         if self.screenshot_path.is_some()
@@ -1812,36 +1726,393 @@ fn load_windows_ui_settings(
 fn status_badge(ui: &mut egui::Ui, theme: CovioTheme, label: &str, color: egui::Color32) {
     egui::Frame::new()
         .fill(theme.surface_muted)
-        .stroke(egui::Stroke::new(1.0_f32, color))
-        .corner_radius(egui::CornerRadius::same(20))
-        .inner_margin(egui::Margin::symmetric(9, 3))
+        .corner_radius(egui::CornerRadius::same(8))
+        .inner_margin(egui::Margin::symmetric(8, 3))
         .show(ui, |ui| {
-            ui.label(egui::RichText::new(label).size(11.0).color(color));
+            ui.label(egui::RichText::new(label).size(10.5).color(color));
         });
 }
 
-fn capability_row(ui: &mut egui::Ui, theme: CovioTheme, label: &str, available: bool) {
+fn settings_back_button(ui: &mut egui::Ui, theme: CovioTheme) -> egui::Response {
+    ui.add_sized(
+        egui::Vec2::new(28.0, 28.0),
+        egui::Button::new(
+            egui::RichText::new("‹")
+                .size(20.0)
+                .color(theme.text_secondary),
+        )
+        .fill(egui::Color32::TRANSPARENT)
+        .stroke(egui::Stroke::NONE)
+        .corner_radius(egui::CornerRadius::same(14)),
+    )
+}
+
+fn settings_tab_button(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    section: SettingsSection,
+    label: &str,
+    selected: bool,
+) -> egui::Response {
+    let (rect, response) =
+        ui.allocate_exact_size(egui::Vec2::new(68.0, 44.0), egui::Sense::click());
+    let accent_alpha = if selected {
+        36
+    } else if response.hovered() {
+        18
+    } else {
+        0
+    };
+    if accent_alpha > 0 {
+        let [r, g, b, _] = theme.accent.to_array();
+        ui.painter().rect_filled(
+            rect,
+            egui::CornerRadius::same(12),
+            egui::Color32::from_rgba_unmultiplied(r, g, b, accent_alpha),
+        );
+    }
+    let color = if selected {
+        theme.accent
+    } else {
+        theme.text_secondary
+    };
+    paint_settings_icon(
+        ui,
+        egui::Pos2::new(rect.center().x, rect.top() + 14.0),
+        section,
+        color,
+    );
+    ui.painter().text(
+        egui::Pos2::new(rect.center().x, rect.bottom() - 5.0),
+        egui::Align2::CENTER_BOTTOM,
+        label,
+        egui::FontId::proportional(10.0),
+        color,
+    );
+    response
+}
+
+fn settings_search_field(ui: &mut egui::Ui, theme: CovioTheme, search: &mut String) {
+    egui::Frame::new()
+        .fill(theme.surface_muted)
+        .stroke(egui::Stroke::new(1.0_f32, theme.separator))
+        .corner_radius(egui::CornerRadius::same(7))
+        .inner_margin(egui::Margin::symmetric(8, 3))
+        .show(ui, |ui| {
+            ui.set_min_size(egui::Vec2::new(204.0, 20.0));
+            ui.horizontal(|ui| {
+                paint_search_icon(ui, theme.text_secondary);
+                ui.add(
+                    egui::TextEdit::singleline(search)
+                        .frame(false)
+                        .desired_width(174.0)
+                        .hint_text(
+                            egui::RichText::new("Search settings")
+                                .size(11.0)
+                                .color(theme.text_secondary),
+                        ),
+                );
+            });
+        });
+}
+
+fn with_settings_content_width<R>(
+    ui: &mut egui::Ui,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> R {
+    let available = ui.available_width();
+    let width = available.min(SETTINGS_CONTENT_WIDTH);
+    let padding = ((available - width) / 2.0).max(0.0);
     ui.horizontal(|ui| {
-        ui.label(label);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            status_badge(
-                ui,
-                theme,
-                if available {
-                    "Available"
-                } else {
-                    "Unavailable"
-                },
-                if available {
-                    theme.success
-                } else {
-                    theme.text_disabled
-                },
-            );
-        });
-    });
+        ui.add_space(padding);
+        ui.allocate_ui_with_layout(
+            egui::Vec2::new(width, ui.available_height()),
+            egui::Layout::top_down(egui::Align::Min),
+            add_contents,
+        )
+        .inner
+    })
+    .inner
 }
 
+fn settings_group_title(ui: &mut egui::Ui, theme: CovioTheme, title: &str) {
+    ui.add_space(12.0);
+    ui.label(
+        egui::RichText::new(title)
+            .size(11.0)
+            .strong()
+            .color(theme.text_secondary),
+    );
+    ui.add_space(7.0);
+}
+
+fn settings_group<R>(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> R {
+    theme.settings_group_frame().show(ui, add_contents).inner
+}
+
+fn settings_divider(ui: &mut egui::Ui, theme: CovioTheme) {
+    let width = ui.available_width();
+    let (rect, _) = ui.allocate_exact_size(egui::Vec2::new(width, 1.0), egui::Sense::hover());
+    ui.painter().rect_filled(rect, 0, theme.separator);
+}
+
+fn settings_label_row(ui: &mut egui::Ui, theme: CovioTheme, label: &str) {
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), SETTINGS_ROW_HEIGHT),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.label(
+                egui::RichText::new(label)
+                    .size(13.0)
+                    .color(theme.text_primary),
+            );
+        },
+    );
+}
+
+fn settings_toggle_row(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    label: &str,
+    id_source: &str,
+    value: &mut bool,
+) -> bool {
+    let mut changed = false;
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), SETTINGS_ROW_HEIGHT),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.label(
+                egui::RichText::new(label)
+                    .size(13.0)
+                    .color(theme.text_primary),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if settings_switch(ui, theme, id_source, value).clicked() {
+                    *value = !*value;
+                    changed = true;
+                }
+            });
+        },
+    );
+    changed
+}
+
+fn settings_switch(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    id_source: &str,
+    value: &bool,
+) -> egui::Response {
+    let (rect, _) = ui.allocate_exact_size(egui::Vec2::new(38.0, 22.0), egui::Sense::hover());
+    let response = ui
+        .interact(rect, ui.id().with(id_source), egui::Sense::click())
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
+    let fill = if *value {
+        theme.accent
+    } else {
+        theme.surface_pressed
+    };
+    ui.painter()
+        .rect_filled(rect, egui::CornerRadius::same(11), fill);
+    let knob_x = if *value {
+        rect.right() - 11.0
+    } else {
+        rect.left() + 11.0
+    };
+    ui.painter().circle_filled(
+        egui::Pos2::new(knob_x, rect.center().y),
+        8.0,
+        egui::Color32::WHITE,
+    );
+    response
+}
+
+fn settings_value_row(ui: &mut egui::Ui, theme: CovioTheme, label: &str, value: &str) {
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), SETTINGS_ROW_HEIGHT),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.label(
+                egui::RichText::new(label)
+                    .size(13.0)
+                    .color(theme.text_primary),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.label(
+                    egui::RichText::new(value)
+                        .size(12.0)
+                        .color(theme.text_secondary),
+                );
+            });
+        },
+    );
+}
+
+fn settings_status_row(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    label: &str,
+    value: &str,
+    color: egui::Color32,
+) {
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), SETTINGS_ROW_HEIGHT),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.label(
+                egui::RichText::new(label)
+                    .size(13.0)
+                    .color(theme.text_primary),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                status_badge(ui, theme, value, color);
+            });
+        },
+    );
+}
+
+fn settings_capability_row(ui: &mut egui::Ui, theme: CovioTheme, label: &str, available: bool) {
+    settings_status_row(
+        ui,
+        theme,
+        label,
+        if available {
+            "Available"
+        } else {
+            "Unavailable"
+        },
+        if available {
+            theme.success
+        } else {
+            theme.text_disabled
+        },
+    );
+}
+
+fn settings_description_row(ui: &mut egui::Ui, theme: CovioTheme, text: &str) {
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), 36.0),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.label(
+                egui::RichText::new(text)
+                    .size(11.0)
+                    .color(theme.text_secondary),
+            );
+        },
+    );
+}
+
+fn settings_warning_row(ui: &mut egui::Ui, theme: CovioTheme, text: &str) {
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), 32.0),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.label(egui::RichText::new(text).size(11.0).color(theme.warning));
+        },
+    );
+}
+
+fn settings_action_row(ui: &mut egui::Ui, add_action: impl FnOnce(&mut egui::Ui)) {
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), SETTINGS_ROW_HEIGHT),
+        egui::Layout::right_to_left(egui::Align::Center),
+        add_action,
+    );
+}
+fn settings_theme_row(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    current: ThemePreference,
+) -> Option<ThemePreference> {
+    let mut selected = current;
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), SETTINGS_ROW_HEIGHT),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.label(
+                egui::RichText::new("Theme")
+                    .size(13.0)
+                    .color(theme.text_primary),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                egui::ComboBox::from_id_salt("settings-theme-picker")
+                    .selected_text(theme_preference_label(current))
+                    .width(126.0)
+                    .show_ui(ui, |ui| {
+                        for (preference, label) in [
+                            (ThemePreference::System, "System"),
+                            (ThemePreference::Light, "Light"),
+                            (ThemePreference::Dark, "Dark"),
+                        ] {
+                            ui.selectable_value(&mut selected, preference, label);
+                        }
+                    });
+            });
+        },
+    );
+    (selected != current).then_some(selected)
+}
+
+fn settings_search_result_row(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    section: SettingsSection,
+    label: &str,
+) -> egui::Response {
+    ui.allocate_ui_with_layout(
+        egui::Vec2::new(ui.available_width(), SETTINGS_ROW_HEIGHT),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            let (icon_rect, _) =
+                ui.allocate_exact_size(egui::Vec2::new(18.0, 18.0), egui::Sense::hover());
+            paint_settings_icon(ui, icon_rect.center(), section, theme.accent);
+            ui.add_space(8.0);
+            ui.vertical(|ui| {
+                ui.label(
+                    egui::RichText::new(label)
+                        .size(13.0)
+                        .color(theme.text_primary),
+                );
+                ui.label(
+                    egui::RichText::new(section.summary())
+                        .size(10.5)
+                        .color(theme.text_secondary),
+                );
+            });
+        },
+    )
+    .response
+    .interact(egui::Sense::click())
+}
+
+fn settings_section_matches(section: SettingsSection, label: &str, query: &str) -> bool {
+    label.to_lowercase().contains(query)
+        || section.summary().to_lowercase().contains(query)
+        || section.search_terms().contains(query)
+}
+
+fn theme_preference_label(preference: ThemePreference) -> &'static str {
+    match preference {
+        ThemePreference::System => "System",
+        ThemePreference::Light => "Light",
+        ThemePreference::Dark => "Dark",
+    }
+}
+
+fn status_text(status: &HostStatus) -> &'static str {
+    match status {
+        HostStatus::Idle => "Idle",
+        HostStatus::Loading => "Loading",
+        HostStatus::Ready => "Current",
+        HostStatus::Error(_) => "Error",
+    }
+}
 fn extension_label(path: &str) -> String {
     Path::new(path)
         .extension()
@@ -1934,52 +2205,330 @@ fn count_label(count: usize, singular: &str, plural: &str) -> String {
     }
 }
 
-fn dashboard_columns(available_width: f32) -> usize {
-    if available_width >= 720.0 {
-        3
-    } else if available_width >= 480.0 {
-        2
-    } else {
-        1
+#[derive(Clone, Debug, PartialEq)]
+struct BentoCard {
+    title: String,
+    detail: String,
+    tint: egui::Color32,
+    column: usize,
+    row: usize,
+    columns: usize,
+    rows: usize,
+}
+
+#[allow(unsafe_code)]
+fn local_time_label() -> String {
+    let mut time = std::mem::MaybeUninit::<SYSTEMTIME>::zeroed();
+    // SAFETY: GetLocalTime writes a complete SYSTEMTIME value to the valid pointer.
+    unsafe {
+        GetLocalTime(time.as_mut_ptr());
+    }
+    // SAFETY: The system call initialized the full structure.
+    let time = unsafe { time.assume_init() };
+    let weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    let weekday = weekdays
+        .get(time.wDayOfWeek as usize % weekdays.len())
+        .copied()
+        .unwrap_or("—");
+    format!("{:02}:{:02} · {weekday}", time.wHour, time.wMinute)
+}
+
+fn home_bento_cards(snapshot: &HostSnapshot) -> Vec<BentoCard> {
+    vec![
+        BentoCard {
+            title: "Now".to_owned(),
+            detail: local_time_label(),
+            tint: WIDGET_TINT_AMBER,
+            column: 0,
+            row: 0,
+            columns: 2,
+            rows: 1,
+        },
+        BentoCard {
+            title: "Battery".to_owned(),
+            detail: "—".to_owned(),
+            tint: WIDGET_TINT_MINT,
+            column: 2,
+            row: 0,
+            columns: 1,
+            rows: 1,
+        },
+        BentoCard {
+            title: "Transfer".to_owned(),
+            detail: "—".to_owned(),
+            tint: WIDGET_TINT_SKY,
+            column: 0,
+            row: 1,
+            columns: 2,
+            rows: 1,
+        },
+        BentoCard {
+            title: "Quick actions".to_owned(),
+            detail: "—".to_owned(),
+            tint: WIDGET_TINT_APRICOT,
+            column: 3,
+            row: 0,
+            columns: 1,
+            rows: 2,
+        },
+        BentoCard {
+            title: "Recent screenshots".to_owned(),
+            detail: snapshot.shelf_item_count.to_string(),
+            tint: WIDGET_TINT_ROSE,
+            column: 0,
+            row: 2,
+            columns: 2,
+            rows: 2,
+        },
+        BentoCard {
+            title: "Monitor".to_owned(),
+            detail: "—".to_owned(),
+            tint: WIDGET_TINT_SLATE,
+            column: 2,
+            row: 1,
+            columns: 1,
+            rows: 1,
+        },
+    ]
+}
+
+fn bento_grid(ui: &mut egui::Ui, theme: CovioTheme, cards: &[BentoCard]) {
+    let width = ui.available_width().min(PAGE_MAX_WIDTH);
+    if width < 720.0 {
+        for card in cards {
+            let (rect, _) = ui.allocate_exact_size(
+                egui::Vec2::new(width, BENTO_ROW_HEIGHT),
+                egui::Sense::hover(),
+            );
+            draw_bento_card(ui, theme, rect, card);
+            ui.add_space(BENTO_GAP);
+        }
+        return;
+    }
+
+    let column_width =
+        (width - BENTO_GAP * (BENTO_COLUMNS.saturating_sub(1) as f32)) / BENTO_COLUMNS as f32;
+    let height = BENTO_ROW_HEIGHT * BENTO_MAX_ROWS as f32
+        + BENTO_GAP * BENTO_MAX_ROWS.saturating_sub(1) as f32;
+    let (grid_rect, _) =
+        ui.allocate_exact_size(egui::Vec2::new(width, height), egui::Sense::hover());
+    for card in cards {
+        let rect = bento_card_rect(grid_rect, column_width, card);
+        draw_bento_card(ui, theme, rect, card);
     }
 }
 
-fn dashboard_card(
-    ui: &mut egui::Ui,
-    theme: CovioTheme,
-    size: egui::Vec2,
-    tint: egui::Color32,
-    title: &str,
-    detail: &str,
-    add_body: impl FnOnce(&mut egui::Ui),
-) {
-    ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
-        theme
-            .card_frame()
-            .fill(theme.widget_fill(tint))
+fn bento_card_rect(grid_rect: egui::Rect, column_width: f32, card: &BentoCard) -> egui::Rect {
+    let x = grid_rect.left() + card.column as f32 * (column_width + BENTO_GAP);
+    let y = grid_rect.top() + card.row as f32 * (BENTO_ROW_HEIGHT + BENTO_GAP);
+    let card_width =
+        card.columns as f32 * column_width + BENTO_GAP * card.columns.saturating_sub(1) as f32;
+    let card_height =
+        card.rows as f32 * BENTO_ROW_HEIGHT + BENTO_GAP * card.rows.saturating_sub(1) as f32;
+    egui::Rect::from_min_size(
+        egui::Pos2::new(x, y),
+        egui::Vec2::new(card_width, card_height),
+    )
+}
+
+fn draw_bento_card(ui: &mut egui::Ui, theme: CovioTheme, rect: egui::Rect, card: &BentoCard) {
+    ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
+        egui::Frame::new()
+            .fill(theme.widget_fill(card.tint))
+            .corner_radius(egui::CornerRadius::same(16))
+            .inner_margin(egui::Margin::same(BENTO_CARD_PADDING as i8))
             .show(ui, |ui| {
                 ui.set_min_size(egui::Vec2::new(
-                    (size.x - 32.0).max(0.0),
-                    (size.y - 32.0).max(0.0),
+                    (rect.width() - BENTO_CARD_PADDING * 2.0).max(0.0),
+                    (rect.height() - BENTO_CARD_PADDING * 2.0).max(0.0),
                 ));
                 ui.label(
-                    egui::RichText::new(title)
-                        .size(13.5)
+                    egui::RichText::new(&card.title)
+                        .size(13.0)
                         .strong()
                         .color(theme.text_primary),
                 );
-                ui.add_space(2.0);
+                ui.add_space(4.0);
                 ui.label(
-                    egui::RichText::new(detail)
-                        .size(11.5)
+                    egui::RichText::new(&card.detail)
+                        .size(11.0)
                         .color(theme.text_secondary),
                 );
-                ui.add_space(8.0);
-                add_body(ui);
             });
     });
 }
 
+fn paint_search_icon(ui: &mut egui::Ui, color: egui::Color32) {
+    let (rect, _) = ui.allocate_exact_size(egui::Vec2::splat(14.0), egui::Sense::hover());
+    let center = rect.center() + egui::Vec2::new(-1.0, -1.0);
+    ui.painter()
+        .circle_stroke(center, 4.0, egui::Stroke::new(1.4_f32, color));
+    ui.painter().line_segment(
+        [
+            center + egui::Vec2::new(3.0, 3.0),
+            rect.center() + egui::Vec2::new(6.0, 6.0),
+        ],
+        egui::Stroke::new(1.4_f32, color),
+    );
+}
+
+fn paint_settings_icon(
+    ui: &mut egui::Ui,
+    center: egui::Pos2,
+    section: SettingsSection,
+    color: egui::Color32,
+) {
+    let painter = ui.painter();
+    match section {
+        SettingsSection::Overview => {
+            let top = egui::Rect::from_center_size(
+                center + egui::Vec2::new(0.0, -3.5),
+                egui::Vec2::new(14.0, 6.0),
+            );
+            let bottom = egui::Rect::from_center_size(
+                center + egui::Vec2::new(0.0, 3.5),
+                egui::Vec2::new(14.0, 6.0),
+            );
+            painter.rect_filled(top, egui::CornerRadius::same(3), color);
+            painter.circle_filled(
+                egui::Pos2::new(top.right() - 3.0, top.center().y),
+                2.0,
+                egui::Color32::WHITE,
+            );
+            painter.rect_filled(bottom, egui::CornerRadius::same(3), color);
+            painter.circle_filled(
+                egui::Pos2::new(bottom.left() + 3.0, bottom.center().y),
+                2.0,
+                egui::Color32::WHITE,
+            );
+        }
+        SettingsSection::Appearance => {
+            painter.circle_stroke(center, 7.0, egui::Stroke::new(1.5_f32, color));
+            painter.line_segment(
+                [
+                    center + egui::Vec2::new(0.0, -7.0),
+                    center + egui::Vec2::new(0.0, 7.0),
+                ],
+                egui::Stroke::new(1.6_f32, color),
+            );
+        }
+        SettingsSection::Triggers => {
+            painter.add(egui::Shape::convex_polygon(
+                vec![
+                    center + egui::Vec2::new(1.0, -8.0),
+                    center + egui::Vec2::new(-5.0, 1.0),
+                    center + egui::Vec2::new(-1.0, 1.0),
+                    center + egui::Vec2::new(-2.0, 8.0),
+                    center + egui::Vec2::new(6.0, -2.0),
+                    center + egui::Vec2::new(1.5, -2.0),
+                ],
+                color,
+                egui::Stroke::NONE,
+            ));
+        }
+        SettingsSection::Capabilities => {
+            for offset in [
+                egui::Vec2::new(-4.0, -4.0),
+                egui::Vec2::new(4.0, -4.0),
+                egui::Vec2::new(-4.0, 4.0),
+                egui::Vec2::new(4.0, 4.0),
+            ] {
+                painter.rect_filled(
+                    egui::Rect::from_center_size(center + offset, egui::Vec2::splat(5.0)),
+                    egui::CornerRadius::same(1),
+                    color,
+                );
+            }
+        }
+        SettingsSection::Updates => {
+            painter.circle_stroke(center, 7.0, egui::Stroke::new(1.5_f32, color));
+            painter.line_segment(
+                [
+                    center + egui::Vec2::new(4.0, -7.0),
+                    center + egui::Vec2::new(8.0, -7.0),
+                ],
+                egui::Stroke::new(1.5_f32, color),
+            );
+            painter.line_segment(
+                [
+                    center + egui::Vec2::new(8.0, -7.0),
+                    center + egui::Vec2::new(8.0, -3.0),
+                ],
+                egui::Stroke::new(1.5_f32, color),
+            );
+        }
+    }
+}
+fn workbench_search_field(ui: &mut egui::Ui, theme: CovioTheme, search: &mut String) {
+    egui::Frame::new()
+        .fill(theme.surface_hover)
+        .stroke(egui::Stroke::new(1.0_f32, theme.separator))
+        .corner_radius(egui::CornerRadius::same(15))
+        .inner_margin(egui::Margin::symmetric(10, 4))
+        .show(ui, |ui| {
+            ui.set_min_size(egui::Vec2::new(
+                HUB_SEARCH_WIDTH - 20.0,
+                HUB_NAV_HEIGHT - 8.0,
+            ));
+            ui.horizontal(|ui| {
+                paint_search_icon(ui, theme.text_secondary);
+                ui.add(
+                    egui::TextEdit::singleline(search)
+                        .frame(false)
+                        .desired_width(HUB_SEARCH_WIDTH - 50.0)
+                        .hint_text(
+                            egui::RichText::new("Search")
+                                .size(12.0)
+                                .color(theme.text_secondary),
+                        ),
+                );
+            });
+        });
+}
+
+fn workbench_action_button(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    label: &str,
+    width: f32,
+) -> egui::Response {
+    ui.add_sized(
+        egui::Vec2::new(width, HUB_NAV_HEIGHT),
+        egui::Button::new(
+            egui::RichText::new(label)
+                .size(12.0)
+                .color(theme.text_primary),
+        )
+        .fill(egui::Color32::TRANSPARENT)
+        .stroke(egui::Stroke::NONE)
+        .corner_radius(egui::CornerRadius::same(15)),
+    )
+}
+
+fn workbench_nav_button(
+    ui: &mut egui::Ui,
+    theme: CovioTheme,
+    label: &str,
+    selected: bool,
+    width: f32,
+) -> egui::Response {
+    let text_color = if selected {
+        theme.text_on_accent
+    } else {
+        theme.text_secondary
+    };
+    ui.add_sized(
+        egui::Vec2::new(width, HUB_NAV_HEIGHT),
+        egui::Button::new(egui::RichText::new(label).size(12.0).color(text_color))
+            .fill(if selected {
+                theme.accent
+            } else {
+                egui::Color32::TRANSPARENT
+            })
+            .stroke(egui::Stroke::NONE)
+            .corner_radius(egui::CornerRadius::same(15)),
+    )
+}
 fn with_page_width<R>(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui) -> R) -> R {
     let available = ui.available_width();
     let width = available.min(PAGE_MAX_WIDTH);
@@ -2026,6 +2575,26 @@ fn wgpu_configuration() -> WgpuConfiguration {
     WgpuConfiguration {
         wgpu_setup: WgpuSetup::CreateNew(setup),
         ..Default::default()
+    }
+}
+
+fn window_inner_size(view: HostView) -> [f32; 2] {
+    if view == HostView::Settings {
+        [900.0, 640.0]
+    } else {
+        [HUB_PANEL_WIDTH, 880.0]
+    }
+}
+
+fn instance_name_for_arguments(arguments: &[String]) -> &'static str {
+    let isolated = screenshot_path_from_arguments(arguments).is_some()
+        || arguments
+            .iter()
+            .any(|argument| argument == "--window-smoke");
+    if isolated {
+        ISOLATED_INSTANCE_NAME
+    } else {
+        INSTANCE_NAME
     }
 }
 
@@ -2123,7 +2692,8 @@ fn data_root_from_arguments(arguments: &[String]) -> Result<PathBuf, String> {
 }
 
 fn run_single_instance_smoke() -> Result<(), String> {
-    let primary = SingleInstance::new(INSTANCE_NAME).map_err(|error| error.to_string())?;
+    let primary =
+        SingleInstance::new(SINGLE_INSTANCE_SMOKE_NAME).map_err(|error| error.to_string())?;
     if !primary.is_single() {
         return Err("single-instance smoke could not acquire the primary lock".to_owned());
     }
@@ -2136,7 +2706,8 @@ fn run_single_instance_smoke() -> Result<(), String> {
         return Err(format!("secondary instance exited with {secondary}"));
     }
     drop(primary);
-    let replacement = SingleInstance::new(INSTANCE_NAME).map_err(|error| error.to_string())?;
+    let replacement =
+        SingleInstance::new(SINGLE_INSTANCE_SMOKE_NAME).map_err(|error| error.to_string())?;
     if !replacement.is_single() {
         return Err("single-instance lock was not released after the primary exited".to_owned());
     }
@@ -2462,17 +3033,57 @@ mod tests {
     }
 
     #[test]
-    fn dashboard_layout_is_responsive() {
-        assert_eq!(dashboard_columns(900.0), 3);
-        assert_eq!(dashboard_columns(720.0), 3);
-        assert_eq!(dashboard_columns(719.0), 2);
-        assert_eq!(dashboard_columns(480.0), 2);
-        assert_eq!(dashboard_columns(479.0), 1);
+    fn bento_metrics_match_the_macos_baseline() {
+        assert_eq!(BENTO_COLUMNS, 4);
+        assert_eq!(BENTO_ROW_HEIGHT, 96.0);
+        assert_eq!(BENTO_GAP, 12.0);
+        assert_eq!(PAGE_MAX_WIDTH, 912.0);
+    }
+
+    #[test]
+    fn bento_card_rects_match_the_macos_spans() {
+        let card = BentoCard {
+            title: "Quick actions".to_owned(),
+            detail: "—".to_owned(),
+            tint: WIDGET_TINT_APRICOT,
+            column: 3,
+            row: 0,
+            columns: 1,
+            rows: 2,
+        };
+        let rect = bento_card_rect(
+            egui::Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::splat(912.0)),
+            219.0,
+            &card,
+        );
+        assert_eq!(rect.min, egui::Pos2::new(693.0, 0.0));
+        assert_eq!(rect.size(), egui::Vec2::new(219.0, 204.0));
+    }
+
+    #[test]
+    fn settings_search_matches_labels_and_summaries() {
+        assert!(settings_section_matches(
+            SettingsSection::Triggers,
+            "Triggers",
+            "top edge"
+        ));
+        assert!(settings_section_matches(
+            SettingsSection::Capabilities,
+            "Capabilities",
+            "adapter"
+        ));
+        assert!(!settings_section_matches(
+            SettingsSection::Overview,
+            "Overview",
+            "adapter"
+        ));
     }
 
     #[test]
     fn navigation_items_cover_every_product_view_once() {
-        let views: Vec<HostView> = NAV_ITEMS.iter().map(|(view, _)| *view).collect();
+        let mut views = vec![HostView::Home];
+        views.extend(WORKBENCH_TABS.iter().map(|(view, _)| *view));
+        views.push(HostView::Settings);
         assert_eq!(
             views,
             vec![
@@ -2483,6 +3094,31 @@ mod tests {
                 HostView::Settings,
             ]
         );
+    }
+
+    #[test]
+    fn window_size_tracks_the_macos_surface() {
+        assert_eq!(window_inner_size(HostView::Home), [960.0, 880.0]);
+        assert_eq!(window_inner_size(HostView::Settings), [900.0, 640.0]);
+    }
+
+    #[test]
+    fn screenshot_mode_uses_a_separate_single_instance_lock() {
+        let screenshot = vec![
+            "covio-windows.exe".to_owned(),
+            "--screenshot".to_owned(),
+            "home.png".to_owned(),
+        ];
+        assert_eq!(
+            instance_name_for_arguments(&screenshot),
+            ISOLATED_INSTANCE_NAME
+        );
+        let window_smoke = vec!["covio-windows.exe".to_owned(), "--window-smoke".to_owned()];
+        assert_eq!(
+            instance_name_for_arguments(&window_smoke),
+            ISOLATED_INSTANCE_NAME
+        );
+        assert_eq!(instance_name_for_arguments(&[]), INSTANCE_NAME);
     }
 
     #[test]

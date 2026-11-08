@@ -1,95 +1,97 @@
 # Windows egui visual language
 
-Windows 使用 macOS 设计合同作为视觉基准。
+Windows 以当前 macOS SwiftUI 实现作为唯一视觉基准。
 
-egui 不复制 Liquid Glass 的底层材质。Windows 使用语义 surface、stroke、圆角、间距和阴影表达相同层级。
+取值来源是 `macosApp/src/Design/` 和对应 SwiftUI 组件。Windows 不使用第二份设计合同。
 
-## 视觉令牌
+egui 不复制 Liquid Glass 的底层模糊。Windows 使用语义色、圆角、间距、描边和阴影表达相同层级。
+
+## 颜色
 
 | 概念 | Light | Dark |
 | --- | --- | --- |
 | Canvas | `#F2F2F7` | `#1C1C1E` |
-| Chrome | `#F5F5F7` | `#2C2C2E` |
 | Surface | `#FFFFFF` | `#2C2C2E` |
+| Material thin | `#FFFFFFB2` | `#1C1C1E7A` |
+| Elevated | `#F7F7F9` | `#3A3A3C` |
 | Primary text | `#1D1D1F` | `#F5F5F7` |
 | Secondary text | `#6E6E73` | `#AEAEB2` |
 | Accent | `#007AFF` | `#0A84FF` |
-| Separator | `#D1D1D6` | `#3A3A3C` |
+| Divider | `#D1D1D6` | `#3A3A3C` |
 
-这些值来自 `docs/covio-design-contract.json`。
+这些值与 `macosApp/src/Design/ContractTokens.swift` 相同。
 
-## 字体
+## 字体和控件
 
-Windows 优先加载系统 `Segoe UI`。
+- Windows 使用 `Segoe UI`。
+- 正文字号为 13。
+- 按钮和页签字号为 12。
+- 辅助文字字号为 11。
+- 控件圆角为 8。
+- 卡片圆角为 16。
+- 面板圆角为 22。
 
-`Segoe UI` 是 Windows 上最接近 macOS SF Pro 的系统字体。
+## Workbench 几何
 
-如果字体不可用，egui 使用默认 proportional font。
+- 窗口内容基准尺寸为 `960 × 880`。
+- 面板内边距为 24。
+- 内容列宽度为 912。
+- 顶部栏高度为 46。
+- 搜索框为 `190 × 30`。
+- Home 按钮为 `52 × 30`。
+- 每个工作区页签为 `72 × 30`。
+- 页签间距为 4。
+- 右侧动作宽度为 52。
+- Bento 网格使用 4 列。
+- 每行高度为 96。
+- 网格间距为 12。
+- 卡片内边距为 14。
 
-## 形状和间距
+默认 Bento 布局与 macOS 默认组件一致：
 
-- Card radius：16。
-- Panel radius：22。
-- Control radius：12。
-- Page maximum width：1120。
-- 标准外围留白：16。
-- 标准 item spacing：8。
+| 卡片 | 列跨度 | 行跨度 |
+| --- | --- | --- |
+| Now | 2 | 1 |
+| Battery | 1 | 1 |
+| Transfer | 2 | 1 |
+| Quick actions | 1 | 2 |
+| Recent screenshots | 2 | 2 |
+| Monitor | 1 | 1 |
 
-## 组件
+## Workbench 顶部栏
 
-- Toolbar 使用 chrome surface 和圆角 16。
-- 卡片使用 surface、1 像素 separator stroke 和弱阴影。
-- 主按钮使用 accent fill 和 white text。
-- 次按钮使用 surface fill 和 separator stroke。
-- 危险按钮使用 error text 和 error stroke。
-- 未选导航保持透明。
-- 选中导航使用 accent fill。
-- 输入框使用 surface fill。
+- 搜索框位于左端。
+- Home 入口紧随搜索框。
+- Shelf、Clipboard 和 Workspace 使用固定宽度页签。
+- Settings 是对齐右侧的页面动作。
+- Windows 不显示 `Covio` 品牌文字。
+- Windows 不使用 `Hide` 文字按钮。原生窗口关闭按钮和 `Escape` 保持隐藏行为。
+- 选中页签使用 Accent 胶囊。
+- 未选中页签使用透明背景和次要文字色。
 
-## 导航
+## Settings 几何
 
-- Home、Shelf、Clipboard、Workspace 和 Settings 使用同一导航模型。
-- 每个导航项对应一个产品 surface。
-- 选中态来自 `CovioTheme`。
-- 键盘焦点使用 egui 的 focus stroke。
+- 窗口内容基准尺寸为 `900 × 640`。
+- 顶部工具栏高度为 54。
+- 内容列最大宽度为 620。
+- 分组圆角为 16。
+- 设置行高度为 44。
+- 开关大小为 `38 × 22`。
+- 内容使用 macOS grouped form 结构。
+- 分页使用图标和短标题。
+- 搜索框位于工具栏右端。
+- Windows 保留一个返回箭头。原因是 Windows 用同一窗口显示 Workbench 和 Settings。
+- 设置项修改后自动保存。Windows 不显示 macOS 样式中不存在的 `Save changes` 按钮。
 
 ## 平台边界
 
-- Windows 保留原生窗口行为和标题栏。
+- Windows 保留原生标题栏和窗口行为。
 - Windows 不绘制 macOS traffic-light controls。
 - Windows 不复制 Liquid Glass blur。
-- Windows 不支持的能力继续显示 unavailable 状态。
+- Windows 不支持的能力显示 unavailable。
+- Windows 不伪造 Battery、Transfer 或 Monitor 数据。
 
-## Home dashboard
+## 证据
 
-Home 使用 Bento 卡片网格。
-
-- 宽度大于等于 720 时使用 3 列。
-- 宽度大于等于 480 时使用 2 列。
-- 更窄窗口使用 1 列。
-- Now、Battery、Transfer、Monitor、Recent screenshots 和 Quick actions 各有一张卡。
-- Windows 不支持的数据显示 unavailable。Windows 不伪造 macOS 数据。
-- 计数文案区分单数和复数。
-## Content surfaces
-
-Shelf 使用固定尺寸文件卡片和预览占位区。
-
-Clipboard 和 Workspace 使用全宽卡片。
-
-- 工具栏使用 chrome surface。
-- 空状态使用 muted 或 surface 卡片，并提供一个主行动。
-- 普通动作使用蓝色或白色按钮。
-- 危险动作使用 error text 和 error stroke。
-- 空列表时禁用 Clear 动作。
-- Shelf 卡片在悬停时显示完整路径。
-## Settings shell
-
-Settings 使用完整页面内容表面。Windows 不再把默认 egui Window 作为产品外观。
-
-- 分段为 Overview、Appearance、Triggers、Capabilities 和 Updates。
-- 分段栏使用 surface-muted 背景和蓝色选中胶囊。
-- 每个分段内容放在全宽卡片内。
-- 能力状态使用 success、warning 和 disabled 语义颜色。
-- Save changes 使用主按钮。Done 返回 Home。
-- 窄窗口使用两行顶部导航。Settings 分段和内容保持可见并可滚动。
-- Windows 不绘制 macOS traffic-light 控件。
+- 视觉预览位于 `docs/design/previews/700-windows-macos-parity/`。
+- UI 测试覆盖 Bento 尺寸、卡片跨度和 Settings 搜索。
