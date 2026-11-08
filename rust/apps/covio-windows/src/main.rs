@@ -1,4 +1,6 @@
 #[cfg(target_os = "windows")]
+mod top_edge;
+#[cfg(target_os = "windows")]
 mod visuals;
 #[cfg(target_os = "windows")]
 mod windows_app;

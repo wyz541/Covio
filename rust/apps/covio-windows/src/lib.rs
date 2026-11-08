@@ -45,6 +45,12 @@ impl WindowsDataPaths {
         )
     }
 
+    /// Returns the Windows host UI settings file.
+    #[must_use]
+    pub fn ui_settings_file(&self) -> PathBuf {
+        self.paths.config_file.with_file_name("windows-ui.json")
+    }
+
     /// Returns the local content path for one workspace entry.
     #[must_use]
     pub fn workspace_content_path(&self, entry_id: &str) -> Option<PathBuf> {
@@ -449,4 +455,17 @@ fn smoke_root() -> PathBuf {
         "covio-windows-smoke-{}-{nonce}",
         std::process::id()
     ))
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ui_settings_file_lives_in_the_windows_data_root() {
+        let paths = WindowsDataPaths::new(r"C:\CovioTest");
+        assert_eq!(
+            paths.ui_settings_file(),
+            PathBuf::from(r"C:\CovioTest\windows-ui.json")
+        );
+    }
 }
