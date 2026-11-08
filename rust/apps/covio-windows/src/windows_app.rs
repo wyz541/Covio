@@ -138,11 +138,7 @@ pub fn run() -> Result<(), String> {
         .any(|argument| argument == "--window-smoke")
         .then_some(8_u32);
     let settings_initial = matches!(initial_view, Some(HostView::Settings));
-    let inner_size = if settings_initial {
-        [900.0, 640.0]
-    } else {
-        [HUB_PANEL_WIDTH, 880.0]
-    };
+    let inner_size = window_inner_size(initial_view.unwrap_or(HostView::Home));
     let min_inner_size = if settings_initial {
         [720.0, 560.0]
     } else {
@@ -794,12 +790,10 @@ impl CovioWindowsApp {
         if view == self.last_view {
             return;
         }
-        let size = if view == HostView::Settings {
-            egui::Vec2::new(900.0, 640.0)
-        } else {
-            egui::Vec2::new(HUB_PANEL_WIDTH, 880.0)
-        };
-        context.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+        let [width, height] = window_inner_size(view);
+        context.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::Vec2::new(
+            width, height,
+        )));
         self.last_view = view;
     }
 
@@ -2582,6 +2576,14 @@ fn wgpu_configuration() -> WgpuConfiguration {
     }
 }
 
+fn window_inner_size(view: HostView) -> [f32; 2] {
+    if view == HostView::Settings {
+        [900.0, 640.0]
+    } else {
+        [HUB_PANEL_WIDTH, 880.0]
+    }
+}
+
 fn instance_name_for_arguments(arguments: &[String]) -> &'static str {
     if screenshot_path_from_arguments(arguments).is_some() {
         SCREENSHOT_INSTANCE_NAME
@@ -3084,6 +3086,12 @@ mod tests {
                 HostView::Settings,
             ]
         );
+    }
+
+    #[test]
+    fn window_size_tracks_the_macos_surface() {
+        assert_eq!(window_inner_size(HostView::Home), [960.0, 880.0]);
+        assert_eq!(window_inner_size(HostView::Settings), [900.0, 640.0]);
     }
 
     #[test]
