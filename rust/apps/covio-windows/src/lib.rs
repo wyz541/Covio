@@ -462,10 +462,8 @@ mod tests {
 
     #[test]
     fn ui_settings_file_lives_in_the_windows_data_root() {
-        let paths = WindowsDataPaths::new(r"C:\CovioTest");
-        assert_eq!(
-            paths.ui_settings_file(),
-            PathBuf::from(r"C:\CovioTest\windows-ui.json")
-        );
+        let root = PathBuf::from("CovioTest");
+        let paths = WindowsDataPaths::new(root.clone());
+        assert_eq!(paths.ui_settings_file(), root.join("windows-ui.json"));
     }
 }
