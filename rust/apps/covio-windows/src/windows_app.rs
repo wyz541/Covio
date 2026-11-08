@@ -1,5 +1,6 @@
 //! Windows-only egui composition root.
 
+use crate::top_edge::{TopEdgeMonitor, WindowsUiSettings};
 use crate::visuals::{
     CovioTheme, PAGE_MAX_WIDTH, WIDGET_TINT_AMBER, WIDGET_TINT_APRICOT, WIDGET_TINT_MINT,
     WIDGET_TINT_ROSE, WIDGET_TINT_SKY, WIDGET_TINT_SLATE,
@@ -8,8 +9,9 @@ use covio_core::AppConfig;
 use covio_core::clipboard::ClipItem;
 use covio_core::workspace::{WorkspaceState, suggested_text_name};
 use covio_platform::{
-    Clipboard, FilePicker, FilePickerRequest, NotificationRequest, Notifier, ScreenshotDirectory,
-    StartupRegistration, StartupSpec, WindowsAppDataDirectory, WindowsPlatformAdapters,
+    Clipboard, FilePicker, FilePickerRequest, FileStore, NotificationRequest, Notifier,
+    ScreenshotDirectory, StartupRegistration, StartupSpec, WindowsAppDataDirectory,
+    WindowsPlatformAdapters,
 };
 use covio_windows::{
     CloseDisposition, CoreRuntime, HostModel, HostStatus, HostView, ThemePreference,
@@ -20,6 +22,7 @@ use eframe::egui_wgpu::{WgpuConfiguration, WgpuSetup, WgpuSetupCreateNew};
 use eframe::wgpu;
 use global_hotkey::hotkey::{Code, HotKey, Modifiers as GlobalHotKeyModifiers};
 use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use serde_json::json;
 use single_instance::SingleInstance;
 use std::collections::BTreeSet;
@@ -160,6 +163,11 @@ struct CovioWindowsApp {
     tray_error: Option<String>,
     global_hotkey: Option<HubHotKey>,
     global_hotkey_error: Option<String>,
+    top_edge_monitor: TopEdgeMonitor,
+    top_edge_runtime_error: Option<String>,
+    pending_background_hide: bool,
+    ui_settings_path: PathBuf,
+    ui_settings_error: Option<String>,
     draft_config: Option<AppConfig>,
     settings_section: SettingsSection,
     needs_refresh: bool,
@@ -200,6 +208,24 @@ impl CovioWindowsApp {
             Err(error) => (None, Some(error)),
         };
         let adapters = WindowsPlatformAdapters::default();
+        let ui_settings_path = data_paths.ui_settings_file();
+        let (ui_settings, ui_settings_error) =
+            load_windows_ui_settings(&adapters, &ui_settings_path);
+        let window_handle =
+            creation_context
+                .window_handle()
+                .ok()
+                .and_then(|handle| match handle.as_raw() {
+                    RawWindowHandle::Win32(handle) => Some(handle.hwnd.get()),
+                    _ => None,
+                });
+        let top_edge_monitor = TopEdgeMonitor::new(
+            ui_settings.top_edge_trigger_enabled,
+            model.is_visible(),
+            creation_context.egui_ctx.clone(),
+            window_handle,
+        );
+        let top_edge_runtime_error = top_edge_monitor.startup_error().map(str::to_owned);
         let screenshot_directory = adapters.screenshots.directory().ok();
         let mut app = Self {
             core: CoreRuntime::new(core),
@@ -210,6 +236,11 @@ impl CovioWindowsApp {
             tray_error,
             global_hotkey,
             global_hotkey_error,
+            top_edge_monitor,
+            top_edge_runtime_error,
+            pending_background_hide: options.start_hidden,
+            ui_settings_path,
+            ui_settings_error,
             draft_config: None,
             settings_section: options
                 .settings_section
@@ -637,6 +668,36 @@ impl CovioWindowsApp {
                 hide_window(context);
             }
             context.request_repaint();
+        }
+    }
+
+    fn poll_top_edge_trigger(&mut self, context: &egui::Context) {
+        let triggered = self.top_edge_monitor.take_triggered();
+        if !triggered || !self.top_edge_monitor.is_enabled() || self.model.is_visible() {
+            return;
+        }
+        self.model.show();
+        self.top_edge_monitor.set_window_visible(true);
+        show_window(context);
+    }
+
+    fn set_top_edge_enabled(&mut self, enabled: bool) {
+        self.top_edge_monitor.set_enabled(enabled);
+        self.top_edge_monitor
+            .set_window_visible(self.model.is_visible());
+        let settings = WindowsUiSettings {
+            top_edge_trigger_enabled: enabled,
+        };
+        match serde_json::to_vec_pretty(&settings)
+            .map_err(|error| error.to_string())
+            .and_then(|bytes| {
+                self.adapters
+                    .filesystem
+                    .write_atomic(&self.ui_settings_path, &bytes)
+                    .map_err(|error| error.message().to_owned())
+            }) {
+            Ok(()) => self.ui_settings_error = None,
+            Err(error) => self.ui_settings_error = Some(error),
         }
     }
 
@@ -1434,6 +1495,27 @@ impl CovioWindowsApp {
                         .color(theme.text_secondary),
                 );
                 ui.add_space(10.0);
+                let mut top_edge_enabled = self.top_edge_monitor.is_enabled();
+                if ui
+                    .checkbox(&mut top_edge_enabled, "Show Workbench at the top edge")
+                    .changed()
+                {
+                    self.set_top_edge_enabled(top_edge_enabled);
+                }
+                ui.small("Hold the pointer at the top of any display for 180 ms.");
+                if let Some(error) = &self.ui_settings_error {
+                    ui.colored_label(
+                        theme.warning,
+                        format!("Cannot save the Windows UI setting: {error}"),
+                    );
+                }
+                if let Some(error) = &self.top_edge_runtime_error {
+                    ui.colored_label(
+                        theme.warning,
+                        format!("Top-edge trigger is unavailable: {error}"),
+                    );
+                }
+                ui.add_space(12.0);
                 ui.horizontal(|ui| {
                     ui.label("Global shortcut");
                     status_badge(
@@ -1605,13 +1687,21 @@ impl eframe::App for CovioWindowsApp {
         }
 
         context.request_repaint_after(Duration::from_millis(100));
+        if self.pending_background_hide {
+            self.pending_background_hide = false;
+            self.top_edge_monitor.hide_window();
+            context.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        }
         self.poll_tray(context);
+        self.poll_top_edge_trigger(context);
         self.poll_global_hotkey(context);
         self.poll_core();
         self.poll_clipboard_capture();
         self.poll_screenshot_shelf();
         self.handle_keyboard(context);
         self.handle_close(context);
+        self.top_edge_monitor
+            .set_window_visible(self.model.is_visible());
         self.apply_visuals(context);
 
         if !self.model.is_visible() {
@@ -1699,6 +1789,23 @@ impl CovioWindowsApp {
         self.core.shutdown();
         context.send_viewport_cmd(egui::ViewportCommand::Close);
         true
+    }
+}
+
+fn load_windows_ui_settings(
+    adapters: &WindowsPlatformAdapters,
+    path: &Path,
+) -> (WindowsUiSettings, Option<String>) {
+    match adapters.filesystem.read(path) {
+        Ok(Some(bytes)) => match serde_json::from_slice(&bytes) {
+            Ok(settings) => (settings, None),
+            Err(error) => (WindowsUiSettings::default(), Some(error.to_string())),
+        },
+        Ok(None) => (WindowsUiSettings::default(), None),
+        Err(error) => (
+            WindowsUiSettings::default(),
+            Some(error.message().to_owned()),
+        ),
     }
 }
 

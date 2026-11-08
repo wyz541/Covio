@@ -110,6 +110,12 @@ impl HostModel {
         self.allow_exit = false;
     }
 
+    /// Shows the window and preserves the current view.
+    pub fn show(&mut self) {
+        self.visible = true;
+        self.allow_exit = false;
+    }
+
     /// Hides the window without stopping the tray process.
     pub fn hide(&mut self) {
         self.visible = false;
@@ -288,6 +294,16 @@ mod tests {
         assert_eq!(model.view(), HostView::Settings);
         assert_eq!(model.theme(), ThemePreference::Dark);
         assert!(model.reduced_motion());
+    }
+
+    #[test]
+    fn show_preserves_the_current_view() {
+        let mut model = HostModel::new(ThemePreference::Dark, false);
+        model.select_view(HostView::Clipboard);
+        model.hide();
+        model.show();
+        assert!(model.is_visible());
+        assert_eq!(model.view(), HostView::Clipboard);
     }
 
     #[test]

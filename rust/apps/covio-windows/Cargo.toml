@@ -19,9 +19,13 @@ serde_json.workspace = true
 [target.'cfg(target_os = "windows")'.dependencies]
 dark-light = "1.1.1"
 eframe = { version = "0.32.3", default-features = false, features = ["accesskit", "default_fonts", "wgpu"] }
+display-info = "0.5.10"
 global-hotkey = "0.9.0"
 image = { version = "0.25.9", default-features = false, features = ["png"] }
+mouse_position = "0.1.4"
+raw-window-handle = "0.6.2"
 single-instance = "0.3.3"
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
 tray-icon = { version = "0.21.2", default-features = false }
 webbrowser = "1.2.6"
 wgpu = { version = "25.0.2", default-features = false, features = ["dx12", "wgsl"] }
