@@ -39,7 +39,8 @@ use windows_sys::Win32::Foundation::SYSTEMTIME;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
 const INSTANCE_NAME: &str = "Local\\com.wyz.covio.windows";
-const SCREENSHOT_INSTANCE_NAME: &str = "Local\\com.wyz.covio.windows.screenshot";
+const ISOLATED_INSTANCE_NAME: &str = "Local\\com.wyz.covio.windows.isolated";
+const SINGLE_INSTANCE_SMOKE_NAME: &str = "Local\\com.wyz.covio.windows.single-instance-smoke";
 const RELEASES_URL: &str = "https://github.com/wyz541/kmp-Covio/releases";
 const HUB_TOGGLE_SHORTCUT: &str = "Ctrl+Alt+T";
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -98,7 +99,8 @@ pub fn run() -> Result<(), String> {
         .iter()
         .any(|argument| argument == "--single-instance-secondary")
     {
-        let instance = SingleInstance::new(INSTANCE_NAME).map_err(|error| error.to_string())?;
+        let instance =
+            SingleInstance::new(SINGLE_INSTANCE_SMOKE_NAME).map_err(|error| error.to_string())?;
         if instance.is_single() {
             return Err("secondary single-instance probe became the primary instance".to_owned());
         }
@@ -2585,8 +2587,12 @@ fn window_inner_size(view: HostView) -> [f32; 2] {
 }
 
 fn instance_name_for_arguments(arguments: &[String]) -> &'static str {
-    if screenshot_path_from_arguments(arguments).is_some() {
-        SCREENSHOT_INSTANCE_NAME
+    let isolated = screenshot_path_from_arguments(arguments).is_some()
+        || arguments
+            .iter()
+            .any(|argument| argument == "--window-smoke");
+    if isolated {
+        ISOLATED_INSTANCE_NAME
     } else {
         INSTANCE_NAME
     }
@@ -2686,7 +2692,8 @@ fn data_root_from_arguments(arguments: &[String]) -> Result<PathBuf, String> {
 }
 
 fn run_single_instance_smoke() -> Result<(), String> {
-    let primary = SingleInstance::new(INSTANCE_NAME).map_err(|error| error.to_string())?;
+    let primary =
+        SingleInstance::new(SINGLE_INSTANCE_SMOKE_NAME).map_err(|error| error.to_string())?;
     if !primary.is_single() {
         return Err("single-instance smoke could not acquire the primary lock".to_owned());
     }
@@ -2699,7 +2706,8 @@ fn run_single_instance_smoke() -> Result<(), String> {
         return Err(format!("secondary instance exited with {secondary}"));
     }
     drop(primary);
-    let replacement = SingleInstance::new(INSTANCE_NAME).map_err(|error| error.to_string())?;
+    let replacement =
+        SingleInstance::new(SINGLE_INSTANCE_SMOKE_NAME).map_err(|error| error.to_string())?;
     if !replacement.is_single() {
         return Err("single-instance lock was not released after the primary exited".to_owned());
     }
@@ -3103,7 +3111,12 @@ mod tests {
         ];
         assert_eq!(
             instance_name_for_arguments(&screenshot),
-            SCREENSHOT_INSTANCE_NAME
+            ISOLATED_INSTANCE_NAME
+        );
+        let window_smoke = vec!["covio-windows.exe".to_owned(), "--window-smoke".to_owned()];
+        assert_eq!(
+            instance_name_for_arguments(&window_smoke),
+            ISOLATED_INSTANCE_NAME
         );
         assert_eq!(instance_name_for_arguments(&[]), INSTANCE_NAME);
     }
