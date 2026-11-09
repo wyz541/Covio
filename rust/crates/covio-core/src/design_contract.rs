@@ -599,6 +599,32 @@ mod tests {
     }
 
     #[test]
+    fn generated_rust_motion_tokens_match_contract() {
+        let contract = DesignContractReader::parse(include_str!(
+            "../../../../docs/covio-design-contract.json"
+        ))
+        .contract
+        .expect("contract");
+        assert_eq!(
+            crate::contract_motion::MOTION_DURATIONS.len(),
+            contract.motion_tokens().count()
+        );
+        for token in contract.motion_tokens() {
+            let (_, duration) = crate::contract_motion::MOTION_DURATIONS
+                .iter()
+                .find(|(key, _)| *key == token.key)
+                .expect("generated motion token");
+            let milliseconds = token.duration_ms.expect("motion duration");
+            assert_eq!(
+                duration.as_micros(),
+                (milliseconds * 1000.0).round() as u128,
+                "motion token drift: {}",
+                token.key
+            );
+        }
+    }
+
+    #[test]
     fn lookup_returns_the_known_entry() {
         let contract = DesignContractReader::parse(&valid_minimal())
             .contract
