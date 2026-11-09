@@ -153,6 +153,8 @@ pub fn run() -> Result<(), String> {
             .with_min_inner_size(min_inner_size)
             .with_position(window_position.unwrap_or([120.0, 120.0]))
             .with_decorations(false)
+            .with_transparent(true)
+            .with_has_shadow(false)
             .with_taskbar(false)
             .with_always_on_top()
             .with_resizable(false)
@@ -812,6 +814,7 @@ impl CovioWindowsApp {
         context.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::Vec2::new(
             width, height,
         )));
+        self.overlay_style_frames = 3;
         self.last_view = view;
     }
 
@@ -1662,10 +1665,14 @@ impl eframe::App for CovioWindowsApp {
 
         let theme = self.covio_theme();
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(theme.canvas))
+            .frame(egui::Frame::new().fill(egui::Color32::TRANSPARENT))
             .show(context, |ui| {
                 if self.model.view() == HostView::Settings {
-                    self.settings_view(ui);
+                    let available = ui.available_size();
+                    theme.settings_shell_frame().show(ui, |ui| {
+                        ui.set_min_size(available);
+                        self.settings_view(ui);
+                    });
                 } else {
                     self.workbench_view(ui);
                 }
@@ -1675,14 +1682,21 @@ impl eframe::App for CovioWindowsApp {
             self.top_edge_monitor.mark_window_rendered();
         }
 
+        let screenshot_ready =
+            self.model.snapshot().is_some() && !matches!(self.model.status(), HostStatus::Loading);
+        let screenshot_fallback = self.rendered_frames >= 30;
         if self.screenshot_path.is_some()
             && !self.screenshot_requested
             && self.rendered_frames >= 3
-            && self.model.snapshot().is_some()
+            && (screenshot_ready || screenshot_fallback)
         {
             self.screenshot_requested = true;
             context.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
         }
+    }
+
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        [0.0, 0.0, 0.0, 0.0]
     }
 
     fn on_exit(&mut self) {
