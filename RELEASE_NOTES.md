@@ -1,6 +1,6 @@
-# Covio 0.6.0-internal.34
+# Covio 0.6.0-internal.35
 
-Covio 0.6.0-internal.34 是内测版。
+Covio 0.6.0-internal.35 是内测版。
 本版修复 macOS 首次启动的 helper 协调阻塞。
 本版修复仓库改名后更新器无法发现新版本的问题。
 Windows Hub 输入和托盘菜单已与 macOS 对齐。
@@ -30,25 +30,34 @@ Windows 包含当前用户安装的 x64 安装包。
 从 `.34` 起，更新器使用当前仓库路径并兼容旧签名清单。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.6.0-internal.33 到 0.6.0-internal.34 的变化
+## 从 0.6.0-internal.34 到 0.6.0-internal.35 的变化
 
-- macOS 将 helper 状态更新延后到第一个成功的引擎 tick。首次启动不再等待唤醒日志扫描。
-- macOS 更新器改用 `wyz541/Covio`，并兼容旧签名清单。
-- Windows 增加 `Ctrl+Alt+T` 全局 Hub 快捷键。
-- Windows 托盘菜单增加 `Show screenshots`、`Settings` 和 `Quit Covio`。
+<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
+
+- Fix the Workbench freeze after New Text（#722）
+- Codify the shared interaction contract workflow（#723）
+- Generate shared motion constants for Windows（#713）
+- Animate the Windows Workbench from the top edge（#711）
+- Clip Windows Workbench corners without shadows（#709）
+- Add update progress and global trigger settings（#704）
+- Center the Windows top-edge trigger zone（#707）
+- Show the Windows Workbench at the top edge（#705）
+- Align Windows Workbench and Settings with macOS（#701）
+- Add a top-edge Workbench trigger on Windows（#699）
+- Align Windows Settings with the macOS shell（#697）
+- Align Windows content views with macOS（#696）
+- Align the Windows Home dashboard with macOS（#695）
+- Establish the Windows egui visual foundation（#694）
 
 ## 验证
 
-- `bash scripts/test-all.sh`：通过。
-- macOS Swift：执行 1096 个测试，3 个跳过，0 个失败。
-- Rust core、Updater、安装器、产物边界、合同和 Windows trigger 测试：通过。
-- macOS 首次启动真机复验：Draft PKG 安装后记录。
+<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
 
 ## 安装
 
 ### macOS
 
-1. 下载 `Covio-0.6.0-internal.34.pkg`。
+1. 下载 `Covio-0.6.0-internal.35.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。
@@ -56,7 +65,7 @@ Windows 包含当前用户安装的 x64 安装包。
 
 ### Windows
 
-1. 下载 `Covio-0.6.0-internal.34-windows-x64-setup.exe`。
+1. 下载 `Covio-0.6.0-internal.35-windows-x64-setup.exe`。
 2. 运行安装包。
 3. 安装到当前用户目录。
 4. 从开始菜单启动 Covio。
