@@ -187,6 +187,43 @@ extension WorkbenchInteractionContract {
             self.responseSeconds = responseSeconds
             self.dampingFraction = dampingFraction
         }
+
+        /// Evaluates the shared conformance vector model.
+        func progress(at normalizedTime: Double, durationSeconds: Double) -> Double {
+            let time = min(max(normalizedTime, 0), 1)
+            if time <= 0 { return 0 }
+            if time >= 1 { return 1 }
+            switch type {
+            case .easeOut:
+                return 1 - pow(1 - time, 3)
+            case .spring:
+                return springProgress(
+                    responseSeconds: responseSeconds ?? durationSeconds,
+                    dampingFraction: dampingFraction ?? 1,
+                    time: time * durationSeconds
+                )
+            }
+        }
+
+        private func springProgress(
+            responseSeconds: Double,
+            dampingFraction: Double,
+            time: Double
+        ) -> Double {
+            let angularFrequency = 2 * Double.pi / responseSeconds
+            let decay = exp(-dampingFraction * angularFrequency * time)
+            if dampingFraction < 1 {
+                let dampedFrequency =
+                    angularFrequency * sqrt(1 - pow(dampingFraction, 2))
+                let cosine = cos(dampedFrequency * time)
+                let sine = sin(dampedFrequency * time)
+                return 1 - decay * (
+                    cosine
+                        + dampingFraction * angularFrequency / dampedFrequency * sine
+                )
+            }
+            return 1 - decay * (1 + angularFrequency * time)
+        }
     }
 
     /// 减弱动态效果参数。

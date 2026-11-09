@@ -17,6 +17,7 @@ pub mod shelf;
 pub mod update;
 pub mod version;
 pub mod workbench_interaction;
+pub mod workbench_interaction_runtime;
 pub mod workspace;
 
 pub use charge_limit::{

@@ -1,7 +1,8 @@
 //! Top-edge pointer trigger for the Windows Workbench.
 
 use crate::visuals::PANEL_RADIUS;
-use covio_core::workbench_interaction::{Platform, WORKBENCH_INTERACTION};
+use covio_core::workbench_interaction::{EasingSpec, Platform, WORKBENCH_INTERACTION};
+use covio_core::workbench_interaction_runtime::{DisplayRect, transition_progress, trigger_bounds};
 use display_info::DisplayInfo;
 use eframe::egui;
 use mouse_position::mouse_position::Mouse;
@@ -40,20 +41,6 @@ fn trigger_dwell() -> Duration {
 
 fn trigger_cooldown() -> Duration {
     WORKBENCH_INTERACTION.trigger_cooldown_duration(Platform::Windows)
-}
-
-fn required_windows_override(field: &str) -> f64 {
-    WORKBENCH_INTERACTION
-        .platform_value(Platform::Windows, field)
-        .unwrap_or_else(|| panic!("missing Windows Workbench override: {field}"))
-}
-
-fn trigger_half_width_percent() -> i64 {
-    required_windows_override("trigger.geometry.centeredHalfWidthPercent").round() as i64
-}
-
-fn trigger_edge_thickness_pixels() -> i64 {
-    required_windows_override("trigger.geometry.topEdgeThicknessPixels").round() as i64
 }
 
 /// Persistent Windows-only host preferences.
@@ -382,6 +369,7 @@ fn reveal_native_window(window_handle: isize, cursor: Option<(i32, i32)>, reduce
             display.y,
             dimensions,
             animation_duration(true, reduced_motion),
+            WORKBENCH_INTERACTION.reveal.easing,
         );
     }
     // SAFETY: The handle belongs to this process and stays valid until the monitor stops.
@@ -409,6 +397,7 @@ fn conceal_native_window(window_handle: isize, reduced_motion: bool) {
         display.y.saturating_sub(height),
         (width, height),
         animation_duration(false, reduced_motion),
+        WORKBENCH_INTERACTION.conceal.easing,
     );
 }
 
@@ -419,6 +408,7 @@ fn animate_native_window_y(
     end_y: i32,
     (width, height): (i32, i32),
     duration: Duration,
+    easing: EasingSpec,
 ) {
     if duration.is_zero() {
         set_native_window_position(window_handle, x, end_y, width, height);
@@ -429,7 +419,8 @@ fn animate_native_window_y(
     loop {
         let elapsed = started.elapsed();
         let progress = (elapsed.as_secs_f64() / duration.as_secs_f64()).clamp(0.0, 1.0);
-        let y = animated_y(start_y, end_y, progress);
+        let eased_progress = transition_progress(easing, duration.as_secs_f64(), progress);
+        let y = interpolated_y(start_y, end_y, eased_progress);
         set_native_window_position(window_handle, x, y, width, height);
         if progress >= 1.0 {
             break;
@@ -468,15 +459,10 @@ fn animation_duration(expanding: bool, reduced_motion: bool) -> Duration {
     }
 }
 
-fn ease_out_cubic(progress: f64) -> f64 {
-    let inverse = 1.0 - progress.clamp(0.0, 1.0);
-    1.0 - inverse.powi(3)
-}
-
-fn animated_y(start_y: i32, end_y: i32, progress: f64) -> i32 {
+fn interpolated_y(start_y: i32, end_y: i32, progress: f64) -> i32 {
     let start = f64::from(start_y);
     let distance = f64::from(end_y) - start;
-    (start + distance * ease_out_cubic(progress))
+    (start + distance * progress)
         .round()
         .clamp(f64::from(i32::MIN), f64::from(i32::MAX)) as i32
 }
@@ -641,17 +627,13 @@ fn point_at_top_edge(x: i32, y: i32) -> bool {
 }
 
 fn point_on_display_top(x: i32, y: i32, left: i32, top: i32, width: u32, height: u32) -> bool {
-    let x = i64::from(x);
-    let y = i64::from(y);
-    let left = i64::from(left);
-    let top = i64::from(top);
-    let width = i64::from(width.min(i32::MAX as u32) as i32);
-    let height = i64::from(height.min(i32::MAX as u32) as i32);
-    let half_width_percent = trigger_half_width_percent();
-    let trigger_left = left + width * (50 - half_width_percent) / 100;
-    let trigger_right = left + width * (50 + half_width_percent) / 100;
-    let trigger_bottom = top + trigger_edge_thickness_pixels().min(height);
-    x >= trigger_left && x < trigger_right && y >= top && y < trigger_bottom
+    let display = DisplayRect {
+        left: f64::from(left),
+        top: f64::from(top),
+        width: f64::from(width.min(i32::MAX as u32)),
+        height: f64::from(height.min(i32::MAX as u32)),
+    };
+    trigger_bounds(Platform::Windows, display).contains(f64::from(x), f64::from(y))
 }
 
 #[cfg(test)]
@@ -671,17 +653,17 @@ mod tests {
     }
 
     #[test]
-    fn top_edge_uses_the_contract_center_and_supports_offset_displays() {
-        let half_width = trigger_half_width_percent();
-        let thickness = trigger_edge_thickness_pixels();
-        let width = 2560_i64;
-        let left = 0_i64;
-        let center = left + width / 2;
-        let trigger_left = left + width * (50 - half_width) / 100;
-        let trigger_right = left + width * (50 + half_width) / 100;
-
+    fn top_edge_uses_contract_bounds_and_supports_offset_displays() {
+        let display = DisplayRect {
+            left: 0.0,
+            top: 0.0,
+            width: 2560.0,
+            height: 1440.0,
+        };
+        let bounds = trigger_bounds(Platform::Windows, display);
+        let center_x = ((bounds.left + bounds.right) / 2.0) as i32;
         assert!(!point_on_display_top(
-            (trigger_left - 1) as i32,
+            bounds.left as i32 - 1,
             0,
             0,
             0,
@@ -689,7 +671,7 @@ mod tests {
             1440
         ));
         assert!(point_on_display_top(
-            trigger_left as i32,
+            bounds.left as i32,
             0,
             0,
             0,
@@ -697,71 +679,58 @@ mod tests {
             1440
         ));
         assert!(point_on_display_top(
-            center as i32,
-            (thickness - 1) as i32,
+            center_x,
+            bounds.bottom as i32 - 1,
             0,
             0,
             2560,
-            1440
+            1440,
         ));
         assert!(!point_on_display_top(
-            center as i32,
-            thickness as i32,
+            center_x,
+            bounds.bottom as i32,
             0,
             0,
             2560,
-            1440
-        ));
-        assert!(point_on_display_top(
-            (trigger_right - 1) as i32,
-            0,
-            0,
-            0,
-            2560,
-            1440
+            1440,
         ));
         assert!(!point_on_display_top(
-            trigger_right as i32,
+            bounds.right as i32,
             0,
             0,
             0,
             2560,
-            1440
+            1440,
         ));
 
-        let offset_left = -2560_i64;
-        let offset_top = -48_i64;
-        let offset_trigger_left = offset_left + width * (50 - half_width) / 100;
-        let offset_trigger_right = offset_left + width * (50 + half_width) / 100;
+        let offset = DisplayRect {
+            left: -2560.0,
+            top: -48.0,
+            width: 2560.0,
+            height: 1440.0,
+        };
+        let offset_bounds = trigger_bounds(Platform::Windows, offset);
         assert!(!point_on_display_top(
-            (offset_trigger_left - 1) as i32,
-            offset_top as i32,
-            offset_left as i32,
-            offset_top as i32,
+            offset_bounds.left as i32 - 1,
+            -48,
+            -2560,
+            -48,
             2560,
             1440,
         ));
         assert!(point_on_display_top(
-            offset_trigger_left as i32,
-            offset_top as i32,
-            offset_left as i32,
-            offset_top as i32,
-            2560,
-            1440,
-        ));
-        assert!(point_on_display_top(
-            -1280,
-            (offset_top + thickness - 1) as i32,
-            offset_left as i32,
-            offset_top as i32,
+            offset_bounds.left as i32,
+            -48,
+            -2560,
+            -48,
             2560,
             1440,
         ));
         assert!(!point_on_display_top(
-            (offset_trigger_right) as i32,
-            offset_top as i32,
-            offset_left as i32,
-            offset_top as i32,
+            offset_bounds.right as i32,
+            -48,
+            -2560,
+            -48,
             2560,
             1440,
         ));
@@ -788,14 +757,13 @@ mod tests {
     }
 
     #[test]
-    fn native_animation_uses_ease_out_progress() {
-        assert_eq!(ease_out_cubic(0.0), 0.0);
-        assert!((ease_out_cubic(0.5) - 0.875).abs() < f64::EPSILON);
-        assert_eq!(ease_out_cubic(1.0), 1.0);
-        assert_eq!(animated_y(-880, 0, 0.0), -880);
-        assert_eq!(animated_y(-880, 0, 0.5), -110);
-        assert_eq!(animated_y(-880, 0, 1.0), 0);
-        assert_eq!(animated_y(0, -1100, 0.5), -963);
+    fn native_animation_uses_contract_progress() {
+        let halfway = transition_progress(EasingSpec::EaseOut, 1.0, 0.5);
+        assert!((halfway - 0.875).abs() < f64::EPSILON);
+        assert_eq!(interpolated_y(-880, 0, 0.0), -880);
+        assert_eq!(interpolated_y(-880, 0, halfway), -110);
+        assert_eq!(interpolated_y(-880, 0, 1.0), 0);
+        assert_eq!(interpolated_y(0, -1100, halfway), -963);
     }
 
     #[test]
