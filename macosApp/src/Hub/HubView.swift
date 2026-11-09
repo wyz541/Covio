@@ -57,7 +57,10 @@ struct HubView: View {
         )
         // 宿主给固定外壳更大或更小的尺寸时，内容始终贴着顶部。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(curtainAnimation, value: isExpanded)
+        .animation(
+            HubMotion.curtainAnimation(isExpanded: isExpanded, reduceMotion: reduceMotion),
+            value: isExpanded
+        )
         .onChange(of: workbench.destination) { _, _ in
             chrome.clearSearch()
             if !isClipboardDestination {
@@ -75,15 +78,6 @@ struct HubView: View {
     private var cardOpacity: Double {
         guard reduceMotion else { return 1 }
         return isExpanded ? 1 : 0
-    }
-
-    private var curtainAnimation: Animation {
-        if reduceMotion {
-            return .linear(duration: HubMotion.reducedMotion)
-        }
-        return isExpanded
-            ? .spring(response: HubMotion.expand, dampingFraction: 0.82)
-            : .easeOut(duration: HubMotion.collapse)
     }
 
     /// 当前界面语言。运行时缺失时（预览、测试）跟随系统。

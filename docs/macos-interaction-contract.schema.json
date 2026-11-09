@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://covio.local/schemas/macos-interaction-contract.schema.json",
+  "title": "macOS Workbench Interaction Contract",
+  "description": "Deterministic interaction contract exported from the macOS Swift specification.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractId",
+    "schemaVersion",
+    "trigger",
+    "reveal",
+    "conceal",
+    "reducedMotion",
+    "geometry",
+    "platformOverrides"
+  ],
+  "properties": {
+    "contractId": {
+      "const": "covio.workbench.interaction"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "trigger": {
+      "$ref": "#/$defs/trigger"
+    },
+    "reveal": {
+      "$ref": "#/$defs/transition"
+    },
+    "conceal": {
+      "$ref": "#/$defs/transition"
+    },
+    "reducedMotion": {
+      "$ref": "#/$defs/reducedMotion"
+    },
+    "geometry": {
+      "$ref": "#/$defs/geometry"
+    },
+    "platformOverrides": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/platformOverride"
+      }
+    }
+  },
+  "$defs": {
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dwellMs",
+        "cooldownMs",
+        "pointerExitCollapseMs",
+        "geometry"
+      ],
+      "properties": {
+        "dwellMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cooldownMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pointerExitCollapseMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "geometry": {
+          "$ref": "#/$defs/triggerGeometry"
+        }
+      }
+    },
+    "triggerGeometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alignment",
+        "displaySelection",
+        "notchedDisplay",
+        "notchlessDisplay",
+        "notchlessWidthPoints",
+        "notchlessHeightPoints"
+      ],
+      "properties": {
+        "alignment": {
+          "const": "topCenter"
+        },
+        "displaySelection": {
+          "const": "pointerDisplayThenMainFallback"
+        },
+        "notchedDisplay": {
+          "const": "notch"
+        },
+        "notchlessDisplay": {
+          "const": "centeredBand"
+        },
+        "notchlessWidthPoints": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "notchlessHeightPoints": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "direction",
+        "durationMs",
+        "easing"
+      ],
+      "properties": {
+        "direction": {
+          "enum": [
+            "topToBottom",
+            "bottomToTop"
+          ]
+        },
+        "durationMs": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "easing": {
+          "$ref": "#/$defs/easing"
+        }
+      }
+    },
+    "easing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "spring",
+            "easeOut"
+          ]
+        },
+        "responseSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "dampingFraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "reducedMotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durationMs",
+        "effect"
+      ],
+      "properties": {
+        "durationMs": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "effect": {
+          "const": "opacity"
+        }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "panelWidthPoints",
+        "panelCornerRadiusPoints"
+      ],
+      "properties": {
+        "panelWidthPoints": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "panelCornerRadiusPoints": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "platformOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "platform",
+        "field",
+        "value",
+        "reason",
+        "evidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "platform": {
+          "const": "windows"
+        },
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

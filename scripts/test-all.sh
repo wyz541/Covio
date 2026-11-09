@@ -56,6 +56,7 @@ python3 -I "$ROOT/scripts/generate-contract-constants.py" --check
 
 step "设计合同跨段规则"
 python3 -I "$ROOT/scripts/validate-contract.py"
+python3 -I "$ROOT/scripts/validate-macos-interaction-contract.py"
 
 step "工作流模板"
 python3 -I "$ROOT/scripts/validate-workflow.py"

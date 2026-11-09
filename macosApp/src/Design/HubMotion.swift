@@ -1,19 +1,24 @@
 import Foundation
+import SwiftUI
 
 /// Hub 的动效参数。
 ///
-/// 数值的权威是设计合同的 `token/motion/*`，由
-/// `scripts/generate-contract-constants.py` 生成到 `ContractMotion`。
-/// 这里保留一层语义命名，便于按用途取用。
-/// `ContractConstantsTests` 逐条比对两边，防止漂移。
+/// Workbench 的显示、隐藏、触发和指针移出参数来自
+/// WorkbenchInteractionContract。其他共享动效仍来自设计合同生成的常量。
 enum HubMotion {
-    /// Hub 展开：220 至 280 毫秒，弹性曲线。
-    static let expandRange: ClosedRange<TimeInterval> = 0.220...0.280
-    static let expand: TimeInterval = ContractMotion.tokenMotionHubExpand.seconds
+    private static let contract = WorkbenchInteractionContract.current
 
-    /// Hub 收起：160 至 220 毫秒，缓出曲线。
-    static let collapseRange: ClosedRange<TimeInterval> = 0.160...0.220
-    static let collapse: TimeInterval = ContractMotion.tokenMotionHubCollapse.seconds
+    /// Hub 展开时长。
+    static let expand: TimeInterval = contract.reveal.durationSeconds
+
+    /// Hub 收起时长。
+    static let collapse: TimeInterval = contract.conceal.durationSeconds
+
+    /// 指针进入热区后等待多久再触发。
+    static let triggerDwell: TimeInterval = contract.trigger.dwellSeconds
+
+    /// 一次触发后的冷却时间。
+    static let triggerCooldown: TimeInterval = contract.trigger.cooldownSeconds
 
     /// 页签切换：160 毫秒，横向滑动加淡入。
     static let tabSwitch: TimeInterval = ContractMotion.tokenMotionTabSwitch.seconds
@@ -38,11 +43,12 @@ enum HubMotion {
     /// 错误出现：160 毫秒。
     static let errorAppear: TimeInterval = ContractMotion.tokenMotionErrorAppear.seconds
 
-    /// 减弱动态效果：120 毫秒，只改透明度。
-    static let reducedMotion: TimeInterval = ContractMotion.tokenMotionReducedMotion.seconds
+    /// 减弱动态效果：只改透明度。
+    static let reducedMotion: TimeInterval = contract.reducedMotion.durationSeconds
 
     /// 指针移出 Hub 后收起的等待时间。
-    static let pointerExitCollapseDelay: TimeInterval = ContractMotion.tokenMotionPointerExitCollapse.seconds
+    static let pointerExitCollapseDelay: TimeInterval =
+        contract.trigger.pointerExitCollapseSeconds
 
     /// 换页签后多久内，指针不再触发切换。
     /// 合同没有这枚令牌，取值按「指针扫过顶栏只切一次」的手感定。
@@ -63,5 +69,27 @@ enum HubMotion {
     /// 生效的收起时长。
     static func collapseDuration(reduceMotion: Bool) -> TimeInterval {
         reduceMotion ? reducedMotion : collapse
+    }
+
+    /// 返回挂帘当前状态使用的动画。
+    static func curtainAnimation(isExpanded: Bool, reduceMotion: Bool) -> Animation {
+        if reduceMotion {
+            return .linear(duration: reducedMotion)
+        }
+        return animation(for: isExpanded ? contract.reveal : contract.conceal)
+    }
+
+    private static func animation(
+        for transition: WorkbenchInteractionContract.Transition
+    ) -> Animation {
+        switch transition.easing.type {
+        case .spring:
+            return .spring(
+                response: transition.durationSeconds,
+                dampingFraction: transition.easing.dampingFraction ?? 1
+            )
+        case .easeOut:
+            return .easeOut(duration: transition.durationSeconds)
+        }
     }
 }

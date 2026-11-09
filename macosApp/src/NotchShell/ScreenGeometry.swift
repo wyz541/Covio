@@ -139,10 +139,15 @@ extension ScreenGeometry {
         location: CGPoint = NSEvent.mouseLocation,
         screens: [NSScreen] = NSScreen.screens
     ) -> ScreenGeometry? {
-        if let screen = screens.first(where: { $0.frame.contains(location) }) {
-            return ScreenGeometry(screen: screen)
+        let selection = WorkbenchInteractionContract.current
+            .trigger.geometry.displaySelection
+        switch selection {
+        case .pointerDisplayThenMainFallback:
+            if let screen = screens.first(where: { $0.frame.contains(location) }) {
+                return ScreenGeometry(screen: screen)
+            }
+            guard let main = NSScreen.main ?? screens.first else { return nil }
+            return ScreenGeometry(screen: main)
         }
-        guard let main = NSScreen.main ?? screens.first else { return nil }
-        return ScreenGeometry(screen: main)
     }
 }

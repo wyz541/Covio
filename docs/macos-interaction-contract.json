@@ -1,0 +1,42 @@
+{
+  "conceal" : {
+    "direction" : "bottomToTop",
+    "durationMs" : 190,
+    "easing" : {
+      "type" : "easeOut"
+    }
+  },
+  "contractId" : "covio.workbench.interaction",
+  "geometry" : {
+    "panelCornerRadiusPoints" : 23,
+    "panelWidthPoints" : 960
+  },
+  "platformOverrides" : [],
+  "reducedMotion" : {
+    "durationMs" : 120,
+    "effect" : "opacity"
+  },
+  "reveal" : {
+    "direction" : "topToBottom",
+    "durationMs" : 250,
+    "easing" : {
+      "dampingFraction" : 0.82,
+      "responseSeconds" : 0.25,
+      "type" : "spring"
+    }
+  },
+  "schemaVersion" : "1.0.0",
+  "trigger" : {
+    "cooldownMs" : 0,
+    "dwellMs" : 0,
+    "geometry" : {
+      "alignment" : "topCenter",
+      "displaySelection" : "pointerDisplayThenMainFallback",
+      "notchedDisplay" : "notch",
+      "notchlessDisplay" : "centeredBand",
+      "notchlessHeightPoints" : 6,
+      "notchlessWidthPoints" : 200
+    },
+    "pointerExitCollapseMs" : 500
+  }
+}

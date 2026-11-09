@@ -3,7 +3,7 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-11-05",
+    "updatedAt": "2026-11-09",
     "authority": "docs/covio-design-contract.json",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -1058,8 +1058,8 @@
     },
     "token/radius/panel": {
       "type": "dimension",
-      "light": 22,
-      "dark": 22,
+      "light": 23,
+      "dark": 23,
       "purpose": "挂帘面板的圆角。"
     },
     "token/radius/medium": {

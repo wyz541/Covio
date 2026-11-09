@@ -134,10 +134,22 @@ PR 不手填共享值，只消费生成产物。
 - 允许合同与运行时分叉。
 - 使用无 ID、无理由或无证据的覆盖。
 
-## 10. 迁移状态
+## 10. macOS 导出命令
 
-`docs/covio-design-contract.json` 当前承载设计和动效令牌。
-macOS Swift 合同接入后，JSON 只作为确定性导出物。
+macOS Swift 合同保存在 `macosApp/src/Design/WorkbenchInteractionContract.swift`。
+JSON 合同保存在 `docs/macos-interaction-contract.json`。
+
+1. 导出合同：`bash scripts/export-macos-interaction-contract.sh`
+2. 检查合同：`bash scripts/export-macos-interaction-contract.sh --check`
+
+`scripts/test-macos-swift.sh` 自动运行检查。
+便携校验运行 `python3 -I scripts/validate-macos-interaction-contract.py`。
+
+## 11. 迁移状态
+
+Workbench 交互值已由 macOS Swift 合同导出。
+`docs/covio-design-contract.json` 仍承载全产品视觉令牌。
+交互 JSON 只作为确定性导出物。
 迁移期仍禁止 Windows 单独定义共享值。
 迁移期的合同变更必须对应 macOS 行为变更或 macOS 设计决定。
 相关 PR 必须说明临时来源和后续导出路径。

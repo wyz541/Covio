@@ -12,6 +12,8 @@ import CoreGraphics
 /// 24 点内边距，里面是当前页内容。页内容有自己的自然高度，但外壳高度只在
 /// 屏幕变化时计算一次。页签和编辑模式不能改变窗口尺寸。
 enum HubMetrics {
+    private static let interactionContract = WorkbenchInteractionContract.current
+
     /// Hub 最小宽度 720 点。
     static let minWidth: CGFloat = 720
 
@@ -23,8 +25,8 @@ enum HubMetrics {
 
     // MARK: - 面板
 
-    /// 面板宽度 960 点。合同 `component/tab-bar` 的 `nativeSize.width`。
-    static let panelWidth: CGFloat = 960
+    /// 面板宽度。来自 macOS 交互合同。
+    static let panelWidth = CGFloat(interactionContract.geometry.panelWidthPoints)
 
     /// 工作台外壳的首选内容高度 880 点。合同 `token/size/workbench-shell-height`。
     ///
@@ -57,13 +59,9 @@ enum HubMetrics {
     /// 一条空缝，再露出顶栏。
     static let plateTopInset: CGFloat = 11
 
-    /// 内容区底板的圆角 23 点。
-    ///
-    /// 控制中心的面板是一块圆角矩形，实测圆角约 22 点，面板高约 558 点。
-    /// 取 23 与顶栏同值：导航层与内容层属于同一族。
-    ///
-    /// 卡片在底板上面，圆角 16 点，比底板小 —— 内层的圆角要小于外层。
-    static let contentPlateRadius: CGFloat = 23
+    /// 内容区底板的圆角。来自 macOS 交互合同。
+    static let contentPlateRadius =
+        CGFloat(interactionContract.geometry.panelCornerRadiusPoints)
 
     // MARK: - 顶栏
 
@@ -319,8 +317,10 @@ enum HubMetrics {
     static let preferredHitTarget: CGFloat = 44
 
     /// 非刘海屏的热区尺寸。热区在菜单栏下方，所以做得又窄又薄。
-    static let notchlessHotZoneWidth: CGFloat = 200
-    static let notchlessHotZoneHeight: CGFloat = 6
+    static let notchlessHotZoneWidth =
+        CGFloat(interactionContract.trigger.geometry.notchlessWidthPoints)
+    static let notchlessHotZoneHeight =
+        CGFloat(interactionContract.trigger.geometry.notchlessHeightPoints)
 
     // MARK: - 屏幕
 
