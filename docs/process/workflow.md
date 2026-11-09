@@ -2,7 +2,7 @@
 
 **明确事项直接进入 Issue。研究可以独立创建。大功能使用原生 sub-issue。**
 
-版本 1.0 · 2026-11-03
+版本 1.1 · 2026-11-09
 
 ## 1. 适用范围
 本流程适用于 Covio 仓库。
@@ -152,7 +152,19 @@ PR 记录日期、设备、系统、页面、状态和 commit。
 UI 决策可以在 Issue 中保存候选截图和评审状态。
 UI 代码 PR 缺少所需证据时，不得转为 ready 或合并。
 
-## 8. ADR
+## 8. 跨平台交互合同
+共享交互与动效变更按 [跨平台交互合同工作流](interaction-contract.md)。
+- macOS 定义共享交互、动效和外观。
+- macOS 维护类型化 Swift 合同。
+- JSON 合同由 macOS Swift 合同确定性导出。
+- Windows 只消费生成的 Rust 合同。
+- Windows 不得独立定义共享值。
+- Windows 覆盖必须包含稳定 ID、理由和证据。
+- PR 必须填写 `Contract impact`。
+
+缺少合同证据时，PR 不得转为 ready 或合并。
+
+## 9. ADR
 
 ADR 只记录长期决策。
 长期决策满足任一项：
@@ -165,7 +177,7 @@ ADR 的 PR 合并后生效。
 Feature 有 ADR 时，写实际编号。
 没有 ADR 时不写占位符。
 
-## 9. PR 结构
+## 10. PR 结构
 
 PR 只保留四个主体段：
 
@@ -175,5 +187,6 @@ PR 只保留四个主体段：
 4. `Risk`
 
 没有 UI 变化时，`Visual verification` 写 `Not applicable`。
+合同相关 PR 在 `Proof` 填写 `Contract impact`。
 PR 在测试通过前保持 draft。
 测试失败时不得转入 ready 或合并。

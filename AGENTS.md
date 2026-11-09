@@ -66,12 +66,25 @@ UI 代码 PR 必须填写 `Visual verification`。
 长期证据再存入 `docs/design/previews/`。
 缺少所需证据时，不得转入 ready 或合并。
 
-## 6. 文档
+## 6. 跨平台交互合同
+- macOS 是共享交互、动效和外观的唯一设计来源。
+- macOS 用类型化 Swift 合同定义共享行为。
+- macOS 运行时消费同一 Swift 合同。
+- JSON 合同由 macOS Swift 合同确定性导出。
+- Windows 只消费生成的 Rust 合同。
+- Windows 不得独立定义共享触发、几何、动效或状态转换参数。
+- Windows 覆盖必须有稳定 ID、理由和证据。
+- 禁止手改合同生成物。
+- 相关 PR 必须填写 `Contract impact`。
+- 缺少合同证据时，PR 不得转为 ready 或合并。
+
+## 7. 文档
 文档用中文。命令、路径、API 名称和版本号保留原文。
 不写本机绝对路径。
 改动涉及行为时，同步修改文档。
 关键来源：
 - 设计合同：`docs/covio-design-contract.json`
+- 跨平台交互合同：`docs/process/interaction-contract.md`
 - 架构决策：`docs/adr/`
 - 目标架构：`docs/design/`
 - 研究结论：`docs/research/`
@@ -79,7 +92,7 @@ UI 代码 PR 必须填写 `Visual verification`。
 - Project 字段：`docs/process/project-fields.md`
 - 进度：[Project 8](https://github.com/users/wyz541/projects/8)
 
-## 7. commit
+## 8. commit
 标题使用英文祈使句。首字母大写，不超过 72 字符。
 标题不加句号或 `feat:` 前缀。
 有对应 Issue 时写 `Refs #N`。agent 提交添加 `Co-Authored-By` 行。
@@ -92,8 +105,10 @@ Refs #27
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 ```
 
-## 8. 禁止
+## 9. 禁止
 1. 禁止直接向 `main` 推送。
 2. 禁止使用 `git add -A` 或 `git add .`。
 3. 禁止把本机绝对路径写入仓库文件。
 4. 修改设计合同后，重跑 `scripts/generate-contract-constants.py`。
+5. 禁止手改合同生成物。
+6. 禁止只在 Windows 修改共享交互或动效值。
