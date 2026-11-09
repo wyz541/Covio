@@ -1,6 +1,11 @@
 //! Top-edge pointer trigger for the Windows Workbench.
 
 use crate::visuals::PANEL_RADIUS;
+use covio_core::contract_motion::{
+    HUB_COLLAPSE as WORKBENCH_COLLAPSE_DURATION, HUB_EXPAND as WORKBENCH_EXPAND_DURATION,
+    POINTER_EXIT_COLLAPSE as WORKBENCH_AUTO_HIDE_DELAY,
+    REDUCED_MOTION as WORKBENCH_REDUCED_MOTION_DURATION,
+};
 use display_info::DisplayInfo;
 use eframe::egui;
 use mouse_position::mouse_position::Mouse;
@@ -38,14 +43,6 @@ pub(crate) const TOP_EDGE_DWELL: Duration = Duration::from_millis(180);
 pub(crate) const TOP_EDGE_COOLDOWN: Duration = Duration::from_millis(700);
 /// Maximum interval between global pointer samples.
 pub(crate) const TOP_EDGE_POLL_INTERVAL: Duration = Duration::from_millis(50);
-/// Delay before a visible Workbench hides after the pointer leaves it.
-pub(crate) const WORKBENCH_AUTO_HIDE_DELAY: Duration = Duration::from_millis(500);
-/// Duration of the Workbench pull-down transition.
-pub(crate) const WORKBENCH_EXPAND_DURATION: Duration = Duration::from_millis(250);
-/// Duration of the Workbench retract transition.
-pub(crate) const WORKBENCH_COLLAPSE_DURATION: Duration = Duration::from_millis(190);
-/// Duration of Workbench movement while reduced motion is enabled.
-pub(crate) const WORKBENCH_REDUCED_MOTION_DURATION: Duration = Duration::from_millis(120);
 /// Maximum interval between native Workbench animation frames.
 const WORKBENCH_ANIMATION_FRAME_INTERVAL: Duration = Duration::from_millis(8);
 
