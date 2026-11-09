@@ -47,6 +47,19 @@ Windows egui host 使用顶部悬浮 Workbench 作为主入口。
 - 全局鼠标轮询间隔为 50 ms。
 - 实现不安装低级鼠标钩子。
 
+## 圆角与阴影
+
+- 原生窗口启用透明后台缓冲。
+- CentralPanel 不绘制矩形背景。
+- Workbench 外框使用 22 点圆角。
+- Settings 外框使用 22 点圆角。
+- Workbench 和 Settings 的外框不绘制阴影。
+- 原生窗口使用按 DPI 缩放的圆角区域。
+- DWM 非客户区渲染关闭。
+- DWM 窗口边框透明。
+- 窗口样式更新后，应用重新建立透明合成。
+- 卡片和控件的内部阴影保持不变。
+
 ## 首帧与显示
 
 后台线程先执行以下步骤：
@@ -73,7 +86,7 @@ Windows egui host 使用顶部悬浮 Workbench 作为主入口。
 - 显示窗口时发送 egui `Visible(true)` 和 `Focus`。
 - 隐藏窗口时使用 `ShowWindow(SW_HIDE)`。
 - 隐藏窗口时发送 egui `Visible(false)`。
-- 窗口样式在显示后重新应用。
+- 窗口样式和原生圆角区域在显示后重新应用。
 - 快捷键冲突时应用继续运行。Settings 显示冲突原因。
 - `--window-smoke` 验证快捷键冲突不阻止应用启动。
 

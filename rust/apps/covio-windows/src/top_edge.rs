@@ -1,5 +1,6 @@
 //! Top-edge pointer trigger for the Windows Workbench.
 
+use crate::visuals::PANEL_RADIUS;
 use display_info::DisplayInfo;
 use eframe::egui;
 use mouse_position::mouse_position::Mouse;
@@ -11,6 +12,15 @@ use std::sync::{
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::RECT;
+use windows_sys::Win32::Graphics::Dwm::{
+    DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND, DWMNCRP_DISABLED, DWMWA_BORDER_COLOR,
+    DWMWA_COLOR_NONE, DWMWA_NCRENDERING_POLICY, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+    DwmEnableBlurBehindWindow, DwmSetWindowAttribute,
+};
+use windows_sys::Win32::Graphics::Gdi::{
+    CreateRectRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn,
+};
+use windows_sys::Win32::UI::HiDpi::GetDpiForWindow;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GWL_EXSTYLE, GWL_STYLE, GetWindowLongPtrW, GetWindowRect, HWND_TOPMOST, SW_HIDE, SW_SHOW,
     SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SetForegroundWindow,
@@ -274,6 +284,50 @@ pub(crate) fn configure_overlay_window(window_handle: isize) {
             0,
             SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         );
+
+        let corner_preference = DWMWCP_DONOTROUND;
+        let _ = DwmSetWindowAttribute(
+            window_handle as _,
+            DWMWA_WINDOW_CORNER_PREFERENCE as u32,
+            (&corner_preference as *const i32).cast(),
+            std::mem::size_of::<i32>() as u32,
+        );
+        let border_color = DWMWA_COLOR_NONE;
+        let _ = DwmSetWindowAttribute(
+            window_handle as _,
+            DWMWA_BORDER_COLOR as u32,
+            (&border_color as *const u32).cast(),
+            std::mem::size_of::<u32>() as u32,
+        );
+
+        let non_client_rendering = DWMNCRP_DISABLED;
+        let _ = DwmSetWindowAttribute(
+            window_handle as _,
+            DWMWA_NCRENDERING_POLICY as u32,
+            (&non_client_rendering as *const i32).cast(),
+            std::mem::size_of::<i32>() as u32,
+        );
+
+        let (width, height) = window_dimensions(window_handle);
+        if width > 0 && height > 0 {
+            let radius = window_region_radius(GetDpiForWindow(window_handle as _));
+            let region = CreateRoundRectRgn(0, 0, width + 1, height + 1, radius * 2, radius * 2);
+            if !region.is_null() && SetWindowRgn(window_handle as _, region, 1) == 0 {
+                let _ = DeleteObject(region);
+            }
+        }
+
+        let empty_region = CreateRectRgn(0, 0, -1, -1);
+        if !empty_region.is_null() {
+            let blur = DWM_BLURBEHIND {
+                dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
+                fEnable: 1,
+                hRgnBlur: empty_region,
+                fTransitionOnMaximized: 0,
+            };
+            let _ = DwmEnableBlurBehindWindow(window_handle as _, &blur);
+            let _ = DeleteObject(empty_region);
+        }
     }
 }
 
@@ -353,6 +407,11 @@ fn window_contains_point(window_handle: isize, x: i32, y: i32) -> bool {
     // SAFETY: A successful call initialized the RECT.
     let rect = unsafe { rect.assume_init() };
     x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom
+}
+
+fn window_region_radius(dpi: u32) -> i32 {
+    let dpi = i64::from(dpi.max(96));
+    (i64::from(PANEL_RADIUS) * dpi / 96).clamp(1, i64::from(i32::MAX / 2)) as i32
 }
 
 fn display_for_point((x, y): (i32, i32)) -> Option<DisplayInfo> {
@@ -520,6 +579,13 @@ mod tests {
         assert!(tracker.update(start + WORKBENCH_AUTO_HIDE_DELAY, false));
         tracker.reset();
         assert!(!tracker.update(start + WORKBENCH_AUTO_HIDE_DELAY, false));
+    }
+
+    #[test]
+    fn native_corner_radius_tracks_display_scale() {
+        assert_eq!(window_region_radius(96), i32::from(PANEL_RADIUS));
+        assert_eq!(window_region_radius(120), 27);
+        assert_eq!(window_region_radius(144), 33);
     }
 
     #[test]

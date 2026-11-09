@@ -241,11 +241,17 @@ impl CovioTheme {
             .fill(if self.dark {
                 self.chrome
             } else {
-                Color32::from_rgba_unmultiplied(255, 255, 255, 235)
+                Color32::WHITE
             })
             .stroke(Stroke::new(1.0_f32, self.separator))
             .corner_radius(CornerRadius::same(PANEL_RADIUS))
-            .shadow(self.shadow(18, 0, 4))
+    }
+
+    pub(crate) fn settings_shell_frame(self) -> Frame {
+        Frame::new()
+            .fill(self.canvas)
+            .stroke(Stroke::new(1.0_f32, self.separator))
+            .corner_radius(CornerRadius::same(PANEL_RADIUS))
     }
 
     pub(crate) fn settings_group_frame(self) -> Frame {
@@ -352,6 +358,20 @@ mod tests {
         assert_eq!(dark.surface, rgb(0x2c2c2e));
         assert_eq!(light.accent, rgb(0x007aff));
         assert_eq!(dark.accent, rgb(0x0a84ff));
+    }
+
+    #[test]
+    fn outer_shells_keep_rounded_corners_without_drop_shadows() {
+        let theme = CovioTheme::from_dark(false);
+        let workbench = theme.workbench_plate_frame();
+        assert_eq!(workbench.corner_radius, CornerRadius::same(PANEL_RADIUS));
+        assert_eq!(workbench.shadow.blur, 0);
+        assert_eq!(workbench.shadow.spread, 0);
+
+        let settings = theme.settings_shell_frame();
+        assert_eq!(settings.corner_radius, CornerRadius::same(PANEL_RADIUS));
+        assert_eq!(settings.shadow.blur, 0);
+        assert_eq!(settings.shadow.spread, 0);
     }
 
     #[test]
