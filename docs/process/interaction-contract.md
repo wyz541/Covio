@@ -145,6 +145,9 @@ JSON 合同保存在 `docs/macos-interaction-contract.json`。
 `scripts/test-macos-swift.sh` 自动运行检查。
 便携校验运行 `python3 -I scripts/validate-macos-interaction-contract.py`。
 
+Windows 生成命令：`python3 -I scripts/generate-workbench-interaction.py`。
+Windows 漂移检查：`python3 -I scripts/generate-workbench-interaction.py --check`。
+
 ## 11. 迁移状态
 
 Workbench 交互值已由 macOS Swift 合同导出。

@@ -16,6 +16,7 @@ pub mod screenshot_preferences;
 pub mod shelf;
 pub mod update;
 pub mod version;
+pub mod workbench_interaction;
 pub mod workspace;
 
 pub use charge_limit::{
