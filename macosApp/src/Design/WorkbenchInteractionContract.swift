@@ -44,7 +44,43 @@ struct WorkbenchInteractionContract: Codable, Equatable, Sendable {
             panelWidthPoints: 960,
             panelCornerRadiusPoints: 23
         ),
-        platformOverrides: []
+        platformOverrides: [
+            PlatformOverride(
+                id: "windows-top-edge-dwell",
+                platform: .windows,
+                field: "trigger.dwellMs",
+                value: 180,
+                reason: "Windows polls global pointer position. A dwell window blocks short edge passes.",
+                evidence: ["docs/design/windows-triggers.md"]
+            ),
+            PlatformOverride(
+                id: "windows-top-edge-cooldown",
+                platform: .windows,
+                field: "trigger.cooldownMs",
+                value: 700,
+                reason: "Windows global pointer polling needs a cooldown after one Workbench trigger.",
+                evidence: ["rust/apps/covio-windows/src/top_edge.rs"]
+            ),
+            PlatformOverride(
+                id: "windows-top-edge-half-width",
+                platform: .windows,
+                field: "trigger.geometry.centeredHalfWidthPercent",
+                value: 5,
+                reason: "Windows has no physical notch. The trigger uses the top center five-percent band.",
+                evidence: [
+                    "docs/design/windows-triggers.md",
+                    "rust/apps/covio-windows/src/top_edge.rs",
+                ]
+            ),
+            PlatformOverride(
+                id: "windows-top-edge-thickness",
+                platform: .windows,
+                field: "trigger.geometry.topEdgeThicknessPixels",
+                value: 2,
+                reason: "Windows pointer coordinates need a two-pixel top edge tolerance.",
+                evidence: ["rust/apps/covio-windows/src/top_edge.rs"]
+            ),
+        ]
     )
 
     let contractId: String

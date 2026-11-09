@@ -12,7 +12,47 @@
     "panelWidthPoints" : 960
   },
   "platformOverrides" : [
-
+    {
+      "evidence" : [
+        "docs/design/windows-triggers.md"
+      ],
+      "field" : "trigger.dwellMs",
+      "id" : "windows-top-edge-dwell",
+      "platform" : "windows",
+      "reason" : "Windows polls global pointer position. A dwell window blocks short edge passes.",
+      "value" : 180
+    },
+    {
+      "evidence" : [
+        "rust/apps/covio-windows/src/top_edge.rs"
+      ],
+      "field" : "trigger.cooldownMs",
+      "id" : "windows-top-edge-cooldown",
+      "platform" : "windows",
+      "reason" : "Windows global pointer polling needs a cooldown after one Workbench trigger.",
+      "value" : 700
+    },
+    {
+      "evidence" : [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs"
+      ],
+      "field" : "trigger.geometry.centeredHalfWidthPercent",
+      "id" : "windows-top-edge-half-width",
+      "platform" : "windows",
+      "reason" : "Windows has no physical notch. The trigger uses the top center five-percent band.",
+      "value" : 5
+    },
+    {
+      "evidence" : [
+        "rust/apps/covio-windows/src/top_edge.rs"
+      ],
+      "field" : "trigger.geometry.topEdgeThicknessPixels",
+      "id" : "windows-top-edge-thickness",
+      "platform" : "windows",
+      "reason" : "Windows pointer coordinates need a two-pixel top edge tolerance.",
+      "value" : 2
+    }
   ],
   "reducedMotion" : {
     "durationMs" : 120,

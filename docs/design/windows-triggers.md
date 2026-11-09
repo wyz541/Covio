@@ -13,11 +13,11 @@ Windows egui host 使用顶部悬浮 Workbench 作为主入口。
 
 ## 触发方式
 
-- 鼠标进入任一显示器顶部中央 10% 宽度区域。
+- 鼠标进入任一显示器顶部中央区域。
 - 触发区以显示器中心为中点。
-- 触发区左右边界各距显示器中心 5% 宽度。
-- 触发区高度为显示器顶部 2 像素。
-- 鼠标在顶部中央触发区停留 180 ms 后，应用显示 Workbench。
+- 触发区半宽使用合同覆盖 `trigger.geometry.centeredHalfWidthPercent`。
+- 触发区厚度使用合同覆盖 `trigger.geometry.topEdgeThicknessPixels`。
+- 鼠标停留时间使用合同覆盖 `trigger.dwellMs`。
 - `Ctrl+Alt+T` 在应用失焦时显示或隐藏窗口。
 - 托盘图标左键显示或隐藏窗口。
 - 托盘图标右键打开菜单。
@@ -34,7 +34,8 @@ Windows egui host 使用顶部悬浮 Workbench 作为主入口。
 - 开关状态保存在 `%LOCALAPPDATA%\Covio\windows-ui.json`。
 - 应用使用鼠标所在显示器。
 - 应用在显示器顶部水平居中 Workbench。
-- Workbench 使用 960 × 880 逻辑尺寸。
+- Workbench 宽度使用合同 `geometry.panelWidthPoints`。
+- Workbench 使用 880 点内容高度。
 - 窗口无标题栏。
 - 窗口不可调整大小。
 - 窗口置顶。
@@ -43,7 +44,7 @@ Windows egui host 使用顶部悬浮 Workbench 作为主入口。
 - 窗口保留当前页面。
 - 窗口已经显示时，顶部悬停不切换窗口。
 - 显示后必须先离开顶部区域，才能再次触发。
-- 触发后 700 ms 内禁止再次触发。
+- 冷却时间使用合同覆盖 `trigger.cooldownMs`。
 - 全局鼠标轮询间隔为 50 ms。
 - 实现不安装低级鼠标钩子。
 
@@ -51,8 +52,8 @@ Windows egui host 使用顶部悬浮 Workbench 作为主入口。
 
 - 原生窗口启用透明后台缓冲。
 - CentralPanel 不绘制矩形背景。
-- Workbench 外框使用 22 点圆角。
-- Settings 外框使用 22 点圆角。
+- Workbench 外框圆角使用合同 `geometry.panelCornerRadiusPoints`。
+- Settings 外框圆角使用合同 `geometry.panelCornerRadiusPoints`。
 - Workbench 和 Settings 的外框不绘制阴影。
 - 原生窗口使用按 DPI 缩放的圆角区域。
 - DWM 非客户区渲染关闭。

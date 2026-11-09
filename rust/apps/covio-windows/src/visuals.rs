@@ -1,5 +1,8 @@
 //! Shared Windows visual tokens and egui primitives.
 
+use covio_core::workbench_interaction::{
+    WORKBENCH_PANEL_CORNER_RADIUS_POINTS, WORKBENCH_PANEL_WIDTH_POINTS,
+};
 use eframe::egui::{
     self, Button, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Frame,
     Margin, Shadow, Stroke, TextStyle, Vec2, Visuals,
@@ -8,12 +11,12 @@ use std::sync::Arc;
 
 /// Large card radius from the macOS visual baseline.
 pub(crate) const CARD_RADIUS: u8 = 16;
-/// Hub panel radius from the macOS visual baseline.
-pub(crate) const PANEL_RADIUS: u8 = 22;
+/// Hub panel radius from the macOS interaction contract.
+pub(crate) const PANEL_RADIUS: u8 = WORKBENCH_PANEL_CORNER_RADIUS_POINTS;
 /// Shared control radius from the macOS visual baseline.
 pub(crate) const CONTROL_RADIUS: u8 = 8;
-/// Workbench panel width from `HubMetrics.panelWidth`.
-pub(crate) const HUB_PANEL_WIDTH: f32 = 960.0;
+/// Workbench panel width from the macOS interaction contract.
+pub(crate) const HUB_PANEL_WIDTH: f32 = WORKBENCH_PANEL_WIDTH_POINTS as f32;
 /// Workbench panel padding from `HubMetrics.panelPadding`.
 pub(crate) const HUB_PANEL_PADDING: f32 = 24.0;
 /// Workbench content width from `HubMetrics.contentColumnWidth`.
@@ -377,7 +380,8 @@ mod tests {
     #[test]
     fn shared_radii_match_the_contract() {
         assert_eq!(CARD_RADIUS, 16);
-        assert_eq!(PANEL_RADIUS, 22);
+        assert_eq!(PANEL_RADIUS, WORKBENCH_PANEL_CORNER_RADIUS_POINTS);
         assert_eq!(CONTROL_RADIUS, 8);
+        assert_eq!(HUB_PANEL_WIDTH, f32::from(WORKBENCH_PANEL_WIDTH_POINTS));
     }
 }

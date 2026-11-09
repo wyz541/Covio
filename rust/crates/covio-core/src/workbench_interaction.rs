@@ -3,6 +3,9 @@
 
 use std::time::Duration;
 
+pub const WORKBENCH_PANEL_WIDTH_POINTS: u16 = 960;
+pub const WORKBENCH_PANEL_CORNER_RADIUS_POINTS: u8 = 23;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TriggerAlignment {
     TopCenter,
@@ -103,6 +106,44 @@ pub struct WorkbenchInteractionSpec {
     pub platform_overrides: &'static [PlatformOverrideSpec],
 }
 
+pub static WORKBENCH_PLATFORM_OVERRIDES: &[PlatformOverrideSpec] = &[
+    PlatformOverrideSpec {
+        id: "windows-top-edge-dwell",
+        platform: Platform::Windows,
+        field: "trigger.dwellMs",
+        value: 180.0,
+        reason: "Windows polls global pointer position. A dwell window blocks short edge passes.",
+        evidence: &["docs/design/windows-triggers.md"],
+    },
+    PlatformOverrideSpec {
+        id: "windows-top-edge-cooldown",
+        platform: Platform::Windows,
+        field: "trigger.cooldownMs",
+        value: 700.0,
+        reason: "Windows global pointer polling needs a cooldown after one Workbench trigger.",
+        evidence: &["rust/apps/covio-windows/src/top_edge.rs"],
+    },
+    PlatformOverrideSpec {
+        id: "windows-top-edge-half-width",
+        platform: Platform::Windows,
+        field: "trigger.geometry.centeredHalfWidthPercent",
+        value: 5.0,
+        reason: "Windows has no physical notch. The trigger uses the top center five-percent band.",
+        evidence: &[
+            "docs/design/windows-triggers.md",
+            "rust/apps/covio-windows/src/top_edge.rs",
+        ],
+    },
+    PlatformOverrideSpec {
+        id: "windows-top-edge-thickness",
+        platform: Platform::Windows,
+        field: "trigger.geometry.topEdgeThicknessPixels",
+        value: 2.0,
+        reason: "Windows pointer coordinates need a two-pixel top edge tolerance.",
+        evidence: &["rust/apps/covio-windows/src/top_edge.rs"],
+    },
+];
+
 pub static WORKBENCH_INTERACTION: WorkbenchInteractionSpec = WorkbenchInteractionSpec {
     contract_id: "covio.workbench.interaction",
     schema_version: "1.0.0",
@@ -140,7 +181,7 @@ pub static WORKBENCH_INTERACTION: WorkbenchInteractionSpec = WorkbenchInteractio
         panel_width_points: 960.0,
         panel_corner_radius_points: 23.0,
     },
-    platform_overrides: &[],
+    platform_overrides: WORKBENCH_PLATFORM_OVERRIDES,
 };
 
 impl WorkbenchInteractionSpec {
@@ -187,6 +228,38 @@ impl WorkbenchInteractionSpec {
             self.platform_value(platform, "trigger.pointerExitCollapseMs")
                 .unwrap_or(self.trigger.pointer_exit_collapse_ms),
         )
+    }
+
+    /// Returns the effective trigger dwell duration.
+    #[must_use]
+    pub fn trigger_dwell_duration(&self, platform: Platform) -> Duration {
+        duration_from_millis(
+            self.platform_value(platform, "trigger.dwellMs")
+                .unwrap_or(self.trigger.dwell_ms),
+        )
+    }
+
+    /// Returns the effective trigger cooldown duration.
+    #[must_use]
+    pub fn trigger_cooldown_duration(&self, platform: Platform) -> Duration {
+        duration_from_millis(
+            self.platform_value(platform, "trigger.cooldownMs")
+                .unwrap_or(self.trigger.cooldown_ms),
+        )
+    }
+
+    /// Returns the effective Workbench panel width.
+    #[must_use]
+    pub fn panel_width_points(&self, platform: Platform) -> f64 {
+        self.platform_value(platform, "geometry.panelWidthPoints")
+            .unwrap_or(self.geometry.panel_width_points)
+    }
+
+    /// Returns the effective Workbench panel corner radius.
+    #[must_use]
+    pub fn panel_corner_radius_points(&self, platform: Platform) -> f64 {
+        self.platform_value(platform, "geometry.panelCornerRadiusPoints")
+            .unwrap_or(self.geometry.panel_corner_radius_points)
     }
 }
 

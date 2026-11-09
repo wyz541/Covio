@@ -60,10 +60,19 @@ def generate(contract: dict) -> str:
     conceal = contract["conceal"]
     reduced = contract["reducedMotion"]
     geometry = contract["geometry"]
+    panel_width = int(geometry["panelWidthPoints"])
+    panel_radius = int(geometry["panelCornerRadiusPoints"])
+    if panel_width <= 0 or panel_width > 65535:
+        raise ValueError("panelWidthPoints must fit u16")
+    if panel_radius <= 0 or panel_radius > 255:
+        raise ValueError("panelCornerRadiusPoints must fit u8")
 
     lines = [
         HEADER,
         "use std::time::Duration;",
+        "",
+        f"pub const WORKBENCH_PANEL_WIDTH_POINTS: u16 = {panel_width};",
+        f"pub const WORKBENCH_PANEL_CORNER_RADIUS_POINTS: u8 = {panel_radius};",
         "",
         "#[derive(Debug, Clone, Copy, PartialEq, Eq)]",
         "pub enum TriggerAlignment {",
@@ -169,17 +178,22 @@ def generate(contract: dict) -> str:
 
     override_lines = []
     for item in contract["platformOverrides"]:
-        evidence = ", ".join(rust_string(value) for value in item["evidence"])
         override_lines.extend([
-            "        PlatformOverrideSpec {",
-            f"            id: {rust_string(item['id'])},",
-            f"            platform: Platform::{variant(PLATFORM, item['platform'], 'platformOverrides.platform')},",
-            f"            field: {rust_string(item['field'])},",
-            f"            value: {rust_float(item['value'])},",
-            f"            reason: {rust_string(item['reason'])},",
-            f"            evidence: &[{evidence}],",
-            "        },",
+            "    PlatformOverrideSpec {",
+            f"        id: {rust_string(item['id'])},",
+            f"        platform: Platform::{variant(PLATFORM, item['platform'], 'platformOverrides.platform')},",
+            f"        field: {rust_string(item['field'])},",
+            f"        value: {rust_float(item['value'])},",
+            f"        reason: {rust_string(item['reason'])},",
         ])
+        if len(item["evidence"]) == 1:
+            override_lines.append(f"        evidence: &[{rust_string(item['evidence'][0])}],")
+        else:
+            override_lines.append("        evidence: &[")
+            for evidence in item["evidence"]:
+                override_lines.append(f"            {rust_string(evidence)},")
+            override_lines.append("        ],")
+        override_lines.append("    },")
 
     if override_lines:
         lines.append("pub static WORKBENCH_PLATFORM_OVERRIDES: &[PlatformOverrideSpec] = &[")
@@ -271,6 +285,38 @@ def generate(contract: dict) -> str:
         "            self.platform_value(platform, \"trigger.pointerExitCollapseMs\")",
         "                .unwrap_or(self.trigger.pointer_exit_collapse_ms),",
         "        )",
+        "    }",
+        "",
+        "    /// Returns the effective trigger dwell duration.",
+        "    #[must_use]",
+        "    pub fn trigger_dwell_duration(&self, platform: Platform) -> Duration {",
+        "        duration_from_millis(",
+        "            self.platform_value(platform, \"trigger.dwellMs\")",
+        "                .unwrap_or(self.trigger.dwell_ms),",
+        "        )",
+        "    }",
+        "",
+        "    /// Returns the effective trigger cooldown duration.",
+        "    #[must_use]",
+        "    pub fn trigger_cooldown_duration(&self, platform: Platform) -> Duration {",
+        "        duration_from_millis(",
+        "            self.platform_value(platform, \"trigger.cooldownMs\")",
+        "                .unwrap_or(self.trigger.cooldown_ms),",
+        "        )",
+        "    }",
+        "",
+        "    /// Returns the effective Workbench panel width.",
+        "    #[must_use]",
+        "    pub fn panel_width_points(&self, platform: Platform) -> f64 {",
+        "        self.platform_value(platform, \"geometry.panelWidthPoints\")",
+        "            .unwrap_or(self.geometry.panel_width_points)",
+        "    }",
+        "",
+        "    /// Returns the effective Workbench panel corner radius.",
+        "    #[must_use]",
+        "    pub fn panel_corner_radius_points(&self, platform: Platform) -> f64 {",
+        "        self.platform_value(platform, \"geometry.panelCornerRadiusPoints\")",
+        "            .unwrap_or(self.geometry.panel_corner_radius_points)",
         "    }",
         "}",
         "",

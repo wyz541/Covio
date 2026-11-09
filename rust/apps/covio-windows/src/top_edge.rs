@@ -29,18 +29,32 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOPMOST, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
 };
 
-/// Pointer distance from a display top edge that counts as the trigger zone.
-pub(crate) const TOP_EDGE_PIXELS: i32 = 2;
-/// Horizontal half-width of the centered trigger zone, as a display percentage.
-const TOP_EDGE_CENTER_HALF_WIDTH_PERCENT: i64 = 5;
-/// Time the pointer must remain in the trigger zone.
-pub(crate) const TOP_EDGE_DWELL: Duration = Duration::from_millis(180);
-/// Delay after one trigger before another trigger is possible.
-pub(crate) const TOP_EDGE_COOLDOWN: Duration = Duration::from_millis(700);
 /// Maximum interval between global pointer samples.
 pub(crate) const TOP_EDGE_POLL_INTERVAL: Duration = Duration::from_millis(50);
 /// Maximum interval between native Workbench animation frames.
 const WORKBENCH_ANIMATION_FRAME_INTERVAL: Duration = Duration::from_millis(8);
+
+fn trigger_dwell() -> Duration {
+    WORKBENCH_INTERACTION.trigger_dwell_duration(Platform::Windows)
+}
+
+fn trigger_cooldown() -> Duration {
+    WORKBENCH_INTERACTION.trigger_cooldown_duration(Platform::Windows)
+}
+
+fn required_windows_override(field: &str) -> f64 {
+    WORKBENCH_INTERACTION
+        .platform_value(Platform::Windows, field)
+        .unwrap_or_else(|| panic!("missing Windows Workbench override: {field}"))
+}
+
+fn trigger_half_width_percent() -> i64 {
+    required_windows_override("trigger.geometry.centeredHalfWidthPercent").round() as i64
+}
+
+fn trigger_edge_thickness_pixels() -> i64 {
+    required_windows_override("trigger.geometry.topEdgeThicknessPixels").round() as i64
+}
 
 /// Persistent Windows-only host preferences.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -603,12 +617,12 @@ impl TopEdgeTrigger {
             self.inside_since = Some(now);
             return false;
         };
-        if now.saturating_duration_since(inside_since) < TOP_EDGE_DWELL {
+        if now.saturating_duration_since(inside_since) < trigger_dwell() {
             return false;
         }
         self.inside_since = None;
         self.armed = false;
-        self.cooldown_until = Some(now + TOP_EDGE_COOLDOWN);
+        self.cooldown_until = Some(now + trigger_cooldown());
         true
     }
 }
@@ -633,9 +647,10 @@ fn point_on_display_top(x: i32, y: i32, left: i32, top: i32, width: u32, height:
     let top = i64::from(top);
     let width = i64::from(width.min(i32::MAX as u32) as i32);
     let height = i64::from(height.min(i32::MAX as u32) as i32);
-    let trigger_left = left + width * (50 - TOP_EDGE_CENTER_HALF_WIDTH_PERCENT) / 100;
-    let trigger_right = left + width * (50 + TOP_EDGE_CENTER_HALF_WIDTH_PERCENT) / 100;
-    let trigger_bottom = top + i64::from(TOP_EDGE_PIXELS).min(height);
+    let half_width_percent = trigger_half_width_percent();
+    let trigger_left = left + width * (50 - half_width_percent) / 100;
+    let trigger_right = left + width * (50 + half_width_percent) / 100;
+    let trigger_bottom = top + trigger_edge_thickness_pixels().min(height);
     x >= trigger_left && x < trigger_right && y >= top && y < trigger_bottom
 }
 
@@ -656,22 +671,100 @@ mod tests {
     }
 
     #[test]
-    fn top_edge_uses_center_five_percent_and_supports_offset_displays() {
-        assert!(!point_on_display_top(0, 0, 0, 0, 2560, 1440));
-        assert!(!point_on_display_top(1151, 0, 0, 0, 2560, 1440));
-        assert!(point_on_display_top(1152, 0, 0, 0, 2560, 1440));
-        assert!(point_on_display_top(1280, 1, 0, 0, 2560, 1440));
-        assert!(!point_on_display_top(1280, 2, 0, 0, 2560, 1440));
-        assert!(point_on_display_top(1407, 0, 0, 0, 2560, 1440));
-        assert!(!point_on_display_top(1408, 0, 0, 0, 2560, 1440));
-        assert!(!point_on_display_top(2559, 0, 0, 0, 2560, 1440));
-        assert!(!point_on_display_top(-2400, -48, -2560, -48, 2560, 1440));
-        assert!(!point_on_display_top(-1409, -48, -2560, -48, 2560, 1440));
-        assert!(point_on_display_top(-1408, -48, -2560, -48, 2560, 1440));
-        assert!(point_on_display_top(-1280, -47, -2560, -48, 2560, 1440));
-        assert!(point_on_display_top(-1153, -48, -2560, -48, 2560, 1440));
-        assert!(!point_on_display_top(-1152, -48, -2560, -48, 2560, 1440));
-        assert!(!point_on_display_top(-2400, -46, -2560, -48, 2560, 1440));
+    fn top_edge_uses_the_contract_center_and_supports_offset_displays() {
+        let half_width = trigger_half_width_percent();
+        let thickness = trigger_edge_thickness_pixels();
+        let width = 2560_i64;
+        let left = 0_i64;
+        let center = left + width / 2;
+        let trigger_left = left + width * (50 - half_width) / 100;
+        let trigger_right = left + width * (50 + half_width) / 100;
+
+        assert!(!point_on_display_top(
+            (trigger_left - 1) as i32,
+            0,
+            0,
+            0,
+            2560,
+            1440
+        ));
+        assert!(point_on_display_top(
+            trigger_left as i32,
+            0,
+            0,
+            0,
+            2560,
+            1440
+        ));
+        assert!(point_on_display_top(
+            center as i32,
+            (thickness - 1) as i32,
+            0,
+            0,
+            2560,
+            1440
+        ));
+        assert!(!point_on_display_top(
+            center as i32,
+            thickness as i32,
+            0,
+            0,
+            2560,
+            1440
+        ));
+        assert!(point_on_display_top(
+            (trigger_right - 1) as i32,
+            0,
+            0,
+            0,
+            2560,
+            1440
+        ));
+        assert!(!point_on_display_top(
+            trigger_right as i32,
+            0,
+            0,
+            0,
+            2560,
+            1440
+        ));
+
+        let offset_left = -2560_i64;
+        let offset_top = -48_i64;
+        let offset_trigger_left = offset_left + width * (50 - half_width) / 100;
+        let offset_trigger_right = offset_left + width * (50 + half_width) / 100;
+        assert!(!point_on_display_top(
+            (offset_trigger_left - 1) as i32,
+            offset_top as i32,
+            offset_left as i32,
+            offset_top as i32,
+            2560,
+            1440,
+        ));
+        assert!(point_on_display_top(
+            offset_trigger_left as i32,
+            offset_top as i32,
+            offset_left as i32,
+            offset_top as i32,
+            2560,
+            1440,
+        ));
+        assert!(point_on_display_top(
+            -1280,
+            (offset_top + thickness - 1) as i32,
+            offset_left as i32,
+            offset_top as i32,
+            2560,
+            1440,
+        ));
+        assert!(!point_on_display_top(
+            (offset_trigger_right) as i32,
+            offset_top as i32,
+            offset_left as i32,
+            offset_top as i32,
+            2560,
+            1440,
+        ));
     }
 
     #[test]
@@ -721,8 +814,8 @@ mod tests {
     #[test]
     fn native_corner_radius_tracks_display_scale() {
         assert_eq!(window_region_radius(96), i32::from(PANEL_RADIUS));
-        assert_eq!(window_region_radius(120), 27);
-        assert_eq!(window_region_radius(144), 33);
+        assert_eq!(window_region_radius(120), 28);
+        assert_eq!(window_region_radius(144), 34);
     }
 
     #[test]
@@ -738,8 +831,8 @@ mod tests {
         let mut trigger = TopEdgeTrigger::new(true);
         assert!(!trigger.update(start, false, true));
         assert!(!trigger.update(start + Duration::from_millis(179), false, true));
-        assert!(trigger.update(start + TOP_EDGE_DWELL, false, true));
-        assert!(!trigger.update(start + TOP_EDGE_DWELL, false, true));
+        assert!(trigger.update(start + trigger_dwell(), false, true));
+        assert!(!trigger.update(start + trigger_dwell(), false, true));
     }
 
     #[test]
@@ -747,11 +840,11 @@ mod tests {
         let start = Instant::now();
         let mut trigger = TopEdgeTrigger::new(true);
         assert!(!trigger.update(start, false, true));
-        assert!(trigger.update(start + TOP_EDGE_DWELL, false, true));
-        assert!(!trigger.update(start + TOP_EDGE_DWELL, false, false));
-        let early = start + TOP_EDGE_DWELL + TOP_EDGE_COOLDOWN - Duration::from_millis(1);
+        assert!(trigger.update(start + trigger_dwell(), false, true));
+        assert!(!trigger.update(start + trigger_dwell(), false, false));
+        let early = start + trigger_dwell() + trigger_cooldown() - Duration::from_millis(1);
         assert!(!trigger.update(early, false, true));
-        assert!(!trigger.update(early + TOP_EDGE_DWELL, false, true));
+        assert!(!trigger.update(early + trigger_dwell(), false, true));
     }
 
     #[test]
@@ -759,12 +852,12 @@ mod tests {
         let start = Instant::now();
         let mut trigger = TopEdgeTrigger::new(true);
         assert!(!trigger.update(start, false, true));
-        assert!(trigger.update(start + TOP_EDGE_DWELL, false, true));
-        let after_cooldown = start + TOP_EDGE_DWELL + TOP_EDGE_COOLDOWN;
+        assert!(trigger.update(start + trigger_dwell(), false, true));
+        let after_cooldown = start + trigger_dwell() + trigger_cooldown();
         assert!(!trigger.update(after_cooldown, false, true));
         assert!(!trigger.update(after_cooldown, false, false));
         assert!(!trigger.update(after_cooldown, false, true));
-        assert!(trigger.update(after_cooldown + TOP_EDGE_DWELL, false, true));
+        assert!(trigger.update(after_cooldown + trigger_dwell(), false, true));
     }
 
     #[test]
@@ -772,7 +865,7 @@ mod tests {
         let start = Instant::now();
         let mut trigger = TopEdgeTrigger::new(false);
         assert!(!trigger.update(start, false, true));
-        assert!(!trigger.update(start + TOP_EDGE_DWELL, false, true));
+        assert!(!trigger.update(start + trigger_dwell(), false, true));
     }
 
     #[test]
@@ -780,6 +873,6 @@ mod tests {
         let start = Instant::now();
         let mut trigger = TopEdgeTrigger::new(true);
         assert!(!trigger.update(start, true, true));
-        assert!(!trigger.update(start + TOP_EDGE_DWELL, true, true));
+        assert!(!trigger.update(start + trigger_dwell(), true, true));
     }
 }
