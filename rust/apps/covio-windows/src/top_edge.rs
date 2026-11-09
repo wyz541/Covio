@@ -20,6 +20,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 
 /// Pointer distance from a display top edge that counts as the trigger zone.
 pub(crate) const TOP_EDGE_PIXELS: i32 = 2;
+/// Horizontal half-width of the centered trigger zone, as a display percentage.
+const TOP_EDGE_CENTER_HALF_WIDTH_PERCENT: i64 = 5;
 /// Time the pointer must remain in the trigger zone.
 pub(crate) const TOP_EDGE_DWELL: Duration = Duration::from_millis(180);
 /// Delay after one trigger before another trigger is possible.
@@ -458,10 +460,16 @@ fn point_at_top_edge(x: i32, y: i32) -> bool {
 }
 
 fn point_on_display_top(x: i32, y: i32, left: i32, top: i32, width: u32, height: u32) -> bool {
-    let right = left.saturating_add(width.min(i32::MAX as u32) as i32);
-    let bottom = top.saturating_add(height.min(i32::MAX as u32) as i32);
-    let edge_bottom = top.saturating_add(TOP_EDGE_PIXELS).min(bottom);
-    x >= left && x < right && y >= top && y < edge_bottom
+    let x = i64::from(x);
+    let y = i64::from(y);
+    let left = i64::from(left);
+    let top = i64::from(top);
+    let width = i64::from(width.min(i32::MAX as u32) as i32);
+    let height = i64::from(height.min(i32::MAX as u32) as i32);
+    let trigger_left = left + width * (50 - TOP_EDGE_CENTER_HALF_WIDTH_PERCENT) / 100;
+    let trigger_right = left + width * (50 + TOP_EDGE_CENTER_HALF_WIDTH_PERCENT) / 100;
+    let trigger_bottom = top + i64::from(TOP_EDGE_PIXELS).min(height);
+    x >= trigger_left && x < trigger_right && y >= top && y < trigger_bottom
 }
 
 #[cfg(test)]
@@ -481,11 +489,21 @@ mod tests {
     }
 
     #[test]
-    fn top_edge_uses_two_pixels_and_supports_offset_displays() {
-        assert!(point_on_display_top(100, 0, 0, 0, 2560, 1440));
-        assert!(point_on_display_top(100, 1, 0, 0, 2560, 1440));
-        assert!(!point_on_display_top(100, 2, 0, 0, 2560, 1440));
-        assert!(point_on_display_top(-2400, -48, -2560, -48, 2560, 1440));
+    fn top_edge_uses_center_five_percent_and_supports_offset_displays() {
+        assert!(!point_on_display_top(0, 0, 0, 0, 2560, 1440));
+        assert!(!point_on_display_top(1151, 0, 0, 0, 2560, 1440));
+        assert!(point_on_display_top(1152, 0, 0, 0, 2560, 1440));
+        assert!(point_on_display_top(1280, 1, 0, 0, 2560, 1440));
+        assert!(!point_on_display_top(1280, 2, 0, 0, 2560, 1440));
+        assert!(point_on_display_top(1407, 0, 0, 0, 2560, 1440));
+        assert!(!point_on_display_top(1408, 0, 0, 0, 2560, 1440));
+        assert!(!point_on_display_top(2559, 0, 0, 0, 2560, 1440));
+        assert!(!point_on_display_top(-2400, -48, -2560, -48, 2560, 1440));
+        assert!(!point_on_display_top(-1409, -48, -2560, -48, 2560, 1440));
+        assert!(point_on_display_top(-1408, -48, -2560, -48, 2560, 1440));
+        assert!(point_on_display_top(-1280, -47, -2560, -48, 2560, 1440));
+        assert!(point_on_display_top(-1153, -48, -2560, -48, 2560, 1440));
+        assert!(!point_on_display_top(-1152, -48, -2560, -48, 2560, 1440));
         assert!(!point_on_display_top(-2400, -46, -2560, -48, 2560, 1440));
     }
 
