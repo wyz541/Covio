@@ -12,6 +12,15 @@ CONTRACT = ROOT / "docs" / "macos-interaction-contract.json"
 SCHEMA = ROOT / "docs" / "macos-interaction-contract.schema.json"
 DESIGN_CONTRACT = ROOT / "docs" / "covio-design-contract.json"
 
+WINDOWS_OVERRIDE_FIELDS = {
+    "trigger.cooldownMs",
+    "trigger.dwellMs",
+    "trigger.geometry.centeredHalfWidthPercent",
+    "trigger.geometry.topEdgeThicknessPixels",
+}
+
+REQUIRED_WINDOWS_OVERRIDE_FIELDS = WINDOWS_OVERRIDE_FIELDS
+
 errors: list[str] = []
 
 
@@ -189,9 +198,29 @@ def check_behavior(contract: dict) -> None:
     if contract["conceal"]["easing"]["type"] != "easeOut":
         fail("conceal.easing.type must be easeOut")
 
-    override_ids = [entry["id"] for entry in contract["platformOverrides"]]
+    overrides = contract["platformOverrides"]
+    override_ids = [entry["id"] for entry in overrides]
     if len(override_ids) != len(set(override_ids)):
         fail("platformOverrides contains duplicate ids")
+    override_field_list = [entry["field"] for entry in overrides]
+    override_fields = set(override_field_list)
+    if len(override_fields) != len(override_field_list):
+        fail("platformOverrides contains duplicate fields")
+    unknown_fields = override_fields - WINDOWS_OVERRIDE_FIELDS
+    if unknown_fields:
+        fail(f"platformOverrides contains unknown fields: {sorted(unknown_fields)}")
+    missing_fields = REQUIRED_WINDOWS_OVERRIDE_FIELDS - override_fields
+    if missing_fields:
+        fail(f"platformOverrides is missing Windows fields: {sorted(missing_fields)}")
+    for entry in overrides:
+        field = entry["field"]
+        value = entry["value"]
+        if field in {"trigger.dwellMs", "trigger.cooldownMs"} and value < 0:
+            fail(f"{field} must not be negative")
+        if field == "trigger.geometry.centeredHalfWidthPercent" and not 0 < value <= 50:
+            fail(f"{field} must be in (0, 50]")
+        if field == "trigger.geometry.topEdgeThicknessPixels" and value <= 0:
+            fail(f"{field} must be positive")
 
 
 def main() -> int:

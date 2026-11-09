@@ -71,6 +71,15 @@ final class WorkbenchInteractionContractTests: XCTestCase {
     func testPlatformOverridesAreTraceable() {
         let overrides = WorkbenchInteractionContract.current.platformOverrides
         XCTAssertEqual(Set(overrides.map(\.id)).count, overrides.count)
+        XCTAssertEqual(
+            Set(overrides.map(\.field)),
+            Set([
+                "trigger.cooldownMs",
+                "trigger.dwellMs",
+                "trigger.geometry.centeredHalfWidthPercent",
+                "trigger.geometry.topEdgeThicknessPixels",
+            ])
+        )
         for override in overrides {
             XCTAssertFalse(override.id.isEmpty)
             XCTAssertFalse(override.field.isEmpty)

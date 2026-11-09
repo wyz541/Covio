@@ -29,11 +29,12 @@ egui 不复制 Liquid Glass 的底层模糊。Windows 使用语义色、圆角�
 - 辅助文字字号为 11。
 - 控件圆角为 8。
 - 卡片圆角为 16。
-- 面板圆角为 22。
+- 面板圆角来自交互合同 `geometry.panelCornerRadiusPoints`。
 
 ## Workbench 几何
 
-- 窗口内容基准尺寸为 `960 × 880`。
+- Workbench 宽度来自交互合同 `geometry.panelWidthPoints`。
+- Workbench 内容高度为 880。
 - 面板内边距为 24。
 - 内容列宽度为 912。
 - 顶部栏高度为 46。

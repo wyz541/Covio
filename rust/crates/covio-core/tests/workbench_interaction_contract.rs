@@ -1,8 +1,10 @@
 use covio_core::workbench_interaction::{
     DisplaySelection, EasingSpec, Platform, PlatformOverrideSpec, TransitionDirection,
-    TriggerAlignment, TriggerShape, WORKBENCH_INTERACTION, WorkbenchInteractionSpec,
+    TriggerAlignment, TriggerShape, WORKBENCH_INTERACTION, WORKBENCH_PANEL_CORNER_RADIUS_POINTS,
+    WORKBENCH_PANEL_WIDTH_POINTS, WorkbenchInteractionSpec,
 };
 use serde_json::Value;
+use std::collections::BTreeSet;
 use std::time::Duration;
 
 fn committed_contract() -> Value {
@@ -146,4 +148,78 @@ fn generated_overrides_match_the_committed_contract() {
             source["reason"].as_str().expect("override reason")
         );
     }
+}
+
+fn override_value(contract: &Value, field: &str) -> f64 {
+    contract["platformOverrides"]
+        .as_array()
+        .expect("platform overrides")
+        .iter()
+        .find(|entry| entry["field"].as_str() == Some(field))
+        .and_then(|entry| entry["value"].as_f64())
+        .unwrap_or_else(|| panic!("missing override {field}"))
+}
+
+#[test]
+fn windows_overrides_cover_the_trigger_contract() {
+    let contract = committed_contract();
+    let expected_fields = BTreeSet::from([
+        "trigger.cooldownMs",
+        "trigger.dwellMs",
+        "trigger.geometry.centeredHalfWidthPercent",
+        "trigger.geometry.topEdgeThicknessPixels",
+    ]);
+    let actual_fields: BTreeSet<_> = WORKBENCH_INTERACTION
+        .platform_overrides
+        .iter()
+        .map(|entry| entry.field)
+        .collect();
+    assert_eq!(actual_fields, expected_fields);
+    assert_eq!(
+        WORKBENCH_INTERACTION.trigger_dwell_duration(Platform::Windows),
+        Duration::from_millis(override_value(&contract, "trigger.dwellMs") as u64)
+    );
+    assert_eq!(
+        WORKBENCH_INTERACTION.trigger_cooldown_duration(Platform::Windows),
+        Duration::from_millis(override_value(&contract, "trigger.cooldownMs") as u64)
+    );
+    assert_eq!(
+        WORKBENCH_INTERACTION.platform_value(
+            Platform::Windows,
+            "trigger.geometry.centeredHalfWidthPercent"
+        ),
+        Some(override_value(
+            &contract,
+            "trigger.geometry.centeredHalfWidthPercent"
+        ))
+    );
+    assert_eq!(
+        WORKBENCH_INTERACTION
+            .platform_value(Platform::Windows, "trigger.geometry.topEdgeThicknessPixels"),
+        Some(override_value(
+            &contract,
+            "trigger.geometry.topEdgeThicknessPixels"
+        ))
+    );
+}
+
+#[test]
+fn generated_geometry_matches_the_committed_contract() {
+    let contract = committed_contract();
+    let width = contract["geometry"]["panelWidthPoints"]
+        .as_f64()
+        .expect("panel width");
+    let radius = contract["geometry"]["panelCornerRadiusPoints"]
+        .as_f64()
+        .expect("panel radius");
+    assert_eq!(
+        WORKBENCH_INTERACTION.panel_width_points(Platform::Windows),
+        width
+    );
+    assert_eq!(
+        WORKBENCH_INTERACTION.panel_corner_radius_points(Platform::Windows),
+        radius
+    );
+    assert_eq!(f64::from(WORKBENCH_PANEL_WIDTH_POINTS), width);
+    assert_eq!(f64::from(WORKBENCH_PANEL_CORNER_RADIUS_POINTS), radius);
 }

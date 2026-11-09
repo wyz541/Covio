@@ -11,6 +11,7 @@ use crate::visuals::{
 };
 use covio_core::AppConfig;
 use covio_core::clipboard::ClipItem;
+use covio_core::workbench_interaction::{Platform, WORKBENCH_INTERACTION};
 use covio_core::workspace::{WorkspaceState, suggested_text_name};
 use covio_platform::{
     Clipboard, FilePicker, FilePickerRequest, FileStore, NotificationRequest, Notifier,
@@ -67,7 +68,7 @@ impl SettingsSection {
         match self {
             Self::Overview => "covio enabled launch login clipboard notifications updates status",
             Self::Appearance => "theme light dark system motion",
-            Self::Triggers => "workbench top edge shortcut tray pointer 180",
+            Self::Triggers => "workbench top edge shortcut tray pointer dwell cooldown",
             Self::Capabilities => "credential manager clipboard screenshot sleep adapter",
             Self::Updates => "release update check version",
         }
@@ -1437,7 +1438,12 @@ impl CovioWindowsApp {
                                     settings_description_row(
                                         ui,
                                         theme,
-                                        "Hold the pointer at the top of any display for 180 ms.",
+                                        &format!(
+                                            "Hold the pointer at the top of any display for {} ms.",
+                                            WORKBENCH_INTERACTION
+                                                .trigger_dwell_duration(Platform::Windows)
+                                                .as_millis()
+                                        ),
                                     );
                                     if let Some(error) = &self.ui_settings_error {
                                         settings_warning_row(
@@ -3163,7 +3169,7 @@ mod tests {
 
     #[test]
     fn window_size_tracks_the_macos_surface() {
-        assert_eq!(window_inner_size(HostView::Home), [960.0, 880.0]);
+        assert_eq!(window_inner_size(HostView::Home), [HUB_PANEL_WIDTH, 880.0]);
         assert_eq!(window_inner_size(HostView::Settings), [900.0, 640.0]);
     }
 
