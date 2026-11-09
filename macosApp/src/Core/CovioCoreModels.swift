@@ -274,7 +274,7 @@ struct FileNamingPlan: Codable, Equatable, Identifiable, Sendable {
 }
 
 struct AppConfig: Codable, Equatable, Sendable {
-    var schemaVersion: Int32 = 3
+    var schemaVersion: Int32 = 4
     var language: String = ""
     var enabled: Bool = true
     var launchAtLogin: Bool = false

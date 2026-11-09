@@ -92,8 +92,7 @@ final class NotchShellController {
         let center = NSWorkspace.shared.notificationCenter
         observers.forEach { center.removeObserver($0) }
         observers.removeAll()
-        hotZonePanels.forEach { $0.orderOut(nil) }
-        hotZonePanels.removeAll()
+        discardHotZonePanels()
         hubPanel?.orderOut(nil)
         hubPanel = nil
     }
@@ -424,8 +423,7 @@ final class NotchShellController {
 
     /// 重建热区面板。显示器变化与全屏 Space 切换时调用。
     private func rebuildHotZones() {
-        hotZonePanels.forEach { $0.orderOut(nil) }
-        hotZonePanels.removeAll()
+        discardHotZonePanels()
 
         for screen in NSScreen.screens {
             let geometry = ScreenGeometry(screen: screen)
@@ -446,6 +444,14 @@ final class NotchShellController {
             panel.orderFrontRegardless()
             hotZonePanels.append(panel)
         }
+    }
+
+    private func discardHotZonePanels() {
+        for panel in hotZonePanels {
+            panel.orderOut(nil)
+            panel.close()
+        }
+        hotZonePanels.removeAll()
     }
 
     /// 找回某个热区面板对应的屏幕几何。面板顺序与 `NSScreen.screens` 一致。

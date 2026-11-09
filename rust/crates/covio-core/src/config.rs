@@ -382,7 +382,7 @@ pub struct AppConfig {
     pub lid_sleep_immediate_on_close: bool,
     /// Whether notifications are enabled.
     pub notifications_enabled: bool,
-    /// Whether the opt-in four-finger trackpad gesture is enabled.
+    /// Whether the opt-in Option + two-finger trackpad gesture is enabled.
     pub trackpad_gesture_enabled: bool,
     /// Whether update checks are enabled.
     pub update_check_enabled: bool,

@@ -54,6 +54,22 @@ final class UpdaterSettingsPresentationTests: XCTestCase {
         )
     }
 
+    func testDownloadingStateShowsZeroAndOneHundredPercent() {
+        for (progress, expected) in [(0.0, "0%"), (1.0, "100%")] {
+            let value = UpdaterSettingsPresentation(
+                status: status(
+                    state: .downloading,
+                    availableVersion: "0.6.0-internal.24",
+                    downloadProgress: progress
+                ),
+                busy: true,
+                unavailable: false,
+                language: .simplifiedChinese
+            )
+            XCTAssertEqual(value.downloadPercentText, expected)
+        }
+    }
+
     func testBusyStateShowsChecking() {
         let value = UpdaterSettingsPresentation(
             status: status(state: .idle),
