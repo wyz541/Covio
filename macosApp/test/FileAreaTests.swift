@@ -1,9 +1,34 @@
+import Foundation
 import XCTest
 @testable import Covio
 
 /// 统一文件区的几何、动作顺序和无障碍文案。
 @MainActor
 final class FileAreaTests: XCTestCase {
+    private static let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+
+    func testNewTextRequiresVisibleContent() {
+        XCTAssertFalse(FileAreaNewText.canSave(""))
+        XCTAssertFalse(FileAreaNewText.canSave(" \n\t "))
+        XCTAssertTrue(FileAreaNewText.canSave("hello"))
+    }
+
+    func testNewTextUsesAWorkbenchSheetInsteadOfAnAppKitModalLoop() throws {
+        let source = try String(
+            contentsOf: Self.repositoryRoot.appendingPathComponent(
+                "macosApp/src/Hub/FilesTabView.swift"
+            ),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(source.contains(".sheet(item: $activeSheet)"))
+        XCTAssertTrue(source.contains("NewTextEditorSheet("))
+        XCTAssertFalse(source.contains("NSAlert("))
+    }
+
     func testTheFileAreaUsesTheApprovedFocusAndQuietGridGeometry() {
         XCTAssertEqual(FileAreaMetrics.areaHeight, 538)
         XCTAssertEqual(FileAreaMetrics.focusHeight, 176)

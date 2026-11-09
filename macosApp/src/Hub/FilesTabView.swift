@@ -12,6 +12,19 @@ private struct FileAreaSnapshot {
     let activeTransferCount: Int
 }
 
+private enum FileAreaSheet: String, Identifiable {
+    case modelSetup
+    case newText
+
+    var id: String { rawValue }
+}
+
+enum FileAreaNewText {
+    static func canSave(_ text: String) -> Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
 /// 文件区的键盘顺序。焦点卡排在网格之前，网格严格按行优先。
 enum FileAreaKeyboardNavigation {
     static func order(selectedID: String?, quietIDs: [String]) -> [String] {
@@ -85,7 +98,9 @@ struct FilesTabView: View {
     @State private var dropTargeted = false
     @State private var keyboardMenuRequestID: String?
     @State private var keyboardMenuRequestNonce = 0
-    @State private var showModelSetup = false
+    @State private var activeSheet: FileAreaSheet?
+    @State private var newText = ""
+    @State private var newTextError: String?
     @FocusState private var keyboardFocusedItemID: String?
 
     var body: some View {
@@ -122,21 +137,32 @@ struct FilesTabView: View {
                 keyboardFocusedItemID = firstID
             }
         }
-        .sheet(isPresented: $showModelSetup) {
-            if let modelSetup {
-                VStack(alignment: .trailing, spacing: MacTheme.space3) {
-                    ModelSetupInlineCard(
-                        model: modelSetup,
-                        language: language,
-                        purpose: .naming
-                    )
-                    MacButton(title: ContractCopy.copyHubActionDone.text(for: language)) {
-                        showModelSetup = false
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .modelSetup:
+                if let modelSetup {
+                    VStack(alignment: .trailing, spacing: MacTheme.space3) {
+                        ModelSetupInlineCard(
+                            model: modelSetup,
+                            language: language,
+                            purpose: .naming
+                        )
+                        MacButton(title: ContractCopy.copyHubActionDone.text(for: language)) {
+                            activeSheet = nil
+                        }
                     }
+                    .padding(MacTheme.space4)
+                    .frame(width: 620)
+                    .background(MacTheme.canvas)
                 }
-                .padding(MacTheme.space4)
-                .frame(width: 620)
-                .background(MacTheme.canvas)
+            case .newText:
+                NewTextEditorSheet(
+                    text: $newText,
+                    language: language,
+                    errorMessage: newTextError,
+                    onCancel: dismissNewTextEditor,
+                    onSave: saveNewText
+                )
             }
         }
         .background {
@@ -723,7 +749,7 @@ struct FilesTabView: View {
 
     private func chooseAutoNameFiles() {
         if let modelSetup, !modelSetup.isAIReady {
-            showModelSetup = true
+            activeSheet = .modelSetup
             return
         }
         let panel = NSOpenPanel()
@@ -736,26 +762,97 @@ struct FilesTabView: View {
         }
     }
 
-    /// 使用原生编辑器输入临时文本。保存后进入工作区，正文不再复制到其它位置。
+    /// 在同一个工作台窗口里输入临时文本，不启动嵌套的 AppKit 模态循环。
     private func showNewTextDialog() {
-        let alert = NSAlert()
-        alert.messageText = ContractCopy.copyHubFilesActionNewText.text(for: language)
-        alert.informativeText = ContractCopy.copyHubFilesEmptyHint.text(for: language)
-        alert.addButton(withTitle: ContractCopy.copyHubFilesActionNewText.text(for: language))
-        alert.addButton(withTitle: ContractCopy.copyStateCancel.text(for: language))
+        newText = ""
+        newTextError = nil
+        activeSheet = .newText
+    }
 
-        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 360, height: 180))
-        scrollView.hasVerticalScroller = true
-        scrollView.drawsBackground = true
-        let textView = NSTextView(frame: scrollView.bounds)
-        textView.isRichText = false
-        textView.font = .systemFont(ofSize: 13)
-        textView.isAutomaticQuoteSubstitutionEnabled = false
-        textView.textContainerInset = NSSize(width: 8, height: 8)
-        scrollView.documentView = textView
-        alert.accessoryView = scrollView
+    private func dismissNewTextEditor() {
+        activeSheet = nil
+        newText = ""
+        newTextError = nil
+    }
 
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        _ = workspace.save(text: textView.string)
+    private func saveNewText() {
+        workspace.clearMessages()
+        let saved = workspace.save(text: newText)
+        if saved || workspace.infoMessage != nil {
+            dismissNewTextEditor()
+            return
+        }
+        newTextError = workspace.errorMessage?.text(for: language)
+            ?? ContractCopy.copyHubFilesErrorSave.text(for: language)
+    }
+}
+
+private struct NewTextEditorSheet: View {
+    @Binding var text: String
+    let language: AppLanguage
+    let errorMessage: String?
+    let onCancel: () -> Void
+    let onSave: () -> Void
+
+    @FocusState private var editorFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MacTheme.space3) {
+            Text(ContractCopy.copyHubFilesActionNewText.text(for: language))
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(MacTheme.textPrimary)
+
+            Text(ContractCopy.copyHubFilesEmptyHint.text(for: language))
+                .font(.system(size: 11))
+                .foregroundStyle(MacTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            TextEditor(text: $text)
+                .font(.system(size: 13))
+                .scrollContentBackground(.hidden)
+                .padding(MacTheme.space2)
+                .frame(minHeight: 220)
+                .background(
+                    MacTheme.controlFill,
+                    in: RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: MacTheme.mediumRadius, style: .continuous)
+                        .strokeBorder(MacTheme.divider, lineWidth: 1)
+                }
+                .focused($editorFocused)
+                .accessibilityLabel(
+                    ContractCopy.copyHubFilesActionNewText.text(for: language)
+                )
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 10))
+                    .foregroundStyle(MacTheme.errorText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: MacTheme.space2) {
+                Spacer()
+                MacButton(title: ContractCopy.copyStateCancel.text(for: language)) {
+                    onCancel()
+                }
+                .keyboardShortcut(.cancelAction)
+
+                MacButton(
+                    title: ContractCopy.copyHubFilesActionNewText.text(for: language),
+                    kind: .primary,
+                    isEnabled: FileAreaNewText.canSave(text)
+                ) {
+                    onSave()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(MacTheme.space4)
+        .frame(width: 560)
+        .background(MacTheme.canvas)
+        .onAppear { editorFocused = true }
+        .onExitCommand(perform: onCancel)
     }
 }
