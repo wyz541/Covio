@@ -54,6 +54,7 @@ step "设计合同常量"
 # `-I` 是隔离模式：不读当前目录，防止目录里被放一个同名模块顶替标准库。
 python3 -I "$ROOT/scripts/generate-contract-constants.py" --check
 python3 -I "$ROOT/scripts/generate-workbench-interaction.py" --check
+python3 -I "$ROOT/scripts/generate-workbench-interaction-vectors.py" --check
 
 step "设计合同跨段规则"
 python3 -I "$ROOT/scripts/validate-contract.py"

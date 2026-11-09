@@ -1,0 +1,372 @@
+{
+  "contractId": "covio.workbench.interaction",
+  "contractSchemaVersion": "1.0.0",
+  "easing": {
+    "tolerance": 0.002,
+    "transitions": [
+      {
+        "contractKey": "reveal",
+        "durationMs": 250,
+        "easing": {
+          "dampingFraction": 0.82,
+          "responseSeconds": 0.25,
+          "type": "spring"
+        },
+        "samples": [
+          {
+            "progress": 0.0,
+            "time": 0.0
+          },
+          {
+            "progress": 0.519062,
+            "time": 0.25
+          },
+          {
+            "progress": 0.910967,
+            "time": 0.5
+          },
+          {
+            "progress": 1.006021,
+            "time": 0.75
+          },
+          {
+            "progress": 1.0,
+            "time": 1.0
+          }
+        ]
+      },
+      {
+        "contractKey": "conceal",
+        "durationMs": 190,
+        "easing": {
+          "type": "easeOut"
+        },
+        "samples": [
+          {
+            "progress": 0.0,
+            "time": 0.0
+          },
+          {
+            "progress": 0.578125,
+            "time": 0.25
+          },
+          {
+            "progress": 0.875,
+            "time": 0.5
+          },
+          {
+            "progress": 0.984375,
+            "time": 0.75
+          },
+          {
+            "progress": 1.0,
+            "time": 1.0
+          }
+        ]
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "contractKey": "conceal.direction",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "conceal.durationMs",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "conceal.easing",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "contractId",
+      "paths": [
+        "docs/macos-interaction-contract.json",
+        "docs/macos-interaction-contract.schema.json"
+      ]
+    },
+    {
+      "contractKey": "geometry.panelCornerRadiusPoints",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/visuals.rs"
+      ]
+    },
+    {
+      "contractKey": "geometry.panelWidthPoints",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/visuals.rs"
+      ]
+    },
+    {
+      "contractKey": "platformOverrides",
+      "paths": [
+        "docs/macos-interaction-contract.json",
+        "docs/macos-interaction-contract.schema.json"
+      ]
+    },
+    {
+      "contractKey": "reducedMotion.durationMs",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "reducedMotion.effect",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "reveal.direction",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "reveal.durationMs",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "reveal.easing",
+      "paths": [
+        "docs/design/previews/719-windows-contract-parity/README.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "schemaVersion",
+      "paths": [
+        "docs/macos-interaction-contract.json",
+        "docs/macos-interaction-contract.schema.json"
+      ]
+    },
+    {
+      "contractKey": "trigger.cooldownMs",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.dwellMs",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.geometry.alignment",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.geometry.centeredHalfWidthPercent",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.geometry.displaySelection",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.geometry.notchedDisplay",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.geometry.notchlessDisplay",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.geometry.notchlessHeightPoints",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.geometry.notchlessWidthPoints",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.geometry.topEdgeThicknessPixels",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    },
+    {
+      "contractKey": "trigger.pointerExitCollapseMs",
+      "paths": [
+        "docs/design/windows-triggers.md",
+        "rust/apps/covio-windows/src/top_edge.rs",
+        "rust/crates/covio-core/src/workbench_interaction_runtime.rs"
+      ]
+    }
+  ],
+  "geometry": {
+    "panelCornerRadiusPoints": 23,
+    "panelWidthPoints": 960
+  },
+  "platform": "windows",
+  "platformMappings": [
+    {
+      "field": "trigger.cooldownMs",
+      "value": 700
+    },
+    {
+      "field": "trigger.dwellMs",
+      "value": 180
+    },
+    {
+      "field": "trigger.geometry.centeredHalfWidthPercent",
+      "value": 5
+    },
+    {
+      "field": "trigger.geometry.topEdgeThicknessPixels",
+      "value": 2
+    }
+  ],
+  "reducedMotion": {
+    "durationMs": 120,
+    "effect": "opacity"
+  },
+  "stateTransitions": [
+    {
+      "contractKey": "reveal",
+      "direction": "topToBottom",
+      "from": "hidden",
+      "to": "visible"
+    },
+    {
+      "contractKey": "conceal",
+      "direction": "bottomToTop",
+      "from": "visible",
+      "to": "hidden"
+    }
+  ],
+  "testedContractKeys": [
+    "conceal.direction",
+    "conceal.durationMs",
+    "conceal.easing",
+    "contractId",
+    "geometry.panelCornerRadiusPoints",
+    "geometry.panelWidthPoints",
+    "platformOverrides",
+    "reducedMotion.durationMs",
+    "reducedMotion.effect",
+    "reveal.direction",
+    "reveal.durationMs",
+    "reveal.easing",
+    "schemaVersion",
+    "trigger.cooldownMs",
+    "trigger.dwellMs",
+    "trigger.geometry.alignment",
+    "trigger.geometry.centeredHalfWidthPercent",
+    "trigger.geometry.displaySelection",
+    "trigger.geometry.notchedDisplay",
+    "trigger.geometry.notchlessDisplay",
+    "trigger.geometry.notchlessHeightPoints",
+    "trigger.geometry.notchlessWidthPoints",
+    "trigger.geometry.topEdgeThicknessPixels",
+    "trigger.pointerExitCollapseMs"
+  ],
+  "trigger": {
+    "bounds": {
+      "bottom": 2.0,
+      "left": 1152.0,
+      "right": 1408.0,
+      "top": 0.0
+    },
+    "display": {
+      "height": 1440.0,
+      "left": 0.0,
+      "top": 0.0,
+      "width": 2560.0
+    },
+    "points": [
+      {
+        "inside": false,
+        "x": 1151.0,
+        "y": 0.0
+      },
+      {
+        "inside": true,
+        "x": 1152.0,
+        "y": 0.0
+      },
+      {
+        "inside": true,
+        "x": 1280.0,
+        "y": 1.0
+      },
+      {
+        "inside": false,
+        "x": 1280.0,
+        "y": 2.0
+      },
+      {
+        "inside": true,
+        "x": 1407.0,
+        "y": 0.0
+      },
+      {
+        "inside": false,
+        "x": 1408.0,
+        "y": 0.0
+      }
+    ]
+  },
+  "vectorVersion": "1.0.0"
+}

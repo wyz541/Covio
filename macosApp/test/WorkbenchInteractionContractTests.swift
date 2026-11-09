@@ -87,4 +87,123 @@ final class WorkbenchInteractionContractTests: XCTestCase {
             XCTAssertFalse(override.evidence.isEmpty)
         }
     }
+
+    /// macOS 和 Windows 必须读取同一份行为向量。
+    func testCommittedVectorsMatchTheSwiftContract() throws {
+        let data = try Data(
+            contentsOf: Self.repoRoot.appendingPathComponent(
+                "docs/macos-interaction-contract.vectors.json"
+            )
+        )
+        let vectors = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        let contract = WorkbenchInteractionContract.current
+        XCTAssertEqual(vectors["contractId"] as? String, contract.contractId)
+        XCTAssertEqual(
+            vectors["contractSchemaVersion"] as? String,
+            contract.schemaVersion
+        )
+        XCTAssertEqual(vectors["platform"] as? String, "windows")
+
+        let transitions = try XCTUnwrap(
+            vectors["easing"] as? [String: Any]
+        )
+        let tolerance = try XCTUnwrap(transitions["tolerance"] as? Double)
+        let samples = try XCTUnwrap(
+            transitions["transitions"] as? [[String: Any]]
+        )
+        for sample in samples {
+            let key = try XCTUnwrap(sample["contractKey"] as? String)
+            let transition = key == "reveal" ? contract.reveal : contract.conceal
+            let easing = try XCTUnwrap(sample["easing"] as? [String: Any])
+            XCTAssertEqual(easing["type"] as? String, transition.easing.type.rawValue)
+            XCTAssertEqual(
+                easing["responseSeconds"] as? Double,
+                transition.easing.responseSeconds
+            )
+            XCTAssertEqual(
+                easing["dampingFraction"] as? Double,
+                transition.easing.dampingFraction
+            )
+            XCTAssertEqual(
+                try XCTUnwrap(sample["durationMs"] as? Double),
+                transition.durationMs
+            )
+            for point in try XCTUnwrap(sample["samples"] as? [[String: Any]]) {
+                let time = try XCTUnwrap(point["time"] as? Double)
+                let expected = try XCTUnwrap(point["progress"] as? Double)
+                let actual = transition.easing.progress(
+                    at: time,
+                    durationSeconds: transition.durationSeconds
+                )
+                XCTAssertEqual(actual, expected, accuracy: tolerance)
+            }
+        }
+
+        let mappings = try XCTUnwrap(vectors["platformMappings"] as? [[String: Any]])
+        XCTAssertEqual(
+            Set(mappings.compactMap { $0["field"] as? String }),
+            Set(contract.platformOverrides.map(\.field))
+        )
+        for mapping in mappings {
+            let field = try XCTUnwrap(mapping["field"] as? String)
+            let expected = try XCTUnwrap(mapping["value"] as? Double)
+            let actual = try XCTUnwrap(
+                contract.platformOverrides.first { $0.field == field }
+            )
+            XCTAssertEqual(actual.value, expected, field)
+        }
+
+        let stateTransitions = try XCTUnwrap(
+            vectors["stateTransitions"] as? [[String: Any]]
+        )
+        XCTAssertEqual(stateTransitions[0]["direction"] as? String, "topToBottom")
+        XCTAssertEqual(stateTransitions[1]["direction"] as? String, "bottomToTop")
+
+        let geometry = try XCTUnwrap(vectors["geometry"] as? [String: Any])
+        XCTAssertEqual(
+            try XCTUnwrap(geometry["panelWidthPoints"] as? Double),
+            contract.geometry.panelWidthPoints
+        )
+        XCTAssertEqual(
+            try XCTUnwrap(geometry["panelCornerRadiusPoints"] as? Double),
+            contract.geometry.panelCornerRadiusPoints
+        )
+        let reducedMotion = try XCTUnwrap(vectors["reducedMotion"] as? [String: Any])
+        XCTAssertEqual(
+            try XCTUnwrap(reducedMotion["durationMs"] as? Double),
+            contract.reducedMotion.durationMs
+        )
+        XCTAssertEqual(reducedMotion["effect"] as? String, "opacity")
+
+        let testedValues = try XCTUnwrap(vectors["testedContractKeys"] as? [String])
+        XCTAssertEqual(testedValues.count, 24)
+        let testedKeys = Set(testedValues)
+        XCTAssertEqual(testedKeys.count, testedValues.count)
+        for key in [
+            "trigger.dwellMs",
+            "trigger.cooldownMs",
+            "trigger.geometry.centeredHalfWidthPercent",
+            "trigger.geometry.topEdgeThicknessPixels",
+            "reveal.easing",
+            "conceal.easing",
+            "reducedMotion.effect",
+            "geometry.panelCornerRadiusPoints",
+        ] {
+            XCTAssertTrue(testedKeys.contains(key), key)
+        }
+
+        for evidence in try XCTUnwrap(vectors["evidence"] as? [[String: Any]]) {
+            for path in try XCTUnwrap(evidence["paths"] as? [String]) {
+                XCTAssertTrue(
+                    FileManager.default.fileExists(
+                        atPath: Self.repoRoot.appendingPathComponent(path).path
+                    ),
+                    path
+                )
+            }
+        }
+    }
+
 }

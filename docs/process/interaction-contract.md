@@ -147,6 +147,8 @@ JSON 合同保存在 `docs/macos-interaction-contract.json`。
 
 Windows 生成命令：`python3 -I scripts/generate-workbench-interaction.py`。
 Windows 漂移检查：`python3 -I scripts/generate-workbench-interaction.py --check`。
+一致性向量：`python3 -I scripts/generate-workbench-interaction-vectors.py`。
+一致性漂移检查：`python3 -I scripts/generate-workbench-interaction-vectors.py --check`。
 
 ## 11. 迁移状态
 
