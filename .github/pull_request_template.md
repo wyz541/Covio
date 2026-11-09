@@ -10,9 +10,17 @@ Use test data in screenshots. Hide personal information.
 
 ## Proof
 
+<!-- Shared interaction or motion changes: follow docs/process/interaction-contract.md. -->
+
 - Tests:
 - CI:
 - Real-Mac:
+- Contract impact:
+  - [ ] `Not applicable`.
+  - [ ] macOS Swift source updated.
+  - [ ] Exported JSON regenerated.
+  - [ ] Windows generated consumer refreshed.
+  - [ ] Conformance tests updated.
 
 ## Visual verification
 

@@ -8,6 +8,7 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = ROOT / ".github" / "ISSUE_TEMPLATE"
 WORKFLOW = ROOT / "docs" / "process" / "workflow.md"
+INTERACTION_CONTRACT = ROOT / "docs" / "process" / "interaction-contract.md"
 AGENTS = ROOT / "AGENTS.md"
 PR_TEMPLATE = ROOT / ".github" / "pull_request_template.md"
 PREVIEWS = ROOT / "docs" / "design" / "previews" / "README.md"
@@ -69,8 +70,8 @@ def main() -> int:
         errors.append(f"Issue 模板共 {template_lines} 行，上限是 300 行")
 
     workflow_text = text(WORKFLOW)
-    if len(workflow_text.splitlines()) > 180:
-        errors.append("工作流超过 180 行")
+    if len(workflow_text.splitlines()) > 195:
+        errors.append("工作流超过 195 行")
     require(
         WORKFLOW,
         (
@@ -82,6 +83,10 @@ def main() -> int:
             "`Size`、`Start date` 和 `Estimate` 是历史字段",
             "局部 UI 改动",
             "普通 PR 不填写 `Design preview`",
+            "## 8. 跨平台交互合同",
+            "[跨平台交互合同工作流](interaction-contract.md)",
+            "Windows 不得独立定义共享值",
+            "`Contract impact`",
         ),
     )
     forbid(
@@ -99,8 +104,8 @@ def main() -> int:
         ),
     )
 
-    if len(text(AGENTS).splitlines()) > 100:
-        errors.append("AGENTS.md 超过 100 行")
+    if len(text(AGENTS).splitlines()) > 115:
+        errors.append("AGENTS.md 超过 115 行")
     require(
         AGENTS,
         (
@@ -110,6 +115,14 @@ def main() -> int:
             "不要写决策占位符",
             "不要使用人工周检清单",
             "局部 UI 改动",
+            "## 6. 跨平台交互合同",
+            "macOS 是共享交互、动效和外观的唯一设计来源",
+            "macOS 用类型化 Swift 合同定义共享行为",
+            "JSON 合同由 macOS Swift 合同确定性导出",
+            "Windows 只消费生成的 Rust 合同",
+            "Windows 不得独立定义共享触发、几何、动效或状态转换参数",
+            "禁止手改合同生成物",
+            "`Contract impact`",
         ),
     )
     forbid(AGENTS, ("S1", "S2", "S3", "S4", "S5", "S6", "S7"))
@@ -125,10 +138,31 @@ def main() -> int:
             "## Risk",
             "Local UI change",
             "Release candidate",
+            "Contract impact:",
+            "macOS Swift source updated",
+            "Exported JSON regenerated",
+            "Windows generated consumer refreshed",
+            "Conformance tests updated",
             "Closes #",
         ),
     )
     forbid(PR_TEMPLATE, ("## Design preview", "**亮色**", "**深色**"))
+
+    if len(text(INTERACTION_CONTRACT).splitlines()) > 160:
+        errors.append("跨平台交互合同工作流超过 160 行")
+
+    require(
+        INTERACTION_CONTRACT,
+        (
+            "**结论：macOS 是共享交互与动效的唯一设计来源。Windows 只消费生成产物。**",
+            "JSON 合同是导出物",
+            "生成的 Rust 是导出物",
+            "Windows 不得静默增加视觉调整",
+            "`Contract impact`",
+            "任一项不满足时，PR 不得转为 ready 或合并",
+            "迁移期仍禁止 Windows 单独定义共享值",
+        ),
+    )
 
     require(
         PREVIEWS,
