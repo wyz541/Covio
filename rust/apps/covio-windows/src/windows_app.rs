@@ -270,6 +270,7 @@ impl CovioWindowsApp {
         let top_edge_monitor = TopEdgeMonitor::new(
             ui_settings.top_edge_trigger_enabled,
             model.is_visible(),
+            model.reduced_motion(),
             creation_context.egui_ctx.clone(),
             window_handle,
         );
@@ -737,6 +738,8 @@ impl CovioWindowsApp {
     fn poll_top_edge_trigger(&mut self, context: &egui::Context) {
         self.top_edge_monitor
             .set_auto_hide_enabled(self.model.view() != HostView::Settings);
+        self.top_edge_monitor
+            .set_reduced_motion(self.model.reduced_motion());
         let hide_requested = self.top_edge_monitor.take_hide_requested();
         if hide_requested && self.model.is_visible() && self.model.view() != HostView::Settings {
             self.model.hide();

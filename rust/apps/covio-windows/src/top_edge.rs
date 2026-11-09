@@ -40,6 +40,14 @@ pub(crate) const TOP_EDGE_COOLDOWN: Duration = Duration::from_millis(700);
 pub(crate) const TOP_EDGE_POLL_INTERVAL: Duration = Duration::from_millis(50);
 /// Delay before a visible Workbench hides after the pointer leaves it.
 pub(crate) const WORKBENCH_AUTO_HIDE_DELAY: Duration = Duration::from_millis(500);
+/// Duration of the Workbench pull-down transition.
+pub(crate) const WORKBENCH_EXPAND_DURATION: Duration = Duration::from_millis(250);
+/// Duration of the Workbench retract transition.
+pub(crate) const WORKBENCH_COLLAPSE_DURATION: Duration = Duration::from_millis(190);
+/// Duration of Workbench movement while reduced motion is enabled.
+pub(crate) const WORKBENCH_REDUCED_MOTION_DURATION: Duration = Duration::from_millis(120);
+/// Maximum interval between native Workbench animation frames.
+const WORKBENCH_ANIMATION_FRAME_INTERVAL: Duration = Duration::from_millis(8);
 
 /// Persistent Windows-only host preferences.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -99,6 +107,7 @@ pub(crate) struct TopEdgeMonitor {
     enabled: Arc<AtomicBool>,
     window_visible: Arc<AtomicBool>,
     auto_hide_enabled: Arc<AtomicBool>,
+    reduced_motion: Arc<AtomicBool>,
     triggered: Arc<AtomicBool>,
     hide_requested: Arc<AtomicBool>,
     render_ready: Arc<AtomicBool>,
@@ -114,12 +123,14 @@ impl TopEdgeMonitor {
     pub(crate) fn new(
         enabled: bool,
         window_visible: bool,
+        reduced_motion: bool,
         context: egui::Context,
         window_handle: Option<isize>,
     ) -> Self {
         let enabled = Arc::new(AtomicBool::new(enabled));
         let window_visible = Arc::new(AtomicBool::new(window_visible));
         let auto_hide_enabled = Arc::new(AtomicBool::new(true));
+        let reduced_motion = Arc::new(AtomicBool::new(reduced_motion));
         let triggered = Arc::new(AtomicBool::new(false));
         let hide_requested = Arc::new(AtomicBool::new(false));
         let render_ready = Arc::new(AtomicBool::new(false));
@@ -128,6 +139,7 @@ impl TopEdgeMonitor {
         let worker_enabled = Arc::clone(&enabled);
         let worker_visible = Arc::clone(&window_visible);
         let worker_auto_hide_enabled = Arc::clone(&auto_hide_enabled);
+        let worker_reduced_motion = Arc::clone(&reduced_motion);
         let worker_triggered = Arc::clone(&triggered);
         let worker_hide_requested = Arc::clone(&hide_requested);
         let worker_render_ready = Arc::clone(&render_ready);
@@ -161,7 +173,11 @@ impl TopEdgeMonitor {
                             {
                                 thread::sleep(Duration::from_millis(10));
                             }
-                            reveal_native_window(window_handle, cursor);
+                            reveal_native_window(
+                                window_handle,
+                                cursor,
+                                worker_reduced_motion.load(Ordering::Acquire),
+                            );
                             worker_overlay_revealed.store(true, Ordering::Release);
                             worker_render_ready.store(false, Ordering::Release);
                         } else {
@@ -179,6 +195,13 @@ impl TopEdgeMonitor {
                         && auto_hide_enabled
                         && auto_hide.update(now, pointer_inside)
                     {
+                        worker_overlay_revealed.store(false, Ordering::Release);
+                        if let Some(window_handle) = window_handle {
+                            conceal_native_window(
+                                window_handle,
+                                worker_reduced_motion.load(Ordering::Acquire),
+                            );
+                        }
                         worker_hide_requested.store(true, Ordering::Release);
                         context.request_repaint();
                     } else if !visible || !overlay_revealed || !auto_hide_enabled {
@@ -198,6 +221,7 @@ impl TopEdgeMonitor {
             enabled,
             window_visible,
             auto_hide_enabled,
+            reduced_motion,
             triggered,
             hide_requested,
             render_ready,
@@ -231,6 +255,11 @@ impl TopEdgeMonitor {
     /// Enables auto-hide for Workbench pages.
     pub(crate) fn set_auto_hide_enabled(&self, enabled: bool) {
         self.auto_hide_enabled.store(enabled, Ordering::Release);
+    }
+
+    /// Updates the reduced-motion preference used by native transitions.
+    pub(crate) fn set_reduced_motion(&self, reduced_motion: bool) {
+        self.reduced_motion.store(reduced_motion, Ordering::Release);
     }
 
     /// Consumes one completed auto-hide request.
@@ -332,27 +361,19 @@ pub(crate) fn configure_overlay_window(window_handle: isize) {
 }
 
 #[allow(unsafe_code)]
-fn reveal_native_window(window_handle: isize, cursor: Option<(i32, i32)>) {
+fn reveal_native_window(window_handle: isize, cursor: Option<(i32, i32)>, reduced_motion: bool) {
     let dimensions = window_dimensions(window_handle);
-    let top_left = cursor.and_then(display_for_point).map(|display| {
-        (
-            centered_display_x(display.x, display.width, dimensions.0),
+    if let Some(display) = cursor.and_then(display_for_point) {
+        let x = centered_display_x(display.x, display.width, dimensions.0);
+        let hidden_y = display.y.saturating_sub(dimensions.1);
+        animate_native_window_y(
+            window_handle,
+            x,
+            hidden_y,
             display.y,
-        )
-    });
-    if let (Some((x, y)), (width, height)) = (top_left, dimensions) {
-        // SAFETY: The handle belongs to this process and the coordinates come from Win32.
-        unsafe {
-            let _ = SetWindowPos(
-                window_handle as _,
-                HWND_TOPMOST,
-                x,
-                y,
-                width,
-                height,
-                SWP_SHOWWINDOW,
-            );
-        }
+            dimensions,
+            animation_duration(true, reduced_motion),
+        );
     }
     // SAFETY: The handle belongs to this process and stays valid until the monitor stops.
     unsafe {
@@ -360,6 +381,95 @@ fn reveal_native_window(window_handle: isize, cursor: Option<(i32, i32)>) {
         let _ = SetForegroundWindow(window_handle as _);
     }
     configure_overlay_window(window_handle);
+}
+
+#[allow(unsafe_code)]
+fn conceal_native_window(window_handle: isize, reduced_motion: bool) {
+    let Some(rect) = window_rect(window_handle) else {
+        return;
+    };
+    let Some(display) = display_for_window(window_handle) else {
+        return;
+    };
+    let width = rect.right.saturating_sub(rect.left);
+    let height = rect.bottom.saturating_sub(rect.top);
+    animate_native_window_y(
+        window_handle,
+        rect.left,
+        rect.top,
+        display.y.saturating_sub(height),
+        (width, height),
+        animation_duration(false, reduced_motion),
+    );
+}
+
+fn animate_native_window_y(
+    window_handle: isize,
+    x: i32,
+    start_y: i32,
+    end_y: i32,
+    (width, height): (i32, i32),
+    duration: Duration,
+) {
+    if duration.is_zero() {
+        set_native_window_position(window_handle, x, end_y, width, height);
+        return;
+    }
+
+    let started = Instant::now();
+    loop {
+        let elapsed = started.elapsed();
+        let progress = (elapsed.as_secs_f64() / duration.as_secs_f64()).clamp(0.0, 1.0);
+        let y = animated_y(start_y, end_y, progress);
+        set_native_window_position(window_handle, x, y, width, height);
+        if progress >= 1.0 {
+            break;
+        }
+        thread::sleep(
+            duration
+                .saturating_sub(elapsed)
+                .min(WORKBENCH_ANIMATION_FRAME_INTERVAL),
+        );
+    }
+}
+
+#[allow(unsafe_code)]
+fn set_native_window_position(window_handle: isize, x: i32, y: i32, width: i32, height: i32) {
+    // SAFETY: The handle belongs to this process and each coordinate comes from Win32.
+    unsafe {
+        let _ = SetWindowPos(
+            window_handle as _,
+            HWND_TOPMOST,
+            x,
+            y,
+            width,
+            height,
+            SWP_NOACTIVATE,
+        );
+    }
+}
+
+fn animation_duration(expanding: bool, reduced_motion: bool) -> Duration {
+    if reduced_motion {
+        WORKBENCH_REDUCED_MOTION_DURATION
+    } else if expanding {
+        WORKBENCH_EXPAND_DURATION
+    } else {
+        WORKBENCH_COLLAPSE_DURATION
+    }
+}
+
+fn ease_out_cubic(progress: f64) -> f64 {
+    let inverse = 1.0 - progress.clamp(0.0, 1.0);
+    1.0 - inverse.powi(3)
+}
+
+fn animated_y(start_y: i32, end_y: i32, progress: f64) -> i32 {
+    let start = f64::from(start_y);
+    let distance = f64::from(end_y) - start;
+    (start + distance * ease_out_cubic(progress))
+        .round()
+        .clamp(f64::from(i32::MIN), f64::from(i32::MAX)) as i32
 }
 
 #[allow(unsafe_code)]
@@ -381,32 +491,29 @@ fn show_native_window_offscreen(window_handle: isize) {
 }
 
 #[allow(unsafe_code)]
-fn window_dimensions(window_handle: isize) -> (i32, i32) {
+fn window_rect(window_handle: isize) -> Option<RECT> {
     let mut rect = std::mem::MaybeUninit::<RECT>::zeroed();
     // SAFETY: GetWindowRect writes a complete RECT for a valid process window.
     let result = unsafe { GetWindowRect(window_handle as _, rect.as_mut_ptr()) };
     if result == 0 {
-        return (0, 0);
+        return None;
     }
     // SAFETY: A successful call initialized the RECT.
-    let rect = unsafe { rect.assume_init() };
-    (
-        rect.right.saturating_sub(rect.left),
-        rect.bottom.saturating_sub(rect.top),
-    )
+    Some(unsafe { rect.assume_init() })
 }
 
-#[allow(unsafe_code)]
+fn window_dimensions(window_handle: isize) -> (i32, i32) {
+    window_rect(window_handle).map_or((0, 0), |rect| {
+        (
+            rect.right.saturating_sub(rect.left),
+            rect.bottom.saturating_sub(rect.top),
+        )
+    })
+}
+
 fn window_contains_point(window_handle: isize, x: i32, y: i32) -> bool {
-    let mut rect = std::mem::MaybeUninit::<RECT>::zeroed();
-    // SAFETY: GetWindowRect writes a complete RECT for a valid process window.
-    let result = unsafe { GetWindowRect(window_handle as _, rect.as_mut_ptr()) };
-    if result == 0 {
-        return false;
-    }
-    // SAFETY: A successful call initialized the RECT.
-    let rect = unsafe { rect.assume_init() };
-    x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom
+    window_rect(window_handle)
+        .is_some_and(|rect| x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom)
 }
 
 fn window_region_radius(dpi: u32) -> i32 {
@@ -416,6 +523,12 @@ fn window_region_radius(dpi: u32) -> i32 {
 
 fn display_for_point((x, y): (i32, i32)) -> Option<DisplayInfo> {
     DisplayInfo::from_point(x, y).ok()
+}
+
+fn display_for_window(window_handle: isize) -> Option<DisplayInfo> {
+    let rect = window_rect(window_handle)?;
+    let x = rect.left + rect.right.saturating_sub(rect.left) / 2;
+    display_for_point((x, rect.top.saturating_add(1)))
 }
 
 fn centered_display_x(left: i32, width: u32, window_width: i32) -> i32 {
@@ -564,6 +677,34 @@ mod tests {
         assert!(point_on_display_top(-1153, -48, -2560, -48, 2560, 1440));
         assert!(!point_on_display_top(-1152, -48, -2560, -48, 2560, 1440));
         assert!(!point_on_display_top(-2400, -46, -2560, -48, 2560, 1440));
+    }
+
+    #[test]
+    fn workbench_animation_matches_the_macos_durations() {
+        assert_eq!(animation_duration(true, false), WORKBENCH_EXPAND_DURATION);
+        assert_eq!(
+            animation_duration(false, false),
+            WORKBENCH_COLLAPSE_DURATION
+        );
+        assert_eq!(
+            animation_duration(true, true),
+            WORKBENCH_REDUCED_MOTION_DURATION
+        );
+        assert_eq!(
+            animation_duration(false, true),
+            WORKBENCH_REDUCED_MOTION_DURATION
+        );
+    }
+
+    #[test]
+    fn native_animation_uses_ease_out_progress() {
+        assert_eq!(ease_out_cubic(0.0), 0.0);
+        assert!((ease_out_cubic(0.5) - 0.875).abs() < f64::EPSILON);
+        assert_eq!(ease_out_cubic(1.0), 1.0);
+        assert_eq!(animated_y(-880, 0, 0.0), -880);
+        assert_eq!(animated_y(-880, 0, 0.5), -110);
+        assert_eq!(animated_y(-880, 0, 1.0), 0);
+        assert_eq!(animated_y(0, -1100, 0.5), -963);
     }
 
     #[test]
