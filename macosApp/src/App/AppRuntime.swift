@@ -1366,6 +1366,7 @@ final class AppRuntime {
     func stopUpdaterStatusMonitoring() {
         updaterStatusMonitorTask?.cancel()
         updaterStatusMonitorTask = nil
+        stopUpdaterStatusPolling()
     }
 
     private func updateUpdaterStatusPolling() {

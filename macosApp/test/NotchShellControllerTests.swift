@@ -412,10 +412,10 @@ final class NotchShellControllerTests: XCTestCase {
     /// 测试是跑在被测应用进程里的，`AppDelegate` 已经启动了真正的 shell。
     /// 这条断言验证的是 M1 的装配真的生效，而不只是单元测试里能跑通。
     func testHostApplicationRunsTheShell() throws {
-        let hotZones = NSApp.windows.compactMap { $0 as? HotZonePanel }
-        let hubs = NSApp.windows.compactMap { $0 as? HubPanel }
+        let hotZones = NSApp.windows.compactMap { $0 as? HotZonePanel }.filter(\.isVisible)
+        let hubs = NSApp.windows.compactMap { $0 as? HubPanel }.filter(\.isVisible)
 
-        XCTAssertEqual(hotZones.count, NSScreen.screens.count, "宿主进程里每块屏幕应该有一个热区面板")
+        XCTAssertEqual(hotZones.count, NSScreen.screens.count, "宿主进程里每块屏幕应该有一个可见热区面板")
         XCTAssertLessThanOrEqual(hubs.count, 1, "宿主进程里最多只有一个 Hub 面板")
 
         for panel in hotZones {

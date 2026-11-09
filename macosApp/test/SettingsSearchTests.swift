@@ -113,11 +113,21 @@ final class SettingsSearchIndexTests: XCTestCase {
         )
     }
 
-    func testMatchesOptionTwoFingerGesture() {
-        let hits = SettingsSearchIndex.search("option", language: .english)
-        XCTAssertTrue(hits.contains { $0.rowID == SettingsRowID.generalTriggerGesture })
-        let chineseHits = SettingsSearchIndex.search("双指", language: .simplifiedChinese)
-        XCTAssertTrue(chineseHits.contains { $0.rowID == SettingsRowID.generalTriggerGesture })
+    func testMatchesAllTrackpadGestureTerms() {
+        for term in ["option", "trackpad", "gesture", "two finger"] {
+            XCTAssertTrue(
+                SettingsSearchIndex.search(term, language: .english)
+                    .contains { $0.rowID == SettingsRowID.generalTriggerGesture },
+                term
+            )
+        }
+        for term in ["option", "触控板", "手势", "双指"] {
+            XCTAssertTrue(
+                SettingsSearchIndex.search(term, language: .simplifiedChinese)
+                    .contains { $0.rowID == SettingsRowID.generalTriggerGesture },
+                term
+            )
+        }
     }
 
     /// 模型与外部服务跳转时进入助手分节。
