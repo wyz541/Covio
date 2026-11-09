@@ -11,7 +11,9 @@
     "panelCornerRadiusPoints" : 23,
     "panelWidthPoints" : 960
   },
-  "platformOverrides" : [],
+  "platformOverrides" : [
+
+  ],
   "reducedMotion" : {
     "durationMs" : 120,
     "effect" : "opacity"
