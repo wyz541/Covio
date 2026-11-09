@@ -75,12 +75,14 @@ Windows egui host 使用顶部悬浮 Workbench 作为主入口。
 
 ## 显示与回收动画
 
-- 动效时长来自共享设计合同。
-- 展开使用 `token/motion/hub-expand`。
-- 收回使用 `token/motion/hub-collapse`。
-- 减少动态效果使用 `token/motion/reduced-motion`。
-- 指针移出等待使用 `token/motion/pointer-exit-collapse`。
-- `scripts/generate-contract-constants.py` 生成 Swift 与 Rust 常量。
+- 动效时长来自 `docs/macos-interaction-contract.json`。
+- 展开使用 `reveal.durationMs`。
+- 收回使用 `conceal.durationMs`。
+- 减少动态效果使用 `reducedMotion.durationMs`。
+- 指针移出等待使用 `trigger.pointerExitCollapseMs`。
+- `scripts/generate-workbench-interaction.py` 生成 `workbench_interaction.rs`。
+- Windows 读取 `WORKBENCH_INTERACTION`。
+- Windows 覆盖从合同 `platformOverrides` 读取。
 - 展开动画使用 250 ms。
 - 展开动画从显示器上方移动到显示器顶部。
 - 收回动画使用 190 ms。

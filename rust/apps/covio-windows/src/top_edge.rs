@@ -1,11 +1,7 @@
 //! Top-edge pointer trigger for the Windows Workbench.
 
 use crate::visuals::PANEL_RADIUS;
-use covio_core::contract_motion::{
-    HUB_COLLAPSE as WORKBENCH_COLLAPSE_DURATION, HUB_EXPAND as WORKBENCH_EXPAND_DURATION,
-    POINTER_EXIT_COLLAPSE as WORKBENCH_AUTO_HIDE_DELAY,
-    REDUCED_MOTION as WORKBENCH_REDUCED_MOTION_DURATION,
-};
+use covio_core::workbench_interaction::{Platform, WORKBENCH_INTERACTION};
 use display_info::DisplayInfo;
 use eframe::egui;
 use mouse_position::mouse_position::Mouse;
@@ -146,7 +142,9 @@ impl TopEdgeMonitor {
             .name("covio-top-edge".to_owned())
             .spawn(move || {
                 let mut trigger = TopEdgeTrigger::new(worker_enabled.load(Ordering::Acquire));
-                let mut auto_hide = AutoHideTracker::new(WORKBENCH_AUTO_HIDE_DELAY);
+                let mut auto_hide = AutoHideTracker::new(
+                    WORKBENCH_INTERACTION.pointer_exit_collapse_duration(Platform::Windows),
+                );
                 while !worker_stop.load(Ordering::Acquire) {
                     let now = Instant::now();
                     let enabled = worker_enabled.load(Ordering::Acquire);
@@ -448,11 +446,11 @@ fn set_native_window_position(window_handle: isize, x: i32, y: i32, width: i32, 
 
 fn animation_duration(expanding: bool, reduced_motion: bool) -> Duration {
     if reduced_motion {
-        WORKBENCH_REDUCED_MOTION_DURATION
+        WORKBENCH_INTERACTION.reduced_motion_duration(Platform::Windows)
     } else if expanding {
-        WORKBENCH_EXPAND_DURATION
+        WORKBENCH_INTERACTION.reveal_duration(Platform::Windows)
     } else {
-        WORKBENCH_COLLAPSE_DURATION
+        WORKBENCH_INTERACTION.conceal_duration(Platform::Windows)
     }
 }
 
@@ -677,19 +675,22 @@ mod tests {
     }
 
     #[test]
-    fn workbench_animation_matches_the_macos_durations() {
-        assert_eq!(animation_duration(true, false), WORKBENCH_EXPAND_DURATION);
+    fn workbench_animation_comes_from_the_interaction_contract() {
+        assert_eq!(
+            animation_duration(true, false),
+            WORKBENCH_INTERACTION.reveal_duration(Platform::Windows)
+        );
         assert_eq!(
             animation_duration(false, false),
-            WORKBENCH_COLLAPSE_DURATION
+            WORKBENCH_INTERACTION.conceal_duration(Platform::Windows)
         );
         assert_eq!(
             animation_duration(true, true),
-            WORKBENCH_REDUCED_MOTION_DURATION
+            WORKBENCH_INTERACTION.reduced_motion_duration(Platform::Windows)
         );
         assert_eq!(
             animation_duration(false, true),
-            WORKBENCH_REDUCED_MOTION_DURATION
+            WORKBENCH_INTERACTION.reduced_motion_duration(Platform::Windows)
         );
     }
 
@@ -706,17 +707,15 @@ mod tests {
 
     #[test]
     fn auto_hide_waits_for_the_pointer_exit_delay() {
+        let delay = WORKBENCH_INTERACTION.pointer_exit_collapse_duration(Platform::Windows);
         let start = Instant::now();
-        let mut tracker = AutoHideTracker::new(WORKBENCH_AUTO_HIDE_DELAY);
+        let mut tracker = AutoHideTracker::new(delay);
         assert!(!tracker.update(start, true));
         assert!(!tracker.update(start, false));
-        assert!(!tracker.update(
-            start + WORKBENCH_AUTO_HIDE_DELAY - Duration::from_millis(1),
-            false,
-        ));
-        assert!(tracker.update(start + WORKBENCH_AUTO_HIDE_DELAY, false));
+        assert!(!tracker.update(start + delay - Duration::from_millis(1), false));
+        assert!(tracker.update(start + delay, false));
         tracker.reset();
-        assert!(!tracker.update(start + WORKBENCH_AUTO_HIDE_DELAY, false));
+        assert!(!tracker.update(start + delay, false));
     }
 
     #[test]
