@@ -1,9 +1,10 @@
-# Covio 0.6.0-internal.34
+# Covio 0.6.0-internal.35
 
-Covio 0.6.0-internal.34 是内测版。
-本版修复 macOS 首次启动的 helper 协调阻塞。
-本版修复仓库改名后更新器无法发现新版本的问题。
-Windows Hub 输入和托盘菜单已与 macOS 对齐。
+Covio 0.6.0-internal.35 是内测版。
+本版将 Windows 主界面与 macOS 视觉和交互基准对齐。
+本版增加 Windows 顶部边缘工作台入口和进出动画。
+本版修复 macOS 文件页新建文本后工作台卡死。
+本版增加更新下载进度和全局触发设置。
 Windows 和 macOS 继续使用 Rust core 与平台原生 UI。
 macOS 使用 SwiftUI 和 AppKit。
 Windows 使用 egui。
@@ -30,25 +31,28 @@ Windows 包含当前用户安装的 x64 安装包。
 从 `.34` 起，更新器使用当前仓库路径并兼容旧签名清单。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.6.0-internal.33 到 0.6.0-internal.34 的变化
+## 从 0.6.0-internal.34 到 0.6.0-internal.35 的变化
 
-- macOS 将 helper 状态更新延后到第一个成功的引擎 tick。首次启动不再等待唤醒日志扫描。
-- macOS 更新器改用 `wyz541/Covio`，并兼容旧签名清单。
-- Windows 增加 `Ctrl+Alt+T` 全局 Hub 快捷键。
-- Windows 托盘菜单增加 `Show screenshots`、`Settings` 和 `Quit Covio`。
+- Windows 主界面改用 egui。Home 使用 Bento 卡片网格。文件、剪切板和 Monitor 使用统一卡片与动作层级。设置页与 macOS 对齐。浅色、深色、100% 和 150% 缩放可用。
+- Windows 增加顶部边缘工作台入口。入口位于每块屏幕顶部中央。工作台以无边框置顶浮层显示，并使用连续进出动画和圆角裁剪。
+- Windows 设置增加全局触发分节。用户可控制全局快捷键、双指手势和顶部边缘悬停。双指手势改为 `Option` 加双指下滑，并默认关闭。
+- 更新设置增加下载进度条。更新器状态、XPC 状态与设置页显示同一进度。
+- macOS 文件页的「新建文本…」改为工作台内 sheet。取消和保存后，工作台继续接收输入。
 
 ## 验证
 
 - `bash scripts/test-all.sh`：通过。
-- macOS Swift：执行 1096 个测试，3 个跳过，0 个失败。
+- macOS Swift：执行 1106 个测试，3 个跳过，0 个失败。
 - Rust core、Updater、安装器、产物边界、合同和 Windows trigger 测试：通过。
-- macOS 首次启动真机复验：Draft PKG 安装后记录。
+- Windows package 和 installer CI：通过。
+- Windows 真机视觉与交互证据：Windows 11 x64，100% 和 150% 缩放。
+- macOS「新建文本…」真机复验：macOS 27.0.1，取消和保存后工作台可用。
 
 ## 安装
 
 ### macOS
 
-1. 下载 `Covio-0.6.0-internal.34.pkg`。
+1. 下载 `Covio-0.6.0-internal.35.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。
@@ -56,7 +60,7 @@ Windows 包含当前用户安装的 x64 安装包。
 
 ### Windows
 
-1. 下载 `Covio-0.6.0-internal.34-windows-x64-setup.exe`。
+1. 下载 `Covio-0.6.0-internal.35-windows-x64-setup.exe`。
 2. 运行安装包。
 3. 安装到当前用户目录。
 4. 从开始菜单启动 Covio。
