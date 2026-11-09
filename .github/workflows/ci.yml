@@ -283,6 +283,7 @@ jobs:
           python3 -I scripts/test_verify_macos_signing.py
           python3 -I scripts/generate-contract-constants.py --check
           python3 -I scripts/validate-contract.py
+          python3 -I scripts/validate-macos-interaction-contract.py
           python3 -I scripts/validate-workflow.py
           python3 -I scripts/file_naming_model.py verify-all
 

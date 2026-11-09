@@ -37,6 +37,8 @@ final class NotchShellController {
     private var machine = HubStateMachine()
     private var hotZonePanels: [HotZonePanel] = []
     private var hubPanel: HubPanel?
+    private var triggerTimer: Timer?
+    private var triggerCooldownUntil: Date?
     private var expandTimer: Timer?
     private var collapseTimer: Timer?
     private var observers: [NSObjectProtocol] = []
@@ -158,6 +160,32 @@ final class NotchShellController {
     /// 指针离开面板。抽成方法是为了让测试能直接驱动这条路径。
     func pointerExitedHub() {
         send(.pointerExitedHub)
+    }
+
+    private func pointerEnteredHotZone() {
+        cancelTriggerTimer()
+        if let triggerCooldownUntil, Date() < triggerCooldownUntil {
+            return
+        }
+        if HubMotion.triggerDwell == 0 {
+            fireHotZoneTrigger()
+            return
+        }
+        triggerTimer = schedule(after: HubMotion.triggerDwell) { [weak self] in
+            self?.fireHotZoneTrigger()
+        }
+    }
+
+    private func pointerExitedHotZone(report: Bool) {
+        cancelTriggerTimer()
+        guard report else { return }
+        send(.pointerExitedHotZone)
+    }
+
+    private func fireHotZoneTrigger() {
+        cancelTriggerTimer()
+        triggerCooldownUntil = Date().addingTimeInterval(HubMotion.triggerCooldown)
+        send(.pointerEnteredHotZone)
     }
 
     // MARK: - 状态机
@@ -367,8 +395,14 @@ final class NotchShellController {
     }
 
     private func cancelTimers() {
+        cancelTriggerTimer()
         cancelExpandTimer()
         cancelCollapseTimer()
+    }
+
+    private func cancelTriggerTimer() {
+        triggerTimer?.invalidate()
+        triggerTimer = nil
     }
 
     // MARK: - 面板与屏幕
@@ -429,7 +463,7 @@ final class NotchShellController {
             let geometry = ScreenGeometry(screen: screen)
             let panel = HotZonePanel(rect: geometry.hotZoneRect)
             let host = PointerTrackingView(frame: .zero)
-            host.onPointerEnter = { [weak self] in self?.send(.pointerEnteredHotZone) }
+            host.onPointerEnter = { [weak self] in self?.pointerEnteredHotZone() }
             host.onPointerExit = { [weak self] in
                 guard let self else { return }
                 // 面板盖住热区时那次「离开」是假的，别让它把面板收回去。
@@ -438,7 +472,7 @@ final class NotchShellController {
                     pointerInsideHub: self.pointerIsInsideHubPanel
                 )
                 guard report else { return }
-                self.send(.pointerExitedHotZone)
+                self.pointerExitedHotZone(report: true)
             }
             panel.contentView = host
             panel.orderFrontRegardless()

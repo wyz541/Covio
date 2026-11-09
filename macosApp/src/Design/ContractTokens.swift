@@ -205,7 +205,7 @@ enum ContractDimensions {
     /// `token/radius/medium` — Buttons and status labels.
     static let tokenRadiusMedium: CGFloat = 12
     /// `token/radius/panel` — 挂帘面板的圆角。
-    static let tokenRadiusPanel: CGFloat = 22
+    static let tokenRadiusPanel: CGFloat = 23
     /// `token/radius/pill` — Pill buttons and status labels.
     static let tokenRadiusPill: CGFloat = 999
     /// `token/radius/popover` — Popover, alert, and dialog corner radius.
