@@ -1,9 +1,10 @@
 # Covio 0.6.0-internal.35
 
 Covio 0.6.0-internal.35 是内测版。
-本版修复 macOS 首次启动的 helper 协调阻塞。
-本版修复仓库改名后更新器无法发现新版本的问题。
-Windows Hub 输入和托盘菜单已与 macOS 对齐。
+本版将 Windows 主界面与 macOS 视觉和交互基准对齐。
+本版增加 Windows 顶部边缘工作台入口和进出动画。
+本版修复 macOS 文件页新建文本后工作台卡死。
+本版增加更新下载进度和全局触发设置。
 Windows 和 macOS 继续使用 Rust core 与平台原生 UI。
 macOS 使用 SwiftUI 和 AppKit。
 Windows 使用 egui。
@@ -32,26 +33,20 @@ Windows 包含当前用户安装的 x64 安装包。
 
 ## 从 0.6.0-internal.34 到 0.6.0-internal.35 的变化
 
-<!-- TODO(release): 按用户可见的变化重写本节，然后删除本注释。 -->
-
-- Fix the Workbench freeze after New Text（#722）
-- Codify the shared interaction contract workflow（#723）
-- Generate shared motion constants for Windows（#713）
-- Animate the Windows Workbench from the top edge（#711）
-- Clip Windows Workbench corners without shadows（#709）
-- Add update progress and global trigger settings（#704）
-- Center the Windows top-edge trigger zone（#707）
-- Show the Windows Workbench at the top edge（#705）
-- Align Windows Workbench and Settings with macOS（#701）
-- Add a top-edge Workbench trigger on Windows（#699）
-- Align Windows Settings with the macOS shell（#697）
-- Align Windows content views with macOS（#696）
-- Align the Windows Home dashboard with macOS（#695）
-- Establish the Windows egui visual foundation（#694）
+- Windows 主界面改用 egui。Home 使用 Bento 卡片网格。文件、剪切板和 Monitor 使用统一卡片与动作层级。设置页与 macOS 对齐。浅色、深色、100% 和 150% 缩放可用。
+- Windows 增加顶部边缘工作台入口。入口位于每块屏幕顶部中央。工作台以无边框置顶浮层显示，并使用连续进出动画和圆角裁剪。
+- Windows 设置增加全局触发分节。用户可控制全局快捷键、双指手势和顶部边缘悬停。双指手势改为 `Option` 加双指下滑，并默认关闭。
+- 更新设置增加下载进度条。更新器状态、XPC 状态与设置页显示同一进度。
+- macOS 文件页的「新建文本…」改为工作台内 sheet。取消和保存后，工作台继续接收输入。
 
 ## 验证
 
-<!-- TODO(release): 填写本版的测试结果与真机验收，然后删除本注释。 -->
+- `bash scripts/test-all.sh`：通过。
+- macOS Swift：执行 1106 个测试，3 个跳过，0 个失败。
+- Rust core、Updater、安装器、产物边界、合同和 Windows trigger 测试：通过。
+- Windows package 和 installer CI：通过。
+- Windows 真机视觉与交互证据：Windows 11 x64，100% 和 150% 缩放。
+- macOS「新建文本…」真机复验：macOS 27.0.1，取消和保存后工作台可用。
 
 ## 安装
 
