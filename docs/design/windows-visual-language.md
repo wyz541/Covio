@@ -1,5 +1,7 @@
 # Windows egui visual language
 
+> 2026-11-10：本文件描述当前 Windows egui 视觉基线。ADR-0035 将 Compose Multiplatform 设为目标 UI。迁移完成前，本文件继续作为当前实现参考。
+
 Windows 以当前 macOS SwiftUI 实现作为唯一视觉基准。
 
 取值来源是 `macosApp/src/Design/` 和对应 SwiftUI 组件。Windows 不使用第二份设计合同。

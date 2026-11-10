@@ -18,6 +18,9 @@
 | 本地离线文件自动命名 | 初稿，可评审 | [README.md](file-auto-naming/README.md) |
 | 跨设备内容读取能力 | 初稿，可评审 | [README.md](cross-device-content-access/README.md) |
 | 跨设备共享暂存工作区 | 初稿，可评审 | [README.md](shared-transfer-workspace/README.md) |
+| 跨平台凭据存储合同 | 初稿，可评审 | [README.md](platform-credential-storage/README.md) |
+| Rust 跨平台文件传输 | 初稿，可评审 | [README.md](rust-file-transfer/README.md) |
+| Compose Multiplatform 与 Rust bridge | 初稿，可评审 | [README.md](compose-rust-bridge/README.md) |
 | 触控板多指手势入口 | 初稿，可评审 | [README.md](trackpad-gesture-entry/README.md) |
 | iOS 免打开入口 | 初稿，可评审 | [README.md](mobile-ambient-entry/README.md) |
 | 合盖睡眠控制与权限边界 | 初稿，可评审 | [README.md](lid-sleep-control/README.md) |

@@ -1,5 +1,6 @@
 // 本文件由 scripts/generate-contract-constants.py 生成。不要手改。
-// 权威是 docs/covio-design-contract.json。
+// 权威是 macOS/iOS Apple design。
+// docs/covio-design-contract.json 是机器可读投影。
 // 改合同后重跑脚本：python3 scripts/generate-contract-constants.py
 
 import Foundation

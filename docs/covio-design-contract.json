@@ -3,8 +3,8 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-11-05",
-    "authority": "docs/covio-design-contract.json",
+    "updatedAt": "2026-11-10",
+    "authority": "macOS/iOS Apple design; docs/covio-design-contract.json is the machine-readable projection",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
       "fileKey": "Bktv2SGgjcHuUZ7KJXEkPx",
@@ -61,7 +61,7 @@
       },
       {
         "area": "macOS runtime",
-        "difference": "The macOS host is SwiftUI and AppKit. The Windows host is Rust and egui. Neither product uses Compose Multiplatform. The visual result and the copy are unchanged.",
+        "difference": "The macOS host is SwiftUI and AppKit. The Windows baseline host is Rust and egui. The Windows target host is Compose Multiplatform. Compose must align to the Apple design result and the shared copy.",
         "status": "accepted-platform-change"
       },
       {

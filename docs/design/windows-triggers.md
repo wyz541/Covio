@@ -1,5 +1,7 @@
 # Windows Workbench triggers
 
+> 2026-11-10：本文描述当前 Windows egui 实现。ADR-0035 将 Compose Multiplatform 设为目标 UI。迁移完成前，触发行为与设计合同继续作为当前基线。
+
 Windows egui host 使用顶部悬浮 Workbench 作为主入口。
 
 ## 启动

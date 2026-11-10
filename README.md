@@ -1,22 +1,28 @@
 # Covio
 
-Covio is a macOS menu-bar app and a Windows desktop app.
-It controls sleep behavior. It indexes native screenshots in the Files area.
+Covio is an independent cross-platform product.
+The first release targets macOS, Windows, and iOS.
+Covio shares and forwards files between paired devices.
+It shows read-only device information.
+It also keeps the existing macOS power and screenshot tools.
 
 Covio is an independent implementation.
 It does not use the Tendedero name, icon, or documentation images.
 
 ## Product design
 
-- [Design contract](docs/covio-design-contract.json) is the machine-readable design authority.
+- Apple design on macOS and iOS is the design authority.
+- [Design contract](docs/covio-design-contract.json) is the machine-readable projection.
 - [Design contract schema](docs/covio-design-contract.schema.json) validates the contract structure.
 - The Covio Figma file is the visual projection used for implementation verification.
 - Static design status: 8 pages, 8 sections, 35 boards, 130 source component sets, 186 component nodes, and 42 prototype reactions. Static visual audit passed.
 
 Each component carries a `swiftMapping`.
-The macOS host reads the Swift mapping. Windows surfaces use the native `platformMapping`.
+The macOS and iOS hosts use Apple design as the authority.
+Current Windows egui surfaces use the native `platformMapping`.
+Target Compose surfaces consume the shared design contract and align to Apple visual results.
 
-**Note:** The JSON schema cannot express "`swiftMapping` is required on macOS".
+**Note:** The JSON schema cannot express "`swiftMapping` is required on Apple hosts".
 The check is in `scripts/validate-contract.py`.
 The script also checks the rules that cross two sections of the contract.
 
@@ -38,31 +44,45 @@ Progress is read from GitHub. The repository does not hold issue definitions.
 
 `main` is the trunk. Changes to `main` go through a pull request.
 
-## Architecture migration
+## Target architecture
 
-The macOS product now uses the Rust core with SwiftUI and AppKit.
-The Windows product uses the same Rust core with egui.
-The migration scope is Windows and macOS. Android, iOS, and Web need separate decisions.
+Covio is one product with four planned platform targets.
+The first release targets macOS, Windows, and iOS.
+Android follows after the first release.
 
-| Platform | Target UI | Rust boundary |
-| --- | --- | --- |
-| Windows | Rust + egui | Same-process Rust call |
-| macOS | SwiftUI + AppKit | C ABI / cinterop |
+| Platform | Status | UI | Rust boundary |
+| --- | --- | --- | --- |
+| macOS | current | SwiftUI + AppKit | C ABI; UniFFI optional |
+| Windows | egui baseline, Compose target | Compose Multiplatform | JNI |
+| iOS | first release target | SwiftUI | C ABI; UniFFI optional |
+| Android | later target | Compose Multiplatform | JNI |
 
-The Windows and macOS products do not contain a KMP fallback, a Kotlin JVM product path, or a Windows Compose / JNA path.
-The repository no longer contains the old KMP module, Amper project, Kotlin wrapper, or Compose helper.
+Rust owns business rules, state machines, durable state, transfer, permission policy, and platform capability models.
+Kotlin, Compose, and JVM are limited to UI hosts and platform integration.
+The default UniFFI Kotlin/JNA backend is not part of the first Windows product path.
+The KMP shared module remains removed.
+Windows and Android share Compose UI and interaction semantics.
+macOS and iOS keep Apple-native SwiftUI behavior.
+Apple design is the visual authority for the shared design contract.
 
-- Product decision: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
+The current Windows host still uses egui.
+The Compose host must pass functional, visual, packaging, and performance acceptance before cutover.
+
+- Product and platform decision: [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md)
+- Target architecture: [Cross-platform product](docs/design/cross-platform-product.md)
+- Current Discussion: [#732](https://github.com/wyz541/Covio/discussions/732)
+- Current Rust migration record: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
 - Repository removal: [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md)
-- Plan: [Rust core migration plan](docs/design/rust-core-migration.md)
+- Current migration baseline: [Rust core migration plan](docs/design/rust-core-migration.md)
 - Windows triggers: [Windows Hub triggers](docs/design/windows-triggers.md)
-- Windows visuals: [Windows egui visual language](docs/design/windows-visual-language.md)
-- Tracking: [Feature #595](https://github.com/wyz541/kmp-Covio/issues/595)
+- Current Windows visuals: [Windows egui visual language](docs/design/windows-visual-language.md)
 
 ## Download (internal test)
 
 Covio is under internal test.
 Covio 0.6.0-internal.35 is the current internal build.
+The first cross-platform release target includes iOS.
+No iOS internal build is published yet.
 The macOS build requires macOS 26 or later on Apple Silicon.
 The Windows build supports Windows 11 x64.
 The default installer does not contain model weights.
@@ -409,9 +429,10 @@ Both files are generated. Do not edit them by hand.
 The macOS host is SwiftUI and links the Rust core through the C ABI.
 The external Agent token uses the Rust Keychain adapter through the same C ABI.
 The macOS build does not link or embed a Kotlin framework. Open `macosApp/Covio.xcodeproj` to work on the host.
-The Windows product does not link the Kotlin shared module.
-Repository-wide KMP removal is complete.
-See [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md) and [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md).
+The KMP shared module remains removed.
+The target Windows Compose host will call the Rust core through JNI and UniFFI.
+The current egui host remains the runnable Windows baseline until the Compose cutover.
+See [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md), [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md), and [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md).
 
 ### Windows package
 
@@ -430,7 +451,8 @@ The Rust host stores durable state under `%LOCALAPPDATA%\Covio`.
 Secrets use Windows Credential Manager.
 
 CI installs a previous build, upgrades to the current build, checks crash recovery, rolls back to the previous build, and uninstalls.
-CI also rejects JVM, Kotlin, Compose, and JNA dependencies or artifact files.
+Until the Compose cutover, CI rejects JVM, Kotlin, Compose, and JNA dependencies or artifact files.
+ADR-0035 changes the target UI boundary. The research and migration tasks must update these checks.
 
 The project signs ad-hoc by default.
 Ad-hoc signing has no Team ID, so macOS identifies the app by its cdhash.

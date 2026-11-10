@@ -3,12 +3,12 @@
 本文件是 agent 的强制契约。Codex 直接读本文件。Claude Code 通过 `CLAUDE.md` 导入。
 
 ## 1. 项目基线
-- Covio 交付 Windows 和 macOS。macOS UI 在 `macosApp/`，Windows UI 在 `rust/apps/covio-windows/`。
-- 共享逻辑是 Rust core，代码在 `rust/crates/`。
-- Windows 和 macOS 产品路径不含 KMP、Kotlin、Compose、JVM 或 JNA。
-- KMP 删除决策见 ADR-0034。Android、iOS 和 Web 不在当前产品范围。
-- 主干是 `main`。
-- 项目版本遵循 Semantic Versioning 2.0.0。权威规则见 `docs/process/versioning.md`。
+- Covio 是独立跨平台产品。第一版平台是 macOS、Windows 和 iOS；Android 在第一版之后进入。
+- macOS/iOS UI 使用 SwiftUI，macOS 另用 AppKit。Windows 当前 UI 使用 egui，目标 UI 使用 Compose Multiplatform；Android 目标 UI 使用 Compose Multiplatform。
+- 共享逻辑是 Rust core，代码在 `rust/crates/`。Rust 是业务逻辑、状态机、持久化、传输、权限策略和平台能力模型的唯一 owner。
+- Kotlin、Compose 和 JVM 只允许用于 UI host 与平台接入。ADR-0034 的 KMP shared module 删除决策继续有效；Windows egui 是当前运行基线。
+- macOS/iOS 使用 C ABI；Windows/Android 使用 JNI。UniFFI 只做可选绑定试验。macOS/iOS Apple 设计是设计权威源，Compose 共享设计合同并对齐视觉结果。
+- 产品范围与 UI 决策见 ADR-0035。当前只做内部测试，产物通过 GitHub Releases 分发。主干是 `main`。项目版本使用 Semantic Versioning 2.0.0，正式发布规则可以重新设计。
 
 ## 2. 工作流
 流程细节见 `docs/process/workflow.md`。
@@ -71,9 +71,9 @@ UI 代码 PR 必须填写 `Visual verification`。
 - macOS 用类型化 Swift 合同定义共享行为。
 - macOS 运行时消费同一 Swift 合同。
 - JSON 合同由 macOS Swift 合同确定性导出。
-- Windows 只消费生成的 Rust 合同。
-- Windows 不得独立定义共享触发、几何、动效或状态转换参数。
-- Windows 覆盖必须有稳定 ID、理由和证据。
+- Compose host 消费生成的 Compose 合同；当前 egui host 在 cutover 前消费生成的 Rust 合同。
+- Compose host 不得独立定义共享触发、几何、动效或状态转换参数。
+- Compose 覆盖必须有稳定 ID、理由和证据。
 - 禁止手改合同生成物。
 - 相关 PR 必须填写 `Contract impact`。
 - 缺少合同证据时，PR 不得转为 ready 或合并。
@@ -83,7 +83,8 @@ UI 代码 PR 必须填写 `Visual verification`。
 不写本机绝对路径。
 改动涉及行为时，同步修改文档。
 关键来源：
-- 设计合同：`docs/covio-design-contract.json`
+- 设计权威：macOS 与 iOS 的 Apple 设计
+- 设计合同投影：`docs/covio-design-contract.json`
 - 跨平台交互合同：`docs/process/interaction-contract.md`
 - 架构决策：`docs/adr/`
 - 目标架构：`docs/design/`
@@ -111,4 +112,4 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>
 3. 禁止把本机绝对路径写入仓库文件。
 4. 修改设计合同后，重跑 `scripts/generate-contract-constants.py`。
 5. 禁止手改合同生成物。
-6. 禁止只在 Windows 修改共享交互或动效值。
+6. 禁止只在单一客户端修改共享交互或动效值。

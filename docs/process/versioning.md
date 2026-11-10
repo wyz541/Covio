@@ -1,5 +1,7 @@
 # 项目版本规范
 
+> 2026-11-10：ADR-0035 将当前分发限定为内部测试和 GitHub Releases。正式发布、商店发布和更新规则暂缓。正式发布前可以重新设计版本规则。本文件继续约束内部 build，直到新 ADR 取代。[ADR-0035](../adr/adr-0035-cross-platform-product-scope.md)
+
 结论：Covio 使用 Semantic Versioning 2.0.0。项目版本是 `MAJOR.MINOR.PATCH`。
 
 ## 1. 版本格式

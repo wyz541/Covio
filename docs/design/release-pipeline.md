@@ -8,7 +8,9 @@
 | 状态 | 已实现；当前只创建 internal/local Draft |
 | 日期 | `2026-10-25` |
 | Issue | #356 |
-| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0031](../adr/adr-0031-semantic-versioning.md) |
+| 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0031](../adr/adr-0031-semantic-versioning.md)、[ADR-0035](../adr/adr-0035-cross-platform-product-scope.md) |
+
+> 2026-11-10：ADR-0035 将当前范围限定为内部测试和 GitHub Releases。本文件描述现有 internal/local 基线。正式商店发布、正式更新器和安装器方案暂缓，正式发布前可以重新设计。
 
 ## 目标
 
