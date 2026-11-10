@@ -70,6 +70,7 @@ The Compose host must pass functional, visual, packaging, and performance accept
 
 - Product and platform decision: [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md)
 - Target architecture: [Cross-platform product](docs/design/cross-platform-product.md)
+- Bridge contract: [Covio bridge contract](docs/design/bridge-contract.md)
 - Current Discussion: [#732](https://github.com/wyz541/Covio/discussions/732)
 - Current Rust migration record: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
 - Repository removal: [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md)
@@ -421,6 +422,13 @@ After you change the design contract, run these two:
 ```sh
 python3 scripts/validate-contract.py            # the cross-section rules
 python3 scripts/generate-contract-constants.py  # rewrite the Swift constants
+```
+
+After you change the bridge contract, regenerate the C and JNI headers:
+
+```sh
+python3 scripts/generate-bridge-contracts.py
+python3 scripts/generate-bridge-contracts.py --check
 ```
 
 The SwiftUI host reads its text and its tokens from `ContractCopy.swift` and `ContractTokens.swift`.

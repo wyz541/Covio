@@ -504,6 +504,12 @@ pub extern "C" fn covio_ffi_abi_version() -> u32 {
     ABI_VERSION
 }
 
+/// Returns the bridge protocol version for platform loader checks.
+#[unsafe(no_mangle)]
+pub extern "C" fn covio_bridge_protocol_version() -> u32 {
+    u32::from(PROTOCOL_VERSION)
+}
+
 /// Creates one opaque session handle.
 ///
 /// The caller must call [`covio_handle_release`] exactly once.
@@ -1605,5 +1611,98 @@ mod tests {
             CovioStatusCode::NotFound as u32
         );
         unsafe { covio_error_free(&mut error) };
+    }
+
+    #[test]
+    fn generated_bridge_contract_matches_ffi_types() {
+        let contract: serde_json::Value =
+            serde_json::from_str(include_str!("../bridge/bridge_contract.json"))
+                .expect("bridge contract json");
+
+        assert_eq!(
+            contract["abiVersion"].as_u64(),
+            Some(u64::from(ABI_VERSION))
+        );
+        assert_eq!(
+            contract["protocolVersion"].as_u64(),
+            Some(u64::from(PROTOCOL_VERSION))
+        );
+        assert_eq!(
+            contract["defaultMaxControlBytes"].as_u64(),
+            Some(DEFAULT_MAX_CONTROL_BYTES as u64)
+        );
+        assert_eq!(
+            contract["contentTransport"].as_str(),
+            Some("opaque_handle_or_stream")
+        );
+
+        let statuses = contract["statusCodes"]
+            .as_array()
+            .expect("status codes array");
+        let expected_statuses = [
+            ("Ok", CovioStatusCode::Ok as u32),
+            ("InvalidArgument", CovioStatusCode::InvalidArgument as u32),
+            ("InvalidUtf8", CovioStatusCode::InvalidUtf8 as u32),
+            ("PayloadTooLarge", CovioStatusCode::PayloadTooLarge as u32),
+            ("MalformedMessage", CovioStatusCode::MalformedMessage as u32),
+            ("ProtocolVersion", CovioStatusCode::ProtocolVersion as u32),
+            ("StaleGeneration", CovioStatusCode::StaleGeneration as u32),
+            ("StaleRevision", CovioStatusCode::StaleRevision as u32),
+            ("InvalidRevision", CovioStatusCode::InvalidRevision as u32),
+            ("DeadlineExceeded", CovioStatusCode::DeadlineExceeded as u32),
+            ("Cancelled", CovioStatusCode::Cancelled as u32),
+            ("ShuttingDown", CovioStatusCode::ShuttingDown as u32),
+            ("Unsupported", CovioStatusCode::Unsupported as u32),
+            ("NotFound", CovioStatusCode::NotFound as u32),
+            ("Conflict", CovioStatusCode::Conflict as u32),
+            ("Io", CovioStatusCode::Io as u32),
+            ("Internal", CovioStatusCode::Internal as u32),
+            ("Panic", CovioStatusCode::Panic as u32),
+        ];
+        assert_eq!(statuses.len(), expected_statuses.len());
+        for (name, value) in expected_statuses {
+            let entry = statuses
+                .iter()
+                .find(|entry| entry["name"] == name)
+                .expect("status code entry");
+            assert_eq!(entry["value"].as_u64(), Some(u64::from(value)), "{name}");
+        }
+
+        let lifecycle = contract["lifecycle"].as_array().expect("lifecycle array");
+        let expected_lifecycle = [
+            ("Running", CovioLifecycleWire::Running as u32),
+            ("Draining", CovioLifecycleWire::Draining as u32),
+            ("Stopped", CovioLifecycleWire::Stopped as u32),
+        ];
+        assert_eq!(lifecycle.len(), expected_lifecycle.len());
+        for (name, value) in expected_lifecycle {
+            let entry = lifecycle
+                .iter()
+                .find(|entry| entry["name"] == name)
+                .expect("lifecycle entry");
+            assert_eq!(entry["value"].as_u64(), Some(u64::from(value)), "{name}");
+        }
+
+        let cancel_reasons = contract["cancelReasons"]
+            .as_array()
+            .expect("cancel reasons array");
+        let expected_cancel_reasons = [("Host", 0_u64), ("Deadline", 1), ("Shutdown", 2)];
+        assert_eq!(cancel_reasons.len(), expected_cancel_reasons.len());
+        for (name, value) in expected_cancel_reasons {
+            let entry = cancel_reasons
+                .iter()
+                .find(|entry| entry["name"] == name)
+                .expect("cancel reason entry");
+            assert_eq!(entry["value"].as_u64(), Some(value), "{name}");
+        }
+
+        let jni_functions = contract["jniFunctions"]
+            .as_array()
+            .expect("JNI functions array");
+        assert!(
+            jni_functions
+                .iter()
+                .any(|entry| { entry["name"] == "covio_jni_handle_dispatch" })
+        );
     }
 }
