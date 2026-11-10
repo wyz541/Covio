@@ -189,6 +189,7 @@ def main() -> int:
             "runs-on: ubuntu-latest",
             "cancel-in-progress: true",
             "python3 -I scripts/verify-kmp-removal.py",
+            "python3 -I scripts/generate-bridge-contracts.py --check",
             "predicate-quantifier: some-with-excludes",
             "docs/design/previews/**",
             "docs/research/**",

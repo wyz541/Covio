@@ -85,7 +85,7 @@ Rust core 定义以下能力。
 5. Secret 不进入普通日志或 UI state snapshot。
 6. Rust panic 在 bridge 边界转换为 typed error。
 7. Swift、Kotlin 和 Rust 的合同由同一 schema 生成。
-8. C header 与 JNI 声明进入生成和漂移检查。
+8. C header 与 JNI 声明进入生成和漂移检查。实现见 [Covio bridge 合同](bridge-contract.md)。
 9. 默认 UniFFI Kotlin/JNA 后端不进入首版产品路径。
 10. Compose host 使用有界事件队列。JNI 不保存 `JNIEnv`，长任务不在 UI 线程执行。
 

@@ -39,6 +39,9 @@ func dispatch(_ handle: OpaquePointer, _ json: String) -> Int32 {
 guard covio_ffi_abi_version() == 1 else {
     fail("unexpected ABI version")
 }
+guard covio_bridge_protocol_version() == 1 else {
+    fail("unexpected bridge protocol version")
+}
 
 var createError = CovioError(code: 0, message: CovioOwnedBytes(data: nil, len: 0, capacity: 0))
 guard let handle = covio_handle_create(1, 0, 0, nil, nil, &createError) else {

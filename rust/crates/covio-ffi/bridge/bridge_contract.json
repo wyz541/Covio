@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "abiVersion": 1,
+  "protocolVersion": 1,
+  "defaultMaxControlBytes": 1048576,
+  "contentTransport": "opaque_handle_or_stream",
+  "statusCodes": [
+    {"name": "Ok", "cName": "COVIO_STATUS_OK", "value": 0},
+    {"name": "InvalidArgument", "cName": "COVIO_STATUS_INVALID_ARGUMENT", "value": 1},
+    {"name": "InvalidUtf8", "cName": "COVIO_STATUS_INVALID_UTF8", "value": 2},
+    {"name": "PayloadTooLarge", "cName": "COVIO_STATUS_PAYLOAD_TOO_LARGE", "value": 3},
+    {"name": "MalformedMessage", "cName": "COVIO_STATUS_MALFORMED_MESSAGE", "value": 4},
+    {"name": "ProtocolVersion", "cName": "COVIO_STATUS_PROTOCOL_VERSION", "value": 5},
+    {"name": "StaleGeneration", "cName": "COVIO_STATUS_STALE_GENERATION", "value": 6},
+    {"name": "StaleRevision", "cName": "COVIO_STATUS_STALE_REVISION", "value": 7},
+    {"name": "InvalidRevision", "cName": "COVIO_STATUS_INVALID_REVISION", "value": 8},
+    {"name": "DeadlineExceeded", "cName": "COVIO_STATUS_DEADLINE_EXCEEDED", "value": 9},
+    {"name": "Cancelled", "cName": "COVIO_STATUS_CANCELLED", "value": 10},
+    {"name": "ShuttingDown", "cName": "COVIO_STATUS_SHUTTING_DOWN", "value": 11},
+    {"name": "Unsupported", "cName": "COVIO_STATUS_UNSUPPORTED", "value": 12},
+    {"name": "NotFound", "cName": "COVIO_STATUS_NOT_FOUND", "value": 13},
+    {"name": "Conflict", "cName": "COVIO_STATUS_CONFLICT", "value": 14},
+    {"name": "Io", "cName": "COVIO_STATUS_IO", "value": 15},
+    {"name": "Internal", "cName": "COVIO_STATUS_INTERNAL", "value": 16},
+    {"name": "Panic", "cName": "COVIO_STATUS_PANIC", "value": 17}
+  ],
+  "lifecycle": [
+    {"name": "Running", "cName": "COVIO_LIFECYCLE_RUNNING", "value": 0},
+    {"name": "Draining", "cName": "COVIO_LIFECYCLE_DRAINING", "value": 1},
+    {"name": "Stopped", "cName": "COVIO_LIFECYCLE_STOPPED", "value": 2}
+  ],
+  "cancelReasons": [
+    {"name": "Host", "cName": "COVIO_CANCEL_REASON_HOST", "value": 0},
+    {"name": "Deadline", "cName": "COVIO_CANCEL_REASON_DEADLINE", "value": 1},
+    {"name": "Shutdown", "cName": "COVIO_CANCEL_REASON_SHUTDOWN", "value": 2}
+  ],
+  "cFunctions": [
+    {
+      "name": "covio_ffi_abi_version",
+      "returnType": "uint32_t",
+      "parameters": []
+    },
+    {
+      "name": "covio_bridge_protocol_version",
+      "returnType": "uint32_t",
+      "parameters": []
+    },
+    {
+      "name": "covio_handle_create",
+      "returnType": "CovioHandle *",
+      "parameters": [
+        {"name": "generation", "type": "uint64_t"},
+        {"name": "revision", "type": "uint64_t"},
+        {"name": "max_control_bytes", "type": "uint32_t"},
+        {"name": "callback", "type": "CovioEventCallback"},
+        {"name": "context", "type": "void *"},
+        {"name": "error", "type": "CovioError *"}
+      ]
+    },
+    {
+      "name": "covio_handle_release",
+      "returnType": "void",
+      "parameters": [
+        {"name": "handle", "type": "CovioHandle *"}
+      ]
+    },
+    {
+      "name": "covio_handle_dispatch",
+      "returnType": "uint32_t",
+      "parameters": [
+        {"name": "handle", "type": "CovioHandle *"},
+        {"name": "message", "type": "const uint8_t *"},
+        {"name": "message_len", "type": "size_t"},
+        {"name": "now_unix_millis", "type": "uint64_t"},
+        {"name": "out_message", "type": "CovioOwnedBytes *"},
+        {"name": "error", "type": "CovioError *"}
+      ]
+    },
+    {
+      "name": "covio_handle_cancel",
+      "returnType": "uint32_t",
+      "parameters": [
+        {"name": "handle", "type": "CovioHandle *"},
+        {"name": "request_id", "type": "const uint8_t *"},
+        {"name": "request_id_len", "type": "size_t"},
+        {"name": "reason", "type": "uint32_t"},
+        {"name": "now_unix_millis", "type": "uint64_t"},
+        {"name": "error", "type": "CovioError *"}
+      ]
+    },
+    {
+      "name": "covio_handle_shutdown",
+      "returnType": "uint32_t",
+      "parameters": [
+        {"name": "handle", "type": "CovioHandle *"},
+        {"name": "immediate", "type": "bool"},
+        {"name": "has_deadline", "type": "bool"},
+        {"name": "deadline_unix_millis", "type": "uint64_t"},
+        {"name": "now_unix_millis", "type": "uint64_t"},
+        {"name": "error", "type": "CovioError *"}
+      ]
+    },
+    {
+      "name": "covio_handle_lifecycle",
+      "returnType": "uint32_t",
+      "parameters": [
+        {"name": "handle", "type": "const CovioHandle *"}
+      ]
+    },
+    {
+      "name": "covio_handle_active_request_count",
+      "returnType": "uint64_t",
+      "parameters": [
+        {"name": "handle", "type": "const CovioHandle *"}
+      ]
+    },
+    {
+      "name": "covio_owned_bytes_free",
+      "returnType": "void",
+      "parameters": [
+        {"name": "bytes", "type": "CovioOwnedBytes *"}
+      ]
+    },
+    {
+      "name": "covio_error_free",
+      "returnType": "void",
+      "parameters": [
+        {"name": "error", "type": "CovioError *"}
+      ]
+    }
+  ],
+  "jniFunctions": [
+    {
+      "name": "covio_jni_abi_version",
+      "returnType": "jint",
+      "parameters": []
+    },
+    {
+      "name": "covio_jni_protocol_version",
+      "returnType": "jint",
+      "parameters": []
+    },
+    {
+      "name": "covio_jni_handle_create",
+      "returnType": "jlong",
+      "parameters": [
+        {"name": "generation", "type": "jlong"},
+        {"name": "revision", "type": "jlong"},
+        {"name": "max_control_bytes", "type": "jint"},
+        {"name": "error_out", "type": "jobject"}
+      ]
+    },
+    {
+      "name": "covio_jni_handle_release",
+      "returnType": "void",
+      "parameters": [
+        {"name": "handle", "type": "jlong"}
+      ]
+    },
+    {
+      "name": "covio_jni_handle_dispatch",
+      "returnType": "jint",
+      "parameters": [
+        {"name": "handle", "type": "jlong"},
+        {"name": "message", "type": "jbyteArray"},
+        {"name": "now_unix_millis", "type": "jlong"},
+        {"name": "out_message", "type": "jobject"},
+        {"name": "error_out", "type": "jobject"}
+      ]
+    },
+    {
+      "name": "covio_jni_handle_cancel",
+      "returnType": "jint",
+      "parameters": [
+        {"name": "handle", "type": "jlong"},
+        {"name": "request_id", "type": "jbyteArray"},
+        {"name": "reason", "type": "jint"},
+        {"name": "now_unix_millis", "type": "jlong"},
+        {"name": "error_out", "type": "jobject"}
+      ]
+    },
+    {
+      "name": "covio_jni_handle_shutdown",
+      "returnType": "jint",
+      "parameters": [
+        {"name": "handle", "type": "jlong"},
+        {"name": "immediate", "type": "jboolean"},
+        {"name": "has_deadline", "type": "jboolean"},
+        {"name": "deadline_unix_millis", "type": "jlong"},
+        {"name": "now_unix_millis", "type": "jlong"},
+        {"name": "error_out", "type": "jobject"}
+      ]
+    },
+    {
+      "name": "covio_jni_handle_lifecycle",
+      "returnType": "jint",
+      "parameters": [
+        {"name": "handle", "type": "jlong"}
+      ]
+    },
+    {
+      "name": "covio_jni_handle_active_request_count",
+      "returnType": "jlong",
+      "parameters": [
+        {"name": "handle", "type": "jlong"}
+      ]
+    }
+  ]
+}
