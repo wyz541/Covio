@@ -1,5 +1,6 @@
 //! Shared Windows visual tokens and egui primitives.
 
+use covio_core::contract_design;
 use eframe::egui::{
     self, Button, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Frame,
     Margin, Shadow, Stroke, TextStyle, Vec2, Visuals,
@@ -211,16 +212,31 @@ impl CovioTheme {
             style.text_styles = [
                 (
                     TextStyle::Heading,
-                    FontId::new(20.0, FontFamily::Proportional),
+                    FontId::new(
+                        typography_size("typography/section-title", 20.0),
+                        FontFamily::Proportional,
+                    ),
                 ),
-                (TextStyle::Body, FontId::new(13.0, FontFamily::Proportional)),
+                (
+                    TextStyle::Body,
+                    FontId::new(
+                        typography_size("typography/body", 13.0),
+                        FontFamily::Proportional,
+                    ),
+                ),
                 (
                     TextStyle::Button,
-                    FontId::new(12.0, FontFamily::Proportional),
+                    FontId::new(
+                        typography_size("typography/action", 12.0),
+                        FontFamily::Proportional,
+                    ),
                 ),
                 (
                     TextStyle::Small,
-                    FontId::new(11.0, FontFamily::Proportional),
+                    FontId::new(
+                        typography_size("typography/caption", 11.0),
+                        FontFamily::Proportional,
+                    ),
                 ),
                 (
                     TextStyle::Monospace,
@@ -325,23 +341,33 @@ fn install_windows_font(context: &egui::Context) {
     let Some(windir) = std::env::var_os("WINDIR") else {
         return;
     };
-    let font_path = std::path::PathBuf::from(windir)
-        .join("Fonts")
-        .join("segoeui.ttf");
-    let Ok(bytes) = std::fs::read(font_path) else {
+    let Some(font) = contract_design::platform_font("windows", "interface") else {
         return;
     };
-    let mut fonts = FontDefinitions::default();
-    fonts.font_data.insert(
-        "covio-segoe-ui".to_owned(),
-        Arc::new(FontData::from_owned(bytes)),
-    );
-    fonts
-        .families
-        .entry(FontFamily::Proportional)
-        .or_default()
-        .insert(0, "covio-segoe-ui".to_owned());
-    context.set_fonts(fonts);
+    for file_name in font.file_names {
+        let font_path = std::path::PathBuf::from(&windir)
+            .join("Fonts")
+            .join(file_name);
+        let Ok(bytes) = std::fs::read(font_path) else {
+            continue;
+        };
+        let mut fonts = FontDefinitions::default();
+        fonts.font_data.insert(
+            "covio-windows-interface-font".to_owned(),
+            Arc::new(FontData::from_owned(bytes)),
+        );
+        fonts
+            .families
+            .entry(FontFamily::Proportional)
+            .or_default()
+            .insert(0, "covio-windows-interface-font".to_owned());
+        context.set_fonts(fonts);
+        return;
+    }
+}
+
+fn typography_size(key: &str, fallback: f32) -> f32 {
+    contract_design::typography_token(key).map_or(fallback, |token| token.size)
 }
 
 #[cfg(test)]
@@ -379,5 +405,20 @@ mod tests {
         assert_eq!(CARD_RADIUS, 16);
         assert_eq!(PANEL_RADIUS, 22);
         assert_eq!(CONTROL_RADIUS, 8);
+    }
+
+    #[test]
+    fn windows_font_mapping_uses_the_generated_contract() {
+        let font = contract_design::platform_font("windows", "interface").expect("Windows font");
+        assert_eq!(font.family, "Segoe UI Variable");
+        assert_eq!(font.file_names.first().copied(), Some("SegUIVar.ttf"));
+        assert!(!font.platforms.contains(&"macos"));
+    }
+
+    #[test]
+    fn windows_typography_sizes_come_from_the_generated_contract() {
+        assert_eq!(typography_size("typography/body", -1.0), 13.0);
+        assert_eq!(typography_size("typography/action", -1.0), 12.0);
+        assert_eq!(typography_size("typography/caption", -1.0), 11.0);
     }
 }

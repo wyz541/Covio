@@ -147,7 +147,7 @@ CMP host 必须通过功能和视觉验收后才能替换 egui。
 | iOS 产品工程 | pending | 独立 Task |
 | Android 产品工程 | deferred | 第一版后建立 Feature |
 | 正式发布与更新 | deferred | 正式发布前建立 ADR |
-| 设计合同迁移 | pending | 增加平台字体、Kotlin 生成和视觉验收 |
+| 设计合同迁移 | complete | [#740](https://github.com/wyz541/Covio/issues/740)；见 [共享设计合同](../design/shared-design-contract.md) |
 
 ## 参考
 

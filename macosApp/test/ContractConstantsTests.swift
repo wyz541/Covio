@@ -3,7 +3,7 @@ import XCTest
 
 /// 生成的合同常量与合同本身是否一致。
 ///
-/// `ContractCopy.swift` 与 `ContractTokens.swift` 由
+/// `ContractCopy.swift`、`ContractTokens.swift` 与 `ContractSemantics.swift` 由
 /// `scripts/generate-contract-constants.py` 从 `docs/covio-design-contract.json` 生成。
 /// 这里读同一份合同逐条比对，所以改了合同而忘了重跑脚本时测试会失败。
 final class ContractConstantsTests: XCTestCase {
@@ -132,6 +132,61 @@ final class ContractConstantsTests: XCTestCase {
                 XCTAssertLessThanOrEqual(reduced, token.seconds, "\(token.key) 的减弱动态时长更长")
             }
         }
+    }
+
+    /// 平台字体映射必须与合同一致，Windows 不得拿到 SF Pro。
+    func testGeneratedPlatformFontsMatchTheContract() throws {
+        let fonts = try XCTUnwrap(try contract()["platformFonts"] as? [String: [String: Any]])
+        XCTAssertEqual(ContractPlatformFonts.all.count, fonts.count)
+
+        let windows = try XCTUnwrap(ContractPlatformFonts.fontInterfaceWindows)
+        XCTAssertEqual(windows.family, "Segoe UI Variable")
+        XCTAssertEqual(windows.fileNames.first, "SegUIVar.ttf")
+        XCTAssertTrue(windows.platforms.contains("windows"))
+        XCTAssertFalse(windows.platforms.contains("macos"))
+
+        let apple = try XCTUnwrap(ContractPlatformFonts.fontInterfaceApple)
+        XCTAssertEqual(apple.family, "SF Pro")
+        XCTAssertEqual(apple.platforms.sorted(), ["ios", "macos"])
+    }
+
+    /// 排版令牌的字号和行高必须逐条来自合同。
+    func testGeneratedTypographyMatchesTheContract() throws {
+        let typography = try XCTUnwrap(try contract()["typography"] as? [String: [String: Any]])
+        XCTAssertEqual(ContractTypography.all.count, typography.count)
+
+        for token in ContractTypography.all {
+            let source = try XCTUnwrap(typography[token.key], "合同里没有排版 \(token.key)")
+            let size = try XCTUnwrap(source["size"] as? NSNumber)
+            let lineHeight = try XCTUnwrap(source["lineHeight"] as? NSNumber)
+            XCTAssertEqual(Double(token.size), size.doubleValue)
+            XCTAssertEqual(Double(token.lineHeight), lineHeight.doubleValue)
+            XCTAssertEqual(token.weight, source["weight"] as? String)
+        }
+    }
+
+    /// Swift 生成语义、焦序、平台覆盖和验收 ID 必须完整。
+    func testGeneratedSemanticsAreComplete() throws {
+        let contract = try self.contract()
+        let roles = try XCTUnwrap(contract["semanticRoles"] as? [String: Any])
+        let focus = try XCTUnwrap(contract["focusOrder"] as? [String: Any])
+        let overrides = try XCTUnwrap(contract["platformOverrides"] as? [String: Any])
+        let acceptance = try XCTUnwrap(contract["acceptanceCriteria"] as? [String: Any])
+
+        XCTAssertEqual(ContractSemanticRoles.all.count, roles.count)
+        XCTAssertEqual(ContractFocusOrders.all.count, focus.count)
+        XCTAssertEqual(ContractPlatformOverrides.all.count, overrides.count)
+        XCTAssertEqual(ContractAcceptanceCriteria.all.count, acceptance.count)
+
+        let modal = try XCTUnwrap(
+            ContractFocusOrders.all.first { $0.key == "focus/dialog" }
+        )
+        XCTAssertTrue(modal.trapFocus)
+        XCTAssertTrue(modal.restoreFocus)
+        XCTAssertEqual(modal.steps.map(\.order), [1, 2, 3])
+
+        let kinds = Set(ContractAcceptanceCriteria.all.map(\.kind))
+        XCTAssertEqual(kinds, Set(["visual", "behavior"]))
     }
 
     /// 合同里 `token/art/*` 不该被导出成 Swift 常量。

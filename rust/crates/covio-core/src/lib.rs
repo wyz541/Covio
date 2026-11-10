@@ -8,6 +8,7 @@
 pub mod charge_limit;
 pub mod clipboard;
 mod config;
+pub mod contract_design;
 pub mod contract_motion;
 pub mod credential;
 pub mod design_contract;
