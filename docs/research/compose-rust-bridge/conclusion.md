@@ -60,13 +60,15 @@ Rust panic 不得穿过非 unwinding ABI 边界（`E-17`）。
 因此默认 bridge 使用有界事件队列。
 UI 在专用线程读取事件。Rust 不默认回调 UI。
 
-### F5：设计合同当前不可直接用于 Windows
+### F5：设计合同迁移是 Windows 的前置条件
 
-当前合同要求 SF Pro（`E-22`）。
+原合同要求 SF Pro（`E-22`）。
 Apple 字体许可禁止在非 Apple OS 使用 SF Pro（`E-23`）。
-当前合同还有 egui 平台映射。生成器没有 Kotlin 输出。
+原合同还有 egui 平台映射。原生成器没有 Kotlin 输出。
 因此设计合同迁移必须先于 Compose UI 实现。
 Windows 字体应使用 Segoe UI Variable（`E-24`）。
+[#740](https://github.com/wyz541/Covio/issues/740) 已完成平台字体、语义、焦序、平台覆盖和 Compose 生成物迁移。
+迁移结果见 [共享设计合同](../../design/shared-design-contract.md)。
 
 ### F6：Windows 迁移必须分阶段
 
@@ -271,8 +273,8 @@ Covio 不应承诺后台持续接收。
 | MSI 和 ZIP 体积 | 未验证 | 实际构建 |
 | Rust DLL 加载路径 | 未验证 | 安装后启动 |
 | 实验性 UniFFI JNI backend 是否发布 | 未验证 | release 评审 |
-| 设计合同平台字体扩展 | 未完成 | 设计合同变更 |
-| Kotlin 常量生成 | 未完成 | 生成器变更 |
+| 设计合同平台字体扩展 | 完成 | [#740](https://github.com/wyz541/Covio/issues/740) |
+| Kotlin 常量生成 | 完成 | [共享设计合同](../../design/shared-design-contract.md) |
 | Android 16 KB 对齐 | 未验证 | `.so` 检查 |
 | iOS C ABI 打包 | 未验证 | XCFramework 构建 |
 | Windows 正式签名 | 暂缓 | 发布阶段评审 |

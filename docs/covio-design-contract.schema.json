@@ -13,12 +13,18 @@
     "states",
     "copy",
     "platformMapping",
+    "platformFonts",
+    "typography",
+    "semanticRoles",
+    "focusOrder",
+    "platformOverrides",
+    "acceptanceCriteria",
     "figmaNodeMap",
     "variables"
   ],
   "properties": {
     "schemaVersion": {
-      "const": "1.4.0"
+      "const": "1.5.0"
     },
     "metadata": {
       "$ref": "#/$defs/metadata"
@@ -130,6 +136,66 @@
           "type": "string",
           "minLength": 1
         }
+      }
+    },
+    "platformFonts": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^font/"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/platformFont"
+      }
+    },
+    "typography": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^typography/"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/typographyToken"
+      }
+    },
+    "semanticRoles": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^role/"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/semanticRole"
+      }
+    },
+    "focusOrder": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^focus/"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/focusOrderEntry"
+      }
+    },
+    "platformOverrides": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^override/"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/platformOverride"
+      }
+    },
+    "acceptanceCriteria": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^acceptance/"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/acceptanceCriterion"
       }
     }
   },
@@ -1956,6 +2022,377 @@
           "minLength": 1
         },
         "behavior": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "platformFont": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "role",
+        "platforms",
+        "status",
+        "usage",
+        "fallbackFamilies"
+      ],
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "enum": [
+            "interface",
+            "monospace"
+          ]
+        },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "macos",
+              "ios",
+              "windows",
+              "android"
+            ]
+          }
+        },
+        "status": {
+          "enum": [
+            "required",
+            "deferred"
+          ]
+        },
+        "usage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fallbackFamilies": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "fileNames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "typographyToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "fontRole",
+        "size",
+        "lineHeight",
+        "weight",
+        "purpose",
+        "acceptanceIds"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fontRole": {
+          "enum": [
+            "interface",
+            "monospace"
+          ]
+        },
+        "size": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "lineHeight": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "weight": {
+          "enum": [
+            "regular",
+            "medium",
+            "semibold",
+            "bold"
+          ]
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acceptanceIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "semanticRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "category",
+        "tokenKeys",
+        "accessibilityRole",
+        "behavior",
+        "acceptanceIds"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "enum": [
+            "text",
+            "surface",
+            "action",
+            "status",
+            "focus",
+            "navigation"
+          ]
+        },
+        "tokenKeys": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "typographyKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "accessibilityRole": {
+          "type": "string",
+          "minLength": 1
+        },
+        "behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acceptanceIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "focusStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "order",
+        "componentKey",
+        "elementKey",
+        "behavior"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "componentKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "elementKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "behavior": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "focusOrderEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "scope",
+        "wrapFocus",
+        "trapFocus",
+        "restoreFocus",
+        "steps",
+        "acceptanceIds"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wrapFocus": {
+          "type": "boolean"
+        },
+        "trapFocus": {
+          "type": "boolean"
+        },
+        "restoreFocus": {
+          "type": "boolean"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/focusStep"
+          }
+        },
+        "acceptanceIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "platformOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "platform",
+        "contractKey",
+        "status",
+        "behavior",
+        "reason",
+        "evidence",
+        "issue",
+        "acceptanceIds"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "platform": {
+          "enum": [
+            "macos",
+            "ios",
+            "windows",
+            "android"
+          ]
+        },
+        "contractKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "required",
+            "deferred"
+          ]
+        },
+        "behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "issue": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "acceptanceIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "acceptanceCriterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "kind",
+        "platforms",
+        "criteria",
+        "contractKeys",
+        "evidence"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "visual",
+            "behavior"
+          ]
+        },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "macos",
+              "ios",
+              "windows",
+              "android"
+            ]
+          }
+        },
+        "criteria": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contractKeys": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence": {
           "type": "string",
           "minLength": 1
         }

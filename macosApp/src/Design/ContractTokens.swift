@@ -262,6 +262,76 @@ enum ContractDimensions {
     ]
 }
 
+/// 设计合同里的平台字体映射。
+struct ContractPlatformFont: Sendable, Equatable {
+    let key: String
+    let family: String
+    let role: String
+    let platforms: [String]
+    let status: String
+    let usage: String
+    let fallbackFamilies: [String]
+    let fileNames: [String]
+}
+
+/// 设计合同 `platformFonts` 段。
+enum ContractPlatformFonts {
+    /// `font/interface/android` — Android Compose host interface typography after first-version delivery.
+    static let fontInterfaceAndroid = ContractPlatformFont(key: "font/interface/android", family: "Roboto", role: "interface", platforms: ["android"], status: "deferred", usage: "Android Compose host interface typography after first-version delivery.", fallbackFamilies: ["sans-serif"], fileNames: [])
+    /// `font/interface/apple` — Apple host interface typography.
+    static let fontInterfaceApple = ContractPlatformFont(key: "font/interface/apple", family: "SF Pro", role: "interface", platforms: ["macos", "ios"], status: "required", usage: "Apple host interface typography.", fallbackFamilies: [], fileNames: [])
+    /// `font/interface/windows` — Windows Compose host and Windows egui baseline interface typography.
+    static let fontInterfaceWindows = ContractPlatformFont(key: "font/interface/windows", family: "Segoe UI Variable", role: "interface", platforms: ["windows"], status: "required", usage: "Windows Compose host and Windows egui baseline interface typography.", fallbackFamilies: ["Segoe UI"], fileNames: ["SegUIVar.ttf", "segoeui.ttf"])
+
+    /// 全部条目。供测试遍历。
+    static let all: [ContractPlatformFont] = [
+        fontInterfaceAndroid,
+        fontInterfaceApple,
+        fontInterfaceWindows,
+    ]
+}
+
+/// 设计合同里的一枚排版令牌。
+struct ContractTypographyToken: Sendable, Equatable {
+    let key: String
+    let name: String
+    let fontRole: String
+    let size: CGFloat
+    let lineHeight: CGFloat
+    let weight: String
+    let purpose: String
+    let acceptanceIds: [String]
+}
+
+/// 设计合同 `typography` 段。
+enum ContractTypography {
+    /// `typography/action` — Buttons, tabs, and compact actions.
+    static let typographyAction = ContractTypographyToken(key: "typography/action", name: "Action", fontRole: "interface", size: 12, lineHeight: 16, weight: "medium", purpose: "Buttons, tabs, and compact actions.", acceptanceIds: ["acceptance/visual/typography-hierarchy"])
+    /// `typography/body` — Default reading text and native control labels.
+    static let typographyBody = ContractTypographyToken(key: "typography/body", name: "Body", fontRole: "interface", size: 13, lineHeight: 18, weight: "regular", purpose: "Default reading text and native control labels.", acceptanceIds: ["acceptance/visual/typography-hierarchy"])
+    /// `typography/caption` — Supporting labels, metadata, and status details.
+    static let typographyCaption = ContractTypographyToken(key: "typography/caption", name: "Caption", fontRole: "interface", size: 11, lineHeight: 14, weight: "regular", purpose: "Supporting labels, metadata, and status details.", acceptanceIds: ["acceptance/visual/typography-hierarchy"])
+    /// `typography/card-title` — Card and grouped-row titles.
+    static let typographyCardTitle = ContractTypographyToken(key: "typography/card-title", name: "Card title", fontRole: "interface", size: 13, lineHeight: 18, weight: "semibold", purpose: "Card and grouped-row titles.", acceptanceIds: ["acceptance/visual/typography-hierarchy"])
+    /// `typography/empty-state` — Empty-state messages that need more emphasis than body text.
+    static let typographyEmptyState = ContractTypographyToken(key: "typography/empty-state", name: "Empty state", fontRole: "interface", size: 15, lineHeight: 20, weight: "medium", purpose: "Empty-state messages that need more emphasis than body text.", acceptanceIds: ["acceptance/visual/typography-hierarchy"])
+    /// `typography/page-title` — Page identity and the first heading in a content column.
+    static let typographyPageTitle = ContractTypographyToken(key: "typography/page-title", name: "Page title", fontRole: "interface", size: 18, lineHeight: 24, weight: "semibold", purpose: "Page identity and the first heading in a content column.", acceptanceIds: ["acceptance/visual/typography-hierarchy"])
+    /// `typography/section-title` — Primary heading inside a page or settings surface.
+    static let typographySectionTitle = ContractTypographyToken(key: "typography/section-title", name: "Section title", fontRole: "interface", size: 20, lineHeight: 28, weight: "semibold", purpose: "Primary heading inside a page or settings surface.", acceptanceIds: ["acceptance/visual/typography-hierarchy"])
+
+    /// 全部条目。供测试遍历。
+    static let all: [ContractTypographyToken] = [
+        typographyAction,
+        typographyBody,
+        typographyCaption,
+        typographyCardTitle,
+        typographyEmptyState,
+        typographyPageTitle,
+        typographySectionTitle,
+    ]
+}
+
 /// 设计合同 `tokens` 段里的一枚动效令牌。
 ///
 /// 时长单位是秒，与 `TimeInterval` 一致。合同里写的是毫秒。

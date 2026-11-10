@@ -4,7 +4,7 @@ set -euo pipefail
 # 全量测试入口。跨模块、协议、发布和 CI 门禁排障时使用。
 # 日常迭代按 `docs/process/workflow.md` 的「测试门禁」运行相关测试。
 #
-# 十四步，任一步失败就停：
+# 十五步，任一步失败就停：
 #   1. 发布身份与脚本检查。
 #   2. Rust core 与 bridge 的 fmt、Clippy 和测试。
 #   3. Windows host、installer 和 capability smoke。
@@ -50,7 +50,7 @@ bash "$ROOT/scripts/test-verify-windows-artifact.sh"
 step "KMP removal boundary"
 python3 -I "$ROOT/scripts/verify-kmp-removal.py"
 
-step "设计合同常量"
+step "设计合同生成物"
 # `-I` 是隔离模式：不读当前目录，防止目录里被放一个同名模块顶替标准库。
 python3 -I "$ROOT/scripts/generate-contract-constants.py" --check
 

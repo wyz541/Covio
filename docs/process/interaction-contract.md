@@ -2,7 +2,7 @@
 
 **结论：macOS 是共享交互与动效的唯一设计来源。Compose host 只消费生成产物。**
 
-版本 1.1 · 2026-11-10
+版本 1.2 · 2026-11-10
 
 ## 1. 范围
 
@@ -52,6 +52,7 @@ macOS 的外观、时序和状态转换是 Compose host 的验收基准。
 
 - Compose host 从 JSON 合同生成类型和常量。
 - Compose 运行时只读取生成的合同。
+- Compose 生成物位于 `composeApp/src/commonMain/kotlin/com/covio/design/GeneratedDesignContract.kt`。
 - Compose 不复制共享触发、几何、动效或状态转换值。
 - 平台 adapter 只处理 OS API 和 Compose 能力差异。
 - Compose 测试覆盖触发、状态、时序和几何。
@@ -136,11 +137,13 @@ PR 不手填共享值，只消费生成产物。
 
 ## 10. 迁移状态
 
-`docs/covio-design-contract.json` 当前承载设计和动效令牌。
+`docs/covio-design-contract.json` 当前承载设计和动效令牌、平台字体、排版、语义角色、焦序、平台覆盖和验收 ID。
 macOS Swift 合同接入后，JSON 只作为确定性导出物。
-当前 egui host 继续消费生成的 Rust 合同。
+当前 egui host 消费 Rust 生成合同 `rust/crates/covio-core/src/contract_design.rs`。
 Compose cutover 后，Windows 与后续 Android 消费生成的 Compose 合同。
 两类生成物必须来自同一份 JSON 合同。
 迁移期仍禁止 Windows 单独定义共享值。
 迁移期的合同变更必须对应 macOS 行为变更或 macOS 设计决定。
 相关 PR 必须说明临时来源和后续导出路径。
+
+合同结构和平台字体规则见 [共享设计合同](../design/shared-design-contract.md)。

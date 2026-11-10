@@ -4,7 +4,8 @@
 
 Windows 以当前 macOS SwiftUI 实现作为唯一视觉基准。
 
-取值来源是 `macosApp/src/Design/` 和对应 SwiftUI 组件。Windows 不使用第二份设计合同。
+取值来源是 `docs/covio-design-contract.json` 及其 Swift、Rust 和 Compose 生成物。
+Windows 不使用第二份设计合同。
 
 egui 不复制 Liquid Glass 的底层模糊。Windows 使用语义色、圆角、间距、描边和阴影表达相同层级。
 
@@ -25,7 +26,9 @@ egui 不复制 Liquid Glass 的底层模糊。Windows 使用语义色、圆角�
 
 ## 字体和控件
 
-- Windows 使用 `Segoe UI`。
+- Windows 首选 `Segoe UI Variable`。
+- Windows 在变量字体不可用时回退到 `Segoe UI`。
+- Windows 不加载 `SF Pro`。
 - 正文字号为 13。
 - 按钮和页签字号为 12。
 - 辅助文字字号为 11。
