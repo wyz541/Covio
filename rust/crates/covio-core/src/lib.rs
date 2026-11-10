@@ -11,6 +11,7 @@ mod config;
 pub mod contract_motion;
 pub mod credential;
 pub mod design_contract;
+pub mod device_pairing;
 pub mod path_policy;
 pub mod power;
 pub mod screenshot_preferences;
@@ -42,6 +43,12 @@ pub use credential::{
 pub use design_contract::{
     DesignContract, DesignContractDiagnostic, DesignContractReader, DesignContractSeverity,
     DesignContractValidationResult, DesignCopyEntry, DesignToken,
+};
+pub use device_pairing::{
+    DeviceIdentityService, DevicePublicIdentity, MAX_PAIRED_DEVICES, PAIRING_OFFER_TTL_MS,
+    PAIRING_PROTOCOL_VERSION, PairedDevice, PairingError, PairingErrorCode, PairingInitiator,
+    PairingInitiatorAwaitingConfirmation, PairingOffer, PairingRegistry, PairingResponder,
+    PairingResponse,
 };
 pub use update::{UpdateInfo, select_update, should_check};
 pub use version::{
