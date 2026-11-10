@@ -1730,11 +1730,11 @@ impl CovioWindowsApp {
         for pixel in &image.pixels {
             rgba.extend_from_slice(&pixel.to_array());
         }
-        if let Some(parent) = path.parent() {
-            if let Err(error) = std::fs::create_dir_all(parent) {
-                eprintln!("Cannot create Windows screenshot directory: {error}");
-                std::process::exit(1);
-            }
+        if let Some(parent) = path.parent()
+            && let Err(error) = std::fs::create_dir_all(parent)
+        {
+            eprintln!("Cannot create Windows screenshot directory: {error}");
+            std::process::exit(1);
         }
         if let Err(error) = image::save_buffer(path, &rgba, width, height, image::ColorType::Rgba8)
         {
@@ -2737,14 +2737,14 @@ fn window_position_from_arguments(arguments: &[String]) -> Option<[f32; 2]> {
 }
 
 fn data_root_from_arguments(arguments: &[String]) -> Result<PathBuf, String> {
-    if let Some(index) = arguments.iter().position(|value| value == "--data-dir") {
-        if let Some(path) = arguments.get(index + 1) {
-            let path = PathBuf::from(path);
-            if !path.is_absolute() {
-                return Err("Windows data directory must be absolute".to_owned());
-            }
-            return Ok(path);
+    if let Some(index) = arguments.iter().position(|value| value == "--data-dir")
+        && let Some(path) = arguments.get(index + 1)
+    {
+        let path = PathBuf::from(path);
+        if !path.is_absolute() {
+            return Err("Windows data directory must be absolute".to_owned());
         }
+        return Ok(path);
     }
     if let Some(path) = std::env::var_os("COVIO_WINDOWS_DATA_ROOT") {
         let path = PathBuf::from(path);
