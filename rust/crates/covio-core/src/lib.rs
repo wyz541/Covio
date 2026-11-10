@@ -13,6 +13,7 @@ pub mod contract_motion;
 pub mod credential;
 pub mod design_contract;
 pub mod device_pairing;
+pub mod file_transfer;
 pub mod path_policy;
 pub mod power;
 pub mod screenshot_preferences;

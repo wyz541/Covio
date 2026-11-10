@@ -6,7 +6,7 @@
 
 | Crate | 责任 |
 | --- | --- |
-| `covio-core` | configuration、shelf、clipboard、workspace、generation、revision、request id、deadline 和 typed core error |
+| `covio-core` | configuration、shelf、clipboard、workspace、单文件传输、generation、revision、request id、deadline 和 typed core error |
 | `covio-bridge` | 版本化 command、response、event、snapshot、cancel 和 shutdown envelope |
 | `covio-platform` | data paths、atomic filesystem、Keychain、Credential Manager、Windows capability adapter 和 inventory |
 | `covio-ffi` | macOS C ABI、opaque handle、callback、shutdown 和 Swift 可导入 header |
@@ -15,6 +15,7 @@
 `covio-core` 的配置 codec 使用 Rust test fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
 Shelf、clipboard 与 workspace 使用同一 filesystem capability，并读取仓库内的 durable-state fixture。
 Workspace 使用 SHA-256 内容寻址、bounded range reads、staging、atomic move 和 tombstone。
+单文件传输使用 iroh 1.4.1、1 MiB 分块、8 MiB 窗口、BLAKE3、SQLite 检查点和同卷原子提交。
 
 `covio-platform` 定义 capability。macOS adapter 使用 Security.framework 读写 Keychain。Windows adapter 使用 Windows Credential Manager，不提供明文 fallback。
 `StdFileStore` 使用同目录替换提供 cross-platform atomic write，并保留 bounded read、append 和 move。
@@ -61,7 +62,10 @@ cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo run -p covio-windows -- --headless-smoke
+cargo check -p covio-core --target aarch64-apple-ios
 ```
+
+iroh 1.4.1 的 iOS 路径通过 `netdev 0.46.3` 使用 `libc::in6_ifreq`。工作区固定 `libc 0.2.189`，因为 `0.2.190` 将该类型限制为 macOS。
 
 Windows CI 还运行：
 

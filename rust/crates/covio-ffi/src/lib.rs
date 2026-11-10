@@ -600,18 +600,18 @@ pub unsafe extern "C" fn covio_handle_dispatch(
         }
         let message = unsafe { copy_input(message, message_len) }?;
         let result = handle.session.dispatch(&message, now_unix_millis)?;
-        if result.notify {
-            if let Some(callback) = handle.callback {
-                let callback_result = catch_unwind(AssertUnwindSafe(|| {
-                    callback(
-                        handle.context,
-                        result.message.as_ptr(),
-                        result.message.len(),
-                    );
-                }));
-                if callback_result.is_err() {
-                    // A host callback panic must not unwind through the C ABI.
-                }
+        if result.notify
+            && let Some(callback) = handle.callback
+        {
+            let callback_result = catch_unwind(AssertUnwindSafe(|| {
+                callback(
+                    handle.context,
+                    result.message.as_ptr(),
+                    result.message.len(),
+                );
+            }));
+            if callback_result.is_err() {
+                // A host callback panic must not unwind through the C ABI.
             }
         }
         unsafe { out_message.write(owned_bytes(result.message)) };
