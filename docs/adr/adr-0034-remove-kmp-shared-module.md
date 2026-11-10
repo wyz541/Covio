@@ -3,9 +3,12 @@
 - Status：accepted
 - Kind：architecture
 - Date：2026-11-05
+- Updated：2026-11-10
 - Supersedes：none
 - Implements：#611
-- 相关：[ADR-0030](adr-0030-rust-core-platform-native-ui.md)、[迁移计划](../design/rust-core-migration.md)
+- 相关：[ADR-0030](adr-0030-rust-core-platform-native-ui.md)、[ADR-0035](adr-0035-cross-platform-product-scope.md)、[迁移计划](../design/rust-core-migration.md)
+
+> 2026-11-10：ADR-0035 更新本 ADR 的平台范围与 UI runtime 约束。KMP shared module 继续删除。Rust core 继续拥有业务逻辑。Windows 和 Android 可以使用 Kotlin/Compose/JVM UI host。本 ADR 中禁止 UI host 使用 Kotlin、Compose 或 JVM 的条款不再适用。
 
 ## 背景
 
@@ -28,13 +31,13 @@ Android、iOS 和 Web 不在本次迁移范围。
 3. 删除旧 Kotlin `app` module。
 4. 删除 KMP shared module。
 5. 删除 Amper project、Kotlin wrapper、Kotlin version catalog 和 Kotlin framework 构建脚本。
-6. 删除 CI、全量测试和 release cache 中的 Kotlin JVM、Compose 与 KMP 步骤。
+6. 删除 CI、全量测试和 release cache 中的旧 Kotlin JVM、Compose 与 KMP shared module 步骤。ADR-0035 可以重新引入 Kotlin/Compose UI host 的构建任务。
 7. Release identity 只生成 Swift constant 和 Xcode xcconfig。
 8. 设计合同删除 `composeMapping` 与 Kotlin interface inventory。
 9. 跨语言 wire fixture 移到 Rust core test fixture，继续由 Rust 与 Swift 测试读取。
 10. 历史 ADR、research 和发布记录保留原文。历史文本不等于活动产品路径。
-11. 增加仓库与 build graph 检查。检查拒绝已删除路径、Kotlin 文件、KMP framework 和 JVM 构建任务。
-12. Android、iOS 和 Web 不进入本 ADR。未来 Android 若使用 Kotlin UI，必须建立独立 ADR 和独立 Feature。
+11. 增加仓库与 build graph 检查。检查拒绝 KMP shared module、KMP framework 和 Kotlin 非 UI 产品路径。ADR-0035 允许 Kotlin/Compose/JVM UI host。
+12. Android、iOS 和 Web 的产品工程不在本 ADR 内。ADR-0035 设定 iOS 第一版目标和 Android 后续目标。具体产品工程必须建立独立 Feature。
 
 ## 后果
 

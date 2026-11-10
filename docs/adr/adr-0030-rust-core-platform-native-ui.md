@@ -1,13 +1,15 @@
 # ADR-0030：Windows 与 macOS 使用 Rust core 和原生 UI
 
-- Status：accepted
+- Status：superseded
 - Kind：architecture
 - Date：2026-11-04
-- Updated：2026-11-05
+- Updated：2026-11-10
 - Supersedes：ADR-0001 的 KMP shared-foundation 决策
-- Superseded by：none
+- Superseded by：[ADR-0035](adr-0035-cross-platform-product-scope.md)
 - Implements：#596
 - 相关：[Feature #595](https://github.com/wyz541/kmp-Covio/issues/595)、[迁移计划](../design/rust-core-migration.md)
+
+> 2026-11-10：ADR-0035 已取代本 ADR 的平台范围与 Windows UI 决策。本文件保留为历史记录。
 
 ## 范围
 

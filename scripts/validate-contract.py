@@ -204,7 +204,7 @@ def check_no_hand_written_copy() -> None:
     同一份检查也在 `macosApp/test/CopySingleSourceTests.swift` 里。
     """
     for path in sorted((ROOT / "macosApp").rglob("*.swift")):
-        relative = str(path.relative_to(ROOT))
+        relative = path.relative_to(ROOT).as_posix()
         if relative in COPY_LITERAL_ALLOWED:
             continue
         text = path.read_text(encoding="utf-8")

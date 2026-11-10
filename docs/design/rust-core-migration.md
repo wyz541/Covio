@@ -1,11 +1,14 @@
 # Covio Windows 与 macOS Rust core 迁移计划
 
-- 状态：accepted
+- 状态：historical baseline
 - 迁移状态：completed
 - 日期：2026-11-04
-- 决策：[ADR-0030](../adr/adr-0030-rust-core-platform-native-ui.md)
+- 目标决策：[ADR-0035](../adr/adr-0035-cross-platform-product-scope.md)
+- 原决策：[ADR-0030](../adr/adr-0030-rust-core-platform-native-ui.md)
 - Repository removal：[ADR-0034](../adr/adr-0034-remove-kmp-shared-module.md)
 - Feature：[#595](https://github.com/wyz541/kmp-Covio/issues/595)
+
+> 2026-11-10：本文件记录 2026-11-05 的已完成迁移基线。ADR-0035 已取代 Windows egui 与平台范围。当前 Windows 实现仍使用 egui，直到 Compose Multiplatform cutover 完成。下文的 egui 条目不再是目标状态。
 
 ## 1. 结论
 
