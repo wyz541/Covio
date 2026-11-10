@@ -42,6 +42,7 @@ rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR/include" "$OUTPUT_DIR/lib"
 
 cp "$ROOT/rust/crates/covio-ffi/include/covio_ffi.h" "$OUTPUT_DIR/include/"
+cp "$ROOT/rust/crates/covio-ffi/include/covio_bridge.generated.h" "$OUTPUT_DIR/include/"
 cp "$ROOT/rust/crates/covio-ffi/include/module.modulemap" "$OUTPUT_DIR/include/"
 cp "$TARGET_DIR/$CARGO_PROFILE/libcovio_ffi.dylib" "$OUTPUT_DIR/lib/libcovio_ffi.1.dylib"
 ln -s libcovio_ffi.1.dylib "$OUTPUT_DIR/lib/libcovio_ffi.dylib"

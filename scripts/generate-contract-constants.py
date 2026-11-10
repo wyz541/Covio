@@ -20,6 +20,8 @@ macOS 与 iOS 的 Apple 设计是文案与设计令牌的权威。
 所以忘跑脚本会被测试拦下。
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import pathlib
