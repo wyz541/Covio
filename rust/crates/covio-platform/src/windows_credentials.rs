@@ -4,7 +4,7 @@ use crate::{PlatformError, SecretKey, SecretStore, SecretValue};
 use std::sync::Mutex;
 
 /// Default service name used by the Covio Windows product.
-pub const WINDOWS_SECRET_SERVICE: &str = "com.wyz.covio.rust.secrets";
+pub const WINDOWS_SECRET_SERVICE: &str = "Covio.CredentialVault.v1";
 
 /// Maximum generic credential blob accepted by Windows Credential Manager.
 pub const WINDOWS_SECRET_BLOB_LIMIT: usize = 5 * 512;
@@ -74,10 +74,23 @@ impl<B: CredentialBackend> SecretStore for CredentialStore<B> {
 }
 
 #[cfg(target_os = "windows")]
+#[allow(unsafe_code)]
 mod system {
-    use super::{CredentialBackend, CredentialStore, WINDOWS_SECRET_SERVICE};
+    use super::{
+        CredentialBackend, CredentialStore, WINDOWS_SECRET_BLOB_LIMIT, WINDOWS_SECRET_SERVICE,
+    };
     use crate::PlatformError;
-    use keyring::Error;
+    use std::ffi::{OsStr, c_void};
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr;
+    use std::slice;
+    use windows_sys::Win32::Foundation::{
+        ERROR_INVALID_PARAMETER, ERROR_NO_SUCH_LOGON_SESSION, ERROR_NOT_FOUND, GetLastError,
+    };
+    use windows_sys::Win32::Security::Credentials::{
+        CRED_MAX_GENERIC_TARGET_NAME_LENGTH, CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_GENERIC,
+        CREDENTIALW, CredDeleteW, CredFree, CredReadW, CredWriteW,
+    };
 
     /// Safe wrapper around the Windows Credential Manager backend.
     #[derive(Debug, Clone, Copy, Default)]
@@ -102,40 +115,122 @@ mod system {
 
     impl CredentialBackend for WindowsCredentialBackend {
         fn read(&self, service: &str, account: &str) -> Result<Option<Vec<u8>>, PlatformError> {
-            let entry = keyring::Entry::new(service, account).map_err(keyring_error)?;
-            match entry.get_secret() {
-                Ok(value) => Ok(Some(value)),
-                Err(Error::NoEntry) => Ok(None),
-                Err(error) => Err(keyring_error(error)),
+            let target = target_name(service, account)?;
+            let mut credential = ptr::null_mut();
+            let ok = unsafe { CredReadW(target.as_ptr(), CRED_TYPE_GENERIC, 0, &mut credential) };
+            if ok == 0 {
+                return match windows_error() {
+                    ERROR_NOT_FOUND => Ok(None),
+                    code => Err(windows_error_to_platform(code)),
+                };
             }
+            if credential.is_null() {
+                return Err(PlatformError::io(
+                    "Windows Credential Manager returned an empty result",
+                    false,
+                ));
+            }
+            let credential_ref = unsafe { &*credential };
+            let result = if credential_ref.Persist != CRED_PERSIST_LOCAL_MACHINE {
+                Err(PlatformError::unavailable(
+                    "Windows Credential Manager returned a non-local credential",
+                ))
+            } else {
+                let length = usize::try_from(credential_ref.CredentialBlobSize)
+                    .map_err(|_| PlatformError::invalid_argument("credential blob is too large"))?;
+                if length > WINDOWS_SECRET_BLOB_LIMIT {
+                    Err(PlatformError::invalid_argument(
+                        "credential blob is too large",
+                    ))
+                } else if length == 0 {
+                    Ok(Some(Vec::new()))
+                } else if credential_ref.CredentialBlob.is_null() {
+                    Err(PlatformError::io(
+                        "Windows Credential Manager returned a null blob",
+                        false,
+                    ))
+                } else {
+                    Ok(Some(
+                        unsafe { slice::from_raw_parts(credential_ref.CredentialBlob, length) }
+                            .to_vec(),
+                    ))
+                }
+            };
+            unsafe { CredFree(credential.cast::<c_void>()) };
+            result
         }
 
         fn write(&self, service: &str, account: &str, value: &[u8]) -> Result<(), PlatformError> {
-            let entry = keyring::Entry::new(service, account).map_err(keyring_error)?;
-            entry.set_secret(value).map_err(keyring_error)
+            if value.len() > WINDOWS_SECRET_BLOB_LIMIT {
+                return Err(PlatformError::invalid_argument(
+                    "secret exceeds the Windows Credential Manager limit",
+                ));
+            }
+            let target = target_name(service, account)?;
+            let credential = CREDENTIALW {
+                Type: CRED_TYPE_GENERIC,
+                TargetName: target.as_ptr().cast_mut(),
+                CredentialBlobSize: u32::try_from(value.len())
+                    .map_err(|_| PlatformError::invalid_argument("credential blob is too large"))?,
+                CredentialBlob: value.as_ptr().cast_mut(),
+                Persist: CRED_PERSIST_LOCAL_MACHINE,
+                ..CREDENTIALW::default()
+            };
+            let ok = unsafe { CredWriteW(&credential, 0) };
+            if ok == 0 {
+                return Err(windows_error_to_platform(windows_error()));
+            }
+            Ok(())
         }
 
         fn delete(&self, service: &str, account: &str) -> Result<(), PlatformError> {
-            let entry = keyring::Entry::new(service, account).map_err(keyring_error)?;
-            match entry.delete_credential() {
-                Ok(()) | Err(Error::NoEntry) => Ok(()),
-                Err(error) => Err(keyring_error(error)),
+            let target = target_name(service, account)?;
+            let ok = unsafe { CredDeleteW(target.as_ptr(), CRED_TYPE_GENERIC, 0) };
+            if ok == 0 {
+                return match windows_error() {
+                    ERROR_NOT_FOUND => Ok(()),
+                    code => Err(windows_error_to_platform(code)),
+                };
             }
+            Ok(())
         }
     }
 
-    fn keyring_error(error: Error) -> PlatformError {
-        match error {
-            Error::NoStorageAccess(_) => {
-                PlatformError::permission_denied("Windows Credential Manager access was denied")
-            }
-            Error::TooLong(_, _) | Error::Invalid(_, _) => {
+    fn target_name(service: &str, account: &str) -> Result<Vec<u16>, PlatformError> {
+        if !service.starts_with(WINDOWS_SECRET_SERVICE) || account.is_empty() {
+            return Err(PlatformError::invalid_argument(
+                "credential target is outside the Covio namespace",
+            ));
+        }
+        let target = format!("{service}.{account}");
+        let wide: Vec<u16> = OsStr::new(&target)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        if wide.len() > usize::try_from(CRED_MAX_GENERIC_TARGET_NAME_LENGTH).unwrap_or(usize::MAX) {
+            return Err(PlatformError::invalid_argument(
+                "credential target is too long",
+            ));
+        }
+        Ok(wide)
+    }
+
+    fn windows_error() -> u32 {
+        unsafe { GetLastError() }
+    }
+
+    fn windows_error_to_platform(code: u32) -> PlatformError {
+        match code {
+            ERROR_INVALID_PARAMETER => {
                 PlatformError::invalid_argument("Windows Credential Manager rejected the entry")
             }
-            Error::NoEntry => {
-                PlatformError::io("Windows Credential Manager entry was missing", false)
-            }
-            _ => PlatformError::io("Windows Credential Manager operation failed", false),
+            ERROR_NO_SUCH_LOGON_SESSION => PlatformError::authentication_required(
+                "Windows Credential Manager has no active user session",
+            ),
+            _ => PlatformError::io(
+                format!("Windows Credential Manager operation failed with status {code}"),
+                false,
+            ),
         }
     }
 }

@@ -9,6 +9,7 @@ pub mod charge_limit;
 pub mod clipboard;
 mod config;
 pub mod contract_motion;
+pub mod credential;
 pub mod design_contract;
 pub mod path_policy;
 pub mod power;
@@ -35,6 +36,9 @@ pub use config::{
     FileNamingPolicy, PowerConfig, SUPPORTED_HIBERNATE_MODES,
 };
 
+pub use credential::{
+    CredentialError, CredentialErrorCode, CredentialId, CredentialVault, RecordKind, RecordMetadata,
+};
 pub use design_contract::{
     DesignContract, DesignContractDiagnostic, DesignContractReader, DesignContractSeverity,
     DesignContractValidationResult, DesignCopyEntry, DesignToken,
@@ -272,7 +276,12 @@ impl From<PlatformError> for CoreError {
         let code = match error.code() {
             PlatformErrorCode::Unavailable => CoreErrorCode::Unsupported,
             PlatformErrorCode::InvalidArgument => CoreErrorCode::InvalidArgument,
-            PlatformErrorCode::PermissionDenied | PlatformErrorCode::Io => CoreErrorCode::Io,
+            PlatformErrorCode::PermissionDenied
+            | PlatformErrorCode::AuthenticationRequired
+            | PlatformErrorCode::Locked
+            | PlatformErrorCode::KeyInvalidated
+            | PlatformErrorCode::Io => CoreErrorCode::Io,
+            PlatformErrorCode::Cancelled => CoreErrorCode::Cancelled,
         };
         let message = match code {
             CoreErrorCode::Unsupported => "platform capability is unavailable",

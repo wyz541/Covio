@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "abiVersion": 1,
+  "abiVersion": 2,
   "protocolVersion": 1,
   "defaultMaxControlBytes": 1048576,
   "contentTransport": "opaque_handle_or_stream",

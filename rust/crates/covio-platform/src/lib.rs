@@ -3,11 +3,11 @@
 //! This crate defines bounded ports. It does not provide a plaintext fallback
 //! for secure storage and it does not perform OS-specific work in core code.
 
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 mod capabilities;
 mod filesystem;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 mod macos_secret;
 mod paths;
 mod secret;
@@ -18,7 +18,7 @@ pub use capabilities::{
     CAPABILITY_KIND_COUNT, CapabilityKind, CapabilityStatus, MacCapabilitySet, WindowsCapabilitySet,
 };
 pub use filesystem::StdFileStore;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub use macos_secret::KeychainSecretStore;
 pub use paths::{APP_ID, APP_NAME, DataPaths, WindowsAppDataDirectory, temporary_path};
 pub use secret::{SecretKey, SecretStore, SecretValue, UnavailableSecretStore};
@@ -53,6 +53,14 @@ pub enum PlatformErrorCode {
     InvalidArgument,
     /// The operating system denied access.
     PermissionDenied,
+    /// The user must authenticate before the operation can continue.
+    AuthenticationRequired,
+    /// The device is locked.
+    Locked,
+    /// The user or caller cancelled the operation.
+    Cancelled,
+    /// The platform invalidated a protected key.
+    KeyInvalidated,
     /// The operating system reported an I/O failure.
     Io,
 }
@@ -92,6 +100,30 @@ impl PlatformError {
     #[must_use]
     pub fn permission_denied(message: impl Into<String>) -> Self {
         Self::new(PlatformErrorCode::PermissionDenied, message, false)
+    }
+
+    /// Creates an authentication-required error.
+    #[must_use]
+    pub fn authentication_required(message: impl Into<String>) -> Self {
+        Self::new(PlatformErrorCode::AuthenticationRequired, message, true)
+    }
+
+    /// Creates a locked-device error.
+    #[must_use]
+    pub fn locked(message: impl Into<String>) -> Self {
+        Self::new(PlatformErrorCode::Locked, message, true)
+    }
+
+    /// Creates a cancelled-operation error.
+    #[must_use]
+    pub fn cancelled(message: impl Into<String>) -> Self {
+        Self::new(PlatformErrorCode::Cancelled, message, false)
+    }
+
+    /// Creates a key-invalidated error.
+    #[must_use]
+    pub fn key_invalidated(message: impl Into<String>) -> Self {
+        Self::new(PlatformErrorCode::KeyInvalidated, message, false)
     }
 
     /// Creates an I/O error.

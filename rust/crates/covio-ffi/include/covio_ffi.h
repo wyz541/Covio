@@ -85,53 +85,42 @@ uint32_t covio_engine_call(
 
 CovioOwnedBytes covio_owned_bytes_copy(const uint8_t *data, size_t len);
 
-/* Bridge handles are single-threaded. Host callbacks must not re-enter them. */
-
-uint32_t covio_keychain_read(
-    const uint8_t *key,
-    size_t key_len,
+uint32_t covio_agent_token_read(
+    const uint8_t *data_root,
+    size_t data_root_len,
+    const uint8_t *service,
+    size_t service_len,
+    const uint8_t *account,
+    size_t account_len,
     CovioOwnedBytes *out_value,
     CovioError *error
 );
 
-uint32_t covio_keychain_write(
-    const uint8_t *key,
-    size_t key_len,
+uint32_t covio_agent_token_write(
+    const uint8_t *data_root,
+    size_t data_root_len,
+    const uint8_t *service,
+    size_t service_len,
+    const uint8_t *account,
+    size_t account_len,
     const uint8_t *value,
     size_t value_len,
     CovioError *error
 );
 
-uint32_t covio_keychain_delete(
-    const uint8_t *key,
-    size_t key_len,
+uint32_t covio_agent_token_delete(
+    const uint8_t *data_root,
+    size_t data_root_len,
+    const uint8_t *service,
+    size_t service_len,
+    const uint8_t *account,
+    size_t account_len,
     CovioError *error
 );
 
-uint32_t covio_keychain_read_with_service(
-    const uint8_t *service,
-    size_t service_len,
-    const uint8_t *key,
-    size_t key_len,
-    CovioOwnedBytes *out_value,
-    CovioError *error
-);
-
-uint32_t covio_keychain_write_with_service(
-    const uint8_t *service,
-    size_t service_len,
-    const uint8_t *key,
-    size_t key_len,
-    const uint8_t *value,
-    size_t value_len,
-    CovioError *error
-);
-
-uint32_t covio_keychain_delete_with_service(
-    const uint8_t *service,
-    size_t service_len,
-    const uint8_t *key,
-    size_t key_len,
+uint32_t covio_agent_token_reset(
+    const uint8_t *data_root,
+    size_t data_root_len,
     CovioError *error
 );
 

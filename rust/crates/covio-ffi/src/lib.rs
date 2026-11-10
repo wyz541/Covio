@@ -12,8 +12,11 @@ use covio_bridge::{
     DEFAULT_MAX_CONTROL_BYTES, PROTOCOL_VERSION, ShutdownEnvelope, ShutdownMode, WireError,
     WireErrorCode, decode_message, encode_message,
 };
-use covio_core::{Deadline, Generation, RequestId, Revision};
-use covio_platform::{CapabilityKind, MacCapabilitySet, SecretKey, SecretValue};
+use covio_core::{
+    CredentialId, CredentialVault, Deadline, Generation, RecordKind, RequestId, Revision,
+};
+use covio_platform::{CapabilityKind, MacCapabilitySet};
+use zeroize::Zeroize;
 
 mod app_api;
 mod engine_api;
@@ -26,7 +29,7 @@ use std::ptr;
 use std::slice;
 
 /// C ABI version.
-pub const ABI_VERSION: u32 = 1;
+pub const ABI_VERSION: u32 = 2;
 
 /// C ABI status code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -318,6 +321,14 @@ impl CovioOwnedBytes {
         }
         Ok(unsafe { Vec::from_raw_parts(self.data, self.len, self.capacity) })
     }
+
+    unsafe fn free_zeroized(self) {
+        if self.data.is_null() || self.capacity < self.len {
+            return;
+        }
+        let mut bytes = unsafe { Vec::from_raw_parts(self.data, self.len, self.capacity) };
+        bytes.zeroize();
+    }
 }
 
 /// Error returned across the C ABI.
@@ -332,11 +343,7 @@ pub struct CovioError {
 
 impl CovioError {
     pub(crate) unsafe fn free_message(&mut self) {
-        if !self.message.data.is_null() && self.message.capacity >= self.message.len {
-            drop(unsafe {
-                Vec::from_raw_parts(self.message.data, self.message.len, self.message.capacity)
-            });
-        }
+        unsafe { self.message.free_zeroized() };
         self.message = CovioOwnedBytes::EMPTY;
     }
 }
@@ -361,7 +368,7 @@ pub struct MacPlatformAdapters {
     /// Filesystem adapter.
     pub filesystem: covio_platform::StdFileStore,
     /// Keychain adapter on macOS.
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     pub secrets: covio_platform::KeychainSecretStore,
     /// Capability inventory.
     pub capabilities: MacCapabilitySet,
@@ -371,7 +378,7 @@ impl Default for MacPlatformAdapters {
     fn default() -> Self {
         Self {
             filesystem: covio_platform::StdFileStore::new(),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             secrets: covio_platform::KeychainSecretStore::default(),
             capabilities: MacCapabilitySet::default(),
         }
@@ -706,16 +713,25 @@ pub unsafe extern "C" fn covio_handle_active_request_count(handle: *const CovioH
     unsafe { handle.as_ref() }.map_or(0, |handle| handle.session.active_request_count() as u64)
 }
 
-/// Reads one secret through the macOS Keychain adapter.
+const AGENT_TOKEN_SERVICE_PREFIX: &str = "com.wyz.covio.agent.";
+const AGENT_TOKEN_ACCOUNT: &str = "mcp-bearer-token";
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+const AGENT_VAULT_SERVICE: &str = "com.wyz.covio.credentials";
+
+/// Reads the product Agent token through the Rust credential vault.
 ///
 /// # Safety
 ///
 /// Pointer and length pairs must describe valid readable memory. `out_value`
 /// must be writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn covio_keychain_read(
-    key: *const u8,
-    key_len: usize,
+pub unsafe extern "C" fn covio_agent_token_read(
+    data_root: *const u8,
+    data_root_len: usize,
+    service: *const u8,
+    service_len: usize,
+    account: *const u8,
+    account_len: usize,
     out_value: *mut CovioOwnedBytes,
     error: *mut CovioError,
 ) -> u32 {
@@ -729,151 +745,94 @@ pub unsafe extern "C" fn covio_keychain_read(
                 "output buffer is null",
             ));
         }
-        let key = unsafe { copy_utf8(key, key_len, "secret key") }?;
-        let key = SecretKey::try_new(key).map_err(|_| {
-            FfiFailure::new(CovioStatusCode::InvalidArgument, "secret key is invalid")
+        let data_root = unsafe { copy_utf8(data_root, data_root_len, "data root") }?;
+        let (_service, record_id) =
+            unsafe { agent_token_target(service, service_len, account, account_len) }?;
+        let value = with_agent_token_vault(&data_root, |vault| {
+            vault.with_secret(&record_id, |secret| Ok(secret.expose().to_vec()))
         })?;
-        match read_platform_secret(&key)? {
-            Some(value) => {
-                unsafe { out_value.write(owned_bytes(value)) };
-                Ok(())
-            }
-            None => Err(FfiFailure::new(
-                CovioStatusCode::NotFound,
-                "secret was not found",
-            )),
-        }
+        unsafe { out_value.write(owned_bytes(value)) };
+        Ok(())
     });
     result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
 }
 
-/// Writes or replaces one secret through the macOS Keychain adapter.
+/// Writes or replaces the product Agent token through the Rust credential vault.
 ///
 /// # Safety
 ///
 /// Pointer and length pairs must describe valid readable memory.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn covio_keychain_write(
-    key: *const u8,
-    key_len: usize,
+pub unsafe extern "C" fn covio_agent_token_write(
+    data_root: *const u8,
+    data_root_len: usize,
+    service: *const u8,
+    service_len: usize,
+    account: *const u8,
+    account_len: usize,
     value: *const u8,
     value_len: usize,
     error: *mut CovioError,
 ) -> u32 {
     let result = ffi_guard(error, || {
-        let key = unsafe { copy_utf8(key, key_len, "secret key") }?;
-        let key = SecretKey::try_new(key).map_err(|_| {
-            FfiFailure::new(CovioStatusCode::InvalidArgument, "secret key is invalid")
-        })?;
+        let data_root = unsafe { copy_utf8(data_root, data_root_len, "data root") }?;
+        let (_service, record_id) =
+            unsafe { agent_token_target(service, service_len, account, account_len) }?;
         let value = unsafe { copy_input(value, value_len) }?;
-        write_platform_secret(&key, &SecretValue::new(value))
+        with_agent_token_vault(&data_root, |vault| {
+            vault.put(
+                &record_id,
+                RecordKind::AgentToken,
+                &covio_platform::SecretValue::new(value),
+                0,
+            )?;
+            Ok(())
+        })
     });
     result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
 }
 
-/// Deletes one secret through the macOS Keychain adapter.
-///
-/// # Safety
-///
-/// The key byte range must describe valid readable memory.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn covio_keychain_delete(
-    key: *const u8,
-    key_len: usize,
-    error: *mut CovioError,
-) -> u32 {
-    let result = ffi_guard(error, || {
-        let key = unsafe { copy_utf8(key, key_len, "secret key") }?;
-        let key = SecretKey::try_new(key).map_err(|_| {
-            FfiFailure::new(CovioStatusCode::InvalidArgument, "secret key is invalid")
-        })?;
-        delete_platform_secret(&key)
-    });
-    result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
-}
-
-/// Reads one secret from a named macOS Keychain service.
-///
-/// # Safety
-///
-/// Pointer and length pairs must describe valid readable memory. `out_value`
-/// must be writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn covio_keychain_read_with_service(
-    service: *const u8,
-    service_len: usize,
-    key: *const u8,
-    key_len: usize,
-    out_value: *mut CovioOwnedBytes,
-    error: *mut CovioError,
-) -> u32 {
-    if !out_value.is_null() {
-        unsafe { out_value.write(CovioOwnedBytes::EMPTY) };
-    }
-    let result = ffi_guard(error, || {
-        if out_value.is_null() {
-            return Err(FfiFailure::new(
-                CovioStatusCode::InvalidArgument,
-                "output buffer is null",
-            ));
-        }
-        let service = unsafe { copy_keychain_service(service, service_len) }?;
-        let key = unsafe { copy_secret_key(key, key_len) }?;
-        match read_platform_secret_from(&service, &key)? {
-            Some(value) => {
-                unsafe { out_value.write(owned_bytes(value)) };
-                Ok(())
-            }
-            None => Err(FfiFailure::new(
-                CovioStatusCode::NotFound,
-                "secret was not found",
-            )),
-        }
-    });
-    result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
-}
-
-/// Writes or replaces one secret in a named macOS Keychain service.
+/// Deletes the product Agent token from the Rust credential vault.
 ///
 /// # Safety
 ///
 /// Pointer and length pairs must describe valid readable memory.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn covio_keychain_write_with_service(
+pub unsafe extern "C" fn covio_agent_token_delete(
+    data_root: *const u8,
+    data_root_len: usize,
     service: *const u8,
     service_len: usize,
-    key: *const u8,
-    key_len: usize,
-    value: *const u8,
-    value_len: usize,
+    account: *const u8,
+    account_len: usize,
     error: *mut CovioError,
 ) -> u32 {
     let result = ffi_guard(error, || {
-        let service = unsafe { copy_keychain_service(service, service_len) }?;
-        let key = unsafe { copy_secret_key(key, key_len) }?;
-        let value = unsafe { copy_input(value, value_len) }?;
-        write_platform_secret_from(&service, &key, &SecretValue::new(value))
+        let data_root = unsafe { copy_utf8(data_root, data_root_len, "data root") }?;
+        let (_service, record_id) =
+            unsafe { agent_token_target(service, service_len, account, account_len) }?;
+        with_agent_token_vault(&data_root, |vault| {
+            vault.delete(&record_id)?;
+            Ok(())
+        })
     });
     result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
 }
 
-/// Deletes one secret from a named macOS Keychain service.
+/// Resets the product Agent credential vault.
 ///
 /// # Safety
 ///
-/// The service and key byte ranges must describe valid readable memory.
+/// The data-root byte range must describe valid readable memory.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn covio_keychain_delete_with_service(
-    service: *const u8,
-    service_len: usize,
-    key: *const u8,
-    key_len: usize,
+pub unsafe extern "C" fn covio_agent_token_reset(
+    data_root: *const u8,
+    data_root_len: usize,
     error: *mut CovioError,
 ) -> u32 {
     let result = ffi_guard(error, || {
-        let service = unsafe { copy_keychain_service(service, service_len) }?;
-        let key = unsafe { copy_secret_key(key, key_len) }?;
-        delete_platform_secret_from(&service, &key)
+        let data_root = unsafe { copy_utf8(data_root, data_root_len, "data root") }?;
+        reset_agent_token_vault(&data_root)
     });
     result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
 }
@@ -909,9 +868,7 @@ pub unsafe extern "C" fn covio_owned_bytes_free(bytes: *mut CovioOwnedBytes) {
     }
     let _ = catch_unwind(AssertUnwindSafe(|| unsafe {
         let value = bytes.read();
-        if !value.data.is_null() {
-            drop(Vec::from_raw_parts(value.data, value.len, value.capacity));
-        }
+        value.free_zeroized();
         bytes.write(CovioOwnedBytes::EMPTY);
     }));
 }
@@ -1023,98 +980,111 @@ unsafe fn clear_error(error: *mut CovioError) {
     }
 }
 
-#[cfg(target_os = "macos")]
-fn read_platform_secret(key: &SecretKey) -> Result<Option<Vec<u8>>, FfiFailure> {
-    use covio_platform::{KeychainSecretStore, SecretStore};
-    KeychainSecretStore::default()
-        .read(key)
-        .map(|value| value.map(|value| value.expose().to_vec()))
-        .map_err(platform_failure)
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+type AgentVault =
+    CredentialVault<covio_platform::KeychainSecretStore, covio_platform::StdFileStore>;
+
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+type AgentVault =
+    CredentialVault<covio_platform::UnavailableSecretStore, covio_platform::StdFileStore>;
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn with_agent_token_vault<T>(
+    data_root: &str,
+    operation: impl FnOnce(&mut AgentVault) -> Result<T, covio_core::CredentialError>,
+) -> Result<T, FfiFailure> {
+    let root = std::path::PathBuf::from(data_root).join("credentials");
+    let open = || {
+        CredentialVault::open(
+            root.clone(),
+            covio_platform::KeychainSecretStore::new(AGENT_VAULT_SERVICE),
+            covio_platform::StdFileStore::new(),
+        )
+    };
+    let mut vault = match open() {
+        Ok(vault) => vault,
+        Err(error) if error.code() == covio_core::CredentialErrorCode::NotFound => {
+            CredentialVault::create(
+                root,
+                covio_platform::KeychainSecretStore::new(AGENT_VAULT_SERVICE),
+                covio_platform::StdFileStore::new(),
+            )
+            .map_err(credential_failure)?
+        }
+        Err(error) => return Err(credential_failure(error)),
+    };
+    operation(&mut vault).map_err(credential_failure)
 }
 
-#[cfg(not(target_os = "macos"))]
-fn read_platform_secret(_key: &SecretKey) -> Result<Option<Vec<u8>>, FfiFailure> {
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn reset_agent_token_vault(data_root: &str) -> Result<(), FfiFailure> {
+    let root = std::path::PathBuf::from(data_root).join("credentials");
+    match CredentialVault::open(
+        root,
+        covio_platform::KeychainSecretStore::new(AGENT_VAULT_SERVICE),
+        covio_platform::StdFileStore::new(),
+    ) {
+        Ok(vault) => vault.destroy().map_err(credential_failure),
+        Err(error) if error.code() == covio_core::CredentialErrorCode::NotFound => Ok(()),
+        Err(error) => Err(credential_failure(error)),
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+fn reset_agent_token_vault(_data_root: &str) -> Result<(), FfiFailure> {
     Err(unsupported_secret_storage())
 }
 
-#[cfg(target_os = "macos")]
-fn write_platform_secret(key: &SecretKey, value: &SecretValue) -> Result<(), FfiFailure> {
-    use covio_platform::{KeychainSecretStore, SecretStore};
-    KeychainSecretStore::default()
-        .write(key, value)
-        .map_err(platform_failure)
-}
-
-#[cfg(not(target_os = "macos"))]
-fn write_platform_secret(_key: &SecretKey, _value: &SecretValue) -> Result<(), FfiFailure> {
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+fn with_agent_token_vault<T>(
+    _data_root: &str,
+    _operation: impl FnOnce(&mut AgentVault) -> Result<T, covio_core::CredentialError>,
+) -> Result<T, FfiFailure> {
     Err(unsupported_secret_storage())
 }
 
-#[cfg(target_os = "macos")]
-fn delete_platform_secret(key: &SecretKey) -> Result<(), FfiFailure> {
-    use covio_platform::{KeychainSecretStore, SecretStore};
-    KeychainSecretStore::default()
-        .delete(key)
-        .map_err(platform_failure)
+fn credential_failure(error: covio_core::CredentialError) -> FfiFailure {
+    let status = match error.code() {
+        covio_core::CredentialErrorCode::NotFound => CovioStatusCode::NotFound,
+        covio_core::CredentialErrorCode::InvalidArgument => CovioStatusCode::InvalidArgument,
+        covio_core::CredentialErrorCode::AlreadyExists => CovioStatusCode::Conflict,
+        covio_core::CredentialErrorCode::UserCancelled => CovioStatusCode::Cancelled,
+        covio_core::CredentialErrorCode::AuthenticationRequired
+        | covio_core::CredentialErrorCode::DeviceLocked
+        | covio_core::CredentialErrorCode::KeyInvalidated
+        | covio_core::CredentialErrorCode::BackendUnavailable => CovioStatusCode::Io,
+        covio_core::CredentialErrorCode::IntegrityFailed
+        | covio_core::CredentialErrorCode::RecordCorrupt
+        | covio_core::CredentialErrorCode::VersionUnsupported
+        | covio_core::CredentialErrorCode::RecoveryRequired
+        | covio_core::CredentialErrorCode::Internal => CovioStatusCode::Internal,
+    };
+    FfiFailure::new(status, error.message())
 }
 
-#[cfg(not(target_os = "macos"))]
-fn delete_platform_secret(_key: &SecretKey) -> Result<(), FfiFailure> {
-    Err(unsupported_secret_storage())
-}
-
-#[cfg(target_os = "macos")]
-fn read_platform_secret_from(
-    service: &str,
-    key: &SecretKey,
-) -> Result<Option<Vec<u8>>, FfiFailure> {
-    use covio_platform::{KeychainSecretStore, SecretStore};
-    KeychainSecretStore::new(service)
-        .read(key)
-        .map(|value| value.map(|value| value.expose().to_vec()))
-        .map_err(platform_failure)
-}
-
-#[cfg(not(target_os = "macos"))]
-fn read_platform_secret_from(
-    _service: &str,
-    _key: &SecretKey,
-) -> Result<Option<Vec<u8>>, FfiFailure> {
-    Err(unsupported_secret_storage())
-}
-
-#[cfg(target_os = "macos")]
-fn write_platform_secret_from(
-    service: &str,
-    key: &SecretKey,
-    value: &SecretValue,
-) -> Result<(), FfiFailure> {
-    use covio_platform::{KeychainSecretStore, SecretStore};
-    KeychainSecretStore::new(service)
-        .write(key, value)
-        .map_err(platform_failure)
-}
-
-#[cfg(not(target_os = "macos"))]
-fn write_platform_secret_from(
-    _service: &str,
-    _key: &SecretKey,
-    _value: &SecretValue,
-) -> Result<(), FfiFailure> {
-    Err(unsupported_secret_storage())
-}
-
-#[cfg(target_os = "macos")]
-fn delete_platform_secret_from(service: &str, key: &SecretKey) -> Result<(), FfiFailure> {
-    use covio_platform::{KeychainSecretStore, SecretStore};
-    KeychainSecretStore::new(service)
-        .delete(key)
-        .map_err(platform_failure)
-}
-
-#[cfg(not(target_os = "macos"))]
-fn delete_platform_secret_from(_service: &str, _key: &SecretKey) -> Result<(), FfiFailure> {
-    Err(unsupported_secret_storage())
+unsafe fn agent_token_target(
+    service: *const u8,
+    service_len: usize,
+    account: *const u8,
+    account_len: usize,
+) -> Result<(String, CredentialId), FfiFailure> {
+    let service = unsafe { copy_keychain_service(service, service_len) }?;
+    if !service.starts_with(AGENT_TOKEN_SERVICE_PREFIX) {
+        return Err(FfiFailure::new(
+            CovioStatusCode::InvalidArgument,
+            "Agent token service is outside the allowed namespace",
+        ));
+    }
+    let account = unsafe { copy_utf8(account, account_len, "Agent token account") }?;
+    if account != AGENT_TOKEN_ACCOUNT {
+        return Err(FfiFailure::new(
+            CovioStatusCode::InvalidArgument,
+            "Agent token account is invalid",
+        ));
+    }
+    let record_id = CredentialId::try_new(format!("agent/external/{service}/{account}"))
+        .map_err(credential_failure)?;
+    Ok((service, record_id))
 }
 
 unsafe fn copy_keychain_service(
@@ -1134,24 +1104,7 @@ unsafe fn copy_keychain_service(
     Ok(service)
 }
 
-unsafe fn copy_secret_key(key: *const u8, key_len: usize) -> Result<SecretKey, FfiFailure> {
-    let key = unsafe { copy_utf8(key, key_len, "secret key") }?;
-    SecretKey::try_new(key)
-        .map_err(|_| FfiFailure::new(CovioStatusCode::InvalidArgument, "secret key is invalid"))
-}
-
-#[cfg(target_os = "macos")]
-fn platform_failure(error: covio_platform::PlatformError) -> FfiFailure {
-    let status = match error.code() {
-        covio_platform::PlatformErrorCode::Unavailable => CovioStatusCode::Unsupported,
-        covio_platform::PlatformErrorCode::InvalidArgument => CovioStatusCode::InvalidArgument,
-        covio_platform::PlatformErrorCode::PermissionDenied
-        | covio_platform::PlatformErrorCode::Io => CovioStatusCode::Io,
-    };
-    FfiFailure::new(status, error.message())
-}
-
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
 fn unsupported_secret_storage() -> FfiFailure {
     FfiFailure::new(
         CovioStatusCode::Unsupported,
@@ -1501,20 +1454,85 @@ mod tests {
         unsafe { covio_error_free(&mut error) };
     }
 
+    #[test]
+    fn agent_token_abi_rejects_other_namespaces() {
+        let data_root = b"/tmp/covio-agent-token-test";
+        let service = b"com.example.agent";
+        let account = b"mcp-bearer-token";
+        let mut error = empty_error();
+        let mut output = empty_bytes();
+        assert_eq!(
+            unsafe {
+                covio_agent_token_read(
+                    data_root.as_ptr(),
+                    data_root.len(),
+                    service.as_ptr(),
+                    service.len(),
+                    account.as_ptr(),
+                    account.len(),
+                    &mut output,
+                    &mut error,
+                )
+            },
+            CovioStatusCode::InvalidArgument as u32
+        );
+        assert_eq!(
+            unsafe {
+                covio_agent_token_delete(
+                    data_root.as_ptr(),
+                    data_root.len(),
+                    service.as_ptr(),
+                    service.len(),
+                    account.as_ptr(),
+                    account.len(),
+                    &mut error,
+                )
+            },
+            CovioStatusCode::InvalidArgument as u32
+        );
+        let valid_service = b"com.wyz.covio.agent.ffi.test";
+        let invalid_account = b"other-account";
+        assert_eq!(
+            unsafe {
+                covio_agent_token_delete(
+                    data_root.as_ptr(),
+                    data_root.len(),
+                    valid_service.as_ptr(),
+                    valid_service.len(),
+                    invalid_account.as_ptr(),
+                    invalid_account.len(),
+                    &mut error,
+                )
+            },
+            CovioStatusCode::InvalidArgument as u32
+        );
+        unsafe { covio_error_free(&mut error) };
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
-    fn c_keychain_service_wrappers_read_write_replace_and_delete() {
+    fn agent_token_wrappers_read_write_replace_and_delete() {
         use std::time::{SystemTime, UNIX_EPOCH};
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
             .as_nanos();
-        let service = format!("com.wyz.covio.ffi.test.{}.{nonce}", std::process::id());
-        let key = format!("ffi-test-{}-{nonce}", std::process::id());
+        let data_root = std::env::temp_dir().join(format!(
+            "covio-agent-token-ffi-{}-{nonce}",
+            std::process::id()
+        ));
+        let data_root = data_root.to_string_lossy().into_owned();
+        let service = format!(
+            "com.wyz.covio.agent.ffi.test.{}.{nonce}",
+            std::process::id()
+        );
+        let key = "mcp-bearer-token";
         let mut error = empty_error();
         unsafe {
             assert_eq!(
-                covio_keychain_delete_with_service(
+                covio_agent_token_delete(
+                    data_root.as_ptr(),
+                    data_root.len(),
                     service.as_ptr(),
                     service.len(),
                     key.as_ptr(),
@@ -1524,7 +1542,9 @@ mod tests {
                 CovioStatusCode::Ok as u32
             );
             assert_eq!(
-                covio_keychain_write_with_service(
+                covio_agent_token_write(
+                    data_root.as_ptr(),
+                    data_root.len(),
                     service.as_ptr(),
                     service.len(),
                     key.as_ptr(),
@@ -1539,7 +1559,9 @@ mod tests {
         let mut value = empty_bytes();
         assert_eq!(
             unsafe {
-                covio_keychain_read_with_service(
+                covio_agent_token_read(
+                    data_root.as_ptr(),
+                    data_root.len(),
                     service.as_ptr(),
                     service.len(),
                     key.as_ptr(),
@@ -1556,7 +1578,9 @@ mod tests {
 
         assert_eq!(
             unsafe {
-                covio_keychain_write_with_service(
+                covio_agent_token_write(
+                    data_root.as_ptr(),
+                    data_root.len(),
                     service.as_ptr(),
                     service.len(),
                     key.as_ptr(),
@@ -1570,7 +1594,9 @@ mod tests {
         );
         assert_eq!(
             unsafe {
-                covio_keychain_read_with_service(
+                covio_agent_token_read(
+                    data_root.as_ptr(),
+                    data_root.len(),
                     service.as_ptr(),
                     service.len(),
                     key.as_ptr(),
@@ -1587,7 +1613,9 @@ mod tests {
 
         assert_eq!(
             unsafe {
-                covio_keychain_delete_with_service(
+                covio_agent_token_delete(
+                    data_root.as_ptr(),
+                    data_root.len(),
                     service.as_ptr(),
                     service.len(),
                     key.as_ptr(),
@@ -1599,7 +1627,9 @@ mod tests {
         );
         assert_eq!(
             unsafe {
-                covio_keychain_read_with_service(
+                covio_agent_token_read(
+                    data_root.as_ptr(),
+                    data_root.len(),
                     service.as_ptr(),
                     service.len(),
                     key.as_ptr(),
@@ -1611,6 +1641,16 @@ mod tests {
             CovioStatusCode::NotFound as u32
         );
         unsafe { covio_error_free(&mut error) };
+
+        let vault_root = std::path::PathBuf::from(&data_root).join("credentials");
+        let vault = covio_core::CredentialVault::open(
+            &vault_root,
+            covio_platform::KeychainSecretStore::new("com.wyz.covio.credentials"),
+            covio_platform::StdFileStore::new(),
+        )
+        .expect("open test vault");
+        vault.destroy().expect("destroy test vault");
+        let _ = std::fs::remove_dir_all(&data_root);
     }
 
     #[test]

@@ -2,12 +2,15 @@
 
 use crate::{PlatformError, SecretKey, SecretStore, SecretValue};
 use security_framework::passwords::{
-    delete_generic_password, get_generic_password, set_generic_password,
+    PasswordOptions, delete_generic_password_options, generic_password,
+    set_generic_password_options,
 };
 
-const DEFAULT_SERVICE: &str = "com.wyz.covio.rust.secrets";
+const DEFAULT_SERVICE: &str = "com.wyz.covio.credentials";
 const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 const ERR_SEC_AUTH_FAILED: i32 = -25293;
+const ERR_SEC_INTERACTION_NOT_ALLOWED: i32 = -25308;
+const ERR_SEC_USER_CANCELED: i32 = -128;
 
 /// Backend operations used by [`KeychainSecretStore`].
 pub trait KeychainBackend {
@@ -25,7 +28,7 @@ pub struct SecurityKeychainBackend;
 
 impl KeychainBackend for SecurityKeychainBackend {
     fn read(&self, service: &str, account: &str) -> Result<Option<Vec<u8>>, PlatformError> {
-        match get_generic_password(service, account) {
+        match generic_password(protected_password_options(service, account)) {
             Ok(value) => Ok(Some(value)),
             Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(None),
             Err(error) => Err(keychain_error(error.code())),
@@ -33,11 +36,12 @@ impl KeychainBackend for SecurityKeychainBackend {
     }
 
     fn write(&self, service: &str, account: &str, value: &[u8]) -> Result<(), PlatformError> {
-        set_generic_password(service, account, value).map_err(|error| keychain_error(error.code()))
+        set_generic_password_options(value, protected_password_options(service, account))
+            .map_err(|error| keychain_error(error.code()))
     }
 
     fn delete(&self, service: &str, account: &str) -> Result<(), PlatformError> {
-        match delete_generic_password(service, account) {
+        match delete_generic_password_options(protected_password_options(service, account)) {
             Ok(()) => Ok(()),
             Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(()),
             Err(error) => Err(keychain_error(error.code())),
@@ -97,14 +101,26 @@ impl<B: KeychainBackend> SecretStore for KeychainSecretStore<B> {
     }
 }
 
+fn protected_password_options(service: &str, account: &str) -> PasswordOptions {
+    let mut options = PasswordOptions::new_generic_password(service, account);
+    options.use_protected_keychain();
+    options.set_access_synchronized(Some(false));
+    options
+}
+
 fn keychain_error(status: i32) -> PlatformError {
-    if status == ERR_SEC_AUTH_FAILED {
-        PlatformError::permission_denied("keychain access was denied")
-    } else {
-        PlatformError::io(
+    match status {
+        ERR_SEC_AUTH_FAILED => {
+            PlatformError::authentication_required("keychain authentication is required")
+        }
+        ERR_SEC_INTERACTION_NOT_ALLOWED => {
+            PlatformError::locked("keychain is unavailable while the device is locked")
+        }
+        ERR_SEC_USER_CANCELED => PlatformError::cancelled("keychain access was cancelled"),
+        _ => PlatformError::io(
             format!("keychain operation failed with status {status}"),
             false,
-        )
+        ),
     }
 }
 
@@ -173,7 +189,10 @@ mod tests {
     #[test]
     fn errors_do_not_expose_secret_values() {
         let error = keychain_error(ERR_SEC_AUTH_FAILED);
-        assert_eq!(error.code(), crate::PlatformErrorCode::PermissionDenied);
+        assert_eq!(
+            error.code(),
+            crate::PlatformErrorCode::AuthenticationRequired
+        );
         assert!(!error.message().contains("top-secret"));
         let debug = format!("{:?}", SecretValue::new(b"top-secret".to_vec()));
         assert!(!debug.contains("top-secret"));
