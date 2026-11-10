@@ -64,7 +64,7 @@ Rust core 定义以下能力。
 - 后台暂停与前台恢复状态。
 - 文件选择结果和 share target。
 - 通知事件。
-- 凭据访问合同。
+- 凭据访问合同。实现见 [Covio 凭据仓库](credential-vault.md)。
 - 设备信息快照。
 
 平台 adapter 实现以下能力。

@@ -71,6 +71,7 @@ The Compose host must pass functional, visual, packaging, and performance accept
 - Product and platform decision: [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md)
 - Target architecture: [Cross-platform product](docs/design/cross-platform-product.md)
 - Bridge contract: [Covio bridge contract](docs/design/bridge-contract.md)
+- Credential storage: [Covio credential vault](docs/design/credential-vault.md)
 - Current Discussion: [#732](https://github.com/wyz541/Covio/discussions/732)
 - Current Rust migration record: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
 - Repository removal: [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md)

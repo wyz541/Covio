@@ -137,23 +137,28 @@ final class CovioCoreClient: @unchecked Sendable {
     }
 }
 
-/// Keychain access through the Rust platform adapter.
-enum CovioKeychain {
+/// Purpose-limited Agent token access through the Rust platform adapter.
+enum CovioAgentTokenKeychain {
     static func read(service: String, key: String) throws -> String? {
+        let dataRootBytes = Array(CovioCoreDefaults.applicationSupportRoot.utf8)
         let serviceBytes = Array(service.utf8)
         let keyBytes = Array(key.utf8)
         var output = CovioCoreClient.emptyBytes()
         var error = CovioCoreClient.emptyError()
-        let status = serviceBytes.withUnsafeBufferPointer { serviceBuffer in
-            keyBytes.withUnsafeBufferPointer { keyBuffer in
-                covio_keychain_read_with_service(
-                    serviceBuffer.baseAddress,
-                    serviceBuffer.count,
-                    keyBuffer.baseAddress,
-                    keyBuffer.count,
-                    &output,
-                    &error
-                )
+        let status = dataRootBytes.withUnsafeBufferPointer { dataRootBuffer in
+            serviceBytes.withUnsafeBufferPointer { serviceBuffer in
+                keyBytes.withUnsafeBufferPointer { keyBuffer in
+                    covio_agent_token_read(
+                        dataRootBuffer.baseAddress,
+                        dataRootBuffer.count,
+                        serviceBuffer.baseAddress,
+                        serviceBuffer.count,
+                        keyBuffer.baseAddress,
+                        keyBuffer.count,
+                        &output,
+                        &error
+                    )
+                }
             }
         }
         defer {
@@ -178,22 +183,27 @@ enum CovioKeychain {
     }
 
     static func write(service: String, key: String, value: String) throws {
+        let dataRootBytes = Array(CovioCoreDefaults.applicationSupportRoot.utf8)
         let serviceBytes = Array(service.utf8)
         let keyBytes = Array(key.utf8)
         let valueBytes = Array(value.utf8)
         var error = CovioCoreClient.emptyError()
-        let status = serviceBytes.withUnsafeBufferPointer { serviceBuffer in
-            keyBytes.withUnsafeBufferPointer { keyBuffer in
-                valueBytes.withUnsafeBufferPointer { valueBuffer in
-                    covio_keychain_write_with_service(
-                        serviceBuffer.baseAddress,
-                        serviceBuffer.count,
-                        keyBuffer.baseAddress,
-                        keyBuffer.count,
-                        valueBuffer.baseAddress,
-                        valueBuffer.count,
-                        &error
-                    )
+        let status = dataRootBytes.withUnsafeBufferPointer { dataRootBuffer in
+            serviceBytes.withUnsafeBufferPointer { serviceBuffer in
+                keyBytes.withUnsafeBufferPointer { keyBuffer in
+                    valueBytes.withUnsafeBufferPointer { valueBuffer in
+                        covio_agent_token_write(
+                            dataRootBuffer.baseAddress,
+                            dataRootBuffer.count,
+                            serviceBuffer.baseAddress,
+                            serviceBuffer.count,
+                            keyBuffer.baseAddress,
+                            keyBuffer.count,
+                            valueBuffer.baseAddress,
+                            valueBuffer.count,
+                            &error
+                        )
+                    }
                 }
             }
         }
@@ -204,18 +214,23 @@ enum CovioKeychain {
     }
 
     static func delete(service: String, key: String) throws {
+        let dataRootBytes = Array(CovioCoreDefaults.applicationSupportRoot.utf8)
         let serviceBytes = Array(service.utf8)
         let keyBytes = Array(key.utf8)
         var error = CovioCoreClient.emptyError()
-        let status = serviceBytes.withUnsafeBufferPointer { serviceBuffer in
-            keyBytes.withUnsafeBufferPointer { keyBuffer in
-                covio_keychain_delete_with_service(
-                    serviceBuffer.baseAddress,
-                    serviceBuffer.count,
-                    keyBuffer.baseAddress,
-                    keyBuffer.count,
-                    &error
-                )
+        let status = dataRootBytes.withUnsafeBufferPointer { dataRootBuffer in
+            serviceBytes.withUnsafeBufferPointer { serviceBuffer in
+                keyBytes.withUnsafeBufferPointer { keyBuffer in
+                    covio_agent_token_delete(
+                        dataRootBuffer.baseAddress,
+                        dataRootBuffer.count,
+                        serviceBuffer.baseAddress,
+                        serviceBuffer.count,
+                        keyBuffer.baseAddress,
+                        keyBuffer.count,
+                        &error
+                    )
+                }
             }
         }
         defer { covio_error_free(&error) }

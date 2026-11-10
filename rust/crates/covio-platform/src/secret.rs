@@ -2,6 +2,7 @@
 
 use crate::{PlatformError, PlatformErrorCode};
 use std::fmt;
+use zeroize::Zeroize;
 
 /// A stable secret identifier.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -65,7 +66,7 @@ impl fmt::Debug for SecretValue {
 
 impl Drop for SecretValue {
     fn drop(&mut self) {
-        self.0.fill(0);
+        self.0.zeroize();
     }
 }
 

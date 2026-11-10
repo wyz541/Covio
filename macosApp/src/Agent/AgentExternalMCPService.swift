@@ -42,7 +42,7 @@ struct AgentExternalTokenStore: Sendable {
 
     private func load() throws -> String? {
         do {
-            guard let token = try CovioKeychain.read(service: service, key: account),
+            guard let token = try CovioAgentTokenKeychain.read(service: service, key: account),
                   !token.isEmpty
             else { return nil }
             return token
@@ -53,7 +53,7 @@ struct AgentExternalTokenStore: Sendable {
 
     private func save(_ token: String) throws {
         do {
-            try CovioKeychain.write(service: service, key: account, value: token)
+            try CovioAgentTokenKeychain.write(service: service, key: account, value: token)
         } catch let error as CovioCoreError {
             throw AgentExternalTokenError.keychain(error)
         }
@@ -61,7 +61,7 @@ struct AgentExternalTokenStore: Sendable {
 
     func delete() throws {
         do {
-            try CovioKeychain.delete(service: service, key: account)
+            try CovioAgentTokenKeychain.delete(service: service, key: account)
         } catch let error as CovioCoreError {
             throw AgentExternalTokenError.keychain(error)
         }

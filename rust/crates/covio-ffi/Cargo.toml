@@ -14,6 +14,7 @@ covio-core = { path = "../covio-core" }
 covio-platform = { path = "../covio-platform" }
 serde.workspace = true
 serde_json.workspace = true
+zeroize = "1"
 
 [lints]
 workspace = true
