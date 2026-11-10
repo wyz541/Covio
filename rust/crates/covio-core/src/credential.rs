@@ -142,6 +142,7 @@ const fn is_credential_id_byte(byte: u8) -> bool {
 #[serde(rename_all = "snake_case")]
 pub enum RecordKind {
     Pairing,
+    DeviceIdentity,
     TransportGroupKey,
     ProviderApiKey,
     UpdateSecret,
@@ -152,6 +153,7 @@ impl RecordKind {
     const fn as_str(self) -> &'static str {
         match self {
             Self::Pairing => "pairing",
+            Self::DeviceIdentity => "device_identity",
             Self::TransportGroupKey => "transport_group_key",
             Self::ProviderApiKey => "provider_api_key",
             Self::UpdateSecret => "update_secret",
@@ -295,6 +297,31 @@ impl<S: SecretStore, F: FileStore> CredentialVault<S, F> {
             files,
             state,
         })
+    }
+
+    /// Opens an existing vault or creates it when the vault file is absent.
+    ///
+    /// This operation does not require `SecretStore: Clone`; platform stores
+    /// such as Windows Credential Manager can stay single-owner.
+    pub fn open_or_create(
+        root: impl Into<PathBuf>,
+        secrets: S,
+        files: F,
+    ) -> Result<Self, CredentialError> {
+        let root = root.into();
+        let path = root.join(VAULT_FILE);
+        files
+            .create_dir_all(&root)
+            .map_err(CredentialError::from_platform)?;
+        if files
+            .read(&path)
+            .map_err(CredentialError::from_platform)?
+            .is_some()
+        {
+            Self::open(root, secrets, files)
+        } else {
+            Self::create(root, secrets, files)
+        }
     }
 
     /// Opens an existing vault and verifies its root key is present.
