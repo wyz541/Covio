@@ -270,7 +270,7 @@ struct CapabilityLease {
 enum PendingPairing {
     Initiator(PairingInitiator<StdFileStore>),
     InitiatorAwaiting(PairingInitiatorAwaitingConfirmation<StdFileStore>),
-    Responder(PairingResponder<StdFileStore>),
+    Responder(Box<PairingResponder<StdFileStore>>),
 }
 
 /// Cross-device application service owned by the JNI bridge.
@@ -545,7 +545,7 @@ impl ComposeCore {
         let code = responder.code().to_owned();
         let remote = responder.remote_device().clone();
         *self.pending_pairing.lock().map_err(lock_error)? =
-            Some(PendingPairing::Responder(responder));
+            Some(PendingPairing::Responder(Box::new(responder)));
         Ok(json!({
             "response_payload": response_payload,
             "response": response,
