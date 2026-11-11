@@ -104,7 +104,8 @@ def release_asset_names(directory: pathlib.Path, version: str) -> tuple[str, ...
             "release-manifest.json",
         )
     )
-    return tuple(names)
+    names.extend(release.platform_asset_names(artifact))
+    return tuple(dict.fromkeys(names))
 
 
 def release_tag(spec: release.ReleaseSpec) -> str:
@@ -363,7 +364,7 @@ def evidence_for(
             "sha256": sha256_file(path),
             "size": path.stat().st_size,
         }
-    return {
+    evidence = {
         "schemaVersion": 1,
         "channel": source.channel,
         "releaseId": artifact["releaseId"],
@@ -386,6 +387,11 @@ def evidence_for(
             "notarized": notarized,
         },
     }
+    if artifact.get("requiredPlatforms") is not None:
+        evidence["requiredPlatforms"] = artifact["requiredPlatforms"]
+    if artifact.get("platforms") is not None:
+        evidence["platforms"] = artifact["platforms"]
+    return evidence
 
 
 def write_evidence(path: pathlib.Path, evidence: dict[str, Any]) -> None:
@@ -635,6 +641,7 @@ def verify_release(
     evidence_output: pathlib.Path | None = None,
     compare_path: pathlib.Path | None = None,
     require_stable_signing: bool = False,
+    require_unified: bool = False,
 ) -> dict[str, Any]:
     if source_manifest is None:
         source = release.load_spec(root)
@@ -669,6 +676,10 @@ def verify_release(
         actual_helper_hash = sha256_file(helper)
         artifact_path = directory / "release-manifest.json"
         artifact = release.verify_artifact(artifact_path, helper, root, source)
+        if require_unified and artifact.get("requiredPlatforms") != list(release.UNIFIED_RELEASE_PLATFORMS):
+            raise ReleaseVerificationError(
+                "internal release manifest must require macOS, Windows and iOS artifacts"
+            )
         bundled_manifest = release.verify_bundle_manifest(
             app / "Contents" / "Resources" / "release-manifest.json",
             helper,
@@ -1033,6 +1044,7 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--evidence", type=pathlib.Path)
     verify.add_argument("--compare-evidence", type=pathlib.Path)
     verify.add_argument("--require-stable-signing", action="store_true")
+    verify.add_argument("--require-unified", action="store_true")
 
     tag = sub.add_parser("tag")
     tag.add_argument("--root", type=pathlib.Path, default=ROOT)
@@ -1070,6 +1082,7 @@ def main(argv: list[str] | None = None) -> int:
                 evidence_output=args.evidence,
                 compare_path=args.compare_evidence,
                 require_stable_signing=args.require_stable_signing,
+                require_unified=args.require_unified,
             )
             print("release verification passed")
             return 0

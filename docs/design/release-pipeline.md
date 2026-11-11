@@ -4,10 +4,10 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `1.0` |
+| 文档版本 | `1.1` |
 | 状态 | 已实现；当前只创建 internal/local Draft |
-| 日期 | `2026-10-25` |
-| Issue | #356 |
+| 日期 | `2026-11-12` |
+| Issue | #356、#761 |
 | 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0031](../adr/adr-0031-semantic-versioning.md)、[ADR-0035](../adr/adr-0035-cross-platform-product-scope.md) |
 
 > 2026-11-10：ADR-0035 将当前范围限定为内部测试和 GitHub Releases。本文件描述现有 internal/local 基线。正式商店发布、正式更新器和安装器方案暂缓，正式发布前可以重新设计。
@@ -25,8 +25,9 @@
 | Portable tests | `ci.yml` 的 Ubuntu job | 每个代码 PR；Rust、KMP removal、合同和发布脚本测试结果 |
 | Windows x64 host | `ci.yml` 的 Windows x64 job | Windows 或 Rust 路径、完整门禁、手动运行 |
 | Windows ARM64 host | `ci.yml` 的 Windows ARM64 job | 共享平台路径、完整门禁、手动运行 |
-| Windows package | `ci.yml` 的 Windows package job | 安装器或发布身份路径、发布分支、完整门禁、手动运行 |
+| Windows package | `ci.yml` 的 Windows package job | Compose 便携 ZIP、MSI、包元数据 |
 | macOS package | 本地 Apple Silicon Mac | DMG、PKG、app zip、update zip、artifact boundary |
+| iOS package | 本地 Apple Silicon Mac 与 Apple 签名身份 | 签名 IPA、包元数据 |
 | Runtime acceptance | #613 的 Windows 和 macOS 真实设备 | 日期、设备、OS、artifact、commit 和结果 |
 
 Hosted tests 只证明构建和仓库行为。
@@ -75,20 +76,25 @@ release-notes.generated.md
 release-operation.json
 ```
 
-Windows 发布产物使用独立名称：
+统一内测 Release 的 Windows 与 iOS 资产：
 
 ```text
-Covio-<clientVersion>-windows-x64-setup.exe
-Covio-<clientVersion>-windows-x64-setup.exe.sha256
-windows-package.json
-artifact-boundary.txt
-installer-test.json
+Covio-<clientVersion>-windows-x64-portable.zip
+Covio-<clientVersion>-windows-x64.msi
+compose-package.json
+Covio-<clientVersion>-ios-arm64.ipa
+ios-package.json
 ```
 
-Windows job 运行 `scripts/package-windows.sh`。
-安装包使用当前用户安装，不要求管理员权限。
-`scripts/verify-windows-artifact.sh` 在依赖图或 artifact 中发现 JVM、Kotlin、Compose 或 JNA 时失败。
-`scripts/test-windows-installer.ps1` 验证 clean install、upgrade、crash recovery、rollback 和 uninstall。
+Windows job 运行 `scripts/package-windows-compose.sh`。
+MSI 由 `jpackage --type msi` 生成。
+`compose-package.json` 记录 `clientVersion`、`buildNumber`、渠道、Git commit、制品 SHA-256 和大小。
+
+iOS job 运行 `scripts/package-ios-swift.sh`。
+脚本使用 `COVIO_IOS_TEAM_ID` 选择 Apple 签名身份。
+脚本导出开发、Ad Hoc 或 App Store IPA。
+脚本检查 embedded provisioning profile、代码签名、版本号和 Git commit。
+没有签名身份或 provisioning profile 时，脚本失败。
 
 macOS job 运行 `scripts/package-macos-swift.sh`。
 打包完成后，`scripts/verify-macos-artifact.sh` 检查 app、DMG 和 PKG。
@@ -96,13 +102,14 @@ macOS job 运行 `scripts/package-macos-swift.sh`。
 发现 KMP、JVM、Kotlin、Compose 或 JNA 时，打包失败。
 `test-all.sh` 会先测试两个 boundary checker 的正例和反例。
 
-`release-evidence.json` 记录全部资产摘要、releaseId、commit、协议和验证结果。
+`release-evidence.json` 记录全部资产摘要、releaseId、commit、协议、平台身份和验证结果。
 `CovioUpdate-<clientVersion>.zip` 只包含根级 `Covio.app`。
 Manifest 和签名信封由当前 Release 的同一组 app、helper 和 updater 生成。
 `release-notes.generated.md` 从同一份证据生成。
-`checksums.txt` 包含 app zip、update archive、update manifest、签名信封、默认 DMG、PKG 和 artifact manifest。
+`checksums.txt` 包含 macOS、Windows 和 iOS 的全部发布资产与平台元数据。
 发布离线包时，`checksums.txt` 还包含 `Covio-Offline-<clientVersion>.dmg`。
 `release-manifest.json` 记录默认包、可选离线包和模型 revision。
+统一内测发布还记录 `requiredPlatforms`、Windows 制品和 iOS 制品。
 `Covio.app` 的 Resources 携带 bundle identity manifest，不包含安装包摘要。
 PKG 把 app 写入暂存区，再通过原子 bundle 交换完成 app 与 helper 的成对安装。
 
@@ -113,6 +120,16 @@ PKG 把 app 写入暂存区，再通过原子 bundle 交换完成 app 与 helper
 ```sh
 bash scripts/setup-update-signing-key.sh covio-internal-2026-01
 ```
+
+准备 iOS 签名环境：
+
+```sh
+export COVIO_IOS_TEAM_ID=<team-id>
+export COVIO_IOS_EXPORT_METHOD=development
+```
+
+`scripts/covio release draft` 自动下载目标 commit 的 Windows Compose CI 制品。
+直接运行 `create-release.sh` 时，先设置 `COVIO_WINDOWS_COMPOSE_PACKAGE_DIR`。
 
 创建内部 Draft：
 

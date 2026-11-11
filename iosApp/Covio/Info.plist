@@ -18,6 +18,18 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>CovioClientVersion</key>
+    <string>$(COVIO_CLIENT_VERSION)</string>
+    <key>CovioProductVersion</key>
+    <string>$(COVIO_PRODUCT_VERSION)</string>
+    <key>CovioReleaseChannel</key>
+    <string>$(COVIO_RELEASE_CHANNEL)</string>
+    <key>CovioGitCommit</key>
+    <string>$(COVIO_GIT_COMMIT)</string>
+    <key>CovioReleaseId</key>
+    <string>$(COVIO_RELEASE_ID)</string>
+    <key>CovioHelperProtocolVersion</key>
+    <string>$(COVIO_HELPER_PROTOCOL_VERSION)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>LSSupportsOpeningDocumentsInPlace</key>

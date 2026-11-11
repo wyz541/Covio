@@ -46,10 +46,30 @@ Internal releases add these update assets:
 - `CovioUpdate-<clientVersion>.json`
 - `CovioUpdate-<clientVersion>.sig.json`
 
+统一内测 Release 还包含：
+
+- `Covio-<clientVersion>-ios-arm64.ipa`
+- `ios-package.json`
+- `Covio-<clientVersion>-windows-x64-portable.zip`
+- `Covio-<clientVersion>-windows-x64.msi`
+- `compose-package.json`
+
+iOS IPA 与 Windows 压缩包必须使用相同的 `clientVersion`、`buildNumber`、渠道和 Git commit。
+发布流水线在创建或发布 Draft 前校验每个平台的制品。
+
 The generated files are:
 
 - `macosApp/src/Design/GeneratedReleaseIdentity.swift`
 - `macosApp/ReleaseIdentity.generated.xcconfig`
+
+Attach the Windows and iOS package records before creating an internal Draft:
+
+```sh
+python3 -I scripts/release_manifest.py attach-platforms dist/release-manifest.json \
+  --helper dist/Covio.app/Contents/MacOS/CovioHelper \
+  --ios-package dist/ios-package.json \
+  --windows-package dist/compose-package.json
+```
 
 Do not edit generated files by hand.
 
@@ -63,6 +83,27 @@ Build the default slim app:
 bash scripts/setup-local-signing.sh
 bash scripts/package-macos-swift.sh
 ```
+
+构建并导出签名的 iOS 真机 IPA：
+
+```sh
+COVIO_IOS_TEAM_ID=<team-id> bash scripts/package-ios-swift.sh
+```
+
+把 `COVIO_IOS_EXPORT_METHOD` 设为 `development`、`ad-hoc`、`app-store` 或 `app-store-connect`。
+默认值是 `development`，用于内测设备直接安装。
+Mac 必须有 Apple Development 证书和包含测试设备的 provisioning profile。
+IPA 未签名或身份与 `release/release-manifest.json` 不一致时，脚本失败。
+
+从同一 commit 的 CI 运行下载 Windows Compose 包：
+
+```sh
+gh run download <run-id> \
+  --name windows-compose-package-<run-id> \
+  --dir build/windows-compose-package
+```
+
+`scripts/covio release draft` 会自动下载目标 commit 的成功 CI 制品。
 
 `scripts/covio release draft` and direct Release packaging reuse persistent caches outside the clean release worktree.
 The packaging job locks the macOS build caches, and every release identity and asset check still runs.
@@ -112,6 +153,10 @@ Build and create a Draft Release:
 ```sh
 bash scripts/create-release.sh
 ```
+
+内部 Draft 要求 iOS 包元数据和 Windows Compose 包。
+`create-release.sh` 把两项记录写入 `release-manifest.json` 和 `release-evidence.json`。
+然后，脚本创建一个包含 macOS、Windows 和 iOS 制品的 Draft。
 
 Verify all downloaded Draft assets and publish explicitly:
 

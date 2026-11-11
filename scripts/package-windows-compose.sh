@@ -5,8 +5,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUTPUT_DIR="${COVIO_COMPOSE_OUTPUT_DIR:-$ROOT/build/windows-compose-package}"
 PRODUCT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 CLIENT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
+BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)"
+CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 APP_VERSION="${COVIO_COMPOSE_VERSION:-$PRODUCT_VERSION}"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")"
 NATIVE_DIR="$ROOT/composeApp/src/main/resources/native/windows-x64"
 JAR="$ROOT/build/tasks/_composeApp_executableJarJvm/composeApp-jvm-executable.jar"
 JAVA_HOME="${JAVA_HOME:-$(java -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.home =/{print $2; exit}')}"
@@ -71,7 +74,7 @@ fi
 pwsh -NoProfile -File "$ROOT/scripts/performance/windows_compose_headless_smoke.ps1" \
   -AppExecutable "$APP_DIR/Covio.exe" \
   -DataDirectory "$OUTPUT_DIR/headless-data"
-PORTABLE_ZIP="$OUTPUT_DIR/Covio-$APP_VERSION-windows-x64-portable.zip"
+PORTABLE_ZIP="$OUTPUT_DIR/Covio-$CLIENT_VERSION-windows-x64-portable.zip"
 if command -v powershell.exe >/dev/null 2>&1; then
   powershell.exe -NoProfile -Command "Compress-Archive -LiteralPath '$(cygpath -w "$APP_DIR")' -DestinationPath '$(cygpath -w "$PORTABLE_ZIP")' -Force"
 elif command -v pwsh >/dev/null 2>&1; then
@@ -106,6 +109,9 @@ if [[ "${COVIO_COMPOSE_REQUIRE_MSI:-0}" == "1" ]]; then
     printf 'MSI package is missing.\n' >&2
     exit 1
   fi
+  MSI_FINAL="$OUTPUT_DIR/Covio-$CLIENT_VERSION-windows-x64.msi"
+  mv "$MSI" "$MSI_FINAL"
+  MSI="$MSI_FINAL"
 fi
 
 SHA256="$(sha256sum "$PORTABLE_ZIP" | awk '{print $1}')"
@@ -115,7 +121,7 @@ if [[ -n "$MSI" ]]; then
   MSG_SHA="$(sha256sum "$MSI" | awk '{print $1}')"
   printf '%s  %s\n' "$MSG_SHA" "$(basename "$MSI")" >"$MSI.sha256"
 fi
-python3 -I - "$OUTPUT_DIR/compose-package.json" "$PORTABLE_ZIP" "$SHA256" "$MSI" "$MSG_SHA" "$PRODUCT_VERSION" "$CLIENT_VERSION" "$COMMIT" <<'PY'
+python3 -I - "$OUTPUT_DIR/compose-package.json" "$PORTABLE_ZIP" "$SHA256" "$MSI" "$MSG_SHA" "$PRODUCT_VERSION" "$CLIENT_VERSION" "$BUILD_NUMBER" "$CHANNEL" "$COMMIT" "$RELEASE_ID" <<'PY'
 import json
 import pathlib
 import sys
@@ -125,13 +131,27 @@ portable = pathlib.Path(sys.argv[2])
 msi = pathlib.Path(sys.argv[4]) if sys.argv[4] else None
 payload = {
     "schemaVersion": 1,
+    "platform": "windows",
     "productVersion": sys.argv[6],
     "clientVersion": sys.argv[7],
-    "gitCommit": sys.argv[8],
-    "portable": {"artifact": portable.name, "sha256": sys.argv[3]},
-    "msi": None if msi is None else {"artifact": msi.name, "sha256": sys.argv[5]},
+    "buildNumber": int(sys.argv[8]),
+    "channel": sys.argv[9],
+    "gitCommit": sys.argv[10],
+    "releaseId": sys.argv[11],
     "runtime": "jlink",
     "packager": "jpackage",
+    "artifacts": {
+        "portable": {
+            "name": portable.name,
+            "size": portable.stat().st_size,
+            "sha256": sys.argv[3],
+        },
+        "msi": None if msi is None else {
+            "name": msi.name,
+            "size": msi.stat().st_size,
+            "sha256": sys.argv[5],
+        },
+    },
 }
 path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 PY

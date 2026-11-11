@@ -54,6 +54,8 @@ SOURCE_REQUIRED = (
 ARTIFACT_SCHEMA_VERSION = 3
 BUNDLE_SCHEMA_VERSION = 2
 DEFAULT_DMG_MAX_BYTES = 50_000_000
+UNIFIED_RELEASE_PLATFORMS = ("macos", "windows", "ios")
+PLATFORM_SCHEMA_VERSION = 1
 ARTIFACT_REQUIRED = (
     "schemaVersion",
     "releaseId",
@@ -68,6 +70,13 @@ ARTIFACT_REQUIRED = (
     "model",
 )
 INSTALLER_NAMES = ("default", "offline")
+PLATFORM_IDENTITY_FIELDS = (
+    "productVersion",
+    "clientVersion",
+    "buildNumber",
+    "gitCommit",
+    "channel",
+)
 BUNDLE_IDENTITY_FIELDS = (
     "releaseId",
     "productVersion",
@@ -365,6 +374,16 @@ def _file_record(path: pathlib.Path, expected_name: str) -> dict[str, Any]:
     }
 
 
+def _read_json_object(path: pathlib.Path, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError) as error:
+        raise ManifestError(f"cannot read {label}: {error}") from error
+    if not isinstance(value, dict):
+        raise ManifestError(f"{label} must be a JSON object")
+    return value
+
+
 def _model_record(manifest_path: pathlib.Path) -> dict[str, Any]:
     try:
         raw = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -452,6 +471,199 @@ def installer_names(manifest: dict[str, Any], client_version: str) -> tuple[str,
     if model is not None:
         _validate_model_record(model)
     return default_name, offline_name
+
+
+def _platform_identity_errors(
+    record: dict[str, Any],
+    platform: str,
+    spec: ReleaseSpec,
+) -> list[str]:
+    errors: list[str] = []
+    expected = {
+        "productVersion": spec.product_version,
+        "clientVersion": spec.client_version,
+        "buildNumber": spec.build_number,
+        "channel": spec.channel,
+    }
+    for field, value in expected.items():
+        if record.get(field) != value:
+            errors.append(f"artifact {platform} {field} differs from source manifest")
+    commit = record.get("gitCommit")
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        errors.append(f"artifact {platform} gitCommit must be 40 lowercase hex characters")
+    return errors
+
+
+def _platform_file_record(
+    record: Any,
+    platform: str,
+    artifact_name: str,
+    base_directory: pathlib.Path,
+) -> None:
+    if not isinstance(record, dict):
+        raise ManifestError(f"artifact {platform} {artifact_name} must be an object")
+    if record.get("name") != artifact_name:
+        raise ManifestError(f"artifact {platform} must record {artifact_name}")
+    size = record.get("size")
+    if not isinstance(size, int) or isinstance(size, bool) or size < 1:
+        raise ManifestError(f"artifact {platform} {artifact_name} size must be positive")
+    digest = record.get("sha256")
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise ManifestError(
+            f"artifact {platform} {artifact_name} sha256 must be 64 lowercase hex characters"
+        )
+    path = base_directory / artifact_name
+    if not path.is_file():
+        raise ManifestError(f"artifact {platform} is missing: {artifact_name}")
+    if path.stat().st_size != size:
+        raise ManifestError(f"artifact {platform} size mismatch: {artifact_name}")
+    if sha256_file(path) != digest:
+        raise ManifestError(f"artifact {platform} SHA-256 mismatch: {artifact_name}")
+
+
+def validate_platform_package(
+    record: Any,
+    platform: str,
+    spec: ReleaseSpec,
+    base_directory: pathlib.Path,
+) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        raise ManifestError(f"artifact {platform} package must be an object")
+    if record.get("schemaVersion") != PLATFORM_SCHEMA_VERSION:
+        raise ManifestError(f"artifact {platform} package schemaVersion must be {PLATFORM_SCHEMA_VERSION}")
+    if record.get("platform") != platform:
+        raise ManifestError(f"artifact {platform} package has the wrong platform")
+    errors = _platform_identity_errors(record, platform, spec)
+    commit = record.get("gitCommit")
+    if isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{40}", commit):
+        expected_release_id = release_id(spec, commit)
+        if record.get("releaseId") != expected_release_id:
+            errors.append(f"artifact {platform} releaseId does not match its version and commit")
+    if errors:
+        raise ManifestError("\n".join(errors))
+    if platform == "ios":
+        bundle_identifier = record.get("bundleIdentifier")
+        if bundle_identifier != "com.wyz.covio.ios":
+            raise ManifestError("artifact ios bundleIdentifier must be com.wyz.covio.ios")
+        signing = record.get("signing")
+        if not isinstance(signing, dict):
+            raise ManifestError("artifact ios signing must be an object")
+        if signing.get("style") not in {"development", "ad-hoc", "app-store", "app-store-connect"}:
+            raise ManifestError("artifact ios signing style is invalid")
+        if not isinstance(signing.get("teamIdentifier"), str) or not signing["teamIdentifier"]:
+            raise ManifestError("artifact ios signing teamIdentifier is required")
+        artifact = record.get("artifact")
+        if not isinstance(artifact, dict) or not isinstance(artifact.get("name"), str):
+            raise ManifestError("artifact ios artifact must be an object with a name")
+        expected_name = f"Covio-{spec.client_version}-ios-arm64.ipa"
+        if artifact["name"] != expected_name:
+            raise ManifestError(f"artifact ios file must be named {expected_name}")
+        _platform_file_record(artifact, platform, artifact["name"], base_directory)
+    elif platform == "windows":
+        artifacts = record.get("artifacts")
+        if not isinstance(artifacts, dict):
+            raise ManifestError("artifact windows artifacts must be an object")
+        for kind in ("portable", "msi"):
+            artifact = artifacts.get(kind)
+            if not isinstance(artifact, dict) or not isinstance(artifact.get("name"), str):
+                raise ManifestError(f"artifact windows {kind} must be an object with a name")
+            expected_name = (
+                f"Covio-{spec.client_version}-windows-x64-portable.zip"
+                if kind == "portable"
+                else f"Covio-{spec.client_version}-windows-x64.msi"
+            )
+            if artifact["name"] != expected_name:
+                raise ManifestError(f"artifact windows {kind} file must be named {expected_name}")
+            _platform_file_record(artifact, platform, artifact["name"], base_directory)
+    else:
+        raise ManifestError(f"unknown release platform: {platform}")
+    return record
+
+
+def attach_unified_platforms(
+    manifest_path: pathlib.Path,
+    helper_path: pathlib.Path,
+    ios_package_path: pathlib.Path,
+    windows_package_path: pathlib.Path,
+    root: pathlib.Path = ROOT,
+) -> dict[str, Any]:
+    if ios_package_path.name != "ios-package.json":
+        raise ManifestError("iOS package metadata must be named ios-package.json")
+    if windows_package_path.name != "compose-package.json":
+        raise ManifestError("Windows package metadata must be named compose-package.json")
+    manifest = _read_json_object(manifest_path, "artifact manifest")
+    spec = load_spec(root)
+    ios = _read_json_object(ios_package_path, "iOS package metadata")
+    windows = _read_json_object(windows_package_path, "Windows package metadata")
+    validate_platform_package(ios, "ios", spec, manifest_path.parent)
+    validate_platform_package(windows, "windows", spec, manifest_path.parent)
+    if ios["gitCommit"] != manifest.get("gitCommit"):
+        raise ManifestError("artifact ios gitCommit differs from macOS artifact")
+    if windows["gitCommit"] != manifest.get("gitCommit"):
+        raise ManifestError("artifact windows gitCommit differs from macOS artifact")
+    manifest["requiredPlatforms"] = list(UNIFIED_RELEASE_PLATFORMS)
+    manifest["platforms"] = {"ios": ios, "windows": windows}
+    temporary = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
+    _write_json(temporary, manifest)
+    try:
+        verify_artifact(temporary, helper_path, root)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+    temporary.replace(manifest_path)
+    return manifest
+
+
+def platform_asset_names(manifest: dict[str, Any]) -> tuple[str, ...]:
+    required = manifest.get("requiredPlatforms")
+    if required is None:
+        return ()
+    if required != list(UNIFIED_RELEASE_PLATFORMS):
+        raise ManifestError(f"artifact requiredPlatforms must be {list(UNIFIED_RELEASE_PLATFORMS)}")
+    platforms = manifest.get("platforms")
+    if not isinstance(platforms, dict):
+        raise ManifestError("artifact platforms must be an object")
+    ios = platforms.get("ios")
+    windows = platforms.get("windows")
+    if not isinstance(ios, dict) or not isinstance(windows, dict):
+        raise ManifestError("artifact platforms must contain iOS and Windows records")
+    ios_artifact = ios.get("artifact")
+    windows_artifacts = windows.get("artifacts")
+    if not isinstance(ios_artifact, dict) or not isinstance(ios_artifact.get("name"), str):
+        raise ManifestError("artifact iOS record has no artifact")
+    if not isinstance(windows_artifacts, dict):
+        raise ManifestError("artifact Windows record has no artifacts")
+    names = ["ios-package.json", ios_artifact["name"], "compose-package.json"]
+    for kind in ("portable", "msi"):
+        record = windows_artifacts.get(kind)
+        if not isinstance(record, dict) or not isinstance(record.get("name"), str):
+            raise ManifestError(f"artifact Windows record has no {kind} artifact")
+        names.append(record["name"])
+    return tuple(names)
+
+
+def verify_platforms(
+    manifest: dict[str, Any],
+    spec: ReleaseSpec,
+    base_directory: pathlib.Path,
+) -> None:
+    required = manifest.get("requiredPlatforms")
+    if required is None:
+        return
+    if required != list(UNIFIED_RELEASE_PLATFORMS):
+        raise ManifestError(f"artifact requiredPlatforms must be {list(UNIFIED_RELEASE_PLATFORMS)}")
+    platform_asset_names(manifest)
+    for name, platform in (("ios-package.json", "ios"), ("compose-package.json", "windows")):
+        path = base_directory / name
+        if not path.is_file():
+            raise ManifestError(f"artifact {platform} package metadata is missing: {name}")
+        record = _read_json_object(path, f"{platform} package metadata")
+        validate_platform_package(record, platform, spec, base_directory)
+        manifest_record = manifest["platforms"][platform]
+        if record != manifest_record:
+            raise ManifestError(f"artifact {platform} package metadata differs from release manifest")
+        if record["gitCommit"] != manifest["gitCommit"]:
+            raise ManifestError(f"artifact {platform} gitCommit differs from macOS artifact")
 
 
 def artifact_manifest(
@@ -648,6 +860,7 @@ def verify_artifact(
         )
     if offline_name is not None:
         _verify_file_record(installers["offline"], offline_name, manifest_path.parent)
+    verify_platforms(manifest, spec, manifest_path.parent)
     return manifest
 
 
@@ -706,6 +919,12 @@ def main(argv: list[str] | None = None, root: pathlib.Path = ROOT) -> int:
     verify = sub.add_parser("verify-artifact")
     verify.add_argument("manifest", type=pathlib.Path)
     verify.add_argument("--helper", required=True, type=pathlib.Path)
+
+    attach_platforms = sub.add_parser("attach-platforms")
+    attach_platforms.add_argument("manifest", type=pathlib.Path)
+    attach_platforms.add_argument("--helper", required=True, type=pathlib.Path)
+    attach_platforms.add_argument("--ios-package", required=True, type=pathlib.Path)
+    attach_platforms.add_argument("--windows-package", required=True, type=pathlib.Path)
 
     generate_bundle = sub.add_parser("generate-bundle-manifest")
     generate_bundle.add_argument("--helper", required=True, type=pathlib.Path)
@@ -780,6 +999,16 @@ def main(argv: list[str] | None = None, root: pathlib.Path = ROOT) -> int:
         if args.command == "verify-artifact":
             verify_artifact(args.manifest, args.helper, root)
             print("artifact manifest is valid")
+            return 0
+        if args.command == "attach-platforms":
+            attach_unified_platforms(
+                args.manifest,
+                args.helper,
+                args.ios_package,
+                args.windows_package,
+                root,
+            )
+            print("artifact manifest contains macOS, Windows and iOS identities")
             return 0
         if args.command == "generate-bundle-manifest":
             if not args.allow_dirty:
