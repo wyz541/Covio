@@ -21,6 +21,7 @@ sha2.workspace = true
 subtle = "2"
 regex.workspace = true
 tokio.workspace = true
+unicode-normalization.workspace = true
 x25519-dalek = { version = "2", features = ["static_secrets", "zeroize"] }
 zeroize = { version = "1", features = ["derive"] }
 

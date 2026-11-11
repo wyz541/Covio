@@ -113,8 +113,9 @@ Compose 不得独立修改共享视觉语义。
 1. 建立设备身份与二维码配对。
 2. 建立 `iroh 1.4.1` 传输适配层和 Covio 文件协议。实现见 [Covio 单文件传输](single-file-transfer.md)。
 3. 建立 1 MiB 分块、8 MiB 窗口、BLAKE3 校验、SQLite 检查点和原子落盘。实现见 [Covio 单文件传输](single-file-transfer.md)。
-4. 建立原生根密钥保护与 Rust AEAD 凭据仓库。
-5. 建立设备信息快照。
+4. 建立目录清单、冲突策略、续传范围和保留清理。实现见 [Covio 目录传输](directory-transfer.md)。
+5. 建立原生根密钥保护与 Rust AEAD 凭据仓库。
+6. 建立设备信息快照。
 
 ### Phase 3：平台接入
 
