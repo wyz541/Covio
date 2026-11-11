@@ -101,7 +101,15 @@ impl EventBus {
         }
     }
 
-    fn push(&self, bytes: Vec<u8>, terminal: bool) -> Result<(), SessionError> {
+    fn push<F>(
+        &self,
+        bytes: Vec<u8>,
+        terminal: bool,
+        snapshot_required: F,
+    ) -> Result<(), SessionError>
+    where
+        F: FnOnce() -> Result<Vec<u8>, SessionError>,
+    {
         let mut state = self
             .state
             .lock()
@@ -109,13 +117,37 @@ impl EventBus {
         if state.closed {
             return Err(SessionError::shutting_down());
         }
-        if state.events.len() >= MAX_EVENT_COUNT {
-            let drop_index = state
+        let notice = if state.events.len() >= MAX_EVENT_COUNT {
+            let drop_count = state
                 .events
-                .iter()
-                .position(|event| !event.terminal)
-                .unwrap_or(0);
-            state.events.remove(drop_index);
+                .len()
+                .saturating_sub(MAX_EVENT_COUNT.saturating_sub(2));
+            let non_terminal_count = state.events.iter().filter(|event| !event.terminal).count();
+            if non_terminal_count < drop_count {
+                return Err(SessionError::internal(
+                    "event queue has no room for terminal events",
+                ));
+            }
+            let notice = snapshot_required()?;
+            for _ in 0..drop_count {
+                let drop_index = state
+                    .events
+                    .iter()
+                    .position(|event| !event.terminal)
+                    .ok_or_else(|| {
+                        SessionError::internal("event queue has no droppable progress event")
+                    })?;
+                state.events.remove(drop_index);
+            }
+            Some(notice)
+        } else {
+            None
+        };
+        if let Some(notice) = notice {
+            state.events.push_front(EventRecord {
+                bytes: notice,
+                terminal: false,
+            });
         }
         state.events.push_back(EventRecord { bytes, terminal });
         self.ready.notify_all();
@@ -491,7 +523,16 @@ impl JniSession {
         };
         let bytes =
             encode_message(&BridgeMessage::Event(event), limits).map_err(SessionError::from)?;
-        self.events.push(bytes, terminal)
+        self.events.push(bytes, terminal, || {
+            let event = EventEnvelope {
+                protocol_version: covio_bridge::PROTOCOL_VERSION,
+                generation,
+                revision,
+                event: EventName::try_new("snapshot_required").map_err(SessionError::from)?,
+                payload: json!({"reason": "event_queue_overflow"}),
+            };
+            encode_message(&BridgeMessage::Event(event), limits).map_err(SessionError::from)
+        })
     }
 }
 
@@ -621,6 +662,46 @@ mod tests {
             )
             .expect_err("stopped");
         assert_eq!(error.status, CovioStatusCode::ShuttingDown as u32);
+    }
+
+    #[test]
+    fn event_overflow_emits_snapshot_required_and_preserves_terminal_events() {
+        let session = configured_session();
+        session
+            .next_event(0)
+            .expect("ready event")
+            .expect("ready event");
+
+        for index in 0..MAX_EVENT_COUNT - 1 {
+            session
+                .emit("test.progress", json!({"index": index}), false)
+                .expect("progress event");
+        }
+        session
+            .emit("test.terminal", json!({}), true)
+            .expect("terminal event");
+        session
+            .emit("test.progress", json!({"index": MAX_EVENT_COUNT}), false)
+            .expect("overflow event");
+
+        let mut names = Vec::new();
+        for _ in 0..MAX_EVENT_COUNT {
+            let bytes = session
+                .next_event(0)
+                .expect("queued event")
+                .expect("queued event");
+            let BridgeMessage::Event(event) =
+                decode_message(&bytes, BridgeLimits::default()).expect("event")
+            else {
+                panic!("expected event");
+            };
+            names.push(event.event.as_str().to_owned());
+        }
+
+        assert_eq!(names.first().map(String::as_str), Some("snapshot_required"));
+        assert!(names.iter().any(|name| name == "test.terminal"));
+        assert_eq!(names.len(), MAX_EVENT_COUNT);
+        assert!(session.next_event(0).expect("empty queue").is_none());
     }
 
     #[test]
