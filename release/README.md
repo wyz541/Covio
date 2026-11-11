@@ -50,6 +50,7 @@ The generated files are:
 
 - `macosApp/src/Design/GeneratedReleaseIdentity.swift`
 - `macosApp/ReleaseIdentity.generated.xcconfig`
+- `composeApp/src/main/kotlin/com/covio/compose/GeneratedReleaseIdentity.kt`
 
 Do not edit generated files by hand.
 

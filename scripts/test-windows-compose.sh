@@ -38,6 +38,7 @@ fi
 cd "$ROOT"
 COVIO_JNI_LIBRARY="$JNI_LIBRARY_ENV" ./kotlin test
 COVIO_JNI_LIBRARY="$JNI_LIBRARY_ENV" ./kotlin task :composeApp:executableJarJvm
+python3 -I scripts/release_manifest.py check
 python3 -I scripts/generate-contract-constants.py --check
 python3 -I scripts/generate-bridge-contracts.py --check
 

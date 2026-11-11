@@ -5,6 +5,7 @@ The source of truth is release/release-manifest.json. The script generates:
 
 - Swift constants
 - an Xcode xcconfig
+- Compose Kotlin constants
 
 It also creates and verifies the artifact manifest generated at package time.
 """
@@ -26,6 +27,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SOURCE_MANIFEST = pathlib.Path("release/release-manifest.json")
 SWIFT_OUT = pathlib.Path("macosApp/src/Design/GeneratedReleaseIdentity.swift")
 XCCONFIG_OUT = pathlib.Path("macosApp/ReleaseIdentity.generated.xcconfig")
+KOTLIN_OUT = pathlib.Path("composeApp/src/main/kotlin/com/covio/compose/GeneratedReleaseIdentity.kt")
+COMPOSE_MAIN = pathlib.Path("composeApp/src/main/kotlin/com/covio/compose/Main.kt")
 PBXPROJ = pathlib.Path("macosApp/Covio.xcodeproj/project.pbxproj")
 INFO_PLIST = pathlib.Path("macosApp/src/Info.plist")
 SIGNING_XCCONFIG = pathlib.Path("macosApp/Signing.xcconfig")
@@ -234,11 +237,31 @@ def render_xcconfig(spec: ReleaseSpec) -> str:
     )
 
 
+def render_kotlin(spec: ReleaseSpec) -> str:
+    return "\n".join(
+        [
+            GENERATED_HEADER,
+            "",
+            "package com.covio.compose",
+            "",
+            "object GeneratedReleaseIdentity {",
+            f'    const val clientVersion = "{spec.client_version}"',
+            f'    const val productVersion = "{spec.product_version}"',
+            f"    const val buildNumber = {spec.build_number}",
+            f'    const val channel = "{spec.channel}"',
+            f"    const val helperProtocolVersion = {spec.helper_protocol_version}",
+            "}",
+            "",
+        ]
+    )
+
+
 def expected_outputs(root: pathlib.Path = ROOT) -> dict[pathlib.Path, str]:
     spec = load_spec(root)
     return {
         _path(root, SWIFT_OUT): render_swift(spec),
         _path(root, XCCONFIG_OUT): render_xcconfig(spec),
+        _path(root, KOTLIN_OUT): render_kotlin(spec),
     }
 
 

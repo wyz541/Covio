@@ -101,7 +101,7 @@ class ReleaseManifestTests(unittest.TestCase):
                 release.drift_errors(root),
             )
 
-    def test_generation_has_no_kotlin_product_output(self):
+    def test_generation_includes_compose_release_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_fixture(root)
@@ -110,10 +110,29 @@ class ReleaseManifestTests(unittest.TestCase):
                 {
                     root / release.SWIFT_OUT,
                     root / release.XCCONFIG_OUT,
+                    root / release.KOTLIN_OUT,
                 },
             )
-            self.assertFalse(hasattr(release, "KOTLIN_OUT"))
-            self.assertFalse(hasattr(release, "render_kotlin"))
+            kotlin = (root / release.KOTLIN_OUT).read_text(encoding="utf-8")
+            self.assertIn("package com.covio.compose", kotlin)
+            self.assertIn('const val clientVersion = "1.2.3-internal.4"', kotlin)
+            self.assertIn("const val buildNumber = 4", kotlin)
+
+    def test_compose_host_uses_generated_release_identity(self):
+        main = (release.ROOT / release.COMPOSE_MAIN).read_text(encoding="utf-8")
+        self.assertIn("GeneratedReleaseIdentity.clientVersion", main)
+        self.assertNotRegex(main, r'"\d+\.\d+\.\d+-internal\.\d+"')
+
+    def test_drift_detects_stale_kotlin_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            path = root / release.KOTLIN_OUT
+            path.write_text("stale\n", encoding="utf-8")
+            self.assertIn(
+                f"generated file is stale: {release.KOTLIN_OUT}",
+                release.drift_errors(root),
+            )
 
     def test_artifact_manifest_rejects_helper_hash_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:

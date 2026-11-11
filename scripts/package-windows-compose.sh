@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUTPUT_DIR="${COVIO_COMPOSE_OUTPUT_DIR:-$ROOT/build/windows-compose-package}"
-APP_VERSION="${COVIO_COMPOSE_VERSION:-0.6.0}"
+APP_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 NATIVE_DIR="$ROOT/composeApp/src/main/resources/native/windows-x64"
 JAR="$ROOT/build/tasks/_composeApp_executableJarJvm/composeApp-jvm-executable.jar"
