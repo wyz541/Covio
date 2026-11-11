@@ -60,7 +60,24 @@ Kotlin 或 JVM host 通过 `RegisterNatives` 绑定这些入口。
 session 关闭时返回 `COVIO_STATUS_SHUTTING_DOWN`。
 panic 在 FFI 边界转换为 `COVIO_STATUS_PANIC` 或 `COVIO_STATUS_INTERNAL`。
 
-## 5. 生成和检查
+## 5. JNI 实现
+
+JNI 合同由 `covio-jni` 实现。实现复用 `covio-bridge` 的 envelope、generation、deadline、取消和事件队列语义。
+
+当前 JNI 入口如下。
+
+- `covio_jni_handle_create`
+- `covio_jni_handle_configure`
+- `covio_jni_handle_dispatch`
+- `covio_jni_handle_cancel`
+- `covio_jni_handle_shutdown`
+- `covio_jni_handle_next_event`
+- `covio_jni_handle_lifecycle`
+- `covio_jni_handle_active_request_count`
+
+`nativeConfigure` 传入绝对 data root、host adapter 报告和只读系统信息。JNI 不保存 `JNIEnv`，也不向 UI 线程回调。
+
+## 6. 生成和检查
 
 写生成物：
 
@@ -78,7 +95,7 @@ CI 运行漂移检查。
 Rust 测试检查合同中的 ABI 版本、protocol 版本、状态码和 lifecycle 与 Rust 定义一致。
 生成器检查 Rust bridge 函数表面没有遗漏或多余入口。
 
-## 6. 约束
+## 7. 约束
 
 1. 不手改生成头文件。
 2. 文件内容不进入普通 JSON control envelope。

@@ -10,7 +10,7 @@ macOS 与 iOS 的 Apple 设计是文案与设计令牌的权威。
     macosApp/src/Design/ContractSemantics.swift     Swift 语义、焦序、覆盖与验收
     rust/crates/covio-core/src/contract_motion.rs   Rust 动效
     rust/crates/covio-core/src/contract_design.rs   Rust 完整合同
-    composeApp/src/commonMain/kotlin/com/covio/design/GeneratedDesignContract.kt
+    composeApp/src/main/kotlin/com/covio/design/GeneratedDesignContract.kt
 
 用法：
     python3 scripts/generate-contract-constants.py           写入文件
@@ -39,7 +39,7 @@ COMPOSE_OUT = (
     ROOT
     / "composeApp"
     / "src"
-    / "commonMain"
+    / "main"
     / "kotlin"
     / "com"
     / "covio"
@@ -1253,6 +1253,10 @@ def generate_compose(contract: dict) -> str:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="不写文件，只报告是否有差异")
     args = parser.parse_args()

@@ -65,7 +65,7 @@ python3 scripts/generate-contract-constants.py
 - `macosApp/src/Design/ContractSemantics.swift`
 - `rust/crates/covio-core/src/contract_motion.rs`
 - `rust/crates/covio-core/src/contract_design.rs`
-- `composeApp/src/commonMain/kotlin/com/covio/design/GeneratedDesignContract.kt`
+- `composeApp/src/main/kotlin/com/covio/design/GeneratedDesignContract.kt`
 
 禁止手改生成物。
 

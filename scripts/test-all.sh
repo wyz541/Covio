@@ -4,23 +4,25 @@ set -euo pipefail
 # 全量测试入口。跨模块、协议、发布和 CI 门禁排障时使用。
 # 日常迭代按 `docs/process/workflow.md` 的「测试门禁」运行相关测试。
 #
-# 十六步，任一步失败就停：
+# 十八步，任一步失败就停：
 #   1. 发布身份与脚本检查。
 #   2. Rust core 与 bridge 的 fmt、Clippy 和测试。
 #   3. Windows host、installer 和 capability smoke。
-#   4. macOS 与 Windows artifact boundary checker。
-#   5. KMP、Kotlin 与 JVM 产品路径已删除。
-#   6. 合同常量有没有漂移。
-#   7. 合同的跨段规则。schema 表达不了的那些。
-#   8. Issue 与 PR 模板是否把视觉证据放在正确对象。
-#   9. Release 缓存路径与 linked worktree 解析。
-#   10. Debug 构建缓存路径、保留和清理规则。
-#   11. 性能门禁工具。
-#   12. 割接脚本的断言。
-#   13. 本机 app-helper 升级与回滚事务。
-#   14. Updater launcher、XPC engine 和回退状态机。
-#   15. 文件自动命名模型清单。
-#   16. macOS SwiftUI 宿主的 XCTest。
+#   4. Windows Compose host、JNI round-trip、截图和 opt-in package。
+#   5. macOS 与 Windows artifact boundary checker。
+#   6. KMP shared module 已删除，Compose host 路径保留。
+#   7. 合同常量有没有漂移。
+#   8. Bridge 合同头文件有没有漂移。
+#   9. 合同的跨段规则。schema 表达不了的那些。
+#   10. Issue 与 PR 模板是否把视觉证据放在正确对象。
+#   11. Release 缓存路径与 linked worktree 解析。
+#   12. Debug 构建缓存路径、保留和清理规则。
+#   13. 性能门禁工具。
+#   14. 割接脚本的断言。
+#   15. 本机 app-helper 升级与回滚事务。
+#   16. Updater launcher、XPC engine 和回退状态机。
+#   17. 文件自动命名模型清单。
+#   18. macOS SwiftUI 宿主的 XCTest。
 #
 # 安装事务步骤也会跑合同检查。分开列是为了让它们单独报错。
 
@@ -43,6 +45,9 @@ bash "$ROOT/scripts/test-rust.sh"
 
 step "Windows host"
 bash "$ROOT/scripts/test-windows-rust.sh"
+
+step "Windows Compose host"
+bash "$ROOT/scripts/test-windows-compose.sh"
 
 step "Artifact boundary scripts"
 bash "$ROOT/scripts/test-verify-macos-artifact.sh"

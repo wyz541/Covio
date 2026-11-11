@@ -1,0 +1,17 @@
+product: jvm/app
+layout: maven-like
+
+dependencies:
+  - $compose.desktop.currentOs
+  - $compose.material3
+  - com.google.zxing:core:3.5.3
+  - org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2
+  - org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0
+
+settings:
+  compose: enabled
+  kotlin:
+    serialization: enabled
+  jvm:
+    mainClass: com.covio.compose.MainKt
+    release: 21

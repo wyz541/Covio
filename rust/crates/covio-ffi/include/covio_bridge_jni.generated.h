@@ -34,6 +34,14 @@ JNIEXPORT jlong JNICALL covio_jni_handle_create(
     jobject error_out
 );
 
+JNIEXPORT jint JNICALL covio_jni_handle_configure(
+    JNIEnv *env,
+    jclass clazz,
+    jlong handle,
+    jbyteArray config_json,
+    jobject error_out
+);
+
 JNIEXPORT void JNICALL covio_jni_handle_release(
     JNIEnv *env,
     jclass clazz,
@@ -68,6 +76,15 @@ JNIEXPORT jint JNICALL covio_jni_handle_shutdown(
     jboolean has_deadline,
     jlong deadline_unix_millis,
     jlong now_unix_millis,
+    jobject error_out
+);
+
+JNIEXPORT jint JNICALL covio_jni_handle_next_event(
+    JNIEnv *env,
+    jclass clazz,
+    jlong handle,
+    jint timeout_ms,
+    jobject out_message,
     jobject error_out
 );
 

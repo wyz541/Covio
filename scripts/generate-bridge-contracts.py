@@ -35,10 +35,12 @@ REQUIRED_JNI_FUNCTIONS = {
     "covio_jni_abi_version",
     "covio_jni_protocol_version",
     "covio_jni_handle_create",
+    "covio_jni_handle_configure",
     "covio_jni_handle_release",
     "covio_jni_handle_dispatch",
     "covio_jni_handle_cancel",
     "covio_jni_handle_shutdown",
+    "covio_jni_handle_next_event",
     "covio_jni_handle_lifecycle",
     "covio_jni_handle_active_request_count",
 }
@@ -278,7 +280,7 @@ def write_or_check(path: Path, expected: str, check: bool) -> bool:
             return False
         return True
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(expected, encoding="utf-8", newline="\n")
+    path.write_text(expected, encoding="utf-8")
     print(f"wrote {path.relative_to(ROOT)}")
     return True
 

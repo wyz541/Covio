@@ -151,6 +151,15 @@
       ]
     },
     {
+      "name": "covio_jni_handle_configure",
+      "returnType": "jint",
+      "parameters": [
+        {"name": "handle", "type": "jlong"},
+        {"name": "config_json", "type": "jbyteArray"},
+        {"name": "error_out", "type": "jobject"}
+      ]
+    },
+    {
       "name": "covio_jni_handle_release",
       "returnType": "void",
       "parameters": [
@@ -188,6 +197,16 @@
         {"name": "has_deadline", "type": "jboolean"},
         {"name": "deadline_unix_millis", "type": "jlong"},
         {"name": "now_unix_millis", "type": "jlong"},
+        {"name": "error_out", "type": "jobject"}
+      ]
+    },
+    {
+      "name": "covio_jni_handle_next_event",
+      "returnType": "jint",
+      "parameters": [
+        {"name": "handle", "type": "jlong"},
+        {"name": "timeout_ms", "type": "jint"},
+        {"name": "out_message", "type": "jobject"},
         {"name": "error_out", "type": "jobject"}
       ]
     },

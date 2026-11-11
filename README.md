@@ -53,7 +53,7 @@ Android follows after the first release.
 | Platform | Status | UI | Rust boundary |
 | --- | --- | --- | --- |
 | macOS | current | SwiftUI + AppKit | C ABI; UniFFI optional |
-| Windows | egui baseline, Compose target | Compose Multiplatform | JNI |
+| Windows | egui baseline + Compose opt-in prototype | Compose Multiplatform | JNI |
 | iOS | first release target | SwiftUI | C ABI; UniFFI optional |
 | Android | later target | Compose Multiplatform | JNI |
 
@@ -65,8 +65,10 @@ Windows and Android share Compose UI and interaction semantics.
 macOS and iOS keep Apple-native SwiftUI behavior.
 Apple design is the visual authority for the shared design contract.
 
-The current Windows host still uses egui.
+The current Windows product host still uses egui.
+The Compose host is an opt-in prototype under `composeApp/`.
 The Compose host must pass functional, visual, packaging, and performance acceptance before cutover.
+See [Windows Compose host](docs/design/windows-compose-host.md).
 
 - Product and platform decision: [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md)
 - Target architecture: [Cross-platform product](docs/design/cross-platform-product.md)
@@ -408,8 +410,10 @@ Build one side only:
 ```sh
 bash scripts/build-macos-swift.sh     # build the Rust-core macOS host
 bash scripts/test-macos-swift.sh      # run the host XCTest suite
-bash scripts/package-windows.sh       # build the Windows installer on Windows
-bash scripts/test-windows-rust.sh     # run the Windows host and capability checks
+bash scripts/package-windows.sh       # build the egui Windows installer on Windows
+bash scripts/test-windows-rust.sh     # run the egui host and capability checks
+bash scripts/test-windows-compose.sh  # run the Compose host, JNI, and screenshots
+bash scripts/package-windows-compose.sh # build the opt-in jlink/jpackage ZIP and MSI
 ```
 
 The macOS build scripts keep DerivedData in `~/Library/Caches/Covio/DerivedData`.
@@ -461,7 +465,8 @@ The macOS host is SwiftUI and links the Rust core through the C ABI.
 The external Agent token uses the Rust Keychain adapter through the same C ABI.
 The macOS build does not link or embed a Kotlin framework. Open `macosApp/Covio.xcodeproj` to work on the host.
 The KMP shared module remains removed.
-The target Windows Compose host will call the Rust core through JNI and UniFFI.
+The opt-in Windows Compose host calls the Rust core through JNI.
+UniFFI remains an isolated experiment.
 The current egui host remains the runnable Windows baseline until the Compose cutover.
 See [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md), [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md), and [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md).
 
@@ -472,9 +477,12 @@ Run these commands on Windows 11:
 ```sh
 bash scripts/test-windows-rust.sh
 bash scripts/package-windows.sh
+bash scripts/test-windows-compose.sh
+bash scripts/package-windows-compose.sh
 ```
 
-The package script builds `covio-windows.exe` and a current-user Inno Setup installer.
+The egui package script builds `covio-windows.exe` and a current-user Inno Setup installer.
+The Compose package script builds a `jlink` runtime and `jpackage` app image, portable ZIP, and MSI.
 The installer writes under `%LOCALAPPDATA%\Programs\Covio`.
 It does not require elevation.
 It registers the `com.wyz.covio` AppUserModelID for Start Menu shortcuts.
@@ -482,8 +490,10 @@ The Rust host stores durable state under `%LOCALAPPDATA%\Covio`.
 Secrets use Windows Credential Manager.
 
 CI installs a previous build, upgrades to the current build, checks crash recovery, rolls back to the previous build, and uninstalls.
-Until the Compose cutover, CI rejects JVM, Kotlin, Compose, and JNA dependencies or artifact files.
-ADR-0035 changes the target UI boundary. The research and migration tasks must update these checks.
+The KMP shared module remains removed.
+The opt-in Compose host is limited to `composeApp/` and contains no shared business module.
+CI rejects JNA and Kotlin business-domain paths.
+The egui host remains the default Windows product until Compose acceptance completes.
 
 The project signs ad-hoc by default.
 Ad-hoc signing has no Team ID, so macOS identifies the app by its cdhash.

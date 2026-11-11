@@ -1526,6 +1526,7 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
+    #[ignore = "requires a signed macOS host with keychain entitlement"]
     fn agent_token_wrappers_read_write_replace_and_delete() {
         use std::time::{SystemTime, UNIX_EPOCH};
         let nonce = SystemTime::now()

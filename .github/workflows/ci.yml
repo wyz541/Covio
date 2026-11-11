@@ -43,10 +43,35 @@ jobs:
             Select-Object WindowsProductName, WindowsVersion, OsBuildNumber, OsArchitecture |
             Format-List
 
+      - name: Install JDK 21
+        shell: pwsh
+        run: |
+          choco install temurin21 --yes --no-progress
+          $jdk = Get-ChildItem "$env:ProgramFiles\Eclipse Adoptium" -Directory |
+            Where-Object { $_.Name -like 'jdk-21*' } |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+          if (-not $jdk) {
+            throw "Temurin 21 was not installed."
+          }
+          "JAVA_HOME=$($jdk.FullName)" >> $env:GITHUB_ENV
+          "$($jdk.FullName)\bin" >> $env:GITHUB_PATH
+          $wix = Get-ChildItem "${env:ProgramFiles(x86)}\WiX Toolset v3*\bin\candle.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if ($wix) {
+            $wix.Directory.FullName >> $env:GITHUB_PATH
+          }
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Restore Kotlin Toolchain cache
+        uses: actions/cache@v6
+        with:
+          path: ~/AppData/Local/JetBrains/Kotlin
+          key: kotlin-toolchain-0.12.1-windows-${{ hashFiles('kotlin', 'kotlin.bat', 'composeApp/module.yaml') }}
 
       - name: Restore Rust cache
         uses: actions/cache@v6
@@ -68,11 +93,23 @@ jobs:
         shell: bash
         run: bash scripts/test-windows-rust.sh
 
+      - name: Test Compose host and JNI
+        shell: bash
+        run: bash scripts/test-windows-compose.sh
+
       - name: Upload Windows x64 host screenshot
         uses: actions/upload-artifact@v4
         with:
           name: windows-host-x64-${{ github.run_id }}
           path: build/windows-host-screenshots/*.png
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Compose screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-compose-screenshots-${{ github.run_id }}
+          path: build/windows-compose-screenshots/*.png
           if-no-files-found: error
           retention-days: 30
 
@@ -133,12 +170,37 @@ jobs:
       needs.portable.outputs.full == 'true' ||
       needs.portable.outputs.installer == 'true'
     runs-on: windows-2025
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install JDK 21 and WiX
+        shell: pwsh
+        run: |
+          choco install temurin21 wixtoolset --yes --no-progress
+          $jdk = Get-ChildItem "$env:ProgramFiles\Eclipse Adoptium" -Directory |
+            Where-Object { $_.Name -like 'jdk-21*' } |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+          if (-not $jdk) {
+            throw "Temurin 21 was not installed."
+          }
+          "JAVA_HOME=$($jdk.FullName)" >> $env:GITHUB_ENV
+          "$($jdk.FullName)\bin" >> $env:GITHUB_PATH
+          $wix = Get-ChildItem "${env:ProgramFiles(x86)}\WiX Toolset v3*\bin\candle.exe" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if ($wix) {
+            $wix.Directory.FullName >> $env:GITHUB_PATH
+          }
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Kotlin Toolchain cache
+        uses: actions/cache@v6
+        with:
+          path: ~/AppData/Local/JetBrains/Kotlin
+          key: kotlin-toolchain-0.12.1-windows-${{ hashFiles('kotlin', 'kotlin.bat', 'composeApp/module.yaml') }}
 
       - name: Restore Rust cache
         uses: actions/cache@v6
@@ -174,6 +236,20 @@ jobs:
         shell: bash
         run: bash scripts/package-windows.sh
 
+      - name: Test Compose host and JNI
+        shell: bash
+        run: bash scripts/test-windows-compose.sh
+
+      - name: Build Compose package
+        shell: bash
+        env:
+          COVIO_COMPOSE_REQUIRE_MSI: "1"
+        run: bash scripts/package-windows-compose.sh
+
+      - name: Record Compose baseline
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/performance/windows_compose_baseline.ps1 -AppDirectory build/windows-compose-package/app-image/Covio -PackageDirectory build/windows-compose-package -AccessibilityPassed
+
       - name: Verify Windows artifact boundary
         shell: bash
         run: bash scripts/verify-windows-artifact.sh rust/target/release/covio-windows.exe
@@ -187,6 +263,22 @@ jobs:
         with:
           name: windows-package-${{ github.run_id }}
           path: build/windows-package/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Compose package
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-compose-package-${{ github.run_id }}
+          path: build/windows-compose-package/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Compose baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-compose-baseline-${{ github.run_id }}
+          path: build/performance/windows-compose/*
           if-no-files-found: error
           retention-days: 30
 
@@ -240,8 +332,14 @@ jobs:
             windows:
               - ".github/workflows/ci.yml"
               - "assets/windows/**"
+              - "composeApp/**"
+              - "project.yaml"
+              - "kotlin"
+              - "kotlin.bat"
               - "rust/**"
+              - "scripts/package-windows-compose.sh"
               - "scripts/test-all.sh"
+              - "scripts/test-windows-compose.sh"
               - "scripts/test-windows-rust.sh"
               - "scripts/validate-workflow.py"
             windows_arm:
@@ -255,7 +353,12 @@ jobs:
             installer:
               - ".github/workflows/ci.yml"
               - "assets/windows/**"
+              - "composeApp/**"
               - "installer/windows/**"
+              - "project.yaml"
+              - "kotlin"
+              - "kotlin.bat"
+              - "scripts/package-windows-compose.sh"
               - "release/release-manifest.json"
               - "scripts/package-windows.sh"
               - "scripts/release_manifest.py"

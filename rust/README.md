@@ -10,6 +10,7 @@
 | `covio-bridge` | 版本化 command、response、event、snapshot、cancel 和 shutdown envelope |
 | `covio-platform` | data paths、atomic filesystem、Keychain、Credential Manager、Windows capability adapter 和 inventory |
 | `covio-ffi` | macOS C ABI、opaque handle、callback、shutdown 和 Swift 可导入 header |
+| `covio-jni` | Windows Compose JNI session、命令路由、事件队列、能力请求和 panic containment |
 | `covio-windows` | Windows egui product host、托盘、单实例、core worker、capability composition 和 installer smoke |
 
 `covio-core` 的配置 codec 使用 Rust test fixture。保存时保留未知的根键和 `power`、`display`、`fileNaming` 子键。
@@ -32,6 +33,8 @@ Windows 对 socket 与 macOS 专属 power capability 返回 typed unavailable。
 
 `covio-windows` 在 Windows 上使用 Rust + egui。Windows host 直接持有 core worker，不启动 JVM。
 Host 提供 Screenshot shelf、clipboard history、workspace、settings 和 update handoff UI。
+`covio-jni` 为 opt-in Compose host 提供 JNI session。命令通过同一 bridge envelope 路由，长任务由 Rust worker 执行，事件进入有界队列。
+Compose 的文件选择和后台能力先请求 Rust capability token，再由 Kotlin adapter 完成 OS 调用。
 Installer 使用 Inno Setup，安装到 `%LOCALAPPDATA%\Programs\Covio`，不要求管理员权限。
 macOS、Android、iOS 和 Web 不是这个 host 的目标。
 
@@ -77,9 +80,12 @@ Windows CI 还运行：
 
 ```sh
 bash scripts/test-windows-rust.sh
+bash scripts/test-windows-compose.sh
 ```
 
 该脚本执行 Credential Manager round-trip、atomic write、clipboard、startup、updater handoff 和 typed capability smoke。
+`test-windows-compose.sh` 构建 `covio-jni`，运行 Rust session tests、Kotlin JNI round-trip、无障碍合同测试，并生成 Compose 页面截图。
+真实 macOS Keychain round-trip 需要已签名且带 Keychain entitlement 的宿主。默认测试跳过这一项；使用 `COVIO_RUN_REAL_KEYCHAIN_TESTS=1` 可在合格宿主上启用 Swift smoke 的 Keychain 检查。
 
 ## Bridge 规则
 
