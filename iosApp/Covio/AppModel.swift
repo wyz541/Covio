@@ -72,7 +72,6 @@ final class AppModel: ObservableObject {
             ))
             selectedPeerId = devices.first?.deviceId
             isReady = true
-            await LocalNotifications.requestAuthorization()
             startPolling()
         } catch {
             errorMessage = error.localizedDescription
@@ -90,6 +89,7 @@ final class AppModel: ObservableObject {
 
     func sendSelectedFile() async {
         guard let bridge, let selectedFile else { return }
+        await LocalNotifications.requestAuthorization()
         guard let peerId = selectedPeerId else {
             errorMessage = "Pair a device before sending a file."
             return
@@ -111,6 +111,7 @@ final class AppModel: ObservableObject {
 
     func startReceiving() async {
         guard let bridge else { return }
+        await LocalNotifications.requestAuthorization()
         do {
             let destination = try FileAccess.receivedDirectory()
             let payload = ListenPayload(destinationPath: destination.path)

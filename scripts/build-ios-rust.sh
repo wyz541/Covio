@@ -15,8 +15,15 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
-if ! command -v cargo >/dev/null 2>&1 && [[ -x "$HOME/.cargo/bin/cargo" ]]; then
-  export PATH="$HOME/.cargo/bin:$PATH"
+if ! command -v cargo >/dev/null 2>&1; then
+  for RUSTUP_BIN in "$HOME/.cargo/bin/rustup" "$HOME/tools/cargo/bin/rustup" /opt/homebrew/bin/rustup /usr/local/bin/rustup; do
+    if [[ -x "$RUSTUP_BIN" ]] &&
+      CARGO_BIN="$("$RUSTUP_BIN" which cargo 2>/dev/null)" &&
+      [[ -x "$CARGO_BIN" ]]; then
+      export PATH="$(dirname "$RUSTUP_BIN"):$(dirname "$CARGO_BIN"):$PATH"
+      break
+    fi
+  done
 fi
 if ! command -v cargo >/dev/null 2>&1; then
   printf 'Missing cargo. Install a Rust toolchain.\n' >&2

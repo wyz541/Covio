@@ -110,6 +110,8 @@ Swift 使用以下系统入口。
 | 生命周期 | SwiftUI `scenePhase` | 暂停和恢复任务 |
 | 安全存储 | Rust Keychain adapter | 保护设备身份根密钥 |
 
+首次发送或开始接收时，Covio 请求通知权限。
+
 接收文件保存在应用 `Application Support/Covio/Received`。
 发送文件副本保存在应用 `Application Support/Covio/Outbox`。
 

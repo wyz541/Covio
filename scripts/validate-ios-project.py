@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pathlib
 import plistlib
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -44,11 +45,23 @@ def validate_balanced(path: pathlib.Path, text: str) -> None:
         raise ValueError(f"unterminated token in {path}")
 
 
+def validate_unique_object_ids(path: pathlib.Path, text: str) -> None:
+    object_ids = re.findall(
+        r"^\t\t([A-F0-9]{24})(?: /\*.*?\*/)? = \{",
+        text,
+        flags=re.MULTILINE,
+    )
+    duplicates = sorted({object_id for object_id in object_ids if object_ids.count(object_id) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate Xcode object IDs in {path}: {', '.join(duplicates)}")
+
+
 def main() -> int:
     source_files = sorted((IOS_ROOT / "Covio").glob("*.swift"))
     test_files = sorted((IOS_ROOT / "CovioTests").glob("*.swift"))
     project_text = PROJECT.read_text(encoding="utf-8")
     validate_balanced(PROJECT, project_text)
+    validate_unique_object_ids(PROJECT, project_text)
     for path in [*source_files, *test_files, IOS_ROOT / "Covio" / "Info.plist"]:
         if not path.is_file():
             raise ValueError(f"missing iOS project file: {path}")

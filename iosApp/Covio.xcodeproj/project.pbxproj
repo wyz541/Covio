@@ -23,7 +23,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		F00000000000000000000001 /* PBXContainerItemProxy */ = {
+		F0000000000000000000000B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A00000000000000000000001 /* Project object */;
 			proxyType = 1;
@@ -268,7 +268,7 @@
 		F00000000000000000000004 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E00000000000000000000001 /* Covio */;
-			targetProxy = F00000000000000000000001 /* PBXContainerItemProxy */;
+			targetProxy = F0000000000000000000000B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 

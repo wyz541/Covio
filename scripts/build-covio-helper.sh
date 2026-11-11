@@ -87,6 +87,7 @@ SWIFT_FLAGS=(
   -framework IOKit
   -framework CoreFoundation
   -framework CoreGraphics
+  -framework SystemConfiguration
   -Xlinker -sectcreate
   -Xlinker __TEXT
   -Xlinker __info_plist
