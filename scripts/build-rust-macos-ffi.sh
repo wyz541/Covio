@@ -20,6 +20,12 @@ if ! command -v cargo >/dev/null 2>&1; then
   fi
 fi
 
+# Xcode passes its deployment target to this script.
+# Standalone builds use the same minimum as the macOS app target.
+# shellcheck source=scripts/rust-macos-env.sh
+source "$ROOT/scripts/rust-macos-env.sh"
+prepare_rust_macos_target "$ROOT"
+
 cd "$ROOT/rust"
 case "$PROFILE" in
   Debug|debug)
