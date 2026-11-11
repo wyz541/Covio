@@ -29,7 +29,7 @@ flowchart LR
 | Compose app | `composeApp/` | 页面、输入、主题、测试和平台请求 |
 | JNI bridge | `rust/crates/covio-jni/` | session、JNI 入口、事件队列、panic containment |
 | Capability model | `rust/crates/covio-platform/src/capabilities.rs` | 能力状态和 adapter 边界 |
-| Windows package | `scripts/package-windows-compose.sh` | `jlink` runtime 和 `jpackage` app image |
+| Windows package | `scripts/package-windows-compose.sh` | 从发布清单读取版本，并生成 `jlink` runtime 和 `jpackage` app image |
 
 ## 3. JNI 行为
 
@@ -77,6 +77,8 @@ pwsh -NoProfile -File scripts/performance/windows_compose_baseline.ps1 \
 
 ## 7. 当前验证与未完成项
 
+Windows Compose host 从 `release/release-manifest.json` 读取 `clientVersion`。
+生成物为 `composeApp/src/main/kotlin/com/covio/release/GeneratedReleaseIdentity.kt`。
 Windows 2025 x64 托管 runner 已验证以下结果。
 
 - Compose、JNI、Kotlin round-trip 和无障碍合同通过。

@@ -30,7 +30,6 @@ FORBIDDEN_TOKENS = (
     "provision-amper",
     "setup-java",
     "kotlin-linux",
-    "generatedreleaseidentity.kt",
 )
 EXCLUDED_DIRECTORIES = {".git", "build", "dist", "node_modules", "target"}
 ALLOWED_GENERATED_KOTLIN_PATHS = {

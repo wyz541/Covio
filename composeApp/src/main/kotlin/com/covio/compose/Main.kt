@@ -10,6 +10,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.covio.release.GeneratedReleaseIdentity
 import com.wyz.covio.bridge.CovioClient
 import com.wyz.covio.bridge.CovioSessionConfig
 import java.io.File
@@ -27,7 +28,7 @@ fun main(args: Array<String>) {
         displayName = System.getenv("COMPUTERNAME") ?: "Windows device",
         systemName = System.getProperty("os.name") ?: "Windows",
         systemVersion = System.getProperty("os.version") ?: "unknown",
-        appVersion = System.getenv("COVIO_APP_VERSION") ?: "0.6.0-internal.41",
+        appVersion = GeneratedReleaseIdentity.clientVersion,
         hostAdapters = listOf("file_picker", "notification", "background_task", "app_lifecycle"),
     )
     val client = remember { CovioClient(config) }
@@ -145,7 +146,7 @@ private fun runHeadlessSmoke(args: Array<String>) {
         displayName = System.getenv("COMPUTERNAME") ?: "Windows device",
         systemName = System.getProperty("os.name") ?: "Windows",
         systemVersion = System.getProperty("os.version") ?: "unknown",
-        appVersion = System.getenv("COVIO_APP_VERSION") ?: "0.6.0-internal.41",
+        appVersion = GeneratedReleaseIdentity.clientVersion,
         hostAdapters = listOf("file_picker", "notification", "background_task", "app_lifecycle"),
     )
     CovioClient(config).use { client ->

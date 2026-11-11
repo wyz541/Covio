@@ -101,19 +101,23 @@ class ReleaseManifestTests(unittest.TestCase):
                 release.drift_errors(root),
             )
 
-    def test_generation_has_no_kotlin_product_output(self):
+    def test_generation_includes_kotlin_product_output(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             self._write_fixture(root)
+            outputs = release.expected_outputs(root)
             self.assertEqual(
-                set(release.expected_outputs(root)),
+                set(outputs),
                 {
                     root / release.SWIFT_OUT,
                     root / release.XCCONFIG_OUT,
+                    root / release.KOTLIN_OUT,
                 },
             )
-            self.assertFalse(hasattr(release, "KOTLIN_OUT"))
-            self.assertFalse(hasattr(release, "render_kotlin"))
+            kotlin = outputs[root / release.KOTLIN_OUT]
+            self.assertIn("package com.covio.release", kotlin)
+            self.assertIn('const val clientVersion = "1.2.3-internal.4"', kotlin)
+            self.assertIn("const val buildNumber = 4", kotlin)
 
     def test_artifact_manifest_rejects_helper_hash_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
