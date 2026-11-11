@@ -52,7 +52,7 @@ macOS 的外观、时序和状态转换是 Compose host 的验收基准。
 
 - Compose host 从 JSON 合同生成类型和常量。
 - Compose 运行时只读取生成的合同。
-- Compose 生成物位于 `composeApp/src/commonMain/kotlin/com/covio/design/GeneratedDesignContract.kt`。
+- Compose 生成物位于 `composeApp/src/main/kotlin/com/covio/design/GeneratedDesignContract.kt`。
 - Compose 不复制共享触发、几何、动效或状态转换值。
 - 平台 adapter 只处理 OS API 和 Compose 能力差异。
 - Compose 测试覆盖触发、状态、时序和几何。

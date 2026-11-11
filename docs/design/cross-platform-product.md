@@ -17,7 +17,7 @@ SwiftUI 与 Compose 只拥有平台 UI、输入和平台接入。
 | 平台 | 当前状态 | 目标 UI | Rust bridge | 凭据存储 |
 | --- | --- | --- | --- | --- |
 | macOS | 已交付 | SwiftUI + AppKit | C ABI；UniFFI 可选 | Keychain |
-| Windows | egui 基线 | Compose Multiplatform | JNI | Credential Manager |
+| Windows | egui 基线 + Compose opt-in prototype | Compose Multiplatform | JNI | Credential Manager |
 | iOS | 第一版目标 | SwiftUI | C ABI；UniFFI 可选 | Keychain |
 | Android | 后续目标 | Compose Multiplatform | JNI | Keystore |
 

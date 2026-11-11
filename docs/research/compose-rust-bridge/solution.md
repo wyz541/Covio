@@ -7,10 +7,11 @@
 | 文档版本 | `1.0` |
 | 状态 | 初稿，可评审 |
 | 日期 | `2026-11-10` |
-| 实施状态 | 尚未执行 |
+| 实施状态 | opt-in prototype 已建立；验收待完成 |
 | 回滚状态 | 可回滚到 egui 基线 |
 
 本文件给出推荐架构、接口合同、设计合同、迁移阶段和验收门槛。
+实现记录见 [Windows Compose host](../../design/windows-compose-host.md)。
 证据见 [evidence.md](evidence.md)。
 
 ## 2. 推荐架构

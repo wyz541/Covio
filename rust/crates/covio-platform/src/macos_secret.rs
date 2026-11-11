@@ -233,6 +233,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires a signed macOS host with keychain entitlement"]
     fn real_keychain_round_trip_and_replacement() {
         use std::time::{SystemTime, UNIX_EPOCH};
 

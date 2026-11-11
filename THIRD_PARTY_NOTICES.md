@@ -163,3 +163,16 @@ Covio includes the fixed MLX 4-bit model conversion for local, offline file nami
 - License file: `third_party/models/Qwen3-VL-2B-Instruct/LICENSE`
 - Attribution: `third_party/models/Qwen3-VL-2B-Instruct/NOTICE`
 - Fixed file manifest: `macosApp/src/AutoNaming/FileNamingModelManifest.json`
+
+
+## Kotlin Toolchain wrapper
+
+The `kotlin` and `kotlin.bat` launchers are adapted from the Kotlin Toolchain Compose desktop example.
+
+- Source: https://github.com/JetBrains/kotlin-toolchain
+- Fixed tag: `v0.12.1`
+- Copyright: Copyright 2000-2026 JetBrains s.r.o. and contributors
+- License: Apache-2.0
+- License text: https://github.com/JetBrains/kotlin-toolchain/blob/v0.12.1/LICENSE.txt
+
+The committed launchers only download and verify the pinned Kotlin CLI distribution. Covio does not embed the downloaded distribution in the repository.

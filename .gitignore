@@ -25,3 +25,8 @@ CovioUpdatePrivate-*.json
 
 # Rust
 rust/target/
+
+# Packaged JNI libraries are generated from the Rust workspace.
+composeApp/src/main/resources/native/**/*.dll
+composeApp/src/main/resources/native/**/*.dylib
+composeApp/src/main/resources/native/**/*.so

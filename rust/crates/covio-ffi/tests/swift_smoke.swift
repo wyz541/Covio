@@ -86,106 +86,110 @@ guard covio_capability_status(4, &capabilityError) == 12 else {
     fail("unwired power capability did not return unavailable")
 }
 
-let smokeRoot = FileManager.default.temporaryDirectory
-    .appendingPathComponent("covio-ffi-smoke-\(UUID().uuidString)")
-    .path
-let dataRoot = Array(smokeRoot.utf8)
-let keychainService = Array("com.wyz.covio.agent.ffi.swift-smoke.\(UUID().uuidString)".utf8)
-let keychainKey = Array("mcp-bearer-token".utf8)
-let keychainValue = Array("swift-value".utf8)
-var keychainError = CovioError(code: 0, message: CovioOwnedBytes(data: nil, len: 0, capacity: 0))
-let deleteStatus = dataRoot.withUnsafeBufferPointer { root in
-    keychainService.withUnsafeBufferPointer { service in
-        keychainKey.withUnsafeBufferPointer { key in
-            covio_agent_token_delete(
-                root.baseAddress,
-                root.count,
-                service.baseAddress,
-                service.count,
-                key.baseAddress,
-                key.count,
-                &keychainError
-            )
-        }
-    }
-}
-guard deleteStatus == 0 else {
-    fail("stale keychain delete failed: \(errorText(keychainError))")
-}
-let writeStatus = dataRoot.withUnsafeBufferPointer { root in
-    keychainService.withUnsafeBufferPointer { service in
-        keychainKey.withUnsafeBufferPointer { key in
-            keychainValue.withUnsafeBufferPointer { value in
-                covio_agent_token_write(
+if ProcessInfo.processInfo.environment["COVIO_RUN_REAL_KEYCHAIN_TESTS"] == "1" {
+    let smokeRoot = FileManager.default.temporaryDirectory
+        .appendingPathComponent("covio-ffi-smoke-\(UUID().uuidString)")
+        .path
+    let dataRoot = Array(smokeRoot.utf8)
+    let keychainService = Array("com.wyz.covio.agent.ffi.swift-smoke.\(UUID().uuidString)".utf8)
+    let keychainKey = Array("mcp-bearer-token".utf8)
+    let keychainValue = Array("swift-value".utf8)
+    var keychainError = CovioError(code: 0, message: CovioOwnedBytes(data: nil, len: 0, capacity: 0))
+    let deleteStatus = dataRoot.withUnsafeBufferPointer { root in
+        keychainService.withUnsafeBufferPointer { service in
+            keychainKey.withUnsafeBufferPointer { key in
+                covio_agent_token_delete(
                     root.baseAddress,
                     root.count,
                     service.baseAddress,
                     service.count,
                     key.baseAddress,
                     key.count,
-                    value.baseAddress,
-                    value.count,
                     &keychainError
                 )
             }
         }
     }
-}
-guard writeStatus == 0 else {
-    fail("keychain write failed: \(errorText(keychainError))")
-}
-var keychainOutput = CovioOwnedBytes(data: nil, len: 0, capacity: 0)
-let readStatus = dataRoot.withUnsafeBufferPointer { root in
-    keychainService.withUnsafeBufferPointer { service in
-        keychainKey.withUnsafeBufferPointer { key in
-            covio_agent_token_read(
-                root.baseAddress,
-                root.count,
-                service.baseAddress,
-                service.count,
-                key.baseAddress,
-                key.count,
-                &keychainOutput,
-                &keychainError
-            )
+    guard deleteStatus == 0 else {
+        fail("stale keychain delete failed: \(errorText(keychainError))")
+    }
+    let writeStatus = dataRoot.withUnsafeBufferPointer { root in
+        keychainService.withUnsafeBufferPointer { service in
+            keychainKey.withUnsafeBufferPointer { key in
+                keychainValue.withUnsafeBufferPointer { value in
+                    covio_agent_token_write(
+                        root.baseAddress,
+                        root.count,
+                        service.baseAddress,
+                        service.count,
+                        key.baseAddress,
+                        key.count,
+                        value.baseAddress,
+                        value.count,
+                        &keychainError
+                    )
+                }
+            }
         }
     }
-}
-guard readStatus == 0,
-      let outputData = keychainOutput.data,
-      String(decoding: UnsafeBufferPointer(start: outputData, count: keychainOutput.len), as: UTF8.self) == "swift-value"
-else {
-    fail("keychain read failed: \(errorText(keychainError))")
-}
-covio_owned_bytes_free(&keychainOutput)
-let cleanupStatus = dataRoot.withUnsafeBufferPointer { root in
-    keychainService.withUnsafeBufferPointer { service in
-        keychainKey.withUnsafeBufferPointer { key in
-            covio_agent_token_delete(
-                root.baseAddress,
-                root.count,
-                service.baseAddress,
-                service.count,
-                key.baseAddress,
-                key.count,
-                &keychainError
-            )
+    guard writeStatus == 0 else {
+        fail("keychain write failed: \(errorText(keychainError))")
+    }
+    var keychainOutput = CovioOwnedBytes(data: nil, len: 0, capacity: 0)
+    let readStatus = dataRoot.withUnsafeBufferPointer { root in
+        keychainService.withUnsafeBufferPointer { service in
+            keychainKey.withUnsafeBufferPointer { key in
+                covio_agent_token_read(
+                    root.baseAddress,
+                    root.count,
+                    service.baseAddress,
+                    service.count,
+                    key.baseAddress,
+                    key.count,
+                    &keychainOutput,
+                    &keychainError
+                )
+            }
         }
     }
+    guard readStatus == 0,
+          let outputData = keychainOutput.data,
+          String(decoding: UnsafeBufferPointer(start: outputData, count: keychainOutput.len), as: UTF8.self) == "swift-value"
+    else {
+        fail("keychain read failed: \(errorText(keychainError))")
+    }
+    covio_owned_bytes_free(&keychainOutput)
+    let cleanupStatus = dataRoot.withUnsafeBufferPointer { root in
+        keychainService.withUnsafeBufferPointer { service in
+            keychainKey.withUnsafeBufferPointer { key in
+                covio_agent_token_delete(
+                    root.baseAddress,
+                    root.count,
+                    service.baseAddress,
+                    service.count,
+                    key.baseAddress,
+                    key.count,
+                    &keychainError
+                )
+            }
+        }
+    }
+    guard cleanupStatus == 0 else {
+        fail("keychain cleanup failed: \(errorText(keychainError))")
+    }
+    let resetStatus = dataRoot.withUnsafeBufferPointer { root in
+        covio_agent_token_reset(root.baseAddress, root.count, &keychainError)
+    }
+    guard resetStatus == 0 else {
+        fail("credential vault reset failed: \(errorText(keychainError))")
+    }
+    try? FileManager.default.removeItem(atPath: smokeRoot)
+    covio_error_free(&keychainError)
+} else {
+    print("Covio C ABI keychain checks skipped: requires a signed macOS host")
 }
-guard cleanupStatus == 0 else {
-    fail("keychain cleanup failed: \(errorText(keychainError))")
-}
-let resetStatus = dataRoot.withUnsafeBufferPointer { root in
-    covio_agent_token_reset(root.baseAddress, root.count, &keychainError)
-}
-guard resetStatus == 0 else {
-    fail("credential vault reset failed: \(errorText(keychainError))")
-}
-try? FileManager.default.removeItem(atPath: smokeRoot)
 covio_error_free(&cancelError)
 covio_error_free(&shutdownError)
 covio_error_free(&capabilityError)
-covio_error_free(&keychainError)
 
 print("Covio C ABI Swift smoke passed")

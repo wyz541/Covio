@@ -602,11 +602,14 @@ impl<S: SecretStore, F: FileStore + Clone> DeviceIdentityService<S, F> {
         public_identity_from_record(&record)
     }
 
-    /// Binds an iroh endpoint with the same Ed25519 key used for pairing.
-    pub async fn bind_transfer_endpoint(
+    /// Returns the transfer secret to the Rust host composition.
+    ///
+    /// The value never crosses the UI bridge. The host calls this before it
+    /// enters an asynchronous endpoint bind so the credential lock is not held
+    /// across an await point.
+    pub fn transfer_secret_key(
         &self,
-    ) -> Result<crate::file_transfer::IrohTransferEndpoint, crate::file_transfer::TransferError>
-    {
+    ) -> Result<iroh::SecretKey, crate::file_transfer::TransferError> {
         let record = read_identity_record(&self.vault).map_err(|error| {
             crate::file_transfer::TransferError::new(
                 crate::file_transfer::TransferErrorCode::StorageIoError,
@@ -614,8 +617,15 @@ impl<S: SecretStore, F: FileStore + Clone> DeviceIdentityService<S, F> {
                 error.retryable(),
             )
         })?;
-        let secret_key = iroh::SecretKey::from_bytes(&record.seed);
-        crate::file_transfer::IrohTransferEndpoint::bind(secret_key).await
+        Ok(iroh::SecretKey::from_bytes(&record.seed))
+    }
+
+    /// Binds an iroh endpoint with the same Ed25519 key used for pairing.
+    pub async fn bind_transfer_endpoint(
+        &self,
+    ) -> Result<crate::file_transfer::IrohTransferEndpoint, crate::file_transfer::TransferError>
+    {
+        crate::file_transfer::IrohTransferEndpoint::bind(self.transfer_secret_key()?).await
     }
 
     /// Loads the device identity or creates one with a display name.
