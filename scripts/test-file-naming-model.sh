@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODEL_DIR="${COVIO_FILE_NAMING_MODEL_DIR:-}"
 RESULT_PATH="${COVIO_FILE_NAMING_RESULTS_PATH:-$ROOT/build/file-naming-model-results.json}"
-DERIVED_DATA="$ROOT/build/xcode-dd"
+DERIVED_DATA="$(python3 -I "$ROOT/scripts/build_cache.py" prepare "$ROOT")"
 
 if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   printf 'This script requires an Apple Silicon Mac.\n' >&2

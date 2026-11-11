@@ -40,6 +40,13 @@ Local install:
       --pkg        Package and install through the transactional PKG instead.
       --no-launch  Do not start Covio after the install.
 
+Build cache:
+  cache status
+      Show the local development DerivedData cache.
+  cache clean [--apply]
+      Preview or delete stale development cache entries.
+      Deletion is a dry run unless --apply is provided.
+
 Internal release (run in this order):
   release status
       Show the release identity on origin/main, its tag, CI and Release state.
@@ -190,7 +197,9 @@ local_pkg() {
 # 替换 app 后，helper 身份不一致时重装 helper，再重写安装记录。
 # 安装记录与 app 一致时，下一次 PKG 升级的前置检查才能通过。
 local_app() {
-  local built="$ROOT/build/xcode-dd/Build/Products/Release/$APP_NAME.app"
+  local cache built
+  cache="$(python3 -I "$ROOT/scripts/build_cache.py" prepare "$ROOT")"
+  built="$cache/Build/Products/Release/$APP_NAME.app"
   local staged="/Applications/.$APP_NAME.app.installing"
   local backup="/Applications/.$APP_NAME.app.previous"
 
@@ -246,6 +255,19 @@ local_app() {
 
   COVIO_APP="$INSTALLED_APP" bash "$ROOT/scripts/verify-helper-cutover.sh" verify
   say "Installed $(identity_field "$app_identity" releaseId)"
+}
+
+# ---------------------------------------------------------------------------
+# cache
+
+cmd_cache() {
+  local sub="${1:-}"
+  [[ $# -gt 0 ]] && shift
+  case "$sub" in
+    status) python3 -I "$ROOT/scripts/build_cache.py" status "$ROOT" ;;
+    clean) python3 -I "$ROOT/scripts/build_cache.py" clean "$ROOT" "$@" ;;
+    *) usage >&2; exit 2 ;;
+  esac
 }
 
 # ---------------------------------------------------------------------------
@@ -539,6 +561,7 @@ clean_release_worktree() {
 
 case "${1:-}" in
   local) shift; cmd_local "$@" ;;
+  cache) shift; cmd_cache "$@" ;;
   release) shift; cmd_release "$@" ;;
   help|-h|--help|"") usage ;;
   *) usage >&2; exit 2 ;;

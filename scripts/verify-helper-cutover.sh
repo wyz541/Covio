@@ -21,7 +21,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-Debug}"
-APP="${COVIO_APP:-$ROOT/build/xcode-dd/Build/Products/$CONFIGURATION/Covio.app}"
+if [[ -n "${COVIO_APP:-}" ]]; then
+  APP="$COVIO_APP"
+else
+  DERIVED_DATA="$(python3 -I "$ROOT/scripts/build_cache.py" prepare "$ROOT")"
+  APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/Covio.app"
+fi
 APP_BINARY="$APP/Contents/MacOS/Covio"
 BUNDLED_HELPER="$APP/Contents/MacOS/CovioHelper"
 HELPER_DIR="${COVIO_HELPER_DIR:-/Library/Application Support/Covio}"
