@@ -84,6 +84,20 @@ pub trait SecretStore {
     fn delete(&self, key: &SecretKey) -> Result<(), PlatformError>;
 }
 
+impl<T: SecretStore + ?Sized> SecretStore for Box<T> {
+    fn read(&self, key: &SecretKey) -> Result<Option<SecretValue>, PlatformError> {
+        (**self).read(key)
+    }
+
+    fn write(&self, key: &SecretKey, value: &SecretValue) -> Result<(), PlatformError> {
+        (**self).write(key, value)
+    }
+
+    fn delete(&self, key: &SecretKey) -> Result<(), PlatformError> {
+        (**self).delete(key)
+    }
+}
+
 /// A secret store used until a native platform adapter is installed.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct UnavailableSecretStore;

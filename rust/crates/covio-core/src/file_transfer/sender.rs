@@ -93,6 +93,22 @@ impl<F: FileStore + Clone> TransferSender<F> {
         Ok(self.source.durable_offset())
     }
 
+    /// Resumes a paused sender after the peer reports its durable checkpoint.
+    pub fn resume(&mut self, durable_bytes: u64, now_ms: i64) -> Result<u64, TransferError> {
+        let job = self
+            .store
+            .resume(&self.source.manifest().transfer_id, now_ms)?;
+        if durable_bytes != self.source.durable_offset() {
+            self.source = SenderSource::resume(
+                self.files.clone(),
+                self.source_path.clone(),
+                job.manifest,
+                durable_bytes,
+            )?;
+        }
+        Ok(self.source.durable_offset())
+    }
+
     /// Reads the next bounded 8 MiB window.
     pub fn read_window(&mut self) -> Result<Vec<FileChunkFrame>, TransferError> {
         self.source.read_window()
@@ -103,6 +119,12 @@ impl<F: FileStore + Clone> TransferSender<F> {
         self.source.acknowledge(durable_bytes)?;
         self.store
             .sender_checkpoint(&self.source.manifest().transfer_id, durable_bytes, now_ms)
+    }
+
+    /// Records a mobile background transition and its durable checkpoint.
+    pub fn background(&self, now_ms: i64) -> Result<(), TransferError> {
+        self.store
+            .background(&self.source.manifest().transfer_id, now_ms)
     }
 
     /// Cancels the sender task without deleting the source file.

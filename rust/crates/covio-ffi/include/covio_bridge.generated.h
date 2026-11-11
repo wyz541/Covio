@@ -63,6 +63,7 @@ typedef void (*CovioEventCallback)(
 );
 
 typedef struct CovioHandle CovioHandle;
+typedef struct CovioMobileHandle CovioMobileHandle;
 
 #ifdef __cplusplus
 extern "C" {
@@ -124,6 +125,27 @@ uint32_t covio_handle_lifecycle(
 
 uint64_t covio_handle_active_request_count(
     const CovioHandle * handle
+);
+
+CovioMobileHandle * covio_mobile_create(
+    const uint8_t * data_root,
+    size_t data_root_len,
+    CovioError * error
+);
+
+void covio_mobile_release(
+    CovioMobileHandle * handle
+);
+
+uint32_t covio_mobile_call(
+    CovioMobileHandle * handle,
+    const uint8_t * command,
+    size_t command_len,
+    const uint8_t * payload,
+    size_t payload_len,
+    int64_t now_epoch_millis,
+    CovioOwnedBytes * out_data,
+    CovioError * error
 );
 
 void covio_owned_bytes_free(

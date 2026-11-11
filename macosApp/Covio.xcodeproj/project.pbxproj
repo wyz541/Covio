@@ -389,6 +389,8 @@
 					Security,
 					"-framework",
 					CoreFoundation,
+					"-framework",
+					SystemConfiguration,
 				);
 				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/include";
 				GENERATE_INFOPLIST_FILE = NO;
@@ -417,6 +419,8 @@
 					Security,
 					"-framework",
 					CoreFoundation,
+					"-framework",
+					SystemConfiguration,
 				);
 				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/include";
 				GENERATE_INFOPLIST_FILE = NO;
@@ -443,6 +447,8 @@
 					Security,
 					"-framework",
 					CoreFoundation,
+					"-framework",
+					SystemConfiguration,
 				);
 				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/include";
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -468,6 +474,8 @@
 					Security,
 					"-framework",
 					CoreFoundation,
+					"-framework",
+					SystemConfiguration,
 				);
 				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/../build/rust-macos-ffi/$(CONFIGURATION)/include";
 				BUNDLE_LOADER = "$(TEST_HOST)";

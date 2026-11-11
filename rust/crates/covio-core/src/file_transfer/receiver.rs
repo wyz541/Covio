@@ -131,6 +131,29 @@ impl<F: FileStore> TransferReceiver<F> {
         })
     }
 
+    /// Resumes a background-deferred receiver after peer revalidation.
+    pub fn resume(
+        &self,
+        transfer_id: &str,
+        resume_from: u64,
+        now_ms: i64,
+    ) -> Result<ResumePlan, TransferError> {
+        let job = self.store.resume(transfer_id, now_ms)?;
+        if resume_from != job.durable_bytes {
+            return Err(TransferError::new(
+                TransferErrorCode::ResumeCheckpointInvalid,
+                "peer checkpoint does not match the receiver",
+                false,
+            ));
+        }
+        self.verify_checkpoint(transfer_id)?;
+        Ok(ResumePlan {
+            job,
+            offset: resume_from,
+            staging_path: self.staging_path(transfer_id)?,
+        })
+    }
+
     /// Receives one chunk, verifies it, appends it, and persists its checkpoint.
     pub fn receive_chunk(
         &self,

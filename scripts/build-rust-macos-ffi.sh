@@ -27,6 +27,8 @@ source "$ROOT/scripts/rust-macos-env.sh"
 prepare_rust_macos_target "$ROOT"
 
 cd "$ROOT/rust"
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-26.0}"
+export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C link-arg=-framework -C link-arg=SystemConfiguration"
 case "$PROFILE" in
   Debug|debug)
     CARGO_PROFILE=debug

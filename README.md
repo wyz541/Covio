@@ -77,6 +77,7 @@ See [Windows Compose host](docs/design/windows-compose-host.md).
 - Device pairing: [Covio device identity and QR pairing](docs/design/device-pairing.md)
 - Single-file transfer: [Covio single-file transfer](docs/design/single-file-transfer.md)
 - Directory transfer: [Covio directory transfer](docs/design/directory-transfer.md)
+- iOS host: [iOS SwiftUI host](docs/design/ios-host.md)
 - Current Discussion: [#732](https://github.com/wyz541/Covio/discussions/732)
 - Current Rust migration record: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
 - Repository removal: [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md)

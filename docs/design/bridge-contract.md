@@ -36,6 +36,17 @@ C ABI 和 JNI 声明来自同一份合同。
 控制消息只传 request、response、event、snapshot、cancel、shutdown 和小型元数据。
 文件内容只能通过 opaque handle 或 stream 传输。
 
+iOS 宿主还使用以下 JSON facade。
+
+| 函数 | 用途 |
+| --- | --- |
+| `covio_mobile_create` | 创建 iOS 应用句柄 |
+| `covio_mobile_call` | 执行有界 JSON 命令 |
+| `covio_mobile_release` | 释放 iOS 应用句柄 |
+
+`covio_mobile_call` 只传命令、元数据和状态。
+文件内容仍由 Rust 通过 iroh stream 传输。
+
 ## 3. 平台映射
 
 | 平台 | 入口 | 说明 |
