@@ -178,6 +178,10 @@ pub struct PairingOffer {
     pub sender_ephemeral_public_key: String,
     pub expires_at_ms: i64,
     pub capabilities: Vec<String>,
+    #[serde(default)]
+    pub sender_system_name: String,
+    #[serde(default)]
+    pub sender_system_version: String,
     pub signature: String,
 }
 
@@ -211,6 +215,12 @@ pub struct PairingResponse {
     pub responder_display_name: String,
     pub responder_public_key: String,
     pub responder_ephemeral_public_key: String,
+    #[serde(default)]
+    pub responder_capabilities: Vec<String>,
+    #[serde(default)]
+    pub responder_system_name: String,
+    #[serde(default)]
+    pub responder_system_version: String,
     pub signature: String,
 }
 
@@ -649,9 +659,21 @@ impl<S: SecretStore, F: FileStore + Clone> DeviceIdentityService<S, F> {
         capabilities: &[String],
         now_ms: i64,
     ) -> Result<PairingInitiator<F>, PairingError> {
+        self.begin_pairing_with_profile(capabilities, "", "", now_ms)
+    }
+
+    /// Begins a pairing offer with signed system metadata.
+    pub fn begin_pairing_with_profile(
+        &mut self,
+        capabilities: &[String],
+        system_name: &str,
+        system_version: &str,
+        now_ms: i64,
+    ) -> Result<PairingInitiator<F>, PairingError> {
         let record = read_identity_record(&self.vault)?;
         let identity = public_identity_from_record(&record)?;
         let capabilities = normalize_capabilities(capabilities)?;
+        validate_device_metadata(system_name, system_version)?;
         let expires_at_ms = now_ms.checked_add(PAIRING_OFFER_TTL_MS).ok_or_else(|| {
             PairingError::new(
                 PairingErrorCode::InvalidArgument,
@@ -672,6 +694,8 @@ impl<S: SecretStore, F: FileStore + Clone> DeviceIdentityService<S, F> {
             sender_ephemeral_public_key: hex_encode(local_ephemeral_public.as_bytes()),
             expires_at_ms,
             capabilities,
+            sender_system_name: system_name.to_owned(),
+            sender_system_version: system_version.to_owned(),
             signature: String::new(),
         };
         let signing_key = signing_key(&record);
@@ -694,7 +718,21 @@ impl<S: SecretStore, F: FileStore + Clone> DeviceIdentityService<S, F> {
         offer: &PairingOffer,
         now_ms: i64,
     ) -> Result<PairingResponder<F>, PairingError> {
+        self.accept_pairing_offer_with_profile(offer, &[], "", "", now_ms)
+    }
+
+    /// Accepts a pairing offer with signed system metadata.
+    pub fn accept_pairing_offer_with_profile(
+        &mut self,
+        offer: &PairingOffer,
+        capabilities: &[String],
+        system_name: &str,
+        system_version: &str,
+        now_ms: i64,
+    ) -> Result<PairingResponder<F>, PairingError> {
         verify_offer(offer)?;
+        let capabilities = normalize_capabilities(capabilities)?;
+        validate_device_metadata(system_name, system_version)?;
         ensure_not_expired(offer.expires_at_ms, now_ms)?;
         let record = read_identity_record(&self.vault)?;
         let identity = public_identity_from_record(&record)?;
@@ -725,6 +763,9 @@ impl<S: SecretStore, F: FileStore + Clone> DeviceIdentityService<S, F> {
             responder_display_name: identity.display_name.clone(),
             responder_public_key: identity.public_key.clone(),
             responder_ephemeral_public_key: hex_encode(local_ephemeral_public.as_bytes()),
+            responder_capabilities: capabilities,
+            responder_system_name: system_name.to_owned(),
+            responder_system_version: system_version.to_owned(),
             signature: String::new(),
         };
         let signing_key = signing_key(&record);
@@ -922,6 +963,7 @@ fn verify_offer(offer: &PairingOffer) -> Result<(), PairingError> {
         .ok_or_else(|| PairingError::invalid("pairing offer id is invalid"))?;
     decode_x25519_public_key(&offer.sender_ephemeral_public_key)?;
     validate_capabilities(&offer.capabilities)?;
+    validate_device_metadata(&offer.sender_system_name, &offer.sender_system_version)?;
     if offer.capabilities != normalize_capabilities(&offer.capabilities)? {
         return Err(PairingError::invalid(
             "pairing capabilities are not canonical",
@@ -963,6 +1005,17 @@ fn verify_response(offer: &PairingOffer, response: &PairingResponse) -> Result<(
         &response.responder_public_key,
     )?;
     decode_x25519_public_key(&response.responder_ephemeral_public_key)?;
+    validate_capabilities(&response.responder_capabilities)?;
+    if response.responder_capabilities != normalize_capabilities(&response.responder_capabilities)?
+    {
+        return Err(PairingError::invalid(
+            "response capabilities are not canonical",
+        ));
+    }
+    validate_device_metadata(
+        &response.responder_system_name,
+        &response.responder_system_version,
+    )?;
     let signature = decode_fixed::<64>(&response.signature).ok_or_else(|| {
         PairingError::new(
             PairingErrorCode::ResponseInvalidSignature,
@@ -1017,6 +1070,10 @@ fn offer_signature_message(offer: &PairingOffer) -> Vec<u8> {
     for capability in &offer.capabilities {
         append_field(&mut message, capability.as_bytes());
     }
+    if !offer.sender_system_name.is_empty() || !offer.sender_system_version.is_empty() {
+        append_field(&mut message, offer.sender_system_name.as_bytes());
+        append_field(&mut message, offer.sender_system_version.as_bytes());
+    }
     message
 }
 
@@ -1033,6 +1090,17 @@ fn response_signature_message(offer: &PairingOffer, response: &PairingResponse) 
         &mut message,
         response.responder_ephemeral_public_key.as_bytes(),
     );
+    if !response.responder_capabilities.is_empty()
+        || !response.responder_system_name.is_empty()
+        || !response.responder_system_version.is_empty()
+    {
+        append_u32(&mut message, response.responder_capabilities.len() as u32);
+        for capability in &response.responder_capabilities {
+            append_field(&mut message, capability.as_bytes());
+        }
+        append_field(&mut message, response.responder_system_name.as_bytes());
+        append_field(&mut message, response.responder_system_version.as_bytes());
+    }
     append_field(&mut message, offer.signature.as_bytes());
     message
 }
@@ -1112,6 +1180,18 @@ fn validate_display_name(display_name: &str) -> Result<(), PairingError> {
         || display_name.chars().any(char::is_control)
     {
         return Err(PairingError::invalid("device display name is invalid"));
+    }
+    Ok(())
+}
+
+fn validate_device_metadata(system_name: &str, system_version: &str) -> Result<(), PairingError> {
+    for value in [system_name, system_version] {
+        if value.len() > MAX_DISPLAY_NAME_BYTES
+            || value.contains('\0')
+            || value.chars().any(char::is_control)
+        {
+            return Err(PairingError::invalid("device metadata is invalid"));
+        }
     }
     Ok(())
 }

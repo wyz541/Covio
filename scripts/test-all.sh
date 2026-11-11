@@ -4,7 +4,7 @@ set -euo pipefail
 # 全量测试入口。跨模块、协议、发布和 CI 门禁排障时使用。
 # 日常迭代按 `docs/process/workflow.md` 的「测试门禁」运行相关测试。
 #
-# 十八步，任一步失败就停：
+# 十九步，任一步失败就停：
 #   1. 发布身份与脚本检查。
 #   2. Rust core 与 bridge 的 fmt、Clippy 和测试。
 #   3. Windows host、installer 和 capability smoke。
@@ -23,6 +23,7 @@ set -euo pipefail
 #   16. Updater launcher、XPC engine 和回退状态机。
 #   17. 文件自动命名模型清单。
 #   18. macOS SwiftUI 宿主的 XCTest。
+#   19. iOS 工程结构和 SwiftUI 宿主 XCTest。
 #
 # 安装事务步骤也会跑合同检查。分开列是为了让它们单独报错。
 
@@ -93,5 +94,13 @@ python3 -I "$ROOT/scripts/file_naming_model.py" verify-all
 
 step "macOS SwiftUI 宿主"
 bash "$ROOT/scripts/test-macos-swift.sh"
+
+step "iOS 工程结构"
+python3 -I "$ROOT/scripts/validate-ios-project.py"
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  step "iOS SwiftUI 宿主"
+  bash "$ROOT/scripts/test-ios-swift.sh"
+fi
 
 printf '\n全部通过。\n'

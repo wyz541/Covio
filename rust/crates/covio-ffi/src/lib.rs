@@ -20,13 +20,16 @@ use zeroize::Zeroize;
 
 mod app_api;
 mod engine_api;
+mod mobile_api;
 pub use app_api::AppCore;
 pub use engine_api::CovioEngineHandle;
+pub use mobile_api::{CovioMobileHandle, MobileCore};
 use std::collections::BTreeSet;
 use std::ffi::c_void;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::ptr;
 use std::slice;
+use std::sync::Arc;
 
 /// C ABI version.
 pub const ABI_VERSION: u32 = 2;
@@ -361,6 +364,93 @@ pub struct CovioHandle {
 /// Opaque application service handle.
 pub struct CovioAppHandle {
     core: AppCore,
+}
+
+/// Creates one iOS/mobile application handle.
+///
+/// # Safety
+///
+/// The data-root byte range must describe valid readable memory.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_mobile_create(
+    data_root: *const u8,
+    data_root_len: usize,
+    error: *mut CovioError,
+) -> *mut CovioMobileHandle {
+    let result = ffi_guard(error, || {
+        let data_root = unsafe { copy_utf8(data_root, data_root_len, "data root") }?;
+        Ok(Box::into_raw(Box::new(CovioMobileHandle {
+            core: Arc::new(MobileCore::new(data_root)),
+        })))
+    });
+    result.unwrap_or(ptr::null_mut())
+}
+
+/// Releases one mobile application handle.
+///
+/// # Safety
+///
+/// `handle` must come from [`covio_mobile_create`] and must not be used again.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_mobile_release(handle: *mut CovioMobileHandle) {
+    if handle.is_null() {
+        return;
+    }
+    let _ = catch_unwind(AssertUnwindSafe(|| unsafe {
+        drop(Box::from_raw(handle));
+    }));
+}
+
+/// Executes one JSON mobile command.
+///
+/// # Safety
+///
+/// Pointer and length pairs must describe valid readable memory. `out_data`
+/// must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn covio_mobile_call(
+    handle: *mut CovioMobileHandle,
+    command: *const u8,
+    command_len: usize,
+    payload: *const u8,
+    payload_len: usize,
+    now_epoch_millis: i64,
+    out_data: *mut CovioOwnedBytes,
+    error: *mut CovioError,
+) -> u32 {
+    if !out_data.is_null() {
+        unsafe { out_data.write(CovioOwnedBytes::EMPTY) };
+    }
+    let result = ffi_guard(error, || {
+        let handle = unsafe { handle.as_ref() }.ok_or_else(|| {
+            FfiFailure::new(CovioStatusCode::InvalidArgument, "mobile handle is null")
+        })?;
+        if out_data.is_null() {
+            return Err(FfiFailure::new(
+                CovioStatusCode::InvalidArgument,
+                "output buffer is null",
+            ));
+        }
+        let command = unsafe { copy_utf8(command, command_len, "command") }?;
+        let payload_bytes = unsafe { copy_input(payload, payload_len) }?;
+        let payload: serde_json::Value = if payload_bytes.is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_slice(&payload_bytes).map_err(|_| {
+                FfiFailure::new(
+                    CovioStatusCode::MalformedMessage,
+                    "payload is not valid JSON",
+                )
+            })?
+        };
+        let value = handle.core.call(&command, &payload, now_epoch_millis)?;
+        let bytes = serde_json::to_vec(&value).map_err(|_| {
+            FfiFailure::new(CovioStatusCode::Internal, "response serialization failed")
+        })?;
+        unsafe { out_data.write(owned_bytes(bytes)) };
+        Ok(())
+    });
+    result.map_or_else(|status| status as u32, |()| CovioStatusCode::Ok as u32)
 }
 
 /// macOS adapter composition used before the product host wires all capabilities.
@@ -1765,5 +1855,77 @@ mod tests {
                 .iter()
                 .any(|entry| { entry["name"] == "covio_jni_handle_dispatch" })
         );
+        let c_functions = contract["cFunctions"]
+            .as_array()
+            .expect("C functions array");
+        assert!(
+            c_functions
+                .iter()
+                .any(|entry| entry["name"] == "covio_mobile_call")
+        );
+        assert!(include_str!("../include/covio_bridge.generated.h").contains("covio_mobile_call"));
+    }
+
+    #[test]
+    fn mobile_ffi_round_trip_returns_json_and_typed_errors() {
+        let root = std::env::temp_dir().join(format!(
+            "covio-mobile-ffi-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let root_bytes = root.to_string_lossy().as_bytes().to_vec();
+        let mut error = empty_error();
+        let handle =
+            unsafe { covio_mobile_create(root_bytes.as_ptr(), root_bytes.len(), &mut error) };
+        assert!(!handle.is_null());
+
+        let command = b"mobile.status";
+        let mut output = empty_bytes();
+        assert_eq!(
+            unsafe {
+                covio_mobile_call(
+                    handle,
+                    command.as_ptr(),
+                    command.len(),
+                    ptr::null(),
+                    0,
+                    100,
+                    &mut output,
+                    &mut error,
+                )
+            },
+            CovioStatusCode::Ok as u32
+        );
+        let status: serde_json::Value =
+            serde_json::from_slice(unsafe { slice::from_raw_parts(output.data, output.len) })
+                .expect("mobile status json");
+        assert_eq!(status["lifecycle"], "foreground");
+        unsafe { covio_owned_bytes_free(&mut output) };
+
+        let unknown = b"mobile.unknown";
+        assert_eq!(
+            unsafe {
+                covio_mobile_call(
+                    handle,
+                    unknown.as_ptr(),
+                    unknown.len(),
+                    ptr::null(),
+                    0,
+                    101,
+                    &mut output,
+                    &mut error,
+                )
+            },
+            CovioStatusCode::InvalidArgument as u32
+        );
+        assert_eq!(error.code, CovioStatusCode::InvalidArgument as u32);
+        unsafe {
+            covio_error_free(&mut error);
+            covio_mobile_release(handle);
+        }
+        let _ = std::fs::remove_dir_all(root);
     }
 }

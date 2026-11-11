@@ -50,6 +50,8 @@ Rust 凭据仓库用平台安全存储保护根密钥。
 | `sender_ephemeral_public_key` | 发起端 X25519 临时公钥 |
 | `expires_at_ms` | 报价过期时间 |
 | `capabilities` | 发起端协议能力 |
+| `sender_system_name` | 发起端系统名称 |
+| `sender_system_version` | 发起端系统版本 |
 | `signature` | 发起端 Ed25519 签名 |
 
 报价默认有效期为 `120000` ms。
@@ -84,6 +86,9 @@ Rust 凭据仓库用平台安全存储保护根密钥。
 | `responder_display_name` | 接收端设备名 |
 | `responder_public_key` | 接收端 Ed25519 公钥 |
 | `responder_ephemeral_public_key` | 接收端 X25519 临时公钥 |
+| `responder_capabilities` | 接收端协议能力 |
+| `responder_system_name` | 接收端系统名称 |
+| `responder_system_version` | 接收端系统版本 |
 | `signature` | 接收端 Ed25519 签名 |
 
 响应签名为 `covio-pair-response/1/` payload。

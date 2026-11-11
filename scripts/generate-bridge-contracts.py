@@ -28,6 +28,9 @@ REQUIRED_C_FUNCTIONS = {
     "covio_handle_shutdown",
     "covio_handle_lifecycle",
     "covio_handle_active_request_count",
+    "covio_mobile_create",
+    "covio_mobile_release",
+    "covio_mobile_call",
     "covio_owned_bytes_free",
     "covio_error_free",
 }
@@ -46,7 +49,7 @@ REQUIRED_JNI_FUNCTIONS = {
 }
 SOURCE_FUNCTION = re.compile(
     r'pub\s+(?:unsafe\s+)?extern\s+"C"\s+fn\s+'
-    r'(covio_(?:ffi_abi_version|bridge_protocol_version|handle_[A-Za-z0-9_]+|owned_bytes_free|error_free))\s*\('
+    r'(covio_(?:ffi_abi_version|bridge_protocol_version|handle_[A-Za-z0-9_]+|mobile_[A-Za-z0-9_]+|owned_bytes_free|error_free))\s*\('
 )
 
 
@@ -217,6 +220,7 @@ def render_c_header(contract: dict) -> str:
             ");",
             "",
             "typedef struct CovioHandle CovioHandle;",
+            "typedef struct CovioMobileHandle CovioMobileHandle;",
             "",
             "#ifdef __cplusplus",
             'extern "C" {',

@@ -18,7 +18,7 @@ SwiftUI 与 Compose 只拥有平台 UI、输入和平台接入。
 | --- | --- | --- | --- | --- |
 | macOS | 已交付 | SwiftUI + AppKit | C ABI；UniFFI 可选 | Keychain |
 | Windows | egui 基线 + Compose opt-in prototype | Compose Multiplatform | JNI | Credential Manager |
-| iOS | 第一版目标 | SwiftUI | C ABI；UniFFI 可选 | Keychain |
+| iOS | vertical slice 已实现，真机证据待 #743 | SwiftUI | C ABI；UniFFI 可选 | Keychain |
 | Android | 后续目标 | Compose Multiplatform | JNI | Keystore |
 
 Windows egui 继续作为运行基线。
@@ -89,6 +89,7 @@ Rust core 定义以下能力。
 8. C header 与 JNI 声明进入生成和漂移检查。实现见 [Covio bridge 合同](bridge-contract.md)。
 9. 默认 UniFFI Kotlin/JNA 后端不进入首版产品路径。
 10. Compose host 使用有界事件队列。JNI 不保存 `JNIEnv`，长任务不在 UI 线程执行。
+11. iOS JSON facade 使用 `covio_mobile_*`。实现见 [iOS SwiftUI 宿主](ios-host.md)。
 
 ## 7. 设计合同
 

@@ -90,6 +90,19 @@ impl IrohTransferEndpoint {
         Ok(channel)
     }
 
+    /// Connects by endpoint id and verifies the paired-device public key.
+    ///
+    /// The endpoint id is the same Ed25519 key used for pairing. Address
+    /// discovery can resolve a relay or direct path for that id.
+    pub async fn connect_trusted_public_key(
+        &self,
+        trusted_public_key_hex: &str,
+    ) -> Result<IrohTransferChannel, TransferError> {
+        let public_key = public_key_from_hex(trusted_public_key_hex)?;
+        self.connect_trusted(EndpointAddr::new(public_key), trusted_public_key_hex)
+            .await
+    }
+
     /// Accepts one incoming connection and its bidirectional control stream.
     pub async fn accept_one(&self) -> Result<IrohTransferChannel, TransferError> {
         let incoming = self
@@ -109,6 +122,33 @@ impl IrohTransferEndpoint {
             control_send,
             control_recv,
         ))
+    }
+
+    /// Waits a bounded time for a new connection.
+    ///
+    /// A timeout applies only to the idle wait. After an incoming connection
+    /// exists, the handshake is not cancelled by the idle interval.
+    pub async fn accept_one_with_timeout(
+        &self,
+        wait: std::time::Duration,
+    ) -> Result<Option<IrohTransferChannel>, TransferError> {
+        let incoming = match tokio::time::timeout(wait, self.endpoint.accept()).await {
+            Ok(Some(incoming)) => incoming,
+            Ok(None) => return Ok(None),
+            Err(_) => return Ok(None),
+        };
+        let connection = incoming
+            .await
+            .map_err(|_| transport_error("iroh incoming connection failed"))?;
+        let (control_send, control_recv) = connection
+            .accept_bi()
+            .await
+            .map_err(|_| transport_error("iroh control stream accept failed"))?;
+        Ok(Some(IrohTransferChannel::new(
+            connection,
+            control_send,
+            control_recv,
+        )))
     }
 
     /// Closes the iroh endpoint and its accept loop.

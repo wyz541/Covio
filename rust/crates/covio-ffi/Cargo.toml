@@ -12,8 +12,10 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 covio-bridge = { path = "../covio-bridge" }
 covio-core = { path = "../covio-core" }
 covio-platform = { path = "../covio-platform" }
+getrandom = "0.2"
 serde.workspace = true
 serde_json.workspace = true
+tokio.workspace = true
 zeroize = "1"
 
 [lints]

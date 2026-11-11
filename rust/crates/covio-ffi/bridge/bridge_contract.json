@@ -115,6 +115,36 @@
       ]
     },
     {
+      "name": "covio_mobile_create",
+      "returnType": "CovioMobileHandle *",
+      "parameters": [
+        {"name": "data_root", "type": "const uint8_t *"},
+        {"name": "data_root_len", "type": "size_t"},
+        {"name": "error", "type": "CovioError *"}
+      ]
+    },
+    {
+      "name": "covio_mobile_release",
+      "returnType": "void",
+      "parameters": [
+        {"name": "handle", "type": "CovioMobileHandle *"}
+      ]
+    },
+    {
+      "name": "covio_mobile_call",
+      "returnType": "uint32_t",
+      "parameters": [
+        {"name": "handle", "type": "CovioMobileHandle *"},
+        {"name": "command", "type": "const uint8_t *"},
+        {"name": "command_len", "type": "size_t"},
+        {"name": "payload", "type": "const uint8_t *"},
+        {"name": "payload_len", "type": "size_t"},
+        {"name": "now_epoch_millis", "type": "int64_t"},
+        {"name": "out_data", "type": "CovioOwnedBytes *"},
+        {"name": "error", "type": "CovioError *"}
+      ]
+    },
+    {
       "name": "covio_owned_bytes_free",
       "returnType": "void",
       "parameters": [
