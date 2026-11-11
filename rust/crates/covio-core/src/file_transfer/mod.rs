@@ -4,6 +4,7 @@
 //! are length-prefixed CBOR envelopes. File data uses fixed binary headers and
 //! chunk frames with BLAKE3 checksums.
 
+mod directory;
 mod iroh_transport;
 mod receiver;
 mod sender;
@@ -15,12 +16,27 @@ use std::error::Error;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
+pub use directory::{
+    CANCELLED_STAGING_RETENTION_MS, DestinationEntry, DestinationEntryKind, DirectoryAcceptResult,
+    DirectoryChunkCheckpoint, DirectoryChunkOutcome, DirectoryCompleteOutcome,
+    DirectoryConflictAction, DirectoryConflictPlan, DirectoryConflictPolicy, DirectoryEntry,
+    DirectoryEntryKind, DirectoryEntryOutcome, DirectoryEntryResume, DirectoryEntryStatus,
+    DirectoryManifest, DirectoryMetadata, DirectoryResumePlan, DirectoryRetentionFailure,
+    DirectoryRetentionSweep, DirectoryTransferOffer, DirectoryTransferReceiver,
+    DirectoryTransferSnapshot, DirectoryTransferSummary, FAILED_STAGING_RETENTION_MS,
+    MAX_DIRECTORY_COMPONENT_BYTES, MAX_DIRECTORY_DEPTH, MAX_DIRECTORY_ENTRIES,
+    MAX_DIRECTORY_PATH_BYTES, MAX_DIRECTORY_TOTAL_BYTES, PAUSED_STAGING_RETENTION_MS,
+    PlannedDirectoryEntry, RetentionDecision, RetentionPlan, RetentionTask,
+    TERMINAL_METADATA_RETENTION_MS, TransferRetentionPolicy, is_terminal, path_collision_key,
+    plan_directory_conflicts, plan_retention, staging_path_for, validate_component,
+    validate_directory_path, validate_retention_policy, verify_directory_resume,
+};
 pub use iroh_transport::{IrohTransferChannel, IrohTransferEndpoint, endpoint_id_for_public_key};
 pub use receiver::{
     ForegroundCheck, ReceiveOutcome, ResumePlan, TransferReceiver, TransferSnapshot,
 };
 pub use sender::TransferSender;
-pub use store::{TransferEvent, TransferJob, TransferStore};
+pub use store::{DirectoryTransferJob, TransferEvent, TransferJob, TransferStore};
 
 /// Version of the Covio single-file transfer protocol.
 pub const TRANSFER_PROTOCOL_VERSION: u16 = 1;
@@ -43,7 +59,8 @@ const MAX_TRANSFER_ID_BYTES: usize = 64;
 const FILE_FRAME_HEADER_BYTES: usize = 8 + 4 + 2 + 32;
 
 /// Stable transfer failure categories.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[repr(u32)]
 pub enum TransferErrorCode {
     /// The caller supplied invalid input.
@@ -80,6 +97,14 @@ pub enum TransferErrorCode {
     PeerIdentityChanged = 3016,
     /// An uncategorized internal failure occurred.
     Internal = 3017,
+    /// A directory entry path is unsafe or unsupported.
+    PathInvalid = 3018,
+    /// Two directory entry paths collide on a supported platform.
+    PathCollision = 3019,
+    /// The source contains a symbolic link.
+    SymlinkRefused = 3020,
+    /// The source contains an unsupported filesystem entry.
+    UnsupportedEntryKind = 3021,
 }
 
 impl TransferErrorCode {
@@ -104,6 +129,10 @@ impl TransferErrorCode {
             Self::TargetExists => "target_exists",
             Self::PeerIdentityChanged => "peer_identity_changed",
             Self::Internal => "internal_error",
+            Self::PathInvalid => "path_invalid",
+            Self::PathCollision => "path_collision",
+            Self::SymlinkRefused => "symlink_refused",
+            Self::UnsupportedEntryKind => "unsupported_entry_kind",
         }
     }
 }

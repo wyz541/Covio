@@ -159,6 +159,48 @@ impl fmt::Display for PlatformError {
 
 impl Error for PlatformError {}
 
+/// Filesystem entry kind reported by a platform adapter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileEntryKind {
+    /// A regular file.
+    File,
+    /// A directory.
+    Directory,
+    /// A symbolic link. Directory scanning must not follow this link.
+    Symlink,
+    /// A device, pipe, socket, or another unsupported entry.
+    Other,
+}
+
+/// Portable file metadata exposed by a filesystem adapter.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileEntryMetadata {
+    /// Entry kind.
+    pub kind: FileEntryKind,
+    /// File size in bytes. Directories use zero.
+    pub size: u64,
+    /// Modification time in Unix milliseconds.
+    pub modified_at_ms: Option<i64>,
+    /// Whether the current user cannot write the entry.
+    pub readonly: bool,
+    /// Whether the owner executable bit is set.
+    pub executable: bool,
+}
+
+impl FileEntryMetadata {
+    /// Creates metadata for a regular file fallback.
+    #[must_use]
+    pub const fn file(size: u64) -> Self {
+        Self {
+            kind: FileEntryKind::File,
+            size,
+            modified_at_ms: None,
+            readonly: false,
+            executable: false,
+        }
+    }
+}
+
 /// Filesystem capability used by durable-state stores.
 pub trait FileStore {
     /// Reads a file. A missing file returns `Ok(None)`.
@@ -177,6 +219,18 @@ pub trait FileStore {
     /// Native adapters should override this with an OS metadata call.
     fn metadata_size(&self, path: &Path) -> Result<Option<u64>, PlatformError> {
         Ok(self.read(path)?.map(|contents| contents.len() as u64))
+    }
+
+    /// Returns portable metadata without following a final symbolic link.
+    fn metadata(&self, path: &Path) -> Result<Option<FileEntryMetadata>, PlatformError> {
+        Ok(self.metadata_size(path)?.map(FileEntryMetadata::file))
+    }
+
+    /// Lists direct child names without following symbolic links.
+    fn directory_entries(&self, _path: &Path) -> Result<Vec<String>, PlatformError> {
+        Err(PlatformError::unavailable(
+            "directory enumeration is unavailable",
+        ))
     }
 
     /// Reads a bounded byte range. A missing file returns `Ok(None)`.
@@ -223,6 +277,37 @@ pub trait FileStore {
         self.write_atomic(target, &contents)?;
         self.remove_file(source)?;
         Ok(())
+    }
+
+    /// Replaces a target with a source file while preserving the old target on failure.
+    ///
+    /// Native adapters should override this with an OS atomic replacement.
+    fn atomic_replace(&self, source: &Path, target: &Path) -> Result<(), PlatformError> {
+        self.remove_file(target)?;
+        self.atomic_move(source, target)
+    }
+
+    /// Truncates a file to an exact length.
+    fn truncate(&self, path: &Path, length: u64) -> Result<(), PlatformError> {
+        let mut contents = self
+            .read(path)?
+            .ok_or_else(|| PlatformError::io("file is missing", false))?;
+        let length = usize::try_from(length).unwrap_or(usize::MAX);
+        let target = length.min(contents.len());
+        contents.truncate(target);
+        self.write_atomic(path, &contents)
+    }
+
+    /// Applies portable read-only and owner-executable metadata.
+    fn set_permissions(
+        &self,
+        _path: &Path,
+        _readonly: bool,
+        _executable: bool,
+    ) -> Result<(), PlatformError> {
+        Err(PlatformError::unavailable(
+            "filesystem metadata updates are unavailable",
+        ))
     }
 
     /// Removes a file. A missing file returns `Ok(false)`.

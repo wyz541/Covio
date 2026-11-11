@@ -1,11 +1,12 @@
 //! Standard filesystem implementation of the bounded file capability.
 
-use crate::{FileStore, PlatformError};
+use crate::{FileEntryKind, FileEntryMetadata, FileStore, PlatformError};
 #[cfg(target_os = "windows")]
 use atomic_write_file::AtomicWriteFile;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
+use std::time::UNIX_EPOCH;
 
 /// Native standard-filesystem adapter.
 #[derive(Debug, Clone, Copy, Default)]
@@ -42,6 +43,62 @@ impl FileStore for StdFileStore {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(_) => Err(io_error()),
         }
+    }
+
+    fn metadata(&self, path: &Path) -> Result<Option<FileEntryMetadata>, PlatformError> {
+        let metadata = match fs::symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(_) => return Err(io_error()),
+        };
+        let file_type = metadata.file_type();
+        let kind = if file_type.is_symlink() {
+            FileEntryKind::Symlink
+        } else if file_type.is_file() {
+            FileEntryKind::File
+        } else if file_type.is_dir() {
+            FileEntryKind::Directory
+        } else {
+            FileEntryKind::Other
+        };
+        let modified_at_ms = metadata
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+            .and_then(|duration| i64::try_from(duration.as_millis()).ok());
+        #[cfg(unix)]
+        let executable = {
+            use std::os::unix::fs::PermissionsExt;
+            metadata.permissions().mode() & 0o111 != 0
+        };
+        #[cfg(not(unix))]
+        let executable = false;
+        Ok(Some(FileEntryMetadata {
+            kind,
+            size: if kind == FileEntryKind::File {
+                metadata.len()
+            } else {
+                0
+            },
+            modified_at_ms,
+            readonly: metadata.permissions().readonly(),
+            executable,
+        }))
+    }
+
+    fn directory_entries(&self, path: &Path) -> Result<Vec<String>, PlatformError> {
+        let entries = fs::read_dir(path).map_err(|_| io_error())?;
+        let mut names = Vec::new();
+        for entry in entries {
+            let entry = entry.map_err(|_| io_error())?;
+            let name = entry
+                .file_name()
+                .into_string()
+                .map_err(|_| PlatformError::invalid_argument("file name is not UTF-8"))?;
+            names.push(name);
+        }
+        names.sort();
+        Ok(names)
     }
 
     fn read_range(
@@ -126,6 +183,71 @@ impl FileStore for StdFileStore {
         fs::rename(source, target).map_err(|_| io_error())
     }
 
+    fn atomic_replace(&self, source: &Path, target: &Path) -> Result<(), PlatformError> {
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|_| io_error())?;
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let mut source_permissions =
+                fs::metadata(source).map_err(|_| io_error())?.permissions();
+            if source_permissions.readonly() {
+                #[allow(clippy::permissions_set_readonly_false)]
+                source_permissions.set_readonly(false);
+                fs::set_permissions(source, source_permissions).map_err(|_| io_error())?;
+            }
+            let mut source_file = fs::File::open(source).map_err(|_| io_error())?;
+            let mut target_file = AtomicWriteFile::options()
+                .open(target)
+                .map_err(|_| io_error())?;
+            std::io::copy(&mut source_file, &mut target_file).map_err(|_| io_error())?;
+            target_file.commit().map_err(|_| io_error())?;
+            fs::remove_file(source).map_err(|_| io_error())
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            fs::rename(source, target).map_err(|_| io_error())
+        }
+    }
+
+    fn truncate(&self, path: &Path, length: u64) -> Result<(), PlatformError> {
+        let file = OpenOptions::new()
+            .write(true)
+            .open(path)
+            .map_err(|_| io_error())?;
+        file.set_len(length).map_err(|_| io_error())
+    }
+
+    fn set_permissions(
+        &self,
+        path: &Path,
+        readonly: bool,
+        executable: bool,
+    ) -> Result<(), PlatformError> {
+        let metadata = fs::metadata(path).map_err(|_| io_error())?;
+        let mut permissions = metadata.permissions();
+        permissions.set_readonly(readonly);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut mode = permissions.mode();
+            if readonly {
+                mode &= !0o222;
+            } else {
+                mode |= 0o200;
+            }
+            if executable {
+                mode |= 0o111;
+            } else {
+                mode &= !0o111;
+            }
+            permissions.set_mode(mode);
+        }
+        #[cfg(not(unix))]
+        let _ = executable;
+        fs::set_permissions(path, permissions).map_err(|_| io_error())
+    }
+
     fn remove_file(&self, path: &Path) -> Result<bool, PlatformError> {
         match fs::remove_file(path) {
             Ok(()) => Ok(true),
@@ -207,6 +329,26 @@ mod tests {
                 .exists(&crate::temporary_path(&file))
                 .expect("temporary check")
         );
+        store.remove_tree(&root).expect("cleanup");
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn atomic_replace_handles_a_readonly_source() {
+        let root = temporary_directory();
+        let store = StdFileStore::new();
+        let source = root.join("source.bin");
+        let target = root.join("target.bin");
+        store.write_atomic(&source, b"new").expect("source");
+        store.write_atomic(&target, b"old").expect("target");
+        store
+            .set_permissions(&source, true, false)
+            .expect("readonly source");
+        store
+            .atomic_replace(&source, &target)
+            .expect("atomic replace");
+        assert_eq!(store.read(&target).expect("target"), Some(b"new".to_vec()));
+        assert!(!store.exists(&source).expect("source removed"));
         store.remove_tree(&root).expect("cleanup");
     }
 }
