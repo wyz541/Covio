@@ -2,7 +2,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="${1:-$ROOT/build/xcode-dd/Build/Products/Debug/Covio.app}"
+if [[ -n "${1:-}" ]]; then
+  APP="$1"
+else
+  DERIVED_DATA="$(python3 -I "$ROOT/scripts/build_cache.py" prepare "$ROOT")"
+  APP="$DERIVED_DATA/Build/Products/Debug/Covio.app"
+fi
 ENGINE="$APP/Contents/MacOS/CovioUpdater"
 LAUNCHER="$APP/Contents/MacOS/CovioUpdaterLauncher"
 DAEMON="$APP/Contents/Library/LaunchDaemons/com.wyz.covio.updater.plist"

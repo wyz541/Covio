@@ -4,7 +4,12 @@ set -euo pipefail
 # 验证 app 内的 CovioHelper、daemon plist 和发布身份。只读，不注册服务。
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="${1:-$ROOT/build/xcode-dd/Build/Products/Debug/Covio.app}"
+if [[ -n "${1:-}" ]]; then
+  APP="$1"
+else
+  DERIVED_DATA="$(python3 -I "$ROOT/scripts/build_cache.py" prepare "$ROOT")"
+  APP="$DERIVED_DATA/Build/Products/Debug/Covio.app"
+fi
 REQUIRE_MANIFEST=0
 if [[ "${2:-}" == "--require-manifest" ]]; then
   REQUIRE_MANIFEST=1

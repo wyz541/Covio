@@ -156,9 +156,53 @@ UI 改动还要按 `.github/pull_request_template.md` 提供 Before/After。
 
 测试失败、证据缺失或环境不完整时，PR 保持 draft。
 
-## 8. 清理
+## 8. 构建缓存与清理
 
-验收生成的文件留在 `build/` 和 `dist/`，由仓库忽略规则管理。
+macOS 构建脚本使用有界本地缓存。
+默认路径是 `~/Library/Caches/Covio/DerivedData`。
+每个 worktree 使用一个稳定的子目录。
+
+Release 打包使用主 checkout 的缓存。
+缓存路径是 `build/release-xcode-cache`。
+Swift Package 缓存路径是 `build/release-source-packages`。
+打包锁防止并发任务改写同一份 Release 缓存。
+
+查看 Debug 和本机安装缓存：
+
+```sh
+scripts/covio cache status
+```
+
+预览清理计划：
+
+```sh
+scripts/covio cache clean
+```
+
+确认计划后执行删除：
+
+```sh
+scripts/covio cache clean --apply
+```
+
+清理默认保留最近使用的 4 个 worktree 缓存。
+对应 worktree 已不存在时，缓存可以删除。
+缓存超过 7 天且 worktree 干净时，缓存可以删除。
+Debug 缓存总量目标为 8 GiB。
+当前 worktree 和脏 worktree 始终保留。
+清理还会移除指向不存在 `Covio.app` 的 LaunchServices 登记。
+
+缓存路径使用 `COVIO_DEBUG_DERIVED_DATA_ROOT` 覆盖。
+不要把覆盖值指向其他用户的数据目录。
+
+直接打开 `macosApp/Covio.xcodeproj` 时，Xcode 可能使用默认 DerivedData。
+这些目录不进入仓库缓存根。
+关闭 Xcode 后，在 Xcode Settings 中删除对应目录。
+也可以先确认没有构建进程，再删除 `~/Library/Developer/Xcode/DerivedData/Covio-*`。
+
+`dist/` 保存当前打包和验收需要的版本化产物。已发布且不再使用的 release
+worktree 用 `scripts/covio release clean` 删除。普通开发 worktree 合并后通过
+Git 或 Paseo 的正常生命周期关闭。
 
 模型文件由验收命令写入 `build/`。不再需要时运行：
 

@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-Debug}"
-DERIVED_DATA="$ROOT/build/xcode-dd"
+DERIVED_DATA="$(python3 -I "$ROOT/scripts/build_cache.py" prepare "$ROOT")"
 PROJECT="$ROOT/macosApp/Covio.xcodeproj"
 SCHEME="Covio"
 

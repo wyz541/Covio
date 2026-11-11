@@ -412,6 +412,25 @@ bash scripts/package-windows.sh       # build the Windows installer on Windows
 bash scripts/test-windows-rust.sh     # run the Windows host and capability checks
 ```
 
+The macOS build scripts keep DerivedData in `~/Library/Caches/Covio/DerivedData`.
+The test scripts use the same cache.
+Each worktree gets one stable cache directory.
+Inspect or clean the cache with:
+
+```sh
+scripts/covio cache status
+scripts/covio cache clean
+scripts/covio cache clean --apply
+```
+
+`cache clean` is a dry run by default.
+The cleanup keeps the four newest worktree caches.
+It removes an old cache if the worktree is clean.
+It also removes LaunchServices entries for missing `Covio.app` paths.
+The managed Debug cache limit is 8 GiB.
+Direct Xcode builds use a separate DerivedData location.
+Run `scripts/covio cache status` after a direct Xcode session.
+
 Test the Rust core and bridge:
 
 ```sh
@@ -488,16 +507,17 @@ CI has no certificate, so CI uses the ad-hoc default.
 
 The build and test scripts verify the main app and its nested code.
 When a local certificate is configured, the check compares the signing identity with the previous development build.
-The first build creates `build/xcode-dd/development-signing-Debug-build.json`.
+The first build creates a signing baseline in the worktree cache.
 Delete this baseline only when a certificate or Bundle ID change is intentional.
 
 Run the check directly with:
 
 ```sh
+CACHE_DIR="$(python3 -I scripts/build_cache.py prepare "$PWD")"
 python3 -I scripts/verify_macos_signing.py \
-  build/xcode-dd/Build/Products/Debug/Covio.app \
+  "$CACHE_DIR/Build/Products/Debug/Covio.app" \
   --require-stable \
-  --baseline build/xcode-dd/development-signing-Debug-build.json
+  --baseline "$CACHE_DIR/development-signing-Debug-build.json"
 ```
 
 The `CDHash` can change after a rebuild.
