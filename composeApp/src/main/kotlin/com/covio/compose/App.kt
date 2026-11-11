@@ -985,6 +985,10 @@ private fun writePerformanceBaseline(path: File, frameTimesMs: List<Double>, obs
 private fun captureWindow(path: File) {
     runCatching {
         val window = Window.getWindows().firstOrNull { it.isShowing } ?: return
+        window.isAlwaysOnTop = true
+        window.toFront()
+        window.requestFocus()
+        Thread.sleep(750)
         path.parentFile?.mkdirs()
         ImageIO.write(Robot().createScreenCapture(window.bounds), "png", path)
     }
