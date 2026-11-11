@@ -717,6 +717,21 @@ const AGENT_TOKEN_SERVICE_PREFIX: &str = "com.wyz.covio.agent.";
 const AGENT_TOKEN_ACCOUNT: &str = "mcp-bearer-token";
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 const AGENT_VAULT_SERVICE: &str = "com.wyz.covio.credentials";
+#[cfg(all(any(target_os = "macos", target_os = "ios"), debug_assertions))]
+const AGENT_VAULT_SERVICE_ENV: &str = "COVIO_AGENT_VAULT_SERVICE";
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn agent_vault_service() -> String {
+    #[cfg(debug_assertions)]
+    if let Ok(service) = std::env::var(AGENT_VAULT_SERVICE_ENV)
+        && !service.is_empty()
+        && service.len() <= 255
+        && service.bytes().all(|byte| byte.is_ascii_graphic())
+    {
+        return service;
+    }
+    AGENT_VAULT_SERVICE.to_owned()
+}
 
 /// Reads the product Agent token through the Rust credential vault.
 ///
@@ -997,7 +1012,7 @@ fn with_agent_token_vault<T>(
     let open = || {
         CredentialVault::open(
             root.clone(),
-            covio_platform::KeychainSecretStore::new(AGENT_VAULT_SERVICE),
+            covio_platform::KeychainSecretStore::new(agent_vault_service()),
             covio_platform::StdFileStore::new(),
         )
     };
@@ -1006,7 +1021,7 @@ fn with_agent_token_vault<T>(
         Err(error) if error.code() == covio_core::CredentialErrorCode::NotFound => {
             CredentialVault::create(
                 root,
-                covio_platform::KeychainSecretStore::new(AGENT_VAULT_SERVICE),
+                covio_platform::KeychainSecretStore::new(agent_vault_service()),
                 covio_platform::StdFileStore::new(),
             )
             .map_err(credential_failure)?
@@ -1021,7 +1036,7 @@ fn reset_agent_token_vault(data_root: &str) -> Result<(), FfiFailure> {
     let root = std::path::PathBuf::from(data_root).join("credentials");
     match CredentialVault::open(
         root,
-        covio_platform::KeychainSecretStore::new(AGENT_VAULT_SERVICE),
+        covio_platform::KeychainSecretStore::new(agent_vault_service()),
         covio_platform::StdFileStore::new(),
     ) {
         Ok(vault) => vault.destroy().map_err(credential_failure),
@@ -1527,6 +1542,11 @@ mod tests {
             std::process::id()
         );
         let key = "mcp-bearer-token";
+        let vault_service = format!(
+            "com.wyz.covio.credentials.test.{}.{nonce}",
+            std::process::id()
+        );
+        unsafe { std::env::set_var(AGENT_VAULT_SERVICE_ENV, vault_service) };
         let mut error = empty_error();
         unsafe {
             assert_eq!(
@@ -1645,7 +1665,7 @@ mod tests {
         let vault_root = std::path::PathBuf::from(&data_root).join("credentials");
         let vault = covio_core::CredentialVault::open(
             &vault_root,
-            covio_platform::KeychainSecretStore::new("com.wyz.covio.credentials"),
+            covio_platform::KeychainSecretStore::new(agent_vault_service()),
             covio_platform::StdFileStore::new(),
         )
         .expect("open test vault");

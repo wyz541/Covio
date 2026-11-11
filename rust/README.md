@@ -18,7 +18,12 @@ Workspace 使用 SHA-256 内容寻址、bounded range reads、staging、atomic m
 单文件传输使用 iroh 1.4.1、1 MiB 分块、8 MiB 窗口、BLAKE3、SQLite 检查点和同卷原子提交。
 目录传输保留空目录和允许的元数据。目录传输支持冲突策略、校验后恢复和保留清理。
 
-`covio-platform` 定义 capability。macOS adapter 使用 Security.framework 读写 Keychain。Windows adapter 使用 Windows Credential Manager，不提供明文 fallback。
+`covio-platform` 定义 capability。
+macOS adapter 优先使用 data protection Keychain。
+本机自签名或内测签名缺少 entitlement 时，macOS 返回 `errSecMissingEntitlement`。
+adapter 只在 entitlement 缺失时重试 login Keychain。
+读取和删除还会在项不存在时检查 login Keychain。
+Windows adapter 使用 Windows Credential Manager，不提供明文 fallback。
 `StdFileStore` 使用同目录替换提供 cross-platform atomic write，并保留 bounded read、append 和 move。
 Windows adapter 提供 clipboard、native file picker、toast notification、current-user startup、screenshot directory discovery 和 updater process handoff。
 Windows 对 socket 与 macOS 专属 power capability 返回 typed unavailable。

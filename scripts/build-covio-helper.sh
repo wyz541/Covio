@@ -83,6 +83,7 @@ SWIFT_FLAGS=(
   -I "$RUST_FFI_DIR/include"
   "$RUST_FFI_DIR/lib/libcovio_ffi.a"
   -framework Security
+  -framework SystemConfiguration
   -framework IOKit
   -framework CoreFoundation
   -framework CoreGraphics

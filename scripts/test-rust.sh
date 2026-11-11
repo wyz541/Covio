@@ -14,6 +14,10 @@ if ! command -v cargo >/dev/null 2>&1; then
   fi
 fi
 
+# shellcheck source=scripts/rust-macos-env.sh
+source "$ROOT/scripts/rust-macos-env.sh"
+prepare_rust_macos_target "$ROOT"
+
 cd "$ROOT/rust"
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings

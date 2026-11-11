@@ -238,11 +238,34 @@ enum CovioAgentTokenKeychain {
             throw CovioCoreClient.error(error)
         }
     }
+
+    static func reset() throws {
+        let dataRootBytes = Array(CovioCoreDefaults.applicationSupportRoot.utf8)
+        var error = CovioCoreClient.emptyError()
+        let status = dataRootBytes.withUnsafeBufferPointer { dataRootBuffer in
+            covio_agent_token_reset(
+                dataRootBuffer.baseAddress,
+                dataRootBuffer.count,
+                &error
+            )
+        }
+        defer { covio_error_free(&error) }
+        guard status == UInt32(COVIO_STATUS_OK.rawValue) else {
+            throw CovioCoreClient.error(error)
+        }
+    }
 }
 
 enum CovioCoreDefaults {
     static var applicationSupportRoot: String {
-        FileManager.default.urls(
+#if DEBUG
+        if let override = ProcessInfo.processInfo.environment["COVIO_APPLICATION_SUPPORT_ROOT"],
+           !override.isEmpty
+        {
+            return override
+        }
+#endif
+        return FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
         ).first?.path ?? NSTemporaryDirectory()

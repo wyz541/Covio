@@ -11,6 +11,7 @@ const ERR_SEC_ITEM_NOT_FOUND: i32 = -25300;
 const ERR_SEC_AUTH_FAILED: i32 = -25293;
 const ERR_SEC_INTERACTION_NOT_ALLOWED: i32 = -25308;
 const ERR_SEC_USER_CANCELED: i32 = -128;
+const ERR_SEC_MISSING_ENTITLEMENT: i32 = -34018;
 
 /// Backend operations used by [`KeychainSecretStore`].
 pub trait KeychainBackend {
@@ -28,22 +29,50 @@ pub struct SecurityKeychainBackend;
 
 impl KeychainBackend for SecurityKeychainBackend {
     fn read(&self, service: &str, account: &str) -> Result<Option<Vec<u8>>, PlatformError> {
-        match generic_password(protected_password_options(service, account)) {
+        match generic_password(password_options(service, account, true)) {
             Ok(value) => Ok(Some(value)),
-            Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(None),
+            Err(error)
+                if matches!(
+                    error.code(),
+                    ERR_SEC_ITEM_NOT_FOUND | ERR_SEC_MISSING_ENTITLEMENT
+                ) =>
+            {
+                match generic_password(password_options(service, account, false)) {
+                    Ok(value) => Ok(Some(value)),
+                    Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(None),
+                    Err(error) => Err(keychain_error(error.code())),
+                }
+            }
             Err(error) => Err(keychain_error(error.code())),
         }
     }
 
     fn write(&self, service: &str, account: &str, value: &[u8]) -> Result<(), PlatformError> {
-        set_generic_password_options(value, protected_password_options(service, account))
-            .map_err(|error| keychain_error(error.code()))
+        match set_generic_password_options(value, password_options(service, account, true)) {
+            Ok(()) => Ok(()),
+            Err(error) if error.code() == ERR_SEC_MISSING_ENTITLEMENT => {
+                set_generic_password_options(value, password_options(service, account, false))
+                    .map_err(|error| keychain_error(error.code()))
+            }
+            Err(error) => Err(keychain_error(error.code())),
+        }
     }
 
     fn delete(&self, service: &str, account: &str) -> Result<(), PlatformError> {
-        match delete_generic_password_options(protected_password_options(service, account)) {
+        match delete_generic_password_options(password_options(service, account, true)) {
             Ok(()) => Ok(()),
-            Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(()),
+            Err(error)
+                if matches!(
+                    error.code(),
+                    ERR_SEC_ITEM_NOT_FOUND | ERR_SEC_MISSING_ENTITLEMENT
+                ) =>
+            {
+                match delete_generic_password_options(password_options(service, account, false)) {
+                    Ok(()) => Ok(()),
+                    Err(error) if error.code() == ERR_SEC_ITEM_NOT_FOUND => Ok(()),
+                    Err(error) => Err(keychain_error(error.code())),
+                }
+            }
             Err(error) => Err(keychain_error(error.code())),
         }
     }
@@ -101,10 +130,12 @@ impl<B: KeychainBackend> SecretStore for KeychainSecretStore<B> {
     }
 }
 
-fn protected_password_options(service: &str, account: &str) -> PasswordOptions {
+fn password_options(service: &str, account: &str, data_protection: bool) -> PasswordOptions {
     let mut options = PasswordOptions::new_generic_password(service, account);
-    options.use_protected_keychain();
-    options.set_access_synchronized(Some(false));
+    if data_protection {
+        options.use_protected_keychain();
+        options.set_access_synchronized(Some(false));
+    }
     options
 }
 
@@ -117,6 +148,9 @@ fn keychain_error(status: i32) -> PlatformError {
             PlatformError::locked("keychain is unavailable while the device is locked")
         }
         ERR_SEC_USER_CANCELED => PlatformError::cancelled("keychain access was cancelled"),
+        ERR_SEC_MISSING_ENTITLEMENT => {
+            PlatformError::unavailable("keychain entitlement is unavailable")
+        }
         _ => PlatformError::io(
             format!("keychain operation failed with status {status}"),
             false,

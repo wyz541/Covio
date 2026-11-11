@@ -60,8 +60,14 @@ XChaCha20-Poly1305 nonce 是 24 字节随机值。
 
 ## 5. 平台 adapter
 
-macOS 和 iOS 使用 data protection Keychain。
+macOS 和 iOS 优先使用 data protection Keychain。
 macOS 设置 `kSecUseDataProtectionKeychain`，并禁用 iCloud 同步。
+本机自签名和内测签名可能缺少受限 entitlement。
+此时 macOS 返回 `errSecMissingEntitlement`。
+adapter 只在 entitlement 缺失时重试 login Keychain。
+读取和删除遇到 `errSecItemNotFound` 时，也检查 login Keychain。
+login Keychain 不是明文存储。
+其他 Keychain 错误不回退。
 Windows 使用 `CRED_TYPE_GENERIC` 和 `CRED_PERSIST_LOCAL_MACHINE`。
 Windows TargetName 必须位于 `Covio.CredentialVault.v1` 命名空间。
 Android 后续使用 Keystore 包装根密钥。
