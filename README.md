@@ -73,6 +73,7 @@ The Compose host must pass functional, visual, packaging, and performance accept
 - Bridge contract: [Covio bridge contract](docs/design/bridge-contract.md)
 - Credential storage: [Covio credential vault](docs/design/credential-vault.md)
 - Device pairing: [Covio device identity and QR pairing](docs/design/device-pairing.md)
+- Single-file transfer: [Covio single-file transfer](docs/design/single-file-transfer.md)
 - Current Discussion: [#732](https://github.com/wyz541/Covio/discussions/732)
 - Current Rust migration record: [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md)
 - Repository removal: [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md)

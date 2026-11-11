@@ -207,10 +207,10 @@ impl CoreRuntime {
     ) -> Option<CoreResponse> {
         let deadline = Instant::now() + timeout;
         loop {
-            if let Some(response) = self.try_response() {
-                if response.request_id == request_id {
-                    return Some(response);
-                }
+            if let Some(response) = self.try_response()
+                && response.request_id == request_id
+            {
+                return Some(response);
             }
             if Instant::now() >= deadline {
                 return None;

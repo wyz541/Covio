@@ -111,8 +111,8 @@ Compose 不得独立修改共享视觉语义。
 ### Phase 2：Rust 能力层
 
 1. 建立设备身份与二维码配对。
-2. 建立 `iroh 1.4.1` 传输适配层和 Covio 文件协议。
-3. 建立 1 MiB 分块、8 MiB 窗口、BLAKE3 校验、SQLite 检查点和原子落盘。
+2. 建立 `iroh 1.4.1` 传输适配层和 Covio 文件协议。实现见 [Covio 单文件传输](single-file-transfer.md)。
+3. 建立 1 MiB 分块、8 MiB 窗口、BLAKE3 校验、SQLite 检查点和原子落盘。实现见 [Covio 单文件传输](single-file-transfer.md)。
 4. 建立原生根密钥保护与 Rust AEAD 凭据仓库。
 5. 建立设备信息快照。
 

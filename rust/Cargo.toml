@@ -12,13 +12,21 @@ members = [
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-rust-version = "1.85"
+rust-version = "1.91"
 
 [workspace.dependencies]
+blake3 = "1.8"
+ciborium = "0.2"
+iroh = { version = "=1.4.1", default-features = false, features = ["tls-ring"] }
+# `libc` 0.2.190 made `in6_ifreq` macOS-only. The iOS build still needs the
+# type through iroh 1.4.1 -> netwatch -> netdev 0.46.3.
+libc = "=0.2.189"
+rusqlite = { version = "0.41", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
 regex = "1"
+tokio = { version = "1", features = ["io-util", "rt", "sync", "time"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

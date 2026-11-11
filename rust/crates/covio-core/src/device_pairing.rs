@@ -602,6 +602,22 @@ impl<S: SecretStore, F: FileStore + Clone> DeviceIdentityService<S, F> {
         public_identity_from_record(&record)
     }
 
+    /// Binds an iroh endpoint with the same Ed25519 key used for pairing.
+    pub async fn bind_transfer_endpoint(
+        &self,
+    ) -> Result<crate::file_transfer::IrohTransferEndpoint, crate::file_transfer::TransferError>
+    {
+        let record = read_identity_record(&self.vault).map_err(|error| {
+            crate::file_transfer::TransferError::new(
+                crate::file_transfer::TransferErrorCode::StorageIoError,
+                error.message(),
+                error.retryable(),
+            )
+        })?;
+        let secret_key = iroh::SecretKey::from_bytes(&record.seed);
+        crate::file_transfer::IrohTransferEndpoint::bind(secret_key).await
+    }
+
     /// Loads the device identity or creates one with a display name.
     pub fn load_or_create_identity(
         &mut self,
