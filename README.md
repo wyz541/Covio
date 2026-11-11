@@ -483,6 +483,7 @@ bash scripts/package-windows-compose.sh
 ```
 
 The egui package script builds `covio-windows.exe` and a current-user Inno Setup installer.
+The Compose package script reads its product and client versions from `release/release-manifest.json`.
 The Compose package script builds a `jlink` runtime and `jpackage` app image, portable ZIP, and MSI.
 The installer writes under `%LOCALAPPDATA%\Programs\Covio`.
 It does not require elevation.

@@ -3,7 +3,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUTPUT_DIR="${COVIO_COMPOSE_OUTPUT_DIR:-$ROOT/build/windows-compose-package}"
-APP_VERSION="${COVIO_COMPOSE_VERSION:-0.6.0}"
+PRODUCT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
+CLIENT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
+APP_VERSION="${COVIO_COMPOSE_VERSION:-$PRODUCT_VERSION}"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 NATIVE_DIR="$ROOT/composeApp/src/main/resources/native/windows-x64"
 JAR="$ROOT/build/tasks/_composeApp_executableJarJvm/composeApp-jvm-executable.jar"
@@ -113,7 +115,7 @@ if [[ -n "$MSI" ]]; then
   MSG_SHA="$(sha256sum "$MSI" | awk '{print $1}')"
   printf '%s  %s\n' "$MSG_SHA" "$(basename "$MSI")" >"$MSI.sha256"
 fi
-python3 -I - "$OUTPUT_DIR/compose-package.json" "$PORTABLE_ZIP" "$SHA256" "$MSI" "$MSG_SHA" "$APP_VERSION" "$COMMIT" <<'PY'
+python3 -I - "$OUTPUT_DIR/compose-package.json" "$PORTABLE_ZIP" "$SHA256" "$MSI" "$MSG_SHA" "$PRODUCT_VERSION" "$CLIENT_VERSION" "$COMMIT" <<'PY'
 import json
 import pathlib
 import sys
@@ -123,8 +125,9 @@ portable = pathlib.Path(sys.argv[2])
 msi = pathlib.Path(sys.argv[4]) if sys.argv[4] else None
 payload = {
     "schemaVersion": 1,
-    "appVersion": sys.argv[6],
-    "gitCommit": sys.argv[7],
+    "productVersion": sys.argv[6],
+    "clientVersion": sys.argv[7],
+    "gitCommit": sys.argv[8],
     "portable": {"artifact": portable.name, "sha256": sys.argv[3]},
     "msi": None if msi is None else {"artifact": msi.name, "sha256": sys.argv[5]},
     "runtime": "jlink",
