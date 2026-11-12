@@ -99,8 +99,10 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 PY
 )"
 VERIFY_SIGN_ARGS=()
+VERIFY_UNIFIED_ARGS=()
 if [[ "$CHANNEL" == "internal" ]]; then
   VERIFY_SIGN_ARGS+=(--require-stable-signing)
+  VERIFY_UNIFIED_ARGS+=(--require-unified)
   if [[ ! -x "$ROOT/build/update-signing/CovioUpdateSigner" ]]; then
     bash "$ROOT/scripts/build-update-signature-tool.sh"
   fi
@@ -123,6 +125,7 @@ python3 -I "$PIPELINE" verify \
   --source-manifest "$RELEASE_TMP/source-release-manifest.json" \
   --expected-commit "$TARGET_COMMIT" \
   "${VERIFY_SIGN_ARGS[@]}" \
+  "${VERIFY_UNIFIED_ARGS[@]}" \
   --evidence "$RELEASE_TMP/recomputed-release-evidence.json" \
   --compare-evidence "$ASSET_DIR/release-evidence.json"
 python3 -I "$PIPELINE" promote-check \

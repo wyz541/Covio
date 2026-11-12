@@ -119,6 +119,21 @@ ci_state() {
       else "failure" end'
 }
 
+download_windows_compose_artifact() {
+  local repo="$1" commit="$2" destination="$3" run_id artifact
+  run_id="$(gh api "repos/$repo/actions/runs?head_sha=$commit&per_page=100" --jq '
+    [.workflow_runs[] | select(.name == "CI" and .conclusion == "success")]
+    | sort_by(.id) | reverse | .[0].id // empty')"
+  [[ -n "$run_id" ]] || die "no successful CI run exists for ${commit:0:12}"
+  artifact="$(gh api "repos/$repo/actions/runs/$run_id/artifacts" --jq '
+    [.artifacts[] | select(.expired == false and (.name | startswith("windows-compose-package-")))]
+    | sort_by(.id) | reverse | .[0].name // empty')"
+  [[ -n "$artifact" ]] || die "CI run $run_id has no Windows Compose package artifact"
+  rm -rf "$destination"
+  mkdir -p "$(dirname "$destination")"
+  gh run download "$run_id" --repo "$repo" --name "$artifact" --dir "$destination"
+}
+
 running_covio_paths() {
   pgrep -fl "\.app/Contents/MacOS/$APP_NAME\$" 2>/dev/null | sed 's/^[0-9]* //' || true
 }
@@ -461,8 +476,13 @@ release_draft() {
     git -C "$ROOT" worktree add --quiet --detach "$worktree" "$commit"
   fi
 
+  local windows_package="$worktree/build/windows-compose-package"
+  say "Downloading the Windows Compose package for ${commit:0:12}"
+  download_windows_compose_artifact "$repo" "$commit" "$windows_package"
+
   bash "$worktree/scripts/setup-local-signing.sh"
   COVIO_RELEASE_DERIVED_DATA="$RELEASE_DERIVED_DATA" \
+    COVIO_WINDOWS_COMPOSE_PACKAGE_DIR="$windows_package" \
     RELEASE_REPO="$repo" \
     bash "$worktree/scripts/create-release.sh" ${create_args[@]+"${create_args[@]}"}
   if [[ " ${create_args[*]+${create_args[*]}} " != *" --dry-run "* ]]; then

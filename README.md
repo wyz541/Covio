@@ -637,6 +637,11 @@ Publish the verified Draft with:
 bash scripts/publish-release.sh v<clientVersion>
 ```
 
+Internal Drafts now require one macOS, Windows Compose and signed iOS package from the same commit.
+`scripts/covio release draft` downloads the Windows CI artifact and builds the iOS device IPA locally.
+Set `COVIO_IOS_TEAM_ID` before the release command.
+The verification step fails when a platform artifact is missing or its commit differs.
+
 CI runs the Windows package job for installer or release inputs, release branches, and manual runs. The job uploads `Covio-<clientVersion>-windows-x64-setup.exe` with its checksum, package manifest, boundary scan, and installer test report.
 Build the macOS package locally with `bash scripts/create-release.sh`. Verify the DMG, PKG, app zip, update zip, and boundary scan before publishing.
 Hosted artifacts prove build and installer behavior. Physical Windows and macOS acceptance remains #613.

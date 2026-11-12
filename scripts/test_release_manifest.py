@@ -262,6 +262,61 @@ class ReleaseManifestTests(unittest.TestCase):
             with self.assertRaises(release.ManifestError):
                 release.verify_artifact(manifest_path, helper, root)
 
+    def test_unified_manifest_records_windows_and_ios_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            helper = root / "helper"
+            helper.write_bytes(b"helper")
+            default_dmg = root / "Covio-1.2.3-internal.4.dmg"
+            default_dmg.write_bytes(b"default-dmg")
+            commit = "a" * 40
+            spec = release.load_spec(root)
+            manifest_path = root / "release-manifest.json"
+            release._write_json(
+                manifest_path,
+                release.artifact_manifest(spec, commit, helper, default_dmg),
+            )
+            ios, windows = self._write_platform_packages(root, spec, commit)
+
+            release.attach_unified_platforms(manifest_path, helper, ios, windows, root)
+            manifest = release.verify_artifact(manifest_path, helper, root)
+
+            self.assertEqual(manifest["requiredPlatforms"], ["macos", "windows", "ios"])
+            self.assertEqual(
+                release.platform_asset_names(manifest),
+                (
+                    "ios-package.json",
+                    "Covio-1.2.3-internal.4-ios-arm64.ipa",
+                    "compose-package.json",
+                    "Covio-1.2.3-internal.4-windows-x64-portable.zip",
+                    "Covio-1.2.3-internal.4-windows-x64.msi",
+                ),
+            )
+
+            (root / "Covio-1.2.3-internal.4-ios-arm64.ipa").write_bytes(b"changed")
+            with self.assertRaises(release.ManifestError):
+                release.verify_artifact(manifest_path, helper, root)
+
+    def test_unified_manifest_rejects_platform_commit_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            helper = root / "helper"
+            helper.write_bytes(b"helper")
+            default_dmg = root / "Covio-1.2.3-internal.4.dmg"
+            default_dmg.write_bytes(b"default-dmg")
+            spec = release.load_spec(root)
+            manifest_path = root / "release-manifest.json"
+            release._write_json(
+                manifest_path,
+                release.artifact_manifest(spec, "a" * 40, helper, default_dmg),
+            )
+            ios, windows = self._write_platform_packages(root, spec, "b" * 40)
+
+            with self.assertRaises(release.ManifestError):
+                release.attach_unified_platforms(manifest_path, helper, ios, windows, root)
+
     def test_clean_worktree_is_required(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
@@ -349,6 +404,72 @@ class ReleaseManifestTests(unittest.TestCase):
             encoding="utf-8",
         )
         return path
+
+    def _write_platform_packages(
+        self,
+        root: pathlib.Path,
+        spec: release.ReleaseSpec,
+        commit: str,
+    ) -> tuple[pathlib.Path, pathlib.Path]:
+        ios_artifact = root / f"Covio-{spec.client_version}-ios-arm64.ipa"
+        ios_artifact.write_bytes(b"ios-ipa")
+        portable = root / f"Covio-{spec.client_version}-windows-x64-portable.zip"
+        portable.write_bytes(b"windows-portable")
+        msi = root / f"Covio-{spec.client_version}-windows-x64.msi"
+        msi.write_bytes(b"windows-msi")
+        release_id = release.release_id(spec, commit)
+        identity = {
+            "productVersion": spec.product_version,
+            "clientVersion": spec.client_version,
+            "buildNumber": spec.build_number,
+            "gitCommit": commit,
+            "channel": spec.channel,
+            "releaseId": release_id,
+        }
+        ios = root / "ios-package.json"
+        ios.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "platform": "ios",
+                    **identity,
+                    "bundleIdentifier": "com.wyz.covio.ios",
+                    "artifact": {
+                        "name": ios_artifact.name,
+                        "size": ios_artifact.stat().st_size,
+                        "sha256": release.sha256_file(ios_artifact),
+                    },
+                    "signing": {"style": "development", "teamIdentifier": "TEAM123456"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        windows = root / "compose-package.json"
+        windows.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "platform": "windows",
+                    **identity,
+                    "runtime": "jlink",
+                    "packager": "jpackage",
+                    "artifacts": {
+                        "portable": {
+                            "name": portable.name,
+                            "size": portable.stat().st_size,
+                            "sha256": release.sha256_file(portable),
+                        },
+                        "msi": {
+                            "name": msi.name,
+                            "size": msi.stat().st_size,
+                            "sha256": release.sha256_file(msi),
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        return ios, windows
 
 
 if __name__ == "__main__":

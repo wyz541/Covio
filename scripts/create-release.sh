@@ -30,28 +30,31 @@ VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 TAG="$(python3 -I "$PIPELINE" tag --root "$ROOT")"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
+WINDOWS_PACKAGE_DIR="${COVIO_WINDOWS_COMPOSE_PACKAGE_DIR:-$ROOT/build/windows-compose-package}"
 VERIFY_SIGN_ARGS=()
+VERIFY_UNIFIED_ARGS=()
 if [[ "$CHANNEL" == "internal" ]]; then
   export COVIO_REQUIRE_STABLE_SIGNING=1
   VERIFY_SIGN_ARGS+=(--require-stable-signing)
+  VERIFY_UNIFIED_ARGS+=(--require-unified)
 fi
-APP_ZIP="$DIST/Covio-$VERSION.app.zip"
 UPDATE_ZIP="$DIST/CovioUpdate-$VERSION.zip"
-UPDATE_MANIFEST="$DIST/CovioUpdate-$VERSION.json"
-UPDATE_SIGNATURE="$DIST/CovioUpdate-$VERSION.sig.json"
-DMG="$DIST/Covio-$VERSION.dmg"
-PKG="$DIST/Covio-$VERSION.pkg"
 APP_BUNDLE="$DIST/Covio.app"
 MANIFEST="$DIST/release-manifest.json"
 CHECKSUMS="$DIST/checksums.txt"
 EVIDENCE="$DIST/release-evidence.json"
 NOTES="$DIST/release-notes.generated.md"
 OPERATION="$DIST/release-operation.json"
+IOS_METADATA="$DIST/ios-package.json"
+WINDOWS_METADATA="$DIST/compose-package.json"
 
 if [[ "$SKIP_PACKAGE" -ne 1 ]]; then
   bash "$ROOT/scripts/package-macos-swift.sh"
   if [[ "$WITH_OFFLINE" -eq 1 ]]; then
     bash "$ROOT/scripts/package-macos-offline-swift.sh"
+  fi
+  if [[ "${COVIO_IOS_PACKAGE_SKIP:-0}" != "1" ]]; then
+    bash "$ROOT/scripts/package-ios-swift.sh"
   fi
 fi
 
@@ -72,6 +75,50 @@ PY
 if [[ "$WITH_OFFLINE" -eq 1 && -z "$OFFLINE_NAME" ]]; then
   printf 'Offline packaging did not record an offline installer.\n' >&2
   exit 1
+fi
+
+stage_windows_package() {
+  if [[ ! -f "$WINDOWS_PACKAGE_DIR/compose-package.json" ]]; then
+    printf 'Missing Windows Compose package metadata: %s\n' "$WINDOWS_PACKAGE_DIR/compose-package.json" >&2
+    printf 'Download the Windows package CI artifact or set COVIO_WINDOWS_COMPOSE_PACKAGE_DIR.\n' >&2
+    exit 1
+  fi
+  python3 -I - "$WINDOWS_PACKAGE_DIR" "$DIST" <<'PY'
+import json
+import pathlib
+import shutil
+import sys
+
+source = pathlib.Path(sys.argv[1])
+destination = pathlib.Path(sys.argv[2])
+metadata = json.loads((source / "compose-package.json").read_text(encoding="utf-8"))
+artifacts = metadata.get("artifacts")
+if not isinstance(artifacts, dict):
+    raise SystemExit("compose-package.json has no artifacts object")
+for kind in ("portable", "msi"):
+    record = artifacts.get(kind)
+    if not isinstance(record, dict) or not isinstance(record.get("name"), str):
+        raise SystemExit(f"compose-package.json has no {kind} artifact")
+    artifact = source / record["name"]
+    if not artifact.is_file():
+        raise SystemExit(f"missing Windows artifact: {artifact}")
+    shutil.copy2(artifact, destination / artifact.name)
+shutil.copy2(source / "compose-package.json", destination / "compose-package.json")
+PY
+}
+
+if [[ "$CHANNEL" == "internal" ]]; then
+  if [[ ! -f "$IOS_METADATA" ]]; then
+    printf 'Missing iOS package metadata: %s\n' "$IOS_METADATA" >&2
+    printf 'Run bash scripts/package-ios-swift.sh with an Apple signing identity.\n' >&2
+    exit 1
+  fi
+  stage_windows_package
+  python3 -I "$ROOT/scripts/release_manifest.py" attach-platforms \
+    "$MANIFEST" \
+    --helper "$APP_BUNDLE/Contents/MacOS/CovioHelper" \
+    --ios-package "$IOS_METADATA" \
+    --windows-package "$WINDOWS_METADATA"
 fi
 
 if [[ "$CHANNEL" == "internal" ]]; then
@@ -141,6 +188,7 @@ python3 -I "$PIPELINE" verify \
   --root "$ROOT" \
   --expected-commit "$COMMIT" \
   "${VERIFY_SIGN_ARGS[@]}" \
+  "${VERIFY_UNIFIED_ARGS[@]}" \
   --evidence "$EVIDENCE"
 python3 -I "$PIPELINE" notes \
   --evidence "$EVIDENCE" \
@@ -183,11 +231,27 @@ if [[ "$CHANNEL" == "internal" ]]; then
   PRERELEASE=true
 fi
 
-ASSETS=("$APP_ZIP" "$UPDATE_ZIP" "$UPDATE_MANIFEST" "$UPDATE_SIGNATURE" "$DMG" "$PKG")
-if [[ -n "$OFFLINE_NAME" ]]; then
-  ASSETS+=("$DIST/$OFFLINE_NAME")
-fi
-ASSETS+=("$MANIFEST" "$CHECKSUMS" "$EVIDENCE" "$NOTES" "$OPERATION")
+ASSETS=()
+while IFS= read -r asset; do
+  ASSETS+=("$asset")
+done < <(
+  python3 -I - "$DIST" "$VERSION" <<'PY'
+import importlib.util
+import pathlib
+import sys
+
+script = pathlib.Path(sys.argv[1]).parent / "scripts" / "release_pipeline.py"
+spec = importlib.util.spec_from_file_location("release_pipeline", script)
+assert spec and spec.loader
+pipeline = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = pipeline
+spec.loader.exec_module(pipeline)
+directory = pathlib.Path(sys.argv[1])
+for name in pipeline.release_asset_names(directory, sys.argv[2]):
+    print(directory / name)
+PY
+)
+ASSETS+=("$CHECKSUMS" "$EVIDENCE" "$NOTES" "$OPERATION")
 for asset in "${ASSETS[@]}"; do
   if [[ ! -f "$asset" ]]; then
     printf 'Missing release asset: %s\n' "$asset" >&2

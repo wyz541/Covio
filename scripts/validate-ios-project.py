@@ -68,7 +68,32 @@ def main() -> int:
         if path.name not in project_text:
             raise ValueError(f"iOS project does not reference {path.name}")
     with (IOS_ROOT / "Covio" / "Info.plist").open("rb") as stream:
-        plistlib.load(stream)
+        info = plistlib.load(stream)
+    for key in (
+        "CFBundleShortVersionString",
+        "CFBundleVersion",
+        "CovioClientVersion",
+        "CovioProductVersion",
+        "CovioReleaseChannel",
+        "CovioGitCommit",
+        "CovioReleaseId",
+        "CovioHelperProtocolVersion",
+    ):
+        if key not in info:
+            raise ValueError(f"iOS Info.plist is missing {key}")
+    expected_substitutions = {
+        "CFBundleShortVersionString": "$(MARKETING_VERSION)",
+        "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
+        "CovioClientVersion": "$(COVIO_CLIENT_VERSION)",
+        "CovioProductVersion": "$(COVIO_PRODUCT_VERSION)",
+        "CovioReleaseChannel": "$(COVIO_RELEASE_CHANNEL)",
+        "CovioGitCommit": "$(COVIO_GIT_COMMIT)",
+        "CovioReleaseId": "$(COVIO_RELEASE_ID)",
+        "CovioHelperProtocolVersion": "$(COVIO_HELPER_PROTOCOL_VERSION)",
+    }
+    for key, value in expected_substitutions.items():
+        if info[key] != value:
+            raise ValueError(f"iOS Info.plist {key} must use {value}")
     ET.parse(SCHEME)
     for setting in [
         "IPHONEOS_DEPLOYMENT_TARGET = 17.0",

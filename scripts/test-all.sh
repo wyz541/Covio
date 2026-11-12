@@ -40,6 +40,11 @@ python3 -I "$ROOT/scripts/test_release_notes.py"
 python3 -I "$ROOT/scripts/test_update_manifest.py"
 python3 -I "$ROOT/scripts/generate-update-trust.py" --check
 python3 -I "$ROOT/scripts/test_verify_macos_signing.py"
+bash -n \
+  "$ROOT/scripts/create-release.sh" \
+  "$ROOT/scripts/package-ios-swift.sh" \
+  "$ROOT/scripts/package-windows-compose.sh" \
+  "$ROOT/scripts/publish-release.sh"
 
 step "Rust core"
 bash "$ROOT/scripts/test-rust.sh"

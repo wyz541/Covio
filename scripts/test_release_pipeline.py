@@ -228,6 +228,20 @@ class ReleasePipelineTests(unittest.TestCase):
             self.assertIn("Covio-Offline-1.2.3-internal.4.dmg", checksums)
             pipeline.verify_checksums(root, "1.2.3-internal.4")
 
+    def test_unified_platform_assets_are_included_in_checksums(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_release_assets(root, unified=True)
+            names = pipeline.release_asset_names(root, "1.2.3-internal.4")
+            self.assertIn("ios-package.json", names)
+            self.assertIn("Covio-1.2.3-internal.4-ios-arm64.ipa", names)
+            self.assertIn("compose-package.json", names)
+            self.assertIn("Covio-1.2.3-internal.4-windows-x64-portable.zip", names)
+            self.assertIn("Covio-1.2.3-internal.4-windows-x64.msi", names)
+            checksums = pipeline.write_checksums(root, "1.2.3-internal.4").read_text(encoding="utf-8")
+            self.assertIn("Covio-1.2.3-internal.4-ios-arm64.ipa", checksums)
+            pipeline.verify_checksums(root, "1.2.3-internal.4")
+
     def test_model_metadata_mismatch_is_rejected(self):
         manifest = {
             "tier": "2b",
@@ -312,7 +326,12 @@ class ReleasePipelineTests(unittest.TestCase):
         self.assertIn("c" * 64, notes)
         self.assertIn("# Notes", notes)
 
-    def _write_release_assets(self, root: pathlib.Path, offline: bool = False) -> None:
+    def _write_release_assets(
+        self,
+        root: pathlib.Path,
+        offline: bool = False,
+        unified: bool = False,
+    ) -> None:
         for name in pipeline.expected_asset_names("1.2.3-internal.4"):
             (root / name).write_bytes(name.encode("utf-8"))
         installers = {
@@ -345,6 +364,22 @@ class ReleasePipelineTests(unittest.TestCase):
             "installers": installers,
             "model": model,
         }
+        if unified:
+            ios_name = "Covio-1.2.3-internal.4-ios-arm64.ipa"
+            portable_name = "Covio-1.2.3-internal.4-windows-x64-portable.zip"
+            msi_name = "Covio-1.2.3-internal.4-windows-x64.msi"
+            for name in ("ios-package.json", ios_name, "compose-package.json", portable_name, msi_name):
+                (root / name).write_bytes(name.encode("utf-8"))
+            manifest["requiredPlatforms"] = ["macos", "windows", "ios"]
+            manifest["platforms"] = {
+                "ios": {"artifact": {"name": ios_name}},
+                "windows": {
+                    "artifacts": {
+                        "portable": {"name": portable_name},
+                        "msi": {"name": msi_name},
+                    }
+                },
+            }
         (root / "release-manifest.json").write_text(
             json.dumps(manifest),
             encoding="utf-8",
