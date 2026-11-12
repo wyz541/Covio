@@ -254,6 +254,168 @@ enum ContractCopy {
     static let copyComponentWindowShellStandard = LocalizedCopy(key: "copy/component/window-shell/standard", en: "Standard", zhHans: "标准")
     /// `copy/component/window-shell/toolbar`
     static let copyComponentWindowShellToolbar = LocalizedCopy(key: "copy/component/window-shell/toolbar", en: "Toolbar", zhHans: "工具栏")
+    /// `copy/device-transfer/accept`
+    static let copyDeviceTransferAccept = LocalizedCopy(key: "copy/device-transfer/accept", en: "Accept", zhHans: "接受")
+    /// `copy/device-transfer/cancel`
+    static let copyDeviceTransferCancel = LocalizedCopy(key: "copy/device-transfer/cancel", en: "Cancel", zhHans: "取消")
+    /// `copy/device-transfer/capabilities`
+    static let copyDeviceTransferCapabilities = LocalizedCopy(key: "copy/device-transfer/capabilities", en: "Capabilities", zhHans: "能力")
+    /// `copy/device-transfer/choose-file`
+    static let copyDeviceTransferChooseFile = LocalizedCopy(key: "copy/device-transfer/choose-file", en: "Choose file", zhHans: "选择文件")
+    /// `copy/device-transfer/close`
+    static let copyDeviceTransferClose = LocalizedCopy(key: "copy/device-transfer/close", en: "Close", zhHans: "关闭")
+    /// `copy/device-transfer/compare-code`
+    static let copyDeviceTransferCompareCode = LocalizedCopy(key: "copy/device-transfer/compare-code", en: "Compare the confirmation code", zhHans: "比较确认码")
+    /// `copy/device-transfer/complete-pairing`
+    static let copyDeviceTransferCompletePairing = LocalizedCopy(key: "copy/device-transfer/complete-pairing", en: "Complete pairing", zhHans: "完成配对")
+    /// `copy/device-transfer/confirm-detail`
+    static let copyDeviceTransferConfirmDetail = LocalizedCopy(key: "copy/device-transfer/confirm-detail", en: "Confirm only when both devices show the same code.", zhHans: "只有两台设备显示相同确认码时才确认。")
+    /// `copy/device-transfer/confirm-pairing`
+    static let copyDeviceTransferConfirmPairing = LocalizedCopy(key: "copy/device-transfer/confirm-pairing", en: "Confirm pairing", zhHans: "确认配对")
+    /// `copy/device-transfer/copy-payload`
+    static let copyDeviceTransferCopyPayload = LocalizedCopy(key: "copy/device-transfer/copy-payload", en: "Copy payload", zhHans: "复制内容")
+    /// `copy/device-transfer/create-pairing-qr`
+    static let copyDeviceTransferCreatePairingQr = LocalizedCopy(key: "copy/device-transfer/create-pairing-qr", en: "Create pairing QR", zhHans: "创建配对二维码")
+    /// `copy/device-transfer/decline`
+    static let copyDeviceTransferDecline = LocalizedCopy(key: "copy/device-transfer/decline", en: "Decline", zhHans: "拒绝")
+    /// `copy/device-transfer/devices`
+    static let copyDeviceTransferDevices = LocalizedCopy(key: "copy/device-transfer/devices", en: "Devices", zhHans: "设备")
+    /// `copy/device-transfer/dismiss`
+    static let copyDeviceTransferDismiss = LocalizedCopy(key: "copy/device-transfer/dismiss", en: "Dismiss", zhHans: "关闭")
+    /// `copy/device-transfer/error/background-paused`
+    static let copyDeviceTransferErrorBackgroundPaused = LocalizedCopy(key: "copy/device-transfer/error/background-paused", en: "Covio paused the transfer in the background.", zhHans: "Covio 在后台暂停了传输。")
+    /// `copy/device-transfer/error/hash-mismatch`
+    static let copyDeviceTransferErrorHashMismatch = LocalizedCopy(key: "copy/device-transfer/error/hash-mismatch", en: "The received data failed verification.", zhHans: "接收的数据未通过校验。")
+    /// `copy/device-transfer/error/network-unavailable`
+    static let copyDeviceTransferErrorNetworkUnavailable = LocalizedCopy(key: "copy/device-transfer/error/network-unavailable", en: "The network is unavailable.", zhHans: "网络不可用。")
+    /// `copy/device-transfer/error/path-collision`
+    static let copyDeviceTransferErrorPathCollision = LocalizedCopy(key: "copy/device-transfer/error/path-collision", en: "A destination path conflicts with an existing entry.", zhHans: "目标路径与已有条目冲突。")
+    /// `copy/device-transfer/error/resume-invalid`
+    static let copyDeviceTransferErrorResumeInvalid = LocalizedCopy(key: "copy/device-transfer/error/resume-invalid", en: "The saved resume point is invalid. Start a new transfer.", zhHans: "保存的续传点无效。请重新开始传输。")
+    /// `copy/device-transfer/error/storage-io`
+    static let copyDeviceTransferErrorStorageIo = LocalizedCopy(key: "copy/device-transfer/error/storage-io", en: "Storage is full or unavailable. Free space, then resume.", zhHans: "存储空间不足或不可用。释放空间后再继续。")
+    /// `copy/device-transfer/error/target-exists`
+    static let copyDeviceTransferErrorTargetExists = LocalizedCopy(key: "copy/device-transfer/error/target-exists", en: "The destination file already exists.", zhHans: "目标文件已存在。")
+    /// `copy/device-transfer/error/transfer-failed`
+    static let copyDeviceTransferErrorTransferFailed = LocalizedCopy(key: "copy/device-transfer/error/transfer-failed", en: "The transfer failed.", zhHans: "传输失败。")
+    /// `copy/device-transfer/file`
+    static let copyDeviceTransferFile = LocalizedCopy(key: "copy/device-transfer/file", en: "File", zhHans: "文件")
+    /// `copy/device-transfer/incoming-file`
+    static let copyDeviceTransferIncomingFile = LocalizedCopy(key: "copy/device-transfer/incoming-file", en: "Incoming file", zhHans: "传入文件")
+    /// `copy/device-transfer/join-with-qr`
+    static let copyDeviceTransferJoinWithQr = LocalizedCopy(key: "copy/device-transfer/join-with-qr", en: "Join with a pairing QR", zhHans: "使用配对二维码加入")
+    /// `copy/device-transfer/join-with-qr-detail`
+    static let copyDeviceTransferJoinWithQrDetail = LocalizedCopy(key: "copy/device-transfer/join-with-qr-detail", en: "Paste the QR payload from the other device.", zhHans: "粘贴另一台设备显示的二维码内容。")
+    /// `copy/device-transfer/last-seen`
+    static let copyDeviceTransferLastSeen = LocalizedCopy(key: "copy/device-transfer/last-seen", en: "Last seen", zhHans: "最后出现")
+    /// `copy/device-transfer/listening`
+    static let copyDeviceTransferListening = LocalizedCopy(key: "copy/device-transfer/listening", en: "Listening", zhHans: "正在监听")
+    /// `copy/device-transfer/model`
+    static let copyDeviceTransferModel = LocalizedCopy(key: "copy/device-transfer/model", en: "Model", zhHans: "型号")
+    /// `copy/device-transfer/name`
+    static let copyDeviceTransferName = LocalizedCopy(key: "copy/device-transfer/name", en: "Name", zhHans: "名称")
+    /// `copy/device-transfer/no-file`
+    static let copyDeviceTransferNoFile = LocalizedCopy(key: "copy/device-transfer/no-file", en: "No file selected", zhHans: "尚未选择文件")
+    /// `copy/device-transfer/no-paired-devices`
+    static let copyDeviceTransferNoPairedDevices = LocalizedCopy(key: "copy/device-transfer/no-paired-devices", en: "No paired devices.", zhHans: "没有已配对设备。")
+    /// `copy/device-transfer/not-listening`
+    static let copyDeviceTransferNotListening = LocalizedCopy(key: "copy/device-transfer/not-listening", en: "Not listening", zhHans: "未监听")
+    /// `copy/device-transfer/not-reported`
+    static let copyDeviceTransferNotReported = LocalizedCopy(key: "copy/device-transfer/not-reported", en: "Not reported", zhHans: "未报告")
+    /// `copy/device-transfer/offline`
+    static let copyDeviceTransferOffline = LocalizedCopy(key: "copy/device-transfer/offline", en: "Offline", zhHans: "离线")
+    /// `copy/device-transfer/online`
+    static let copyDeviceTransferOnline = LocalizedCopy(key: "copy/device-transfer/online", en: "Online", zhHans: "在线")
+    /// `copy/device-transfer/pair`
+    static let copyDeviceTransferPair = LocalizedCopy(key: "copy/device-transfer/pair", en: "Pair", zhHans: "配对")
+    /// `copy/device-transfer/pair-first`
+    static let copyDeviceTransferPairFirst = LocalizedCopy(key: "copy/device-transfer/pair-first", en: "Pair a device before sending a file.", zhHans: "发送文件前先配对设备。")
+    /// `copy/device-transfer/paired-devices`
+    static let copyDeviceTransferPairedDevices = LocalizedCopy(key: "copy/device-transfer/paired-devices", en: "Paired devices", zhHans: "已配对设备")
+    /// `copy/device-transfer/paired-label`
+    static let copyDeviceTransferPairedLabel = LocalizedCopy(key: "copy/device-transfer/paired-label", en: "paired", zhHans: "已配对")
+    /// `copy/device-transfer/pause`
+    static let copyDeviceTransferPause = LocalizedCopy(key: "copy/device-transfer/pause", en: "Pause", zhHans: "暂停")
+    /// `copy/device-transfer/qr-hint`
+    static let copyDeviceTransferQrHint = LocalizedCopy(key: "copy/device-transfer/qr-hint", en: "The QR payload is also available as text for accessibility and manual entry.", zhHans: "二维码内容也以文本显示，便于辅助功能或手动输入。")
+    /// `copy/device-transfer/qr-payload`
+    static let copyDeviceTransferQrPayload = LocalizedCopy(key: "copy/device-transfer/qr-payload", en: "QR payload", zhHans: "二维码内容")
+    /// `copy/device-transfer/receive`
+    static let copyDeviceTransferReceive = LocalizedCopy(key: "copy/device-transfer/receive", en: "Receive", zhHans: "接收")
+    /// `copy/device-transfer/receive-detail`
+    static let copyDeviceTransferReceiveDetail = LocalizedCopy(key: "copy/device-transfer/receive-detail", en: "Covio can receive while this app is open.", zhHans: "Covio 打开时可以接收文件。")
+    /// `copy/device-transfer/refresh`
+    static let copyDeviceTransferRefresh = LocalizedCopy(key: "copy/device-transfer/refresh", en: "Refresh", zhHans: "刷新")
+    /// `copy/device-transfer/response-payload`
+    static let copyDeviceTransferResponsePayload = LocalizedCopy(key: "copy/device-transfer/response-payload", en: "Response QR payload", zhHans: "响应二维码内容")
+    /// `copy/device-transfer/resume`
+    static let copyDeviceTransferResume = LocalizedCopy(key: "copy/device-transfer/resume", en: "Resume", zhHans: "继续")
+    /// `copy/device-transfer/scan-on-first`
+    static let copyDeviceTransferScanOnFirst = LocalizedCopy(key: "copy/device-transfer/scan-on-first", en: "Scan on the first device", zhHans: "在第一台设备上扫描")
+    /// `copy/device-transfer/scan-on-other`
+    static let copyDeviceTransferScanOnOther = LocalizedCopy(key: "copy/device-transfer/scan-on-other", en: "Scan on the other device", zhHans: "在另一台设备上扫描")
+    /// `copy/device-transfer/scan-response`
+    static let copyDeviceTransferScanResponse = LocalizedCopy(key: "copy/device-transfer/scan-response", en: "Scan response QR", zhHans: "扫描响应二维码")
+    /// `copy/device-transfer/scan-response-detail`
+    static let copyDeviceTransferScanResponseDetail = LocalizedCopy(key: "copy/device-transfer/scan-response-detail", en: "Paste the response QR payload from the other device.", zhHans: "粘贴另一台设备显示的响应二维码内容。")
+    /// `copy/device-transfer/send`
+    static let copyDeviceTransferSend = LocalizedCopy(key: "copy/device-transfer/send", en: "Send", zhHans: "发送")
+    /// `copy/device-transfer/send-file`
+    static let copyDeviceTransferSendFile = LocalizedCopy(key: "copy/device-transfer/send-file", en: "Send file", zhHans: "发送文件")
+    /// `copy/device-transfer/send-to`
+    static let copyDeviceTransferSendTo = LocalizedCopy(key: "copy/device-transfer/send-to", en: "Send to", zhHans: "发送到")
+    /// `copy/device-transfer/show-folder`
+    static let copyDeviceTransferShowFolder = LocalizedCopy(key: "copy/device-transfer/show-folder", en: "Show folder", zhHans: "显示文件夹")
+    /// `copy/device-transfer/show-in-finder`
+    static let copyDeviceTransferShowInFinder = LocalizedCopy(key: "copy/device-transfer/show-in-finder", en: "Show in Finder", zhHans: "在访达中显示")
+    /// `copy/device-transfer/show-qr`
+    static let copyDeviceTransferShowQr = LocalizedCopy(key: "copy/device-transfer/show-qr", en: "Show a pairing QR", zhHans: "显示配对二维码")
+    /// `copy/device-transfer/show-qr-detail`
+    static let copyDeviceTransferShowQrDetail = LocalizedCopy(key: "copy/device-transfer/show-qr-detail", en: "Let the other device scan this QR code.", zhHans: "让另一台设备扫描这个二维码。")
+    /// `copy/device-transfer/start-listening`
+    static let copyDeviceTransferStartListening = LocalizedCopy(key: "copy/device-transfer/start-listening", en: "Start listening", zhHans: "开始监听")
+    /// `copy/device-transfer/starting`
+    static let copyDeviceTransferStarting = LocalizedCopy(key: "copy/device-transfer/starting", en: "Starting…", zhHans: "正在启动…")
+    /// `copy/device-transfer/state/awaiting-acceptance`
+    static let copyDeviceTransferStateAwaitingAcceptance = LocalizedCopy(key: "copy/device-transfer/state/awaiting-acceptance", en: "Awaiting acceptance", zhHans: "等待接受")
+    /// `copy/device-transfer/state/background-suspended`
+    static let copyDeviceTransferStateBackgroundSuspended = LocalizedCopy(key: "copy/device-transfer/state/background-suspended", en: "Paused in background", zhHans: "后台暂停")
+    /// `copy/device-transfer/state/cancelled`
+    static let copyDeviceTransferStateCancelled = LocalizedCopy(key: "copy/device-transfer/state/cancelled", en: "Cancelled", zhHans: "已取消")
+    /// `copy/device-transfer/state/committing`
+    static let copyDeviceTransferStateCommitting = LocalizedCopy(key: "copy/device-transfer/state/committing", en: "Saving", zhHans: "正在保存")
+    /// `copy/device-transfer/state/completed`
+    static let copyDeviceTransferStateCompleted = LocalizedCopy(key: "copy/device-transfer/state/completed", en: "Complete", zhHans: "完成")
+    /// `copy/device-transfer/state/expired`
+    static let copyDeviceTransferStateExpired = LocalizedCopy(key: "copy/device-transfer/state/expired", en: "Expired", zhHans: "已过期")
+    /// `copy/device-transfer/state/failed`
+    static let copyDeviceTransferStateFailed = LocalizedCopy(key: "copy/device-transfer/state/failed", en: "Failed", zhHans: "失败")
+    /// `copy/device-transfer/state/offer-waiting`
+    static let copyDeviceTransferStateOfferWaiting = LocalizedCopy(key: "copy/device-transfer/state/offer-waiting", en: "Waiting for receiver", zhHans: "等待接收方")
+    /// `copy/device-transfer/state/paused`
+    static let copyDeviceTransferStatePaused = LocalizedCopy(key: "copy/device-transfer/state/paused", en: "Paused", zhHans: "已暂停")
+    /// `copy/device-transfer/state/rejected`
+    static let copyDeviceTransferStateRejected = LocalizedCopy(key: "copy/device-transfer/state/rejected", en: "Declined", zhHans: "已拒绝")
+    /// `copy/device-transfer/state/transferring`
+    static let copyDeviceTransferStateTransferring = LocalizedCopy(key: "copy/device-transfer/state/transferring", en: "Transferring", zhHans: "正在传输")
+    /// `copy/device-transfer/state/verifying`
+    static let copyDeviceTransferStateVerifying = LocalizedCopy(key: "copy/device-transfer/state/verifying", en: "Verifying", zhHans: "正在校验")
+    /// `copy/device-transfer/state/waiting-network`
+    static let copyDeviceTransferStateWaitingNetwork = LocalizedCopy(key: "copy/device-transfer/state/waiting-network", en: "Waiting for network", zhHans: "等待网络")
+    /// `copy/device-transfer/status`
+    static let copyDeviceTransferStatus = LocalizedCopy(key: "copy/device-transfer/status", en: "Status", zhHans: "状态")
+    /// `copy/device-transfer/system`
+    static let copyDeviceTransferSystem = LocalizedCopy(key: "copy/device-transfer/system", en: "System", zhHans: "系统")
+    /// `copy/device-transfer/this-mac`
+    static let copyDeviceTransferThisMac = LocalizedCopy(key: "copy/device-transfer/this-mac", en: "This Mac", zhHans: "这台 Mac")
+    /// `copy/device-transfer/transfers`
+    static let copyDeviceTransferTransfers = LocalizedCopy(key: "copy/device-transfer/transfers", en: "Transfers", zhHans: "传输")
+    /// `copy/device-transfer/unnamed-file`
+    static let copyDeviceTransferUnnamedFile = LocalizedCopy(key: "copy/device-transfer/unnamed-file", en: "Unnamed file", zhHans: "未命名文件")
+    /// `copy/device-transfer/use-payload`
+    static let copyDeviceTransferUsePayload = LocalizedCopy(key: "copy/device-transfer/use-payload", en: "Use payload", zhHans: "使用内容")
+    /// `copy/device-transfer/version`
+    static let copyDeviceTransferVersion = LocalizedCopy(key: "copy/device-transfer/version", en: "Version", zhHans: "版本")
     /// `copy/dialog/helper-install/body`
     static let copyDialogHelperInstallBody = LocalizedCopy(key: "copy/dialog/helper-install/body", en: "Covio needs system support for privileged controls.", zhHans: "Covio 需要系统支持来完成特权控制。")
     /// `copy/dialog/helper-install/title`
@@ -1931,6 +2093,87 @@ enum ContractCopy {
         copyComponentWindowShellSidebar,
         copyComponentWindowShellStandard,
         copyComponentWindowShellToolbar,
+        copyDeviceTransferAccept,
+        copyDeviceTransferCancel,
+        copyDeviceTransferCapabilities,
+        copyDeviceTransferChooseFile,
+        copyDeviceTransferClose,
+        copyDeviceTransferCompareCode,
+        copyDeviceTransferCompletePairing,
+        copyDeviceTransferConfirmDetail,
+        copyDeviceTransferConfirmPairing,
+        copyDeviceTransferCopyPayload,
+        copyDeviceTransferCreatePairingQr,
+        copyDeviceTransferDecline,
+        copyDeviceTransferDevices,
+        copyDeviceTransferDismiss,
+        copyDeviceTransferErrorBackgroundPaused,
+        copyDeviceTransferErrorHashMismatch,
+        copyDeviceTransferErrorNetworkUnavailable,
+        copyDeviceTransferErrorPathCollision,
+        copyDeviceTransferErrorResumeInvalid,
+        copyDeviceTransferErrorStorageIo,
+        copyDeviceTransferErrorTargetExists,
+        copyDeviceTransferErrorTransferFailed,
+        copyDeviceTransferFile,
+        copyDeviceTransferIncomingFile,
+        copyDeviceTransferJoinWithQr,
+        copyDeviceTransferJoinWithQrDetail,
+        copyDeviceTransferLastSeen,
+        copyDeviceTransferListening,
+        copyDeviceTransferModel,
+        copyDeviceTransferName,
+        copyDeviceTransferNoFile,
+        copyDeviceTransferNoPairedDevices,
+        copyDeviceTransferNotListening,
+        copyDeviceTransferNotReported,
+        copyDeviceTransferOffline,
+        copyDeviceTransferOnline,
+        copyDeviceTransferPair,
+        copyDeviceTransferPairFirst,
+        copyDeviceTransferPairedDevices,
+        copyDeviceTransferPairedLabel,
+        copyDeviceTransferPause,
+        copyDeviceTransferQrHint,
+        copyDeviceTransferQrPayload,
+        copyDeviceTransferReceive,
+        copyDeviceTransferReceiveDetail,
+        copyDeviceTransferRefresh,
+        copyDeviceTransferResponsePayload,
+        copyDeviceTransferResume,
+        copyDeviceTransferScanOnFirst,
+        copyDeviceTransferScanOnOther,
+        copyDeviceTransferScanResponse,
+        copyDeviceTransferScanResponseDetail,
+        copyDeviceTransferSend,
+        copyDeviceTransferSendFile,
+        copyDeviceTransferSendTo,
+        copyDeviceTransferShowFolder,
+        copyDeviceTransferShowInFinder,
+        copyDeviceTransferShowQr,
+        copyDeviceTransferShowQrDetail,
+        copyDeviceTransferStartListening,
+        copyDeviceTransferStarting,
+        copyDeviceTransferStateAwaitingAcceptance,
+        copyDeviceTransferStateBackgroundSuspended,
+        copyDeviceTransferStateCancelled,
+        copyDeviceTransferStateCommitting,
+        copyDeviceTransferStateCompleted,
+        copyDeviceTransferStateExpired,
+        copyDeviceTransferStateFailed,
+        copyDeviceTransferStateOfferWaiting,
+        copyDeviceTransferStatePaused,
+        copyDeviceTransferStateRejected,
+        copyDeviceTransferStateTransferring,
+        copyDeviceTransferStateVerifying,
+        copyDeviceTransferStateWaitingNetwork,
+        copyDeviceTransferStatus,
+        copyDeviceTransferSystem,
+        copyDeviceTransferThisMac,
+        copyDeviceTransferTransfers,
+        copyDeviceTransferUnnamedFile,
+        copyDeviceTransferUsePayload,
+        copyDeviceTransferVersion,
         copyDialogHelperInstallBody,
         copyDialogHelperInstallTitle,
         copyDialogHelperUnavailableBody,

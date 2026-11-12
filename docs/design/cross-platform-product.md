@@ -66,9 +66,9 @@ Covio 保留 macOS 电源和截图工具。
 
 | 平台 | 当前状态 | 目标 UI | Rust bridge | 凭据存储 |
 | --- | --- | --- | --- | --- |
-| macOS | 现有产品已交付。跨设备 host 尚未完成。 | SwiftUI + AppKit | C ABI；UniFFI 可选 | Keychain |
+| macOS | 现有产品已交付。跨设备 host 已实现；三平台真机证据尚未完成。 | SwiftUI + AppKit | C ABI；UniFFI 可选 | Keychain |
 | Windows | egui 是当前产品基线。Compose 是 opt-in prototype。 | Compose Multiplatform | JNI | Credential Manager |
-| iOS | 纵向切片已实现。内部制品和真机证据尚未完成。 | SwiftUI | C ABI；UniFFI 可选 | Keychain |
+| iOS | 纵向切片与统一发布工具已实现；签名制品和真机证据尚未完成。 | SwiftUI | C ABI；UniFFI 可选 | Keychain |
 | Android | 第一版不交付。后续平台目标。 | Compose Multiplatform | JNI | Keystore |
 
 Windows 当前继续交付 egui 产物。
@@ -162,6 +162,7 @@ Platform adapter 提供以下原生能力：
 - [Covio 设备身份与二维码配对](device-pairing.md)
 - [Covio 单文件传输](single-file-transfer.md)
 - [Covio 目录传输](directory-transfer.md)
+- [macOS 跨设备传输入口](macos-device-transfer.md)
 
 ## 6. 跨平台交互合同
 
