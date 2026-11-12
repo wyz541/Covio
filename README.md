@@ -89,8 +89,8 @@ See [Windows Compose host](docs/design/windows-compose-host.md).
 
 Covio is under internal test.
 Covio 0.6.0-internal.36 is the current internal build.
-The first cross-platform release target includes iOS.
-No iOS internal build is published yet.
+The unified internal release includes macOS, Windows Compose and iOS artifacts.
+iOS installation requires an Apple-signed IPA and a registered iPhone.
 The macOS build requires macOS 26 or later on Apple Silicon.
 The Windows build supports Windows 11 x64.
 The default installer does not contain model weights.
@@ -104,13 +104,15 @@ Validation results are in `docs/research/installer-size-reduction/validation/`.
 
 - [Default DMG](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.36/Covio-0.6.0-internal.36.dmg)
 - [Transactional PKG](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.36/Covio-0.6.0-internal.36.pkg)
+- [Windows portable ZIP](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.36/Covio-0.6.0-internal.36-windows-x64-portable.zip)
+- [Windows MSI](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.36/Covio-0.6.0-internal.36-windows-x64.msi)
+- [iOS signed IPA](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.36/Covio-0.6.0-internal.36-ios-arm64.ipa)
 - [Release page](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.36)
 - [Checksums](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.36/checksums.txt)
 - [Covio 0.6.0-internal.33](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.33) is the previous internal test.
 - [Covio 0.6.0-internal.32](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.32) is an older internal test.
 - [Covio 0.6.0-internal.31](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.31) is an older internal test.
 - [Covio 0.6.0-internal.30](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.30) is an older internal test.
-- [Windows x64 installer](https://github.com/wyz541/Covio/releases/download/v0.6.0-internal.36/Covio-0.6.0-internal.36-windows-x64-setup.exe)
 - [Covio 0.6.0-internal.35](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.35) is the previous internal test.
 - [Covio 0.6.0-internal.34](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.34) is an older internal test.
 - [Covio 0.6.0-internal.29](https://github.com/wyz541/Covio/releases/tag/v0.6.0-internal.29) is an older internal test.
@@ -643,7 +645,9 @@ Internal Drafts now require one macOS, Windows Compose and signed iOS package fr
 Set `COVIO_IOS_TEAM_ID` before the release command.
 The verification step fails when a platform artifact is missing or its commit differs.
 
-CI runs the Windows package job for installer or release inputs, release branches, and manual runs. The job uploads `Covio-<clientVersion>-windows-x64-setup.exe` with its checksum, package manifest, boundary scan, and installer test report.
+CI runs the Windows package job for installer or release inputs, release branches, and manual runs.
+The job uploads the native installer package and the Windows Compose ZIP, MSI, package metadata, boundary scan, baseline, and screenshots.
+The unified internal Release uses the Compose ZIP and MSI from the successful CI run at the release commit.
 Build the macOS package locally with `bash scripts/create-release.sh`. Verify the DMG, PKG, app zip, update zip, and boundary scan before publishing.
 Hosted artifacts prove build and installer behavior. Physical Windows and macOS acceptance remains #613.
 
