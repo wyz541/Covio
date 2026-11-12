@@ -2,9 +2,9 @@
 package com.covio.release
 
 object GeneratedReleaseIdentity {
-    const val clientVersion = "0.6.0-internal.35"
+    const val clientVersion = "0.6.0-internal.36"
     const val productVersion = "0.6.0"
-    const val buildNumber = 35
+    const val buildNumber = 36
     const val channel = "internal"
     const val helperProtocolVersion = 10
 }

@@ -1,13 +1,14 @@
-# Covio 0.6.0-internal.35
+# Covio 0.6.0-internal.36
 
-Covio 0.6.0-internal.35 是内测版。
-本版将 Windows 主界面与 macOS 视觉和交互基准对齐。
-本版增加 Windows 顶部边缘工作台入口和进出动画。
-本版修复 macOS 文件页新建文本后工作台卡死。
-本版增加更新下载进度和全局触发设置。
-Windows 和 macOS 继续使用 Rust core 与平台原生 UI。
+Covio 0.6.0-internal.36 是内测版。
+本版建立 macOS、Windows 和 iOS 共用的内部测试 Release 身份。
+本版增加 macOS 和 iOS 的二维码配对、发送、接收和设备信息入口。
+本版增加 Rust iroh 单文件传输和目录快照传输。
+本版将 Windows Compose host 的版本改为读取发布清单。
+三个平台继续使用 Rust core 与平台原生 UI。
 macOS 使用 SwiftUI 和 AppKit。
-Windows 使用 egui。
+Windows 使用 Compose Multiplatform。
+iOS 使用 SwiftUI。
 本版不用于公开分发。
 
 ## 系统要求
@@ -15,12 +16,16 @@ Windows 使用 egui。
 - macOS 26 或更高版本。
 - Apple Silicon Mac（arm64）。
 - Windows 11 x64。
+- iOS 17 或更高版本。
+- 已登记到 Apple 开发团队的 iPhone。
 
 ## 安装包
 
-本版同时提供 macOS 包和 Windows 安装包。
+本版同时提供 macOS、Windows 和 iOS 制品。
 macOS 包含默认瘦身 DMG、事务安装 PKG 和 App ZIP。
-Windows 包含当前用户安装的 x64 安装包。
+Windows 包含 Compose 便携 ZIP 和 MSI。
+iOS 包含已签名的 arm64 IPA。
+三个平台使用同一个 `clientVersion`、`buildNumber` 和 Git commit。
 默认包不包含模型权重。
 模型在用户确认后下载、校验并登记。
 本版不构建离线模型 DMG。
@@ -31,28 +36,31 @@ Windows 包含当前用户安装的 x64 安装包。
 从 `.34` 起，更新器使用当前仓库路径并兼容旧签名清单。
 事务安装 PKG 最多请求 1 次管理员授权。
 
-## 从 0.6.0-internal.34 到 0.6.0-internal.35 的变化
+## 从 0.6.0-internal.35 到 0.6.0-internal.36 的变化
 
-- Windows 主界面改用 egui。Home 使用 Bento 卡片网格。文件、剪切板和 Monitor 使用统一卡片与动作层级。设置页与 macOS 对齐。浅色、深色、100% 和 150% 缩放可用。
-- Windows 增加顶部边缘工作台入口。入口位于每块屏幕顶部中央。工作台以无边框置顶浮层显示，并使用连续进出动画和圆角裁剪。
-- Windows 设置增加全局触发分节。用户可控制全局快捷键、双指手势和顶部边缘悬停。双指手势改为 `Option` 加双指下滑，并默认关闭。
-- 更新设置增加下载进度条。更新器状态、XPC 状态与设置页显示同一进度。
-- macOS 文件页的「新建文本…」改为工作台内 sheet。取消和保存后，工作台继续接收输入。
+- macOS 文件页增加 Devices 栏。用户可以配对设备、发送文件、启动接收并查看设备信息。
+- iOS 宿主提供 Pair、Send、Receive 和 Devices 页面。
+- Windows Compose host 从 `release/release-manifest.json` 读取版本。Devices 页面显示同一 `clientVersion`。
+- 配对使用二维码和两端确认码。设备身份保存在 Keychain 或 Credential Manager 支持的凭据仓库。
+- 单文件传输提供中断、暂停、恢复、取消、校验和续传状态。
+- 目录传输处理冲突、损坏清单、原子提交和路径安全。
+- 统一 Release 同时校验 macOS、Windows 和 iOS 制品。任一端版本或 commit 不一致时，发布失败。
+- 传输错误显示稳定错误码。存储不足、损坏分块、冲突目录和续传点错误有明确消息。
 
 ## 验证
 
 - `bash scripts/test-all.sh`：通过。
-- macOS Swift：执行 1106 个测试，3 个跳过，0 个失败。
-- Rust core、Updater、安装器、产物边界、合同和 Windows trigger 测试：通过。
-- Windows package 和 installer CI：通过。
-- Windows 真机视觉与交互证据：Windows 11 x64，100% 和 150% 缩放。
-- macOS「新建文本…」真机复验：macOS 27.0.1，取消和保存后工作台可用。
+- macOS XCTest：1113 个通过，3 个跳过，0 个失败。
+- iOS Simulator XCTest：4 个通过，0 个失败。
+- Rust core、Windows host、Windows Compose、安装事务和发布脚本：通过。
+- macOS C ABI 启动和二维码生成：通过。
+- Windows ↔ iOS、macOS ↔ Windows、macOS ↔ iOS 真机矩阵：发布前执行并补录。
 
 ## 安装
 
 ### macOS
 
-1. 下载 `Covio-0.6.0-internal.35.pkg`。
+1. 下载 `Covio-0.6.0-internal.36.pkg`。
 2. 打开 PKG 并完成 1 次管理员授权。
 3. PKG 完成 app、helper 和 updater 的事务安装。
 4. 打开 `Covio.app`。
@@ -60,11 +68,17 @@ Windows 包含当前用户安装的 x64 安装包。
 
 ### Windows
 
-1. 下载 `Covio-0.6.0-internal.35-windows-x64-setup.exe`。
-2. 运行安装包。
-3. 安装到当前用户目录。
-4. 从开始菜单启动 Covio。
-5. 打开设置，确认自动更新状态和手动检查入口。
+1. 下载 `Covio-0.6.0-internal.36-windows-x64-portable.zip` 或 `Covio-0.6.0-internal.36-windows-x64.msi`。
+2. 解压 ZIP 后运行 `Covio.exe`，或打开 MSI。
+3. 启动 Covio。
+4. 打开 Devices，确认版本为 `0.6.0-internal.36`。
+
+### iOS
+
+1. 下载 `Covio-0.6.0-internal.36-ios-arm64.ipa`。
+2. 使用 Apple Configurator 或 Xcode 的 Devices 窗口安装到已登记 iPhone。
+3. 打开 Covio。
+4. 打开 Devices，确认版本为 `0.6.0-internal.36`。
 
 **警告：** 此构建使用本地签名。
 macOS Gatekeeper 可能阻止此构建。
