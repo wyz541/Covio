@@ -192,7 +192,7 @@ iOS 构建和真机验收在本地 Apple Silicon Mac 执行。
 
 ## 10. 关联文档
 
-- [跨平台产品架构](cross-platform-product.md)
+- [跨平台产品规格](cross-platform-product.md)
 - [C ABI 合同](bridge-contract.md)
 - [凭据仓库](credential-vault.md)
 - [设备配对](device-pairing.md)

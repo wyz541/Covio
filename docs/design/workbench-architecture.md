@@ -9,7 +9,7 @@
 | 日期 | `2026-11-03` |
 | 适用范围 | macOS 宿主。Windows 与 iOS 只定义入口形态。 |
 | 设计依据 | [设计合同](../covio-design-contract.json) |
-| 实现边界 | [ADR-0035](../adr/adr-0035-cross-platform-product-scope.md)、[ADR-0034](../adr/adr-0034-remove-kmp-shared-module.md) 与 [跨平台目标架构](cross-platform-product.md) |
+| 实现边界 | [ADR-0035](../adr/adr-0035-cross-platform-product-scope.md)、[ADR-0034](../adr/adr-0034-remove-kmp-shared-module.md) 与 [跨平台产品规格](cross-platform-product.md) |
 
 本文写工作台的功能、设计与预期。
 本文不规定 Rust core 或平台 UI host 的内部实现。

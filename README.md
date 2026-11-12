@@ -71,7 +71,7 @@ The Compose host must pass functional, visual, packaging, and performance accept
 See [Windows Compose host](docs/design/windows-compose-host.md).
 
 - Product and platform decision: [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md)
-- Target architecture: [Cross-platform product](docs/design/cross-platform-product.md)
+- Product specification: [Cross-platform product](docs/design/cross-platform-product.md)
 - Bridge contract: [Covio bridge contract](docs/design/bridge-contract.md)
 - Credential storage: [Covio credential vault](docs/design/credential-vault.md)
 - Device pairing: [Covio device identity and QR pairing](docs/design/device-pairing.md)
