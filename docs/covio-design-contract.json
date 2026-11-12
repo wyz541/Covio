@@ -3,7 +3,7 @@
   "metadata": {
     "name": "Covio Product Design Contract",
     "status": "native-source-verified",
-    "updatedAt": "2026-11-10",
+    "updatedAt": "2026-11-12",
     "authority": "macOS/iOS Apple design; docs/covio-design-contract.json is the machine-readable projection",
     "visualProjection": {
       "fileName": "Covio — Product Design · macOS 27",
@@ -7530,6 +7530,330 @@
     "copy/general/trigger/off": {
       "en": "Off",
       "zh-Hans": "关闭"
+    },
+    "copy/device-transfer/pair": {
+      "en": "Pair",
+      "zh-Hans": "配对"
+    },
+    "copy/device-transfer/send": {
+      "en": "Send",
+      "zh-Hans": "发送"
+    },
+    "copy/device-transfer/receive": {
+      "en": "Receive",
+      "zh-Hans": "接收"
+    },
+    "copy/device-transfer/devices": {
+      "en": "Devices",
+      "zh-Hans": "设备"
+    },
+    "copy/device-transfer/starting": {
+      "en": "Starting…",
+      "zh-Hans": "正在启动…"
+    },
+    "copy/device-transfer/listening": {
+      "en": "Listening",
+      "zh-Hans": "正在监听"
+    },
+    "copy/device-transfer/not-listening": {
+      "en": "Not listening",
+      "zh-Hans": "未监听"
+    },
+    "copy/device-transfer/close": {
+      "en": "Close",
+      "zh-Hans": "关闭"
+    },
+    "copy/device-transfer/dismiss": {
+      "en": "Dismiss",
+      "zh-Hans": "关闭"
+    },
+    "copy/device-transfer/show-qr": {
+      "en": "Show a pairing QR",
+      "zh-Hans": "显示配对二维码"
+    },
+    "copy/device-transfer/show-qr-detail": {
+      "en": "Let the other device scan this QR code.",
+      "zh-Hans": "让另一台设备扫描这个二维码。"
+    },
+    "copy/device-transfer/create-pairing-qr": {
+      "en": "Create pairing QR",
+      "zh-Hans": "创建配对二维码"
+    },
+    "copy/device-transfer/join-with-qr": {
+      "en": "Join with a pairing QR",
+      "zh-Hans": "使用配对二维码加入"
+    },
+    "copy/device-transfer/join-with-qr-detail": {
+      "en": "Paste the QR payload from the other device.",
+      "zh-Hans": "粘贴另一台设备显示的二维码内容。"
+    },
+    "copy/device-transfer/qr-payload": {
+      "en": "QR payload",
+      "zh-Hans": "二维码内容"
+    },
+    "copy/device-transfer/response-payload": {
+      "en": "Response QR payload",
+      "zh-Hans": "响应二维码内容"
+    },
+    "copy/device-transfer/use-payload": {
+      "en": "Use payload",
+      "zh-Hans": "使用内容"
+    },
+    "copy/device-transfer/scan-on-other": {
+      "en": "Scan on the other device",
+      "zh-Hans": "在另一台设备上扫描"
+    },
+    "copy/device-transfer/scan-on-first": {
+      "en": "Scan on the first device",
+      "zh-Hans": "在第一台设备上扫描"
+    },
+    "copy/device-transfer/scan-response": {
+      "en": "Scan response QR",
+      "zh-Hans": "扫描响应二维码"
+    },
+    "copy/device-transfer/scan-response-detail": {
+      "en": "Paste the response QR payload from the other device.",
+      "zh-Hans": "粘贴另一台设备显示的响应二维码内容。"
+    },
+    "copy/device-transfer/complete-pairing": {
+      "en": "Complete pairing",
+      "zh-Hans": "完成配对"
+    },
+    "copy/device-transfer/compare-code": {
+      "en": "Compare the confirmation code",
+      "zh-Hans": "比较确认码"
+    },
+    "copy/device-transfer/confirm-detail": {
+      "en": "Confirm only when both devices show the same code.",
+      "zh-Hans": "只有两台设备显示相同确认码时才确认。"
+    },
+    "copy/device-transfer/confirm-pairing": {
+      "en": "Confirm pairing",
+      "zh-Hans": "确认配对"
+    },
+    "copy/device-transfer/cancel": {
+      "en": "Cancel",
+      "zh-Hans": "取消"
+    },
+    "copy/device-transfer/file": {
+      "en": "File",
+      "zh-Hans": "文件"
+    },
+    "copy/device-transfer/no-file": {
+      "en": "No file selected",
+      "zh-Hans": "尚未选择文件"
+    },
+    "copy/device-transfer/choose-file": {
+      "en": "Choose file",
+      "zh-Hans": "选择文件"
+    },
+    "copy/device-transfer/pair-first": {
+      "en": "Pair a device before sending a file.",
+      "zh-Hans": "发送文件前先配对设备。"
+    },
+    "copy/device-transfer/send-to": {
+      "en": "Send to",
+      "zh-Hans": "发送到"
+    },
+    "copy/device-transfer/send-file": {
+      "en": "Send file",
+      "zh-Hans": "发送文件"
+    },
+    "copy/device-transfer/transfers": {
+      "en": "Transfers",
+      "zh-Hans": "传输"
+    },
+    "copy/device-transfer/receive-detail": {
+      "en": "Covio can receive while this app is open.",
+      "zh-Hans": "Covio 打开时可以接收文件。"
+    },
+    "copy/device-transfer/start-listening": {
+      "en": "Start listening",
+      "zh-Hans": "开始监听"
+    },
+    "copy/device-transfer/show-folder": {
+      "en": "Show folder",
+      "zh-Hans": "显示文件夹"
+    },
+    "copy/device-transfer/incoming-file": {
+      "en": "Incoming file",
+      "zh-Hans": "传入文件"
+    },
+    "copy/device-transfer/unnamed-file": {
+      "en": "Unnamed file",
+      "zh-Hans": "未命名文件"
+    },
+    "copy/device-transfer/accept": {
+      "en": "Accept",
+      "zh-Hans": "接受"
+    },
+    "copy/device-transfer/decline": {
+      "en": "Decline",
+      "zh-Hans": "拒绝"
+    },
+    "copy/device-transfer/this-mac": {
+      "en": "This Mac",
+      "zh-Hans": "这台 Mac"
+    },
+    "copy/device-transfer/name": {
+      "en": "Name",
+      "zh-Hans": "名称"
+    },
+    "copy/device-transfer/system": {
+      "en": "System",
+      "zh-Hans": "系统"
+    },
+    "copy/device-transfer/version": {
+      "en": "Version",
+      "zh-Hans": "版本"
+    },
+    "copy/device-transfer/model": {
+      "en": "Model",
+      "zh-Hans": "型号"
+    },
+    "copy/device-transfer/status": {
+      "en": "Status",
+      "zh-Hans": "状态"
+    },
+    "copy/device-transfer/online": {
+      "en": "Online",
+      "zh-Hans": "在线"
+    },
+    "copy/device-transfer/offline": {
+      "en": "Offline",
+      "zh-Hans": "离线"
+    },
+    "copy/device-transfer/capabilities": {
+      "en": "Capabilities",
+      "zh-Hans": "能力"
+    },
+    "copy/device-transfer/paired-devices": {
+      "en": "Paired devices",
+      "zh-Hans": "已配对设备"
+    },
+    "copy/device-transfer/paired-label": {
+      "en": "paired",
+      "zh-Hans": "已配对"
+    },
+    "copy/device-transfer/refresh": {
+      "en": "Refresh",
+      "zh-Hans": "刷新"
+    },
+    "copy/device-transfer/no-paired-devices": {
+      "en": "No paired devices.",
+      "zh-Hans": "没有已配对设备。"
+    },
+    "copy/device-transfer/not-reported": {
+      "en": "Not reported",
+      "zh-Hans": "未报告"
+    },
+    "copy/device-transfer/last-seen": {
+      "en": "Last seen",
+      "zh-Hans": "最后出现"
+    },
+    "copy/device-transfer/pause": {
+      "en": "Pause",
+      "zh-Hans": "暂停"
+    },
+    "copy/device-transfer/resume": {
+      "en": "Resume",
+      "zh-Hans": "继续"
+    },
+    "copy/device-transfer/show-in-finder": {
+      "en": "Show in Finder",
+      "zh-Hans": "在访达中显示"
+    },
+    "copy/device-transfer/copy-payload": {
+      "en": "Copy payload",
+      "zh-Hans": "复制内容"
+    },
+    "copy/device-transfer/qr-hint": {
+      "en": "The QR payload is also available as text for accessibility and manual entry.",
+      "zh-Hans": "二维码内容也以文本显示，便于辅助功能或手动输入。"
+    },
+    "copy/device-transfer/state/offer-waiting": {
+      "en": "Waiting for receiver",
+      "zh-Hans": "等待接收方"
+    },
+    "copy/device-transfer/state/awaiting-acceptance": {
+      "en": "Awaiting acceptance",
+      "zh-Hans": "等待接受"
+    },
+    "copy/device-transfer/state/transferring": {
+      "en": "Transferring",
+      "zh-Hans": "正在传输"
+    },
+    "copy/device-transfer/state/paused": {
+      "en": "Paused",
+      "zh-Hans": "已暂停"
+    },
+    "copy/device-transfer/state/background-suspended": {
+      "en": "Paused in background",
+      "zh-Hans": "后台暂停"
+    },
+    "copy/device-transfer/state/waiting-network": {
+      "en": "Waiting for network",
+      "zh-Hans": "等待网络"
+    },
+    "copy/device-transfer/state/verifying": {
+      "en": "Verifying",
+      "zh-Hans": "正在校验"
+    },
+    "copy/device-transfer/state/committing": {
+      "en": "Saving",
+      "zh-Hans": "正在保存"
+    },
+    "copy/device-transfer/state/completed": {
+      "en": "Complete",
+      "zh-Hans": "完成"
+    },
+    "copy/device-transfer/state/failed": {
+      "en": "Failed",
+      "zh-Hans": "失败"
+    },
+    "copy/device-transfer/state/cancelled": {
+      "en": "Cancelled",
+      "zh-Hans": "已取消"
+    },
+    "copy/device-transfer/state/rejected": {
+      "en": "Declined",
+      "zh-Hans": "已拒绝"
+    },
+    "copy/device-transfer/state/expired": {
+      "en": "Expired",
+      "zh-Hans": "已过期"
+    },
+    "copy/device-transfer/error/storage-io": {
+      "en": "Storage is full or unavailable. Free space, then resume.",
+      "zh-Hans": "存储空间不足或不可用。释放空间后再继续。"
+    },
+    "copy/device-transfer/error/hash-mismatch": {
+      "en": "The received data failed verification.",
+      "zh-Hans": "接收的数据未通过校验。"
+    },
+    "copy/device-transfer/error/path-collision": {
+      "en": "A destination path conflicts with an existing entry.",
+      "zh-Hans": "目标路径与已有条目冲突。"
+    },
+    "copy/device-transfer/error/target-exists": {
+      "en": "The destination file already exists.",
+      "zh-Hans": "目标文件已存在。"
+    },
+    "copy/device-transfer/error/network-unavailable": {
+      "en": "The network is unavailable.",
+      "zh-Hans": "网络不可用。"
+    },
+    "copy/device-transfer/error/resume-invalid": {
+      "en": "The saved resume point is invalid. Start a new transfer.",
+      "zh-Hans": "保存的续传点无效。请重新开始传输。"
+    },
+    "copy/device-transfer/error/background-paused": {
+      "en": "Covio paused the transfer in the background.",
+      "zh-Hans": "Covio 在后台暂停了传输。"
+    },
+    "copy/device-transfer/error/transfer-failed": {
+      "en": "The transfer failed.",
+      "zh-Hans": "传输失败。"
     }
   },
   "platformMapping": {

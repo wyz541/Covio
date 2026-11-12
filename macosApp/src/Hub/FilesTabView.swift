@@ -87,6 +87,7 @@ struct FilesTabView: View {
     var modelSetup: ModelSetupRuntime? = nil
     let policy: FileNamingPolicy
     let language: AppLanguage
+    @StateObject private var deviceTransfer = DeviceTransferModel()
     let searchText: String
     var requestedFilter: FileAreaFilterChoice?
     var onConsumeRequestedFilter: () -> Void = {}
@@ -105,15 +106,18 @@ struct FilesTabView: View {
 
     var body: some View {
         let snapshot = makeSnapshot()
-        return Group {
-            if autoNaming.stage == .idle {
-                fileArea(snapshot)
-            } else {
-                AutoNamingPreviewView(
-                    runtime: autoNaming,
-                    language: language,
-                    modelSetup: modelSetup
-                )
+        return VStack(spacing: MacTheme.space2) {
+            DeviceTransferBar(model: deviceTransfer, language: language)
+            Group {
+                if autoNaming.stage == .idle {
+                    fileArea(snapshot)
+                } else {
+                    AutoNamingPreviewView(
+                        runtime: autoNaming,
+                        language: language,
+                        modelSetup: modelSetup
+                    )
+                }
             }
         }
         // 内边距由内容列给，这里不再加一层。
