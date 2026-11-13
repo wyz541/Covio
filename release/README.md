@@ -94,6 +94,7 @@ COVIO_IOS_TEAM_ID=<team-id> bash scripts/package-ios-swift.sh
 默认值是 `development`，用于内测设备直接安装。
 Mac 必须有 Apple Development 证书和包含测试设备的 provisioning profile。
 IPA 未签名或身份与 `release/release-manifest.json` 不一致时，脚本失败。
+iOS 签名、安装和验证步骤见[本地 iOS 验证](../docs/process/ios-validation.md)。
 
 从同一 commit 的 CI 运行下载 Windows Compose 包：
 

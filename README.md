@@ -91,6 +91,7 @@ Covio is under internal test.
 Covio 0.6.0-internal.36 is the current internal build.
 The unified internal release includes macOS, Windows Compose and iOS artifacts.
 iOS installation requires an Apple-signed IPA and a registered iPhone.
+See [Local iOS validation](docs/process/ios-validation.md) for signing, installation and verification steps.
 The macOS build requires macOS 26 or later on Apple Silicon.
 The Windows build supports Windows 11 x64.
 The default installer does not contain model weights.
