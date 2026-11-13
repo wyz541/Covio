@@ -4,9 +4,9 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | `1.1` |
+| 文档版本 | `1.2` |
 | 状态 | 已实现；当前只创建 internal/local Draft |
-| 日期 | `2026-11-12` |
+| 日期 | `2026-11-13` |
 | Issue | #356、#761 |
 | 上游决策 | [ADR-0020](../adr/adr-0020-local-only-helper-distribution.md)、[ADR-0031](../adr/adr-0031-semantic-versioning.md)、[ADR-0035](../adr/adr-0035-cross-platform-product-scope.md) |
 
@@ -28,7 +28,7 @@
 | Windows package | `ci.yml` 的 Windows package job | Compose 便携 ZIP、MSI、包元数据 |
 | macOS package | 本地 Apple Silicon Mac | DMG、PKG、app zip、update zip、artifact boundary |
 | iOS package | 本地 Apple Silicon Mac 与 Apple 签名身份 | 签名 IPA、包元数据 |
-| Runtime acceptance | #613 的 Windows 和 macOS 真实设备 | 日期、设备、OS、artifact、commit 和结果 |
+| Runtime acceptance | #743 的三平台真实设备 | 日期、设备、OS、artifact、commit 和结果 |
 
 Hosted tests 只证明构建和仓库行为。
 Hosted installer tests 只证明安装事务。
@@ -95,6 +95,7 @@ iOS job 运行 `scripts/package-ios-swift.sh`。
 脚本导出开发、Ad Hoc 或 App Store IPA。
 脚本检查 embedded provisioning profile、代码签名、版本号和 Git commit。
 没有签名身份或 provisioning profile 时，脚本失败。
+签名、安装和验证步骤见[本地 iOS 验证](../process/ios-validation.md)。
 
 macOS job 运行 `scripts/package-macos-swift.sh`。
 打包完成后，`scripts/verify-macos-artifact.sh` 检查 app、DMG 和 PKG。

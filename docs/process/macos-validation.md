@@ -210,3 +210,7 @@ Git 或 Paseo 的正常生命周期关闭。
 find build/agent-model -depth -delete
 find build/file-naming-model -depth -delete
 ```
+
+## 9. 相关验证
+
+iOS 签名、安装和验证步骤见[本地 iOS 验证](ios-validation.md)。
