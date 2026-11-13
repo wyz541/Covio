@@ -8,7 +8,8 @@
 - 共享逻辑是 Rust core，代码在 `rust/crates/`。Rust 是业务逻辑、状态机、持久化、传输、权限策略和平台能力模型的唯一 owner。
 - Kotlin、Compose 和 JVM 只允许用于 UI host 与平台接入。ADR-0034 的 KMP shared module 删除决策继续有效；Windows egui 是当前运行基线。
 - macOS/iOS 使用 C ABI；Windows/Android 使用 JNI。UniFFI 只做可选绑定试验。macOS/iOS Apple 设计是设计权威源，Compose 共享设计合同并对齐视觉结果。
-- 产品范围与 UI 决策见 ADR-0035。当前只做内部测试，产物通过 GitHub Releases 分发。主干是 `main`。项目版本使用 Semantic Versioning 2.0.0，正式发布规则可以重新设计。
+- 强制规格：所有任务先读 `docs/design/cross-platform-product.md`。产品范围、平台状态、所有权、合同和验收以规格为准。
+- 规格与 ADR-0035 冲突时，以 ADR-0035 为准。当前只做内部测试，产物通过 GitHub Releases 分发；主干是 `main`，版本使用 Semantic Versioning 2.0.0。
 
 ## 2. 工作流
 流程细节见 `docs/process/workflow.md`。
@@ -35,7 +36,7 @@ Project 8 的常规字段只有 `Status`、`Priority` 和 `Target date`。
 `Priority` 和 `Target date` 只给 Feature 使用。
 `Size`、`Start date` 和 `Estimate` 是历史字段，新 Issue 不要求填写。
 - Feature 有 ADR 时，写 `decision: ADR-NNNN`。
-- PR 应关闭 Issue 时，写 `Closes #N`。
+- PR 在 `Proof` 中写 `Spec impact`；PR 应关闭 Issue 时，写 `Closes #N`。
 - 不要写决策占位符。
 - 不要使用人工周检清单。
 
@@ -87,7 +88,7 @@ UI 代码 PR 必须填写 `Visual verification`。
 - 设计合同投影：`docs/covio-design-contract.json`
 - 跨平台交互合同：`docs/process/interaction-contract.md`
 - 架构决策：`docs/adr/`
-- 目标架构：`docs/design/`
+- 产品规格与目标架构：`docs/design/cross-platform-product.md`
 - 研究结论：`docs/research/`
 - 工作流：`docs/process/workflow.md`
 - Project 字段：`docs/process/project-fields.md`

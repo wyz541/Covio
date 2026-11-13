@@ -15,6 +15,10 @@ Use test data in screenshots. Hide personal information.
 - Tests:
 - CI:
 - Real-Mac:
+- Spec impact:
+  - [ ] `Not applicable`.
+  - [ ] Checked against `docs/design/cross-platform-product.md`; no spec change required.
+  - [ ] `docs/design/cross-platform-product.md` updated.
 - Contract impact:
   - [ ] `Not applicable`.
   - [ ] macOS Swift source updated.
