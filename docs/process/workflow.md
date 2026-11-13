@@ -2,7 +2,7 @@
 
 **明确事项直接进入 Issue。研究可以独立创建。大功能使用原生 sub-issue。**
 
-版本 1.1 · 2026-11-09
+版本 1.2 · 2026-11-13
 
 ## 1. 适用范围
 本流程适用于 Covio 仓库。
@@ -23,6 +23,9 @@ GitHub 个人账号没有 Issue Types 和 Issue Fields。
 Discussion 是可选入口。
 Discussion 只用于范围、优先级或共识未定，以及需要开放交流的事项。
 Discussion 不是 Issue 的前置条件，也不能成为原生的 Parent。
+
+所有 agent 开始任务前读取[跨平台产品规格](../design/cross-platform-product.md)。
+产品范围、平台状态、所有权、交互合同和验收以规格为准；规格与 ADR-0035 冲突时，以 ADR-0035 为准。
 
 - 标签 `bug` 表示 Bug。
 - 标签 `task` 表示一个小任务。
@@ -48,7 +51,7 @@ Discussion 不是 Issue 的前置条件，也不能成为原生的 Parent。
 2. Bug 写实际行为、预期行为和复现步骤。
 3. Task 写目标和可判定的验收标准。
 4. 一个 Task 使用一条分支和一个 PR。
-5. PR 写测试、CI 和剩余风险。
+5. PR 写测试、CI、`Spec impact` 和剩余风险。
 6. PR 有 UI 代码变更时，补 `Visual verification`。
 7. 合并 PR 后关闭 Issue。
 
@@ -187,6 +190,6 @@ PR 只保留四个主体段：
 4. `Risk`
 
 没有 UI 变化时，`Visual verification` 写 `Not applicable`。
-合同相关 PR 在 `Proof` 填写 `Contract impact`。
+所有 PR 在 `Proof` 写 `Spec impact`；合同相关 PR 同时写 `Contract impact`。
 PR 在测试通过前保持 draft。
 测试失败时不得转入 ready 或合并。

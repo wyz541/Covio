@@ -11,6 +11,7 @@ WORKFLOW = ROOT / "docs" / "process" / "workflow.md"
 INTERACTION_CONTRACT = ROOT / "docs" / "process" / "interaction-contract.md"
 AGENTS = ROOT / "AGENTS.md"
 PR_TEMPLATE = ROOT / ".github" / "pull_request_template.md"
+SPEC = ROOT / "docs" / "design" / "cross-platform-product.md"
 PREVIEWS = ROOT / "docs" / "design" / "previews" / "README.md"
 ADR = ROOT / "docs" / "adr" / "adr-0028-slim-issue-workflow.md"
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -77,6 +78,9 @@ def main() -> int:
         (
             "## 2. 三条路径",
             "Discussion 是可选入口",
+            "所有 agent 开始任务前读取[跨平台产品规格](../design/cross-platform-product.md)",
+            "规格与 ADR-0035 冲突时，以 ADR-0035 为准",
+            "`Spec impact`",
             "Research 可以独立存在",
             "### 4.4 Verify 例外",
             "原生 sub-issue、`blocked by` 和 linked PR 是关系的唯一来源",
@@ -104,12 +108,16 @@ def main() -> int:
         ),
     )
 
-    if len(text(AGENTS).splitlines()) > 115:
-        errors.append("AGENTS.md 超过 115 行")
+    if len(text(AGENTS).splitlines()) > 118:
+        errors.append("AGENTS.md 超过 118 行")
     require(
         AGENTS,
         (
             "明确 Bug 或小任务直接创建 Issue",
+            "所有任务先读 `docs/design/cross-platform-product.md`",
+            "产品范围、平台状态、所有权、合同和验收以规格为准",
+            "规格与 ADR-0035 冲突时，以 ADR-0035 为准",
+            "`Spec impact`",
             "Research 可以独立存在",
             "Verify 只用于",
             "不要写决策占位符",
@@ -138,6 +146,8 @@ def main() -> int:
             "## Risk",
             "Local UI change",
             "Release candidate",
+            "Spec impact:",
+            "docs/design/cross-platform-product.md",
             "Contract impact:",
             "macOS Swift source updated",
             "Exported JSON regenerated",
@@ -147,6 +157,8 @@ def main() -> int:
         ),
     )
     forbid(PR_TEMPLATE, ("## Design preview", "**亮色**", "**深色**"))
+
+    require(SPEC, ("# Covio 跨平台产品规格",))
 
     if len(text(INTERACTION_CONTRACT).splitlines()) > 160:
         errors.append("跨平台交互合同工作流超过 160 行")
