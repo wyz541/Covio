@@ -27,6 +27,7 @@
 | 合盖黑屏与 framebuffer 显示链路 | 系统报告，可评审 | [REPORT.md](lid-framebuffer-mechanism/REPORT.md) |
 | 硬件信息监听能力 | 第一版已落地 | [README.md](hardware-monitoring-capability/README.md) |
 | macOS 历史性能与硬件报告 | 已实现，验收完成（真实 10 天 soak 取消） | [README.md](macos-performance-history/README.md) |
+| macOS 专注模式系统调整 | 已完成，待评审 | [README.md](focus-mode-system-adjustments/README.md) |
 | 电池充电控制能力 | 初稿，可评审 | [README.md](battery-charge-control/README.md) |
 | Stats 风扇控制 | 已完成源码调研 | [README.md](stats-fan-control/README.md) |
 | 离线本地服务 Agent | 第一版已落地，验收通过 | [README.md](local-agent/README.md) |
