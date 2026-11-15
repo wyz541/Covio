@@ -13,6 +13,7 @@ fi
 TARGET="${COVIO_WINDOWS_TARGET:-}"
 PRODUCT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 CLIENT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
+CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 APP_VERSION="${COVIO_WINDOWS_APP_VERSION:-$CLIENT_VERSION}"
 BUILD_NUMBER="${COVIO_WINDOWS_BUILD_NUMBER:-$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)}"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
