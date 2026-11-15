@@ -26,7 +26,7 @@ impl IrohTransferEndpoint {
             .alpns(vec![TRANSFER_ALPN.to_vec()])
             .bind()
             .await
-            .map_err(|_| transport_error("iroh endpoint bind failed"))?;
+            .map_err(|error| transport_error(format!("iroh endpoint bind failed: {error}")))?;
         Ok(Self { endpoint })
     }
 
@@ -59,11 +59,10 @@ impl IrohTransferEndpoint {
             .endpoint
             .connect(address, TRANSFER_ALPN)
             .await
-            .map_err(|_| transport_error("iroh peer connection failed"))?;
-        let (control_send, control_recv) = connection
-            .open_bi()
-            .await
-            .map_err(|_| transport_error("iroh control stream open failed"))?;
+            .map_err(|error| transport_error(format!("iroh peer connection failed: {error}")))?;
+        let (control_send, control_recv) = connection.open_bi().await.map_err(|error| {
+            transport_error(format!("iroh control stream open failed: {error}"))
+        })?;
         Ok(IrohTransferChannel::new(
             connection,
             control_send,
@@ -110,13 +109,10 @@ impl IrohTransferEndpoint {
             .accept()
             .await
             .ok_or_else(|| transport_error("iroh endpoint is closed"))?;
-        let connection = incoming
-            .await
-            .map_err(|_| transport_error("iroh incoming connection failed"))?;
-        let (control_send, control_recv) = connection
-            .accept_bi()
-            .await
-            .map_err(|_| transport_error("iroh control stream accept failed"))?;
+        let connection = incoming.await.map_err(incoming_connection_error)?;
+        let (control_send, control_recv) = connection.accept_bi().await.map_err(|error| {
+            transport_error(format!("iroh control stream accept failed: {error}"))
+        })?;
         Ok(IrohTransferChannel::new(
             connection,
             control_send,
@@ -137,13 +133,10 @@ impl IrohTransferEndpoint {
             Ok(None) => return Ok(None),
             Err(_) => return Ok(None),
         };
-        let connection = incoming
-            .await
-            .map_err(|_| transport_error("iroh incoming connection failed"))?;
-        let (control_send, control_recv) = connection
-            .accept_bi()
-            .await
-            .map_err(|_| transport_error("iroh control stream accept failed"))?;
+        let connection = incoming.await.map_err(incoming_connection_error)?;
+        let (control_send, control_recv) = connection.accept_bi().await.map_err(|error| {
+            transport_error(format!("iroh control stream accept failed: {error}"))
+        })?;
         Ok(Some(IrohTransferChannel::new(
             connection,
             control_send,
@@ -258,11 +251,10 @@ impl IrohTransferChannel {
         if self.data_send.is_some() {
             return Err(TransferError::invalid("file data stream is already open"));
         }
-        let mut stream = self
-            .connection
-            .open_uni()
-            .await
-            .map_err(|_| transport_error("iroh file stream open failed"))?;
+        let mut stream =
+            self.connection.open_uni().await.map_err(|error| {
+                transport_error(format!("iroh file stream open failed: {error}"))
+            })?;
         let encoded = header.encode()?;
         write_record(&mut stream, &encoded).await?;
         self.data_send = Some(stream);
@@ -274,11 +266,10 @@ impl IrohTransferChannel {
         if self.data_recv.is_some() {
             return Err(TransferError::invalid("file data stream is already open"));
         }
-        let mut stream = self
-            .connection
-            .accept_uni()
-            .await
-            .map_err(|_| transport_error("iroh file stream accept failed"))?;
+        let mut stream =
+            self.connection.accept_uni().await.map_err(|error| {
+                transport_error(format!("iroh file stream accept failed: {error}"))
+            })?;
         let encoded = read_record(&mut stream, MAX_DATA_RECORD_BYTES).await?;
         let header = FileStreamHeader::decode(&encoded)?;
         self.data_recv = Some(stream);
@@ -313,12 +304,17 @@ impl IrohTransferChannel {
             .ok_or_else(|| TransferError::invalid("file data stream is not open"))?;
         stream
             .finish()
-            .map_err(|_| transport_error("iroh file stream finish failed"))
+            .map_err(|error| transport_error(format!("iroh file stream finish failed: {error}")))
     }
 
     /// Closes the underlying QUIC connection.
     pub fn close(&self) {
         self.connection.close(0_u32.into(), b"transfer complete");
+    }
+
+    /// Waits until either peer closes the QUIC connection.
+    pub async fn wait_closed(&self) {
+        let _ = self.connection.closed().await;
     }
 }
 
@@ -331,11 +327,11 @@ async fn write_record(
     stream
         .write_all(&length.to_be_bytes())
         .await
-        .map_err(|_| transport_error("iroh stream write failed"))?;
+        .map_err(|error| transport_error(format!("iroh stream write failed: {error}")))?;
     stream
         .write_all(bytes)
         .await
-        .map_err(|_| transport_error("iroh stream write failed"))?;
+        .map_err(|error| transport_error(format!("iroh stream write failed: {error}")))?;
     Ok(())
 }
 
@@ -347,7 +343,7 @@ async fn read_record(
     stream
         .read_exact(&mut length_bytes)
         .await
-        .map_err(|_| transport_error("iroh stream read failed"))?;
+        .map_err(|error| transport_error(format!("iroh stream read failed: {error}")))?;
     let length = usize::try_from(u32::from_be_bytes(length_bytes))
         .map_err(|_| TransferError::invalid("wire record length is invalid"))?;
     if length == 0 || length > maximum {
@@ -357,12 +353,28 @@ async fn read_record(
     stream
         .read_exact(&mut bytes)
         .await
-        .map_err(|_| transport_error("iroh stream read failed"))?;
+        .map_err(|error| transport_error(format!("iroh stream read failed: {error}")))?;
     Ok(bytes)
 }
 
 fn transport_error(message: impl Into<String>) -> TransferError {
     TransferError::new(TransferErrorCode::TransportOffline, message, true)
+}
+
+fn incoming_connection_error(error: impl std::fmt::Display) -> TransferError {
+    let message = format!("iroh incoming connection failed: {error}");
+    if message
+        .to_ascii_lowercase()
+        .contains("authentication failed")
+    {
+        TransferError::new(
+            TransferErrorCode::PeerIdentityChanged,
+            format!("{message}; pair the devices again"),
+            false,
+        )
+    } else {
+        transport_error(message)
+    }
 }
 
 /// Converts a paired device Ed25519 public key into an iroh EndpointId string.

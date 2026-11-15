@@ -191,7 +191,9 @@ class CovioClient(
         return when (result["status"]?.jsonPrimitive?.content) {
             "ok" -> result["data"]?.jsonObject ?: buildJsonObject {}
             "error" -> {
-                val error = result["error"]?.jsonObject
+                // ResponseResult::Error serializes its payload under `data`.
+                // Keep the legacy `error` fallback for older bridge bundles.
+                val error = (result["data"] ?: result["error"])?.jsonObject
                 throw CovioCommandException(
                     error?.get("code")?.jsonPrimitive?.contentOrNull ?: "internal",
                     error?.get("message")?.jsonPrimitive?.contentOrNull ?: "command failed",

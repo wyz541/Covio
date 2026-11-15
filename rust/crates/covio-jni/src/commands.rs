@@ -26,6 +26,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::runtime::Runtime;
 
+const COMPLETION_CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
+
 #[cfg(all(target_os = "windows", not(test)))]
 type PlatformSecrets = covio_platform::WindowsCredentialStore;
 #[cfg(any(not(target_os = "windows"), test))]
@@ -802,6 +804,7 @@ impl ComposeCore {
                 })
                 .await?;
             context.emit_progress(&completed)?;
+            let _ = tokio::time::timeout(COMPLETION_CLOSE_TIMEOUT, channel.wait_closed()).await;
             channel.close();
             endpoint.close().await;
             Ok(json!({"transfer": completed, "peer_device": peer}))
@@ -1082,6 +1085,183 @@ mod tests {
             .expect_err("cancelled");
         assert_eq!(error.code, WireErrorCode::Cancelled);
     }
+    #[test]
+    #[ignore = "requires loopback iroh relay and discovery"]
+    fn windows_jni_pairs_and_transfers_with_mobile_core() {
+        let root = std::env::temp_dir().join(format!(
+            "covio-jni-mobile-{}-{}",
+            std::process::id(),
+            uuid::Uuid::new_v4().simple()
+        ));
+        let desktop_root = root.join("desktop");
+        let mobile_root = root.join("mobile");
+        let destination = root.join("received");
+        std::fs::create_dir_all(&destination).expect("destination");
+        let source = root.join("source.txt");
+        let expected = b"covio windows JNI to mobile core";
+        std::fs::write(&source, expected).expect("source");
+
+        let desktop = Arc::new(
+            ComposeCore::open(ComposeConfig {
+                data_root: desktop_root,
+                display_name: "Windows sender".to_owned(),
+                system_name: "Windows 11".to_owned(),
+                system_version: "10.0.26100".to_owned(),
+                app_version: "test".to_owned(),
+                host_adapters: vec!["file_picker".to_owned()],
+            })
+            .expect("desktop core"),
+        );
+        let mobile = Arc::new(covio_ffi::MobileCore::new_with_secret_store(
+            mobile_root,
+            Arc::new(MemorySecretStore::default()),
+        ));
+        let now = now_unix_millis();
+        let boot = mobile
+            .call(
+                "mobile.bootstrap",
+                &json!({
+                    "displayName": "iPhone receiver",
+                    "systemName": "iOS",
+                    "systemVersion": "26.6.2",
+                    "model": "iPhone 16",
+                    "capabilities": ["file.transfer", "file.picker", "keychain.identity"]
+                }),
+                now,
+            )
+            .expect("mobile bootstrap");
+        let mobile_device_id = boot["identity"]["deviceId"]
+            .as_str()
+            .expect("mobile device id")
+            .to_owned();
+
+        let cancelled = AtomicBool::new(false);
+        let emit = |_: &str, _: Value| Ok(());
+        let command_context = context(&cancelled, &emit);
+        let offer = desktop
+            .call("pairing.start", &json!({}), &command_context)
+            .expect("desktop offer");
+        let accepted = mobile
+            .call(
+                "mobile.pairing.acceptOffer",
+                &json!({"qrPayload": string(&offer, "qr_payload")}),
+                now + 1,
+            )
+            .expect("mobile accept offer");
+        let response_payload = string(&accepted, "responsePayload");
+        let mobile_code = string(&accepted, "confirmationCode");
+        let initiator = desktop
+            .call(
+                "pairing.accept_response",
+                &json!({"responsePayload": response_payload}),
+                &command_context,
+            )
+            .expect("desktop accept response");
+        assert_eq!(string(&initiator, "code"), mobile_code);
+        desktop
+            .call(
+                "pairing.confirm",
+                &json!({"code": mobile_code}),
+                &command_context,
+            )
+            .expect("desktop confirm");
+        mobile
+            .call(
+                "mobile.pairing.confirmResponder",
+                &json!({"confirmationCode": mobile_code}),
+                now + 2,
+            )
+            .expect("mobile confirm");
+
+        let send_lease = lease(
+            desktop.as_ref(),
+            &command_context,
+            "send_file",
+            source.to_string_lossy().as_ref(),
+        );
+        mobile
+            .call(
+                "mobile.transfer.listen",
+                &json!({"destinationPath": destination}),
+                now + 3,
+            )
+            .expect("mobile listener");
+        std::thread::sleep(Duration::from_millis(500));
+
+        let sending = {
+            let desktop = Arc::clone(&desktop);
+            let cancelled = AtomicBool::new(false);
+            let emit = |_: &str, _: Value| Ok(());
+            std::thread::spawn(move || {
+                let context = context(&cancelled, &emit);
+                desktop.call(
+                    "transfer.send",
+                    &json!({"peerDeviceId": mobile_device_id, "fileLease": send_lease}),
+                    &context,
+                )
+            })
+        };
+
+        let deadline = std::time::Instant::now() + Duration::from_secs(60);
+        let mut accepted_transfer_id: Option<String> = None;
+        loop {
+            let status = mobile
+                .call("mobile.status", &json!({}), now_unix_millis())
+                .expect("mobile status");
+            if accepted_transfer_id.is_none()
+                && let Some(transfer_id) = status["pendingIncomingTransferId"].as_str()
+            {
+                mobile
+                    .call(
+                        "mobile.transfer.accept",
+                        &json!({"transferId": transfer_id}),
+                        now_unix_millis(),
+                    )
+                    .expect("mobile accept transfer");
+                accepted_transfer_id = Some(transfer_id.to_owned());
+            }
+            let finished = accepted_transfer_id.as_deref().is_some_and(|transfer_id| {
+                status["transfers"].as_array().is_some_and(|transfers| {
+                    transfers.iter().any(|transfer| {
+                        transfer["transferId"] == transfer_id && transfer["state"] == "completed"
+                    })
+                })
+            });
+            if finished && destination.join("source.txt").is_file() {
+                break;
+            }
+            if let Some(error) = status["listenerError"].as_str() {
+                panic!("mobile listener failed: {error}");
+            }
+            if status["transfers"].as_array().is_some_and(|transfers| {
+                transfers
+                    .iter()
+                    .any(|transfer| transfer["state"] == "failed")
+            }) {
+                panic!("mobile transfer failed: {status}");
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "mobile transfer timed out: {status}"
+            );
+            std::thread::sleep(Duration::from_millis(100));
+        }
+
+        let send_result = sending.join().expect("sender thread");
+        let final_mobile_status = mobile
+            .call("mobile.status", &json!({}), now_unix_millis())
+            .expect("mobile final status");
+        let sent = send_result.unwrap_or_else(|error| {
+            panic!("desktop send: {error:?}; mobile={final_mobile_status}")
+        });
+        assert_eq!(sent["transfer"]["job"]["state"], "completed");
+        assert_eq!(
+            std::fs::read(destination.join("source.txt")).expect("received file"),
+            expected
+        );
+        std::fs::remove_dir_all(root).expect("cleanup");
+    }
+
     #[test]
     #[ignore = "requires iroh relay and discovery"]
     fn iroh_pairing_and_file_transfer_round_trip() {
