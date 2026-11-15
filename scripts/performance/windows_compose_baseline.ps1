@@ -31,6 +31,31 @@ function Get-Median([object[]]$Values) {
     return ([double]$items[$middle - 1] + [double]$items[$middle]) / 2.0
 }
 
+function Get-ProcessTreeWorkingSetBytes {
+    param([int]$RootId)
+    $processes = @(Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId)
+    $ids = [System.Collections.Generic.HashSet[int]]::new()
+    [void]$ids.Add($RootId)
+    $parents = @($RootId)
+    while ($parents.Count -gt 0) {
+        $children = @($processes | Where-Object { $_.ParentProcessId -in $parents })
+        $parents = @()
+        foreach ($child in $children) {
+            if ($ids.Add([int]$child.ProcessId)) {
+                $parents += [int]$child.ProcessId
+            }
+        }
+    }
+    $total = 0L
+    foreach ($id in $ids) {
+        $item = Get-Process -Id $id -ErrorAction SilentlyContinue
+        if ($null -ne $item) {
+            $total += [int64]$item.WorkingSet64
+        }
+    }
+    return $total
+}
+
 $rows = @()
 for ($run = 1; $run -le $Runs; $run++) {
     $dataDir = Join-Path $runRoot "data-$run"
@@ -47,16 +72,22 @@ for ($run = 1; $run -le $Runs; $run++) {
             "--data-dir", $dataDir,
             "--theme", "light",
             "--screen", "devices"
-        )
+    )
     $peakWorkingSet = 0L
     $cpuStart = 0.0
+    $lastMemorySample = [DateTime]::MinValue
     while (-not $process.HasExited) {
         try {
             $process.Refresh()
-            $peakWorkingSet = [Math]::Max($peakWorkingSet, [int64]$process.WorkingSet64)
             $cpuStart = [Math]::Max($cpuStart, [double]$process.CPU)
         } catch {}
-        if (([DateTime]::UtcNow - $startedUtc).TotalSeconds -gt 45) {
+        $elapsed = ([DateTime]::UtcNow - $startedUtc).TotalSeconds
+        if (($elapsed -ge 0.25) -and (([DateTime]::UtcNow - $lastMemorySample).TotalMilliseconds -ge 250)) {
+            $workingSet = Get-ProcessTreeWorkingSetBytes -RootId $process.Id
+            $peakWorkingSet = [Math]::Max($peakWorkingSet, $workingSet)
+            $lastMemorySample = [DateTime]::UtcNow
+        }
+        if ($elapsed -gt 45) {
             & taskkill.exe /PID $process.Id /T /F | Out-Null
             $stdout = if (Test-Path -LiteralPath $stdoutPath) {
                 (Get-Content -LiteralPath $stdoutPath -Raw)
