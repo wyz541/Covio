@@ -291,12 +291,41 @@ class ReleaseManifestTests(unittest.TestCase):
                     "compose-package.json",
                     "Covio-1.2.3-internal.4-windows-x64-portable.zip",
                     "Covio-1.2.3-internal.4-windows-x64.msi",
+                    "Covio-1.2.3-internal.4-windows-x64-rollback-setup.exe",
                 ),
             )
 
             (root / "Covio-1.2.3-internal.4-ios-arm64.ipa").write_bytes(b"changed")
             with self.assertRaises(release.ManifestError):
                 release.verify_artifact(manifest_path, helper, root)
+
+    def test_windows_schema_two_requires_rollback_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            spec = release.load_spec(root)
+            _, windows_path = self._write_platform_packages(root, spec, "a" * 40)
+            windows = json.loads(windows_path.read_text(encoding="utf-8"))
+            del windows["artifacts"]["rollback"]
+
+            with self.assertRaises(release.ManifestError):
+                release.validate_platform_package(windows, "windows", spec, root)
+
+    def test_windows_legacy_schema_remains_valid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_fixture(root)
+            spec = release.load_spec(root)
+            _, windows_path = self._write_platform_packages(root, spec, "a" * 40)
+            windows = json.loads(windows_path.read_text(encoding="utf-8"))
+            windows["schemaVersion"] = release.WINDOWS_LEGACY_SCHEMA_VERSION
+            windows.pop("defaultHost")
+            windows.pop("rollbackHost")
+            del windows["artifacts"]["rollback"]
+
+            record = release.validate_platform_package(windows, "windows", spec, root)
+
+            self.assertEqual(record["schemaVersion"], 1)
 
     def test_unified_manifest_rejects_platform_commit_mismatch(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -417,6 +446,8 @@ class ReleaseManifestTests(unittest.TestCase):
         portable.write_bytes(b"windows-portable")
         msi = root / f"Covio-{spec.client_version}-windows-x64.msi"
         msi.write_bytes(b"windows-msi")
+        rollback = root / f"Covio-{spec.client_version}-windows-x64-rollback-setup.exe"
+        rollback.write_bytes(b"windows-egui-rollback")
         release_id = release.release_id(spec, commit)
         identity = {
             "productVersion": spec.product_version,
@@ -448,11 +479,13 @@ class ReleaseManifestTests(unittest.TestCase):
         windows.write_text(
             json.dumps(
                 {
-                    "schemaVersion": 1,
+                    "schemaVersion": release.WINDOWS_PLATFORM_SCHEMA_VERSION,
                     "platform": "windows",
                     **identity,
                     "runtime": "jlink",
                     "packager": "jpackage",
+                    "defaultHost": "compose",
+                    "rollbackHost": "egui",
                     "artifacts": {
                         "portable": {
                             "name": portable.name,
@@ -463,6 +496,11 @@ class ReleaseManifestTests(unittest.TestCase):
                             "name": msi.name,
                             "size": msi.stat().st_size,
                             "sha256": release.sha256_file(msi),
+                        },
+                        "rollback": {
+                            "name": rollback.name,
+                            "size": rollback.stat().st_size,
+                            "sha256": release.sha256_file(rollback),
                         },
                     },
                 }

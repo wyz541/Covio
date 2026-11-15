@@ -236,6 +236,13 @@ jobs:
         shell: bash
         run: bash scripts/package-windows.sh
 
+      - name: Build egui rollback installer
+        shell: bash
+        env:
+          COVIO_WINDOWS_OUTPUT_DIR: "build/windows-rollback"
+          COVIO_WINDOWS_OUTPUT_BASENAME: "Covio-${{ steps.release.outputs.current }}-windows-x64-rollback-setup"
+        run: bash scripts/package-windows.sh
+
       - name: Test Compose host and JNI
         shell: bash
         run: bash scripts/test-windows-compose.sh
@@ -244,6 +251,7 @@ jobs:
         shell: bash
         env:
           COVIO_COMPOSE_REQUIRE_MSI: "1"
+          COVIO_WINDOWS_ROLLBACK_DIR: "build/windows-rollback"
         run: bash scripts/package-windows-compose.sh
 
       - name: Record Compose baseline

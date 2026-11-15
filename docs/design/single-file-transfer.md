@@ -1,6 +1,6 @@
 # Covio 单文件传输
 
-- 状态：core implemented；Compose opt-in host 已接入，跨设备证据待验收
+- 状态：core implemented；Compose default host 已接入，跨设备证据待验收
 - 日期：2026-11-10
 - Issue：#738
 - 决策：[ADR-0035](../adr/adr-0035-cross-platform-product-scope.md)
@@ -156,7 +156,7 @@ iroh `1.4.1` 的 iOS 构建依赖 `netdev 0.46.3`。
 ## 9. 未决事项
 
 - SwiftUI host 尚未接入文件选择、确认界面和生命周期事件。
-- Compose opt-in host 的文件选择、接收确认和生命周期 adapter 已接入 Rust 能力请求；真实跨设备验收由 #743 记录。
+- Compose host 的文件选择、接收确认和生命周期 adapter 已接入 Rust 能力请求；真实跨设备验收由 #743 记录。
 - 目录和冲突策略见 [Covio 目录传输](directory-transfer.md)。
 - 三平台真实传输由 #743 验收。
 - 当前测试不覆盖公网 relay 断开和真实设备后台恢复。

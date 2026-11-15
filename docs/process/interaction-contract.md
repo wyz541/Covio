@@ -139,8 +139,8 @@ PR 不手填共享值，只消费生成产物。
 
 `docs/covio-design-contract.json` 当前承载设计和动效令牌、平台字体、排版、语义角色、焦序、平台覆盖和验收 ID。
 macOS Swift 合同接入后，JSON 只作为确定性导出物。
-当前 egui host 消费 Rust 生成合同 `rust/crates/covio-core/src/contract_design.rs`。
-Compose cutover 后，Windows 与后续 Android 消费生成的 Compose 合同。
+egui 回滚 host 消费 Rust 生成合同 `rust/crates/covio-core/src/contract_design.rs`。
+Windows Compose 与后续 Android 消费生成的 Compose 合同。
 两类生成物必须来自同一份 JSON 合同。
 迁移期仍禁止 Windows 单独定义共享值。
 迁移期的合同变更必须对应 macOS 行为变更或 macOS 设计决定。

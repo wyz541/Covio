@@ -67,13 +67,12 @@ Covio 保留 macOS 电源和截图工具。
 | 平台 | 当前状态 | 目标 UI | Rust bridge | 凭据存储 |
 | --- | --- | --- | --- | --- |
 | macOS | 现有产品已交付。跨设备 host 已实现；三平台真机证据尚未完成。 | SwiftUI + AppKit | C ABI；UniFFI 可选 | Keychain |
-| Windows | egui 是当前产品基线。Compose 是 opt-in prototype。 | Compose Multiplatform | JNI | Credential Manager |
+| Windows | Compose 默认包已接入。切换 PR 等待完整验收；egui 保留回滚。 | Compose Multiplatform | JNI | Credential Manager |
 | iOS | 纵向切片与统一发布工具已实现；签名制品和真机证据尚未完成。 | SwiftUI | C ABI；UniFFI 可选 | Keychain |
 | Android | 第一版不交付。后续平台目标。 | Compose Multiplatform | JNI | Keystore |
 
-Windows 当前继续交付 egui 产物。
-Compose host 是独立 opt-in 路径。
-Compose host 通过以下条件后才能替换 egui：
+Windows 默认交付路径使用 Compose host。
+Compose host 的切换 PR 通过以下条件后才能合并：
 
 1. 功能验收通过。
 2. 视觉验收通过。
@@ -82,8 +81,9 @@ Compose host 通过以下条件后才能替换 egui：
 5. 跨平台交互一致性测试通过。
 6. Windows 真机验收通过。
 
-Cutover 完成前，Windows 保留 egui 回滚路径。
-Cutover 完成后，Windows 与 Android 共享 Compose UI 和交互语义。
+Windows 默认包与统一 Release 必须包含 egui 回滚安装器。
+egui 回滚路径至少保留一个内部版本周期。
+切换完成后，Windows 与 Android 共享 Compose UI 和交互语义。
 macOS 使用 SwiftUI + AppKit。
 iOS 使用 SwiftUI。
 两者保持 Apple 原生体验。

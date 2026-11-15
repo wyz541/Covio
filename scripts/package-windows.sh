@@ -18,7 +18,7 @@ BUILD_NUMBER="${COVIO_WINDOWS_BUILD_NUMBER:-$(python3 -I "$ROOT/scripts/release_
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 RELEASE_ID="${COVIO_WINDOWS_RELEASE_ID:-$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")}"
 INSTALLER_VERSION="$PRODUCT_VERSION.$BUILD_NUMBER"
-OUTPUT_BASENAME="Covio-$APP_VERSION-windows-x64-setup"
+OUTPUT_BASENAME="${COVIO_WINDOWS_OUTPUT_BASENAME:-Covio-$APP_VERSION-windows-x64-setup}"
 TARGET_DIR="$ROOT/rust/target"
 
 if [[ "${OS:-}" != "Windows_NT" ]]; then
@@ -113,7 +113,7 @@ if [[ ! -s "$INSTALLER" ]]; then
 fi
 SHA256="$(sha256sum "$INSTALLER" | awk '{print $1}')"
 printf '%s  %s\n' "$SHA256" "$(basename "$INSTALLER")" >"$INSTALLER.sha256"
-python3 -I - "$OUTPUT_DIR/windows-package.json" "$INSTALLER" "$SHA256" "$RELEASE_ID" "$APP_VERSION" "$BUILD_NUMBER" "$COMMIT" <<'PY'
+python3 -I - "$OUTPUT_DIR/windows-package.json" "$INSTALLER" "$SHA256" "$RELEASE_ID" "$APP_VERSION" "$PRODUCT_VERSION" "$BUILD_NUMBER" "$CHANNEL" "$COMMIT" <<'PY'
 import json
 import pathlib
 import sys
@@ -126,8 +126,10 @@ payload = {
     "sha256": sys.argv[3],
     "releaseId": sys.argv[4],
     "clientVersion": sys.argv[5],
-    "buildNumber": int(sys.argv[6]),
-    "gitCommit": sys.argv[7],
+    "productVersion": sys.argv[6],
+    "buildNumber": int(sys.argv[7]),
+    "channel": sys.argv[8],
+    "gitCommit": sys.argv[9],
     "target": "x86_64-pc-windows-msvc",
 }
 path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
