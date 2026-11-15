@@ -62,14 +62,16 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
     test "$(stat -c%s "$screenshot_dir/devices-$theme.png")" -gt 20000
   done
 
-  pairing_screenshot="$(to_windows_path "$screenshot_dir/pairing-light.png")"
-  pairing_data="$(to_windows_path "$data_dir/pairing")"
-  mkdir -p "$data_dir/pairing"
-  COVIO_JNI_LIBRARY="$JNI_LIBRARY_ENV" ./kotlin run --no-compose-hot-reload \
-    --jvm-args=--enable-native-access=ALL-UNNAMED -- \
-    --screenshot "$pairing_screenshot" --theme light --screen pair --data-dir "$pairing_data"
-  test -s "$screenshot_dir/pairing-light.png"
-  test "$(stat -c%s "$screenshot_dir/pairing-light.png")" -gt 20000
+  for theme in light dark; do
+    pairing_screenshot="$(to_windows_path "$screenshot_dir/pairing-$theme.png")"
+    pairing_data="$(to_windows_path "$data_dir/pairing-$theme")"
+    mkdir -p "$data_dir/pairing-$theme"
+    COVIO_JNI_LIBRARY="$JNI_LIBRARY_ENV" ./kotlin run --no-compose-hot-reload \
+      --jvm-args=--enable-native-access=ALL-UNNAMED -- \
+      --screenshot "$pairing_screenshot" --theme "$theme" --screen pair --data-dir "$pairing_data"
+    test -s "$screenshot_dir/pairing-$theme.png"
+    test "$(stat -c%s "$screenshot_dir/pairing-$theme.png")" -gt 20000
+  done
 fi
 
 printf 'Windows Compose checks passed.\n'
