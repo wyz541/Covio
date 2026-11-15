@@ -31,6 +31,12 @@ class CovioNativeBridgeTest {
             }
             assertTrue(sawCompleted)
 
+            val commandError = assertFailsWith<CovioCommandException> {
+                client.request("diagnostics.unknown")
+            }
+            assertEquals("invalid_argument", commandError.code)
+            assertEquals("unknown command", commandError.message)
+
             val errorBox = NativeErrorBox()
             val errorStatus = CovioNative.nativeDispatch(
                 handle = client.nativeHandle,

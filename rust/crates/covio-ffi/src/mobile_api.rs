@@ -37,10 +37,35 @@ const MAX_TRANSFER_CONTEXTS: usize = 256;
 const MAX_TRANSFER_HISTORY: u32 = 100;
 const NETWORK_TIMEOUT: Duration = Duration::from_secs(30);
 const LISTEN_POLL_TIMEOUT: Duration = Duration::from_secs(1);
+const COMPLETION_CLOSE_TIMEOUT: Duration = Duration::from_secs(5);
 
 type DeviceSecretStore = Box<dyn SecretStore + Send + Sync>;
 type SecretFactory = Arc<dyn Fn() -> DeviceSecretStore + Send + Sync>;
 type IdentityService = DeviceIdentityService<DeviceSecretStore, StdFileStore>;
+
+#[derive(Clone)]
+struct SharedSecretStore(Arc<dyn SecretStore + Send + Sync>);
+
+impl SecretStore for SharedSecretStore {
+    fn read(
+        &self,
+        key: &covio_platform::SecretKey,
+    ) -> Result<Option<covio_platform::SecretValue>, covio_platform::PlatformError> {
+        self.0.read(key)
+    }
+
+    fn write(
+        &self,
+        key: &covio_platform::SecretKey,
+        value: &covio_platform::SecretValue,
+    ) -> Result<(), covio_platform::PlatformError> {
+        self.0.write(key, value)
+    }
+
+    fn delete(&self, key: &covio_platform::SecretKey) -> Result<(), covio_platform::PlatformError> {
+        self.0.delete(key)
+    }
+}
 
 /// Opaque mobile host state shared by one or more C calls.
 pub struct MobileCore {
@@ -177,6 +202,21 @@ impl MobileCore {
     /// Creates mobile state rooted at one application-support directory.
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self::with_secret_factory(root, default_secret_factory())
+    }
+
+    /// Creates mobile state with an injected secret store.
+    ///
+    /// Hosts and integration tests use this constructor when the platform
+    /// secure-storage backend is supplied outside the default factory.
+    #[must_use]
+    pub fn new_with_secret_store(
+        root: impl Into<PathBuf>,
+        secret_store: Arc<dyn SecretStore + Send + Sync>,
+    ) -> Self {
+        Self::with_secret_factory(
+            root,
+            Arc::new(move || Box::new(SharedSecretStore(Arc::clone(&secret_store)))),
+        )
     }
 
     fn with_secret_factory(root: impl Into<PathBuf>, secret_factory: SecretFactory) -> Self {
@@ -1415,6 +1455,7 @@ impl MobileCore {
             endpoint.close().await;
             return WorkerOutcome::Failed(error);
         }
+        let _ = tokio::time::timeout(COMPLETION_CLOSE_TIMEOUT, channel.wait_closed()).await;
         channel.close();
         endpoint.close().await;
         WorkerOutcome::Completed(Box::new(snapshot))
