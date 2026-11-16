@@ -324,13 +324,19 @@ fun CovioApp(
         }
         if (baselineResult != null) {
             var warmupFrames = 0
-            repeat(120) {
+            repeat(300) {
                 val observed = withTimeoutOrNull(50L) {
                     withFrameNanos { }
                     true
                 } ?: false
                 if (observed) warmupFrames++
             }
+            System.gc()
+            val gcBeans = ManagementFactory.getGarbageCollectorMXBeans()
+            fun gcCount() = gcBeans.sumOf { it.collectionCount.coerceAtLeast(0) }
+            fun gcTimeMs() = gcBeans.sumOf { it.collectionTime.coerceAtLeast(0L) }
+            val gcCountBefore = gcCount()
+            val gcTimeBefore = gcTimeMs()
             val frameTimesMs = mutableListOf<Double>()
             var observedFrames = 0
             var frameTimeouts = 0
@@ -360,6 +366,8 @@ fun CovioApp(
                 observedFrames = observedFrames,
                 frameTimeouts = frameTimeouts,
                 warmupFrames = warmupFrames,
+                gcCount = gcCount() - gcCountBefore,
+                gcTimeMs = gcTimeMs() - gcTimeBefore,
             )
             onBaselineFinished?.invoke()
         }
@@ -1000,6 +1008,8 @@ private fun writePerformanceBaseline(
     observedFrames: Int,
     frameTimeouts: Int,
     warmupFrames: Int,
+    gcCount: Long,
+    gcTimeMs: Long,
 ) {
     val runtime = ManagementFactory.getRuntimeMXBean()
     val memory = ManagementFactory.getMemoryMXBean()
@@ -1030,6 +1040,8 @@ private fun writePerformanceBaseline(
         put("frame_samples_observed", observedFrames)
         put("frame_sample_timeouts", frameTimeouts)
         put("frame_warmup_samples", warmupFrames)
+        put("gc_count", gcCount)
+        put("gc_time_ms", gcTimeMs)
         put("frame_average_ms", frameTimesMs.average().takeIf { !it.isNaN() } ?: 0.0)
         put("frame_p95_ms", frameP95Ms)
         put("frame_max_ms", sorted.lastOrNull() ?: 0.0)

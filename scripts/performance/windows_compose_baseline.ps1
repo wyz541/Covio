@@ -123,6 +123,8 @@ for ($run = 1; $run -le $Runs; $run++) {
         frameP95WithinRefreshBudget = [bool]$metric.frame_p95_within_refresh_budget
         frameSampleTimeouts = [int]$metric.frame_sample_timeouts
         frameWarmupSamples = [int]$metric.frame_warmup_samples
+        gcCount = [int64]$metric.gc_count
+        gcTimeMs = [int64]$metric.gc_time_ms
         heapUsedBytes = [int64]$metric.heap_used_bytes
         heapCommittedBytes = [int64]$metric.heap_committed_bytes
         nonHeapUsedBytes = [int64]$metric.non_heap_used_bytes
@@ -156,6 +158,8 @@ $summary = [ordered]@{
         frameP95WithinRefreshBudget = @($rows | Where-Object { -not $_.frameP95WithinRefreshBudget }).Count -eq 0
         frameSampleTimeouts = Get-Median @($rows.frameSampleTimeouts)
         frameWarmupSamples = Get-Median @($rows.frameWarmupSamples)
+        gcCount = Get-Median @($rows.gcCount)
+        gcTimeMs = Get-Median @($rows.gcTimeMs)
         heapUsedBytes = Get-Median @($rows.heapUsedBytes)
         heapCommittedBytes = Get-Median @($rows.heapCommittedBytes)
         nonHeapUsedBytes = Get-Median @($rows.nonHeapUsedBytes)
@@ -190,6 +194,8 @@ $lines = @(
     "| Frame p95 within refresh budget | $($summary.medians.frameP95WithinRefreshBudget) |",
     "| Frame sample timeouts | $([int64]$summary.medians.frameSampleTimeouts) |",
     "| Frame warm-up samples | $([int64]$summary.medians.frameWarmupSamples) |",
+    "| GC count during sample | $([int64]$summary.medians.gcCount) |",
+    "| GC time during sample | $([int64]$summary.medians.gcTimeMs) ms |",
     "| Heap used | $([int64]$summary.medians.heapUsedBytes) B |",
     "| Working set sample | $([int64]$summary.medians.sampledWorkingSetBytes) B |",
     "| Portable ZIP | $($summary.package.portableZipBytes) B |",
