@@ -323,6 +323,14 @@ fun CovioApp(
             onScreenshotCaptured?.invoke()
         }
         if (baselineResult != null) {
+            var warmupFrames = 0
+            repeat(120) {
+                val observed = withTimeoutOrNull(50L) {
+                    withFrameNanos { }
+                    true
+                } ?: false
+                if (observed) warmupFrames++
+            }
             val frameTimesMs = mutableListOf<Double>()
             var observedFrames = 0
             var frameTimeouts = 0
@@ -351,6 +359,7 @@ fun CovioApp(
                 frameTimesMs = frameTimesMs,
                 observedFrames = observedFrames,
                 frameTimeouts = frameTimeouts,
+                warmupFrames = warmupFrames,
             )
             onBaselineFinished?.invoke()
         }
@@ -990,6 +999,7 @@ private fun writePerformanceBaseline(
     frameTimesMs: List<Double>,
     observedFrames: Int,
     frameTimeouts: Int,
+    warmupFrames: Int,
 ) {
     val runtime = ManagementFactory.getRuntimeMXBean()
     val memory = ManagementFactory.getMemoryMXBean()
@@ -1019,6 +1029,7 @@ private fun writePerformanceBaseline(
         put("frame_sample_count", frameTimesMs.size)
         put("frame_samples_observed", observedFrames)
         put("frame_sample_timeouts", frameTimeouts)
+        put("frame_warmup_samples", warmupFrames)
         put("frame_average_ms", frameTimesMs.average().takeIf { !it.isNaN() } ?: 0.0)
         put("frame_p95_ms", frameP95Ms)
         put("frame_max_ms", sorted.lastOrNull() ?: 0.0)
