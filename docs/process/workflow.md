@@ -1,17 +1,16 @@
 # 研发工作流
 
-**明确事项直接进入 Issue。研究可以独立创建。大功能使用原生 sub-issue。**
+**流程关系图源是 [`workflow.drawio`](workflow.drawio) 的 `研发主流程` 页。明确事项直接进入 Issue。研究可以独立创建。大功能使用原生 sub-issue。**
 
-版本 1.2 · 2026-11-13
+版本 1.3 · 2026-11-16
 
 ## 1. 适用范围
-本流程适用于 Covio 仓库。
-适用范围是个人开发者至 15 人团队。
-本流程不适用于需要外部合规取证的组织。
+本流程适用于 Covio 仓库和 1 至 15 人团队；不适用于需要外部合规取证的组织。
+`研发主流程` 页定义输入预处理、业务分流、模板准入、开发与 PR、合并与验收五个阶段。
+对象模板由 `.github/ISSUE_TEMPLATE/` 管理。图定义阶段、入口和分支；本文定义对象边界、最小内容、字段、测试和合同门禁。
+图与正文冲突时，暂停冲突步骤，并在同一 PR 修复图和正文。
 
-GitHub 个人账号没有 Issue Types 和 Issue Fields。
-对象用标签区分。
-字段用 Project 8 保存。
+GitHub 个人账号没有 Issue Types 和 Issue Fields。对象用标签区分。字段用 Project 8 保存。
 
 ## 2. 三条路径
 | 路径 | 何时使用 | 产出 |
@@ -20,7 +19,7 @@ GitHub 个人账号没有 Issue Types 和 Issue Fields。
 | 研究路径 | 问题明确，方法、成本或风险未知 | Research → 书面结论 |
 | 功能路径 | 需要多个 PR、超过 5 个工作日，或先改设计 | Feature → 原生 sub-issue → PR |
 
-Discussion 是可选入口。
+输入、材料或聊天记录可以由 AI Agent 提炼成结构化草案。草案不能替代 Issue 必填内容。Discussion 是可选入口。
 Discussion 只用于范围、优先级或共识未定，以及需要开放交流的事项。
 Discussion 不是 Issue 的前置条件，也不能成为原生的 Parent。
 
@@ -45,6 +44,7 @@ Discussion 不是 Issue 的前置条件，也不能成为原生的 Parent。
 
 ## 4. 路径规则
 
+Bug、Task、Research、Feature 和 Verify 共用信息准入：必填内容缺失时打 `need-info` 标签；补齐后进入 `Ready to Dev`。
 ### 4.1 快速路径
 
 1. 目标明确时，直接创建 Bug 或 Task。
