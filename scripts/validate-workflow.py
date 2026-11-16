@@ -4,10 +4,12 @@
 from pathlib import Path
 import re
 import sys
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = ROOT / ".github" / "ISSUE_TEMPLATE"
 WORKFLOW = ROOT / "docs" / "process" / "workflow.md"
+WORKFLOW_DRAWIO = ROOT / "docs" / "process" / "workflow.drawio"
 INTERACTION_CONTRACT = ROOT / "docs" / "process" / "interaction-contract.md"
 AGENTS = ROOT / "AGENTS.md"
 PR_TEMPLATE = ROOT / ".github" / "pull_request_template.md"
@@ -77,6 +79,9 @@ def main() -> int:
         WORKFLOW,
         (
             "## 2. 三条路径",
+            "workflow.drawio",
+            "`研发主流程`",
+            "图与正文冲突时",
             "Discussion 是可选入口",
             "所有 agent 开始任务前读取[跨平台产品规格](../design/cross-platform-product.md)",
             "规格与 ADR-0035 冲突时，以 ADR-0035 为准",
@@ -93,6 +98,46 @@ def main() -> int:
             "`Contract impact`",
         ),
     )
+    if not WORKFLOW_DRAWIO.exists():
+        errors.append("缺少工作流图：docs/process/workflow.drawio")
+    else:
+        try:
+            drawio_root = ET.parse(WORKFLOW_DRAWIO).getroot()
+        except ET.ParseError as error:
+            errors.append(f"工作流图 XML 无效：{error}")
+        else:
+            diagrams = drawio_root.findall("diagram")
+            page_names = [diagram.get("name", "") for diagram in diagrams]
+            if page_names != ["研发主流程"]:
+                errors.append(f"工作流图只能有一个研发主流程页，实际为 {page_names}")
+            if len(diagrams) == 1:
+                main_vertices = diagrams[0].find("mxGraphModel").find("root")
+                main_labels = []
+                for element in main_vertices:
+                    if element.tag == "UserObject":
+                        main_labels.append(element.get("label", ""))
+                    elif element.tag == "mxCell":
+                        main_labels.append(element.get("value", ""))
+                main_diagram = "\n".join(main_labels)
+                for fragment in (
+                    "1. 输入与预处理",
+                    "2. 业务分流",
+                    "3. 模板与路由",
+                    "4. 开发与 PR",
+                    "5. 合并与验收",
+                    "Research / Verify 模板",
+                    "简单任务",
+                    "复杂项目",
+                ):
+                    if fragment not in main_diagram:
+                        errors.append(f"研发主流程缺少：{fragment}")
+                for fragment in (
+                    "触发 CD 自动 Build",
+                    "自动关闭关联 Issue &amp; PR",
+                    "AI 截图对比",
+                ):
+                    if fragment in main_diagram:
+                        errors.append(f"研发主流程仍有未配置动作：{fragment}")
     forbid(
         WORKFLOW,
         (
@@ -131,6 +176,7 @@ def main() -> int:
             "Compose host 不得独立定义共享触发、几何、动效或状态转换参数",
             "禁止手改合同生成物",
             "`Contract impact`",
+            "`docs/process/workflow.drawio`",
         ),
     )
     forbid(AGENTS, ("S1", "S2", "S3", "S4", "S5", "S6", "S7"))

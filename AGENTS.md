@@ -90,7 +90,7 @@ UI 代码 PR 必须填写 `Visual verification`。
 - 架构决策：`docs/adr/`
 - 产品规格与目标架构：`docs/design/cross-platform-product.md`
 - 研究结论：`docs/research/`
-- 工作流：`docs/process/workflow.md`
+- 工作流：`docs/process/workflow.md` 和 `docs/process/workflow.drawio`
 - Project 字段：`docs/process/project-fields.md`
 - 进度：[Project 8](https://github.com/users/wyz541/projects/8)
 

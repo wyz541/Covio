@@ -1,0 +1,646 @@
+<mxfile host="localhost" pages="1">
+
+  <diagram id="kxOUGaN3fgJTbsemCcKn" name="研发主流程">
+    <mxGraphModel dx="11180" dy="7120" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <UserObject label="" mermaidData="{&#xa;  &quot;data&quot;: &quot;graph TD\n    %% ===== 样式定义 =====\n    classDef userLayer fill:#FDF4FF,stroke:#E879F9,stroke-width:2px,color:#333;\n    classDef aiLayer fill:#e1f5fe,stroke:#0288d1,stroke-width:2px,color:#01579b;\n    classDef decision fill:#6f42c1,stroke:#333,stroke-width:2px,color:#fff;\n    classDef explore fill:#0366d6,stroke:#333,stroke-width:2px,color:#fff;\n    classDef execute fill:#28a745,stroke:#333,stroke-width:2px,color:#fff;\n    classDef fail fill:#ffd33d,stroke:#333,stroke-width:2px,color:#28253D;\n    classDef dev fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#333;\n    classDef clean fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#333;\n    classDef final fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#333;\n\n    %% ===== 阶段一：用户输入与 AI 预处理 =====\n    subgraph 1. 输入与预处理 (Input &amp; AI)\n        direction TB\n        I[Idea/灵感] --&gt; UI[User Input: 多模态原始诉求]\n        F[Feature/需求] --&gt; UI\n        M[材料/文档] --&gt; UI\n        Msg[Message/聊天记录] --&gt; UI\n        \n        Specs[(Agent Spec &amp; Project Spec&lt;br&gt;系统提示词/规范库)] -.-&gt; Agent[AI Agent&lt;br&gt;需求提炼与格式化]\n        UI --&gt; Agent\n        Agent --&gt; DraftSpec[生成结构化草案&lt;br&gt;Draft Spec / Proposed Issue]\n    end\n\n    %% ===== 阶段二：业务分流与探索区 =====\n    subgraph 2. 业务分流 (Triage &amp; Explore)\n        DraftSpec --&gt; BizNature{判断业务性质&lt;br&gt;复杂度 / 确定性}\n        \n        BizNature -- 模糊/需探讨 (Feature/Plan) --&gt; Discuss[探索区: GitHub Discussions / RFC]\n        Discuss --&gt; Consensus{达成共识?}\n        Consensus -- 否 --&gt; Hang[挂起 / Icebox]\n        Consensus -- 是 --&gt; CreateIssue[转化为正式 Issue]\n    end\n\n    %% ===== 阶段三：模板准入与路由分发 =====\n    subgraph 3. 模板与路由 (Format &amp; Route)\n        BizNature -- 明确 Task/Bug --&gt; FormatIssue\n        CreateIssue --&gt; FormatIssue\n        \n        FormatIssue[应用工业级 Issue 模板] --&gt; TemplateType{选择模板}\n        TemplateType -- Bug --&gt; BugTemp[Bug: TraceID/复现步骤/防回归测试]\n        TemplateType -- Feature --&gt; FeatTemp[Feature: NFR约束/GWT验收标准/回滚预案]\n        TemplateType -- Task --&gt; TaskTemp[Task: 背景目标/DoD定义/依赖网络]\n        \n        BugTemp &amp; FeatTemp &amp; TaskTemp --&gt; Validate{信息完整性校验}\n        \n        Validate -- 信息缺失 --&gt; NeedInfo[打上 need-info 标签&lt;br&gt;@ 提出者补充信息]\n        NeedInfo -. 补充完毕 .-&gt; FormatIssue\n        \n        Validate -- 通过 --&gt; Ready[状态: Ready to Dev]\n        \n        Ready --&gt; Router{as a Router 路由判定}\n        Router -- 简单任务 --&gt; FormatSimple[按模板规范格式]\n        Router -- 复杂项目 --&gt; CreateEpic[创建 Parent Issue / Epic]\n        \n        CreateEpic --&gt; Breakdown[负责说明与分工] --&gt; SubIssues[拆分 Sub-Issues]\n        SubIssues --&gt; FormatSimple\n    end\n\n    %% ===== 阶段四：开发与 PR 多维验证 =====\n    subgraph 4. 开发与 PR (Dev &amp; PR)\n        FormatSimple --&gt; Assignee[分配 Assignee / 绑定 Milestone]\n        Assignee --&gt; Worktree[创建 Worktree:&lt;br&gt;一条 Issue 对应一个 Worktree]\n        Worktree --&gt; DevLocal[本地开发 &amp; Commit]\n        \n        DevLocal --&gt; PR[发起 Pull Request]\n        PR --&gt; PRDesc[填写 PR 格式说明]\n        PRDesc --&gt; DescDetails[必填: 变更说明 / 核心结论&lt;br&gt;必填: Before/After UI 截图对比]\n        \n        DescDetails --&gt; V_All\n        PRDesc -. AI 辅助 .-&gt; AIGen[AIGC: 自动提取 Commit 生成初始说明]\n        \n        subgraph 自动化验证流水线 (并发执行)\n            V_All[自动化验证]\n            V1[功能验收: Local App 独立测试] --&gt; V_All\n            V2[视觉验收: AI 截图对比] --&gt; V_All\n            V3[格式校验: PR 模板是否填全] --&gt; V_All\n        end\n        \n        V_All --&gt; CI{Code Review / CI 测试}\n        CI -- 拒绝/打回 --&gt; DevLocal\n    end\n\n    %% ===== 阶段五：合并、清理与终态验收 =====\n    subgraph 5. 合并与验收 (Merge &amp; Accept)\n        CI -- 通过 --&gt; Merge[合并到 Main]\n        \n        Merge --&gt; C1[触发 CD 自动 Build]\n        Merge --&gt; C2[自动清理本地 Worktree]\n        Merge --&gt; C3[自动关闭关联 Issue &amp; PR]\n        \n        C1 --&gt; FinalVerify{UX 终态验收}\n        FinalVerify -- 需 UX 更改 --&gt; UXFix[提交 UX 修复 PR]\n        UXFix --&gt; DevLocal\n        \n        FinalVerify -- 通过 --&gt; UXReport[提供 Before &amp; After UI 截图记录]\n        UXReport --&gt; Concept[更新 Concept Definition / 沉淀文档]\n    end\n\n    %% ===== 样式绑定 =====\n    class I,F,M,Msg,UI userLayer;\n    class Specs,Agent,DraftSpec,AIGen aiLayer;\n    class BizNature,TemplateType,Validate,Router,CI,FinalVerify decision;\n    class Discuss,Consensus,Hang explore;\n    class CreateIssue,FormatIssue,BugTemp,FeatTemp,TaskTemp,Ready,CreateEpic,SubIssues,FormatSimple,Assignee,Worktree execute;\n    class NeedInfo,Hang fail;\n    class DevLocal,PR,PRDesc,DescDetails,V_All,V1,V2,V3,UXFix dev;\n    class Merge,C1,C2,C3 clean;\n    class UXReport,Concept final;&quot;,&#xa;  &quot;config&quot;: null,&#xa;  &quot;version&quot;: &quot;12&quot;&#xa;}" id="5ePLcyoSgkFr4J6vxvbV-1">
+          <mxCell connectable="0" parent="1" style="group;transparentBounds=1;editIcon=1;lockedGroup=0;groupPadding=10;" vertex="1">
+            <mxGeometry as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="5. 合并与验收 (Merge &amp; Accept)" mermaidId="n:5. 合并与验收 (Merge &amp; Accept)" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#F5F3FF;strokeColor=#A78BFA;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="5. 合并与验收 (Merge &amp; Accept)" id="5ePLcyoSgkFr4J6vxvbV-2">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#F5F3FF;strokeColor=#A78BFA;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="758" width="604" x="826" y="4864" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="合并到 Main" mermaidId="n:Merge" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="合并到 Main" id="5ePLcyoSgkFr4J6vxvbV-3">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-2" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="226" y="48" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="运行托管门禁 / 按需构建 Release" mermaidId="n:C1" mermaidBaseValue="运行托管门禁 / 按需构建 Release" id="5ePLcyoSgkFr4J6vxvbV-4">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-2" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="226" y="153" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="清理本地 Worktree / 分支" mermaidId="n:C2" mermaidBaseValue="清理本地 Worktree / 分支" id="5ePLcyoSgkFr4J6vxvbV-5"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-2" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="67" width="152" x="24" y="153" as="geometry"/></mxCell></UserObject>
+        <UserObject label="关闭关联 Issue / PR" mermaidId="n:C3" mermaidBaseValue="关闭关联 Issue / PR" id="5ePLcyoSgkFr4J6vxvbV-6"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-2" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e8f5e9;strokeColor=#2e7d32;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="67" width="152" x="428" y="153" as="geometry"/></mxCell></UserObject>
+        <UserObject label="发布候选验收" mermaidId="n:FinalVerify" mermaidBaseValue="发布候选验收" id="5ePLcyoSgkFr4J6vxvbV-7"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-2" style="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#6f42c1;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="208" width="208" x="198" y="244" as="geometry"/></mxCell></UserObject>
+        <UserObject label="提交 UX 修复 PR" mermaidId="n:UXFix" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="提交 UX 修复 PR" id="5ePLcyoSgkFr4J6vxvbV-8">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-2" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="327" y="567" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="归档 Before/After 与真机证据" mermaidId="n:UXReport" mermaidBaseValue="归档 Before/After 与真机证据" id="5ePLcyoSgkFr4J6vxvbV-9"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-2" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ffebee;strokeColor=#c62828;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="67" width="152" x="125" y="557" as="geometry"/></mxCell></UserObject>
+        <UserObject label="更新文档 / 决策记录" mermaidId="n:Concept" mermaidBaseValue="更新文档 / 决策记录" id="5ePLcyoSgkFr4J6vxvbV-10"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-2" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ffebee;strokeColor=#c62828;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="87" width="152" x="125" y="647" as="geometry"/></mxCell></UserObject>
+        <UserObject label="" mermaidId="e:Merge-&gt;C1#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-11">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-2" source="5ePLcyoSgkFr4J6vxvbV-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-4">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:Merge-&gt;C2#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.29;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-12">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-2" source="5ePLcyoSgkFr4J6vxvbV-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.29;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-5">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="269" y="123"/>
+                <mxPoint x="100" y="123"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:Merge-&gt;C3#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.71;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-13">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-2" source="5ePLcyoSgkFr4J6vxvbV-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.71;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-6">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="335" y="123"/>
+                <mxPoint x="504" y="123"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:C1-&gt;FinalVerify#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-14">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-2" source="5ePLcyoSgkFr4J6vxvbV-4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-7">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="需 UX 更改" mermaidId="e:FinalVerify-&gt;UXFix#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.65;exitY=1;entryX=0.5;entryY=0.01;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="需 UX 更改" id="5ePLcyoSgkFr4J6vxvbV-15">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-2" source="5ePLcyoSgkFr4J6vxvbV-7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.65;exitY=1;entryX=0.5;entryY=0.01;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-8">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="333" y="482"/>
+                <mxPoint x="403" y="482"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="通过" mermaidId="e:FinalVerify-&gt;UXReport#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.35;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="通过" id="5ePLcyoSgkFr4J6vxvbV-16">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-2" source="5ePLcyoSgkFr4J6vxvbV-7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.35;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-9">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="271" y="482"/>
+                <mxPoint x="201" y="482"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:UXReport-&gt;Concept#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-17">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-2" source="5ePLcyoSgkFr4J6vxvbV-9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-10">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="4. 开发与 PR (Dev &amp; PR)" mermaidId="n:4. 开发与 PR (Dev &amp; PR)" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="4. 开发与 PR (Dev &amp; PR)" id="5ePLcyoSgkFr4J6vxvbV-18">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="1281" width="829" x="664" y="3462" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="自动化验证流水线 (并发执行)" mermaidId="n:自动化验证流水线 (并发执行)" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#F0FDF4;strokeColor=#4ADE80;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="自动化验证流水线 (并发执行)" id="5ePLcyoSgkFr4J6vxvbV-19">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#F0FDF4;strokeColor=#4ADE80;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="139" width="604" x="201" y="48" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="功能验收: Local App 独立测试" mermaidId="n:V1" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="功能验收: Local App 独立测试" id="5ePLcyoSgkFr4J6vxvbV-20">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-19" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="428" y="48" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="视觉验收: Before/After 与真机证据" mermaidId="n:V2" mermaidBaseValue="视觉验收: Before/After 与真机证据" id="5ePLcyoSgkFr4J6vxvbV-21"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-19" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="67" width="152" x="226" y="48" as="geometry"/></mxCell></UserObject>
+        <UserObject label="格式校验: PR 模板是否填全" mermaidId="n:V3" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="格式校验: PR 模板是否填全" id="5ePLcyoSgkFr4J6vxvbV-22">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-19" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="24" y="48" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="确认负责人 / 优先级" mermaidId="n:Assignee" mermaidBaseValue="确认负责人 / 优先级" id="5ePLcyoSgkFr4J6vxvbV-23"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="67" width="152" x="24" y="433" as="geometry"/></mxCell></UserObject>
+        <UserObject label="创建分支或 Worktree&lt;br&gt;一条 Issue 对应一个 PR" mermaidId="n:Worktree" mermaidBaseValue="创建分支或 Worktree&lt;br&gt;一条 Issue 对应一个 PR" id="5ePLcyoSgkFr4J6vxvbV-24"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="87" width="152" x="24" y="594" as="geometry"/></mxCell></UserObject>
+        <UserObject label="本地开发 &amp; Commit" mermaidId="n:DevLocal" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="本地开发 &amp; Commit" id="5ePLcyoSgkFr4J6vxvbV-25">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="84" y="752" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="发起 Pull Request" mermaidId="n:PR" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="发起 Pull Request" id="5ePLcyoSgkFr4J6vxvbV-26">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="84" y="843" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="填写 PR 格式说明" mermaidId="n:PRDesc" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="填写 PR 格式说明" id="5ePLcyoSgkFr4J6vxvbV-27">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="84" y="912" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="PR: What changed / Proof&lt;br&gt;Visual verification / Risk" mermaidId="n:DescDetails" mermaidBaseValue="PR: What changed / Proof&lt;br&gt;Visual verification / Risk" id="5ePLcyoSgkFr4J6vxvbV-28"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="129" width="152" x="476" y="1017" as="geometry"/></mxCell></UserObject>
+        <UserObject label="自动化验证" mermaidId="n:V_All" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="自动化验证" id="5ePLcyoSgkFr4J6vxvbV-29">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e3f2fd;strokeColor=#1565c0;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="427" y="257" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="AI 辅助生成 PR 初稿" mermaidId="n:AIGen" mermaidBaseValue="AI 辅助生成 PR 初稿" id="5ePLcyoSgkFr4J6vxvbV-30"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e1f5fe;strokeColor=#0288d1;fontColor=#01579b;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="87" width="152" x="63" y="1170" as="geometry"/></mxCell></UserObject>
+        <UserObject label="Code Review / CI 测试" mermaidId="n:CI" mermaidBaseStyle="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#6f42c1;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Code Review / CI 测试" id="5ePLcyoSgkFr4J6vxvbV-31">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-18" style="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#6f42c1;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="208" width="208" x="328" y="362" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:Assignee-&gt;Worktree#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-32">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-24">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:Worktree-&gt;DevLocal#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.29;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-33">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.29;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-25">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="100" y="710"/>
+                <mxPoint x="128" y="710"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:DevLocal-&gt;PR#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-34">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-26">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:PR-&gt;PRDesc#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-35">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-27">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:PRDesc-&gt;DescDetails#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.64;exitY=1;entryX=0.36;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-36">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-27" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.64;exitY=1;entryX=0.36;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-28">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="182" y="987"/>
+                <mxPoint x="530" y="987"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:DescDetails-&gt;V_All#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.64;exitY=0;entryX=0.64;entryY=0.99;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-37">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-28" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.64;exitY=0;entryX=0.64;entryY=0.99;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-29">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="574" y="332"/>
+                <mxPoint x="525" y="332"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="AI 辅助" mermaidId="e:PRDesc-&gt;AIGen#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.36;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="AI 辅助" id="5ePLcyoSgkFr4J6vxvbV-38">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-27" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.36;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-30">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:V1-&gt;V_All#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.71;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-39">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-20" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.71;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-29">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="705" y="197"/>
+                <mxPoint x="705" y="227"/>
+                <mxPoint x="536" y="227"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:V2-&gt;V_All#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-40">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-29">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:V3-&gt;V_All#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.29;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-41">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.29;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-29">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="301" y="197"/>
+                <mxPoint x="301" y="227"/>
+                <mxPoint x="470" y="227"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:V_All-&gt;CI#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.36;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-42">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-29" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.36;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-31">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="481" y="332"/>
+                <mxPoint x="432" y="332"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="拒绝/打回" mermaidId="e:CI-&gt;DevLocal#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.35;exitY=1;entryX=0.72;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="拒绝/打回" id="5ePLcyoSgkFr4J6vxvbV-43">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-18" source="5ePLcyoSgkFr4J6vxvbV-31" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.35;exitY=1;entryX=0.72;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-25">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="401" y="722"/>
+                <mxPoint x="193" y="722"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="3. 模板与路由 (Format &amp; Route)" mermaidId="n:3. 模板与路由 (Format &amp; Route)" mermaidBaseValue="3. 模板与路由 (Format &amp; Route)" id="5ePLcyoSgkFr4J6vxvbV-44"><mxCell parent="5ePLcyoSgkFr4J6vxvbV-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#FFF7ED;strokeColor=#FB923C;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1"><mxGeometry height="1741" width="1000" x="325" y="1661" as="geometry"/></mxCell></UserObject>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-45" parent="5ePLcyoSgkFr4J6vxvbV-44" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#ffffff;fontFamily=Recursive;fontSize=13;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="应用 Covio Issue 模板" vertex="1"><mxGeometry height="67" width="180" x="146" y="48" as="geometry"/></mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-46" parent="5ePLcyoSgkFr4J6vxvbV-44" style="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#6f42c1;strokeColor=#333;fontColor=#ffffff;fontFamily=Recursive;fontSize=13;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="选择模板" vertex="1">
+          <mxGeometry height="160" width="208" x="251" y="125" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-47" parent="5ePLcyoSgkFr4J6vxvbV-44" style="swimlane;html=1;startSize=38;rounded=1;strokeWidth=3;fillColor=#1f1f1f;swimlaneFillColor=#1f1f1f;fontColor=#ffffff;fontFamily=Recursive;fontSize=12;fontStyle=1;whiteSpace=wrap;shadow=1;shadowColor=#000000;shadowOffsetX=3;shadowOffsetY=3;shadowBlur=0;shadowOpacity=5;strokeColor=#7e3ea8;" value="1. Bug 模板&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;聚焦：溯源与防回归&lt;/font&gt;" vertex="1"><mxGeometry height="400" width="230" x="10" y="300" as="geometry"/></mxCell>
+        <mxCell id="industrial-bug-title" parent="5ePLcyoSgkFr4J6vxvbV-47" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#111111;strokeColor=#ffffff;fontColor=#ffffff;fontFamily=Recursive;fontSize=9;fontStyle=1;verticalAlign=middle;align=center;" value="Bug 标题：&lt;br&gt;严格遵循 [模块]" vertex="1">
+          <mxGeometry height="42" width="100" x="12" y="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-bug-phenomenon" parent="5ePLcyoSgkFr4J6vxvbV-47" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#111111;strokeColor=#ffffff;fontColor=#ffffff;fontFamily=Recursive;fontSize=9;fontStyle=1;verticalAlign=middle;align=center;" value="现象" vertex="1">
+          <mxGeometry height="42" width="100" x="118" y="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-bug-env" parent="5ePLcyoSgkFr4J6vxvbV-47" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#ff6b72;" value="环境与影响面：&lt;br&gt;版本 / OS / 影响用户比例 / 严重等级" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="94" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-bug-repro" parent="5ePLcyoSgkFr4J6vxvbV-47" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#ff6b72;" value="精准复现路径：&lt;br&gt;前置条件 / 步骤 / 预期 / 实际" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-bug-evidence" parent="5ePLcyoSgkFr4J6vxvbV-47" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#ff6b72;" value="现场证据：&lt;br&gt;日志堆栈 / 录屏 / TraceID" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="186" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-bug-acceptance" parent="5ePLcyoSgkFr4J6vxvbV-47" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#ff6b72;" value="修复验收标准：&lt;br&gt;单测覆盖 / 防回归测试点" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="232" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-bug-summary" parent="5ePLcyoSgkFr4J6vxvbV-47" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#2e9e4f;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;fontStyle=1;verticalAlign=middle;align=center;" value="Bug：TraceID / 复现步骤 / 防回归测试" vertex="1">
+          <mxGeometry height="54" width="206" x="12" y="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-48" parent="5ePLcyoSgkFr4J6vxvbV-44" style="swimlane;html=1;startSize=38;rounded=1;strokeWidth=3;fillColor=#1f1f1f;swimlaneFillColor=#1f1f1f;fontColor=#ffffff;fontFamily=Recursive;fontSize=12;fontStyle=1;whiteSpace=wrap;shadow=1;shadowColor=#000000;shadowOffsetX=3;shadowOffsetY=3;shadowBlur=0;shadowOpacity=5;strokeColor=#2ca58d;" value="2. Feature 模板&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;聚焦：业务价值与边界&lt;/font&gt;" vertex="1"><mxGeometry height="400" width="230" x="245" y="300" as="geometry"/></mxCell>
+        <mxCell id="industrial-feature-title" parent="5ePLcyoSgkFr4J6vxvbV-48" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#74b9ff;" value="Feature 标题：&lt;br&gt;核心价值产出" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-feature-context" parent="5ePLcyoSgkFr4J6vxvbV-48" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#74b9ff;" value="业务上下文：&lt;br&gt;目标用户 / 商业价值 / 数据埋点需求" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="88" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-feature-nfr" parent="5ePLcyoSgkFr4J6vxvbV-48" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#74b9ff;" value="工程约束（NFR）：&lt;br&gt;性能指标 / 安全合规 / 兼容性 / 灰度方案" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="134" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-feature-ux" parent="5ePLcyoSgkFr4J6vxvbV-48" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#74b9ff;" value="交互与设计：&lt;br&gt;原型图 / Figma 链接 / 边界状态" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-feature-ac" parent="5ePLcyoSgkFr4J6vxvbV-48" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#74b9ff;" value="验收标准（AC）：&lt;br&gt;Given-When-Then 形式" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="226" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-feature-rollback" parent="5ePLcyoSgkFr4J6vxvbV-48" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#74b9ff;" value="回滚预案：&lt;br&gt;若上线崩溃，如何处理" vertex="1">
+          <mxGeometry height="40" width="206" x="12" y="272" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-feature-summary" parent="5ePLcyoSgkFr4J6vxvbV-48" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#2e9e4f;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;fontStyle=1;verticalAlign=middle;align=center;" value="Feature：NFR 约束 / GWT 验收标准 / 回滚预案" vertex="1">
+          <mxGeometry height="54" width="206" x="12" y="330" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-49" parent="5ePLcyoSgkFr4J6vxvbV-44" style="swimlane;html=1;startSize=38;rounded=1;strokeWidth=3;fillColor=#1f1f1f;swimlaneFillColor=#1f1f1f;fontColor=#ffffff;fontFamily=Recursive;fontSize=12;fontStyle=1;whiteSpace=wrap;shadow=1;shadowColor=#000000;shadowOffsetX=3;shadowOffsetY=3;shadowBlur=0;shadowOpacity=5;strokeColor=#b87520;" value="3. Task 模板&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;聚焦：执行与依赖&lt;/font&gt;" vertex="1"><mxGeometry height="400" width="230" x="480" y="300" as="geometry"/></mxCell>
+        <mxCell id="industrial-task-title" parent="5ePLcyoSgkFr4J6vxvbV-49" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#49d17d;" value="Task 标题：&lt;br&gt;明确的动作指令" vertex="1">
+          <mxGeometry height="50" width="206" x="12" y="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-task-solution" parent="5ePLcyoSgkFr4J6vxvbV-49" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#49d17d;" value="技术方案摘要：&lt;br&gt;架构影响 / 改动模块" vertex="1">
+          <mxGeometry height="50" width="206" x="12" y="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-task-deps" parent="5ePLcyoSgkFr4J6vxvbV-49" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#49d17d;" value="依赖网络：&lt;br&gt;Blocked by / Blocks / 关联 Epic" vertex="1">
+          <mxGeometry height="50" width="206" x="12" y="158" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-task-dod" parent="5ePLcyoSgkFr4J6vxvbV-49" style="html=1;whiteSpace=wrap;strokeWidth=2;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;verticalAlign=middle;align=center;fillColor=#49d17d;" value="完成定义（DoD）：&lt;br&gt;代码合并 + CI 通过 + 文档更新 + 监控配好" vertex="1">
+          <mxGeometry height="62" width="206" x="12" y="216" as="geometry"/>
+        </mxCell>
+        <mxCell id="industrial-task-summary" parent="5ePLcyoSgkFr4J6vxvbV-49" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#2e9e4f;strokeColor=#111111;fontColor=#111111;fontFamily=Recursive;fontSize=9;fontStyle=1;verticalAlign=middle;align=center;" value="Task：背景目标 / DoD 定义 / 依赖网络" vertex="1">
+          <mxGeometry height="54" width="206" x="12" y="320" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-50" parent="5ePLcyoSgkFr4J6vxvbV-44" style="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#6f42c1;strokeColor=#333;fontColor=#ffffff;fontFamily=Recursive;fontSize=13;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="信息完整性校验" vertex="1">
+          <mxGeometry height="208" width="208" x="251" y="750" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-51" parent="5ePLcyoSgkFr4J6vxvbV-44" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ffd33d;strokeColor=#333;fontColor=#28253D;fontFamily=Recursive;fontSize=12;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="打上 need-info 标签&lt;br&gt;@ 提出者补充信息" vertex="1">
+          <mxGeometry height="90" width="230" x="20" y="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-52" parent="5ePLcyoSgkFr4J6vxvbV-44" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#ffffff;fontFamily=Recursive;fontSize=12;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="状态：Ready to Dev" vertex="1">
+          <mxGeometry height="90" width="230" x="470" y="1000" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-53" parent="5ePLcyoSgkFr4J6vxvbV-44" style="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#6f42c1;strokeColor=#333;fontColor=#ffffff;fontFamily=Recursive;fontSize=13;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="as a Router&lt;br&gt;路由判定" vertex="1">
+          <mxGeometry height="208" width="208" x="251" y="1120" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-54" parent="5ePLcyoSgkFr4J6vxvbV-44" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#ffffff;fontFamily=Recursive;fontSize=12;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="按模板规范格式" vertex="1">
+          <mxGeometry height="70" width="230" x="20" y="1530" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-55" parent="5ePLcyoSgkFr4J6vxvbV-44" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#ffffff;fontFamily=Recursive;fontSize=12;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="创建 Parent Issue / Epic" vertex="1">
+          <mxGeometry height="67" width="230" x="470" y="1410" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-56" parent="5ePLcyoSgkFr4J6vxvbV-44" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ffffff;strokeColor=#28253D;fontColor=#28253D;fontFamily=Recursive;fontSize=12;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="负责说明与分工" vertex="1">
+          <mxGeometry height="45" width="230" x="470" y="1500" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-57" parent="5ePLcyoSgkFr4J6vxvbV-44" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#ffffff;fontFamily=Recursive;fontSize=12;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" value="拆分 Sub-Issues" vertex="1">
+          <mxGeometry height="45" width="230" x="470" y="1570" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-58" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-45" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-46">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-59" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-46" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.28;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-47" value="Bug">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-60" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-46" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-48" value="Feature">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-61" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-46" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.72;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-49" value="Task">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-62" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-47" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.15;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-50">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-63" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-48" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-50">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-64" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-49" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.85;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-50">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-65" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-50" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.35;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-51" value="信息缺失">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-66" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-51" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" target="5ePLcyoSgkFr4J6vxvbV-45" value="补充完毕">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-67" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-50" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.65;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-52" value="通过">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-68" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-52" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-53">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-69" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-53" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.35;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-54" value="简单任务">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-70" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-53" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.65;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-55" value="复杂项目">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-71" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-55" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-56">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-72" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-56" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-57">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="5ePLcyoSgkFr4J6vxvbV-73" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-57" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=13;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;strokeWidth=2;targetPerimeterSpacing=4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="5ePLcyoSgkFr4J6vxvbV-54">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <UserObject label="2. 业务分流 (Triage &amp; Explore)" mermaidId="n:2. 业务分流 (Triage &amp; Explore)" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#F0FDFA;strokeColor=#2DD4BF;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="2. 业务分流 (Triage &amp; Explore)" id="5ePLcyoSgkFr4J6vxvbV-74">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#F0FDFA;strokeColor=#2DD4BF;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="854" width="427" x="366" y="686" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="判断业务性质&#xa;复杂度 / 确定性" mermaidId="n:BizNature" mermaidBaseStyle="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#6f42c1;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="判断业务性质&#xa;复杂度 / 确定性" id="5ePLcyoSgkFr4J6vxvbV-75">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-74" style="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#6f42c1;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="208" width="208" x="62" y="48" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="探索区: GitHub Discussions / RFC" mermaidId="n:Discuss" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#0366d6;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="探索区: GitHub Discussions / RFC" id="5ePLcyoSgkFr4J6vxvbV-76">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-74" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#0366d6;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="150" y="361" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="达成共识?" mermaidId="n:Consensus" mermaidBaseStyle="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#0366d6;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="达成共识?" id="5ePLcyoSgkFr4J6vxvbV-77">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-74" style="rhombus;html=1;strokeWidth=2;whiteSpace=wrap;fillColor=#0366d6;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="208" width="208" x="122" y="472" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="挂起 / Icebox" mermaidId="n:Hang" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ffd33d;strokeColor=#333;fontColor=#28253D;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="挂起 / Icebox" id="5ePLcyoSgkFr4J6vxvbV-78">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-74" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ffd33d;strokeColor=#333;fontColor=#28253D;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="49" y="785" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="转化为正式 Issue" mermaidId="n:CreateIssue" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="转化为正式 Issue" id="5ePLcyoSgkFr4J6vxvbV-79">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-74" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#28a745;strokeColor=#333;fontColor=#fff;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="251" y="785" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="模糊/需探讨 (Feature/Plan)" mermaidId="e:BizNature-&gt;Discuss#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.65;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="模糊/需探讨 (Feature/Plan)" id="5ePLcyoSgkFr4J6vxvbV-80">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-74" source="5ePLcyoSgkFr4J6vxvbV-75" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.65;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-76">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="197" y="286"/>
+                <mxPoint x="226" y="286"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:Discuss-&gt;Consensus#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-81">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-74" source="5ePLcyoSgkFr4J6vxvbV-76" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-77">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="否" mermaidId="e:Consensus-&gt;Hang#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.35;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="否" id="5ePLcyoSgkFr4J6vxvbV-82">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-74" source="5ePLcyoSgkFr4J6vxvbV-77" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.35;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-78">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="195" y="710"/>
+                <mxPoint x="125" y="710"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="是" mermaidId="e:Consensus-&gt;CreateIssue#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.65;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="是" id="5ePLcyoSgkFr4J6vxvbV-83">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-74" source="5ePLcyoSgkFr4J6vxvbV-77" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.65;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-79">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="257" y="710"/>
+                <mxPoint x="327" y="710"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="1. 输入与预处理 (Input &amp; AI)" mermaidId="n:1. 输入与预处理 (Input &amp; AI)" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="1. 输入与预处理 (Input &amp; AI)" id="5ePLcyoSgkFr4J6vxvbV-84">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="596" width="806" x="30" y="30" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Idea/灵感" mermaidId="n:I" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Idea/灵感" id="5ePLcyoSgkFr4J6vxvbV-85">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-84" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="226" y="69" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="User Input: 多模态原始诉求" mermaidId="n:UI" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="User Input: 多模态原始诉求" id="5ePLcyoSgkFr4J6vxvbV-86">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-84" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="327" y="203" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Feature/需求" mermaidId="n:F" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Feature/需求" id="5ePLcyoSgkFr4J6vxvbV-87">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-84" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="428" y="69" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="材料/文档" mermaidId="n:M" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="材料/文档" id="5ePLcyoSgkFr4J6vxvbV-88">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-84" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="45" width="152" x="630" y="69" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Message/聊天记录" mermaidId="n:Msg" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Message/聊天记录" id="5ePLcyoSgkFr4J6vxvbV-89">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-84" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#333;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="24" y="48" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Agent Spec &amp; Project Spec&#xa;系统提示词/规范库" mermaidId="n:Specs" mermaidBaseStyle="html=1;shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=10;strokeWidth=2;whiteSpace=wrap;fillColor=#e1f5fe;strokeColor=#0288d1;fontColor=#01579b;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Agent Spec &amp; Project Spec&#xa;系统提示词/规范库" id="5ePLcyoSgkFr4J6vxvbV-90">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-84" style="html=1;shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=10;strokeWidth=2;whiteSpace=wrap;fillColor=#e1f5fe;strokeColor=#0288d1;fontColor=#01579b;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="149" width="144" x="529" y="187" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="AI Agent&#xa;需求提炼与格式化" mermaidId="n:Agent" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e1f5fe;strokeColor=#0288d1;fontColor=#01579b;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="AI Agent&#xa;需求提炼与格式化" id="5ePLcyoSgkFr4J6vxvbV-91">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-84" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e1f5fe;strokeColor=#0288d1;fontColor=#01579b;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="426" y="395" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="生成结构化草案&#xa;Draft Spec / Proposed Issue" mermaidId="n:DraftSpec" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e1f5fe;strokeColor=#0288d1;fontColor=#01579b;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="生成结构化草案&#xa;Draft Spec / Proposed Issue" id="5ePLcyoSgkFr4J6vxvbV-92">
+          <mxCell parent="5ePLcyoSgkFr4J6vxvbV-84" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#e1f5fe;strokeColor=#0288d1;fontColor=#01579b;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="426" y="486" as="geometry"/>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:I-&gt;UI#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.41;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-93">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-84" source="5ePLcyoSgkFr4J6vxvbV-85" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.41;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-86">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="302" y="145"/>
+                <mxPoint x="390" y="145"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:F-&gt;UI#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.59;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-94">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-84" source="5ePLcyoSgkFr4J6vxvbV-87" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.59;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-86">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="504" y="145"/>
+                <mxPoint x="416" y="145"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:M-&gt;UI#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.76;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-95">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-84" source="5ePLcyoSgkFr4J6vxvbV-88" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.76;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-86">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="706" y="157"/>
+                <mxPoint x="442" y="157"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:Msg-&gt;UI#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.24;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-96">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-84" source="5ePLcyoSgkFr4J6vxvbV-89" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.24;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-86">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="100" y="157"/>
+                <mxPoint x="364" y="157"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:Specs-&gt;Agent#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.64;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-97">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-84" source="5ePLcyoSgkFr4J6vxvbV-90" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.64;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-91">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="601" y="365"/>
+                <mxPoint x="524" y="365"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:UI-&gt;Agent#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.36;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-98">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-84" source="5ePLcyoSgkFr4J6vxvbV-86" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.36;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-91">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="403" y="365"/>
+                <mxPoint x="480" y="365"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:Agent-&gt;DraftSpec#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-99">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-84" source="5ePLcyoSgkFr4J6vxvbV-91" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-92">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:DraftSpec-&gt;BizNature#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-100">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-1" source="5ePLcyoSgkFr4J6vxvbV-92" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-75">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="明确 Task/Bug" mermaidId="e:BizNature-&gt;FormatIssue#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.35;exitY=1;entryX=0.36;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="明确 Task/Bug" id="5ePLcyoSgkFr4J6vxvbV-101">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-1" source="5ePLcyoSgkFr4J6vxvbV-75" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.35;exitY=1;entryX=0.36;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-45">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="501" y="972"/>
+                <mxPoint x="402" y="972"/>
+                <mxPoint x="402" y="1550"/>
+                <mxPoint x="402" y="1570"/>
+                <mxPoint x="513" y="1570"/>
+                <mxPoint x="513" y="1631"/>
+                <mxPoint x="526" y="1631"/>
+                <mxPoint x="526" y="1651"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:CreateIssue-&gt;FormatIssue#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.65;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-102">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-1" source="5ePLcyoSgkFr4J6vxvbV-79" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.65;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-45">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="693" y="1550"/>
+                <mxPoint x="693" y="1570"/>
+                <mxPoint x="582" y="1570"/>
+                <mxPoint x="582" y="1601"/>
+                <mxPoint x="582" y="1631"/>
+                <mxPoint x="569" y="1631"/>
+                <mxPoint x="569" y="1651"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:FormatSimple-&gt;Assignee#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-103">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-1" source="5ePLcyoSgkFr4J6vxvbV-54" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=0.99;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-23">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="通过" mermaidId="e:CI-&gt;Merge#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.65;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="通过" id="5ePLcyoSgkFr4J6vxvbV-104">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-1" source="5ePLcyoSgkFr4J6vxvbV-31" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=0.65;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="5ePLcyoSgkFr4J6vxvbV-3">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points"/>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:UXFix-&gt;DevLocal#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" mermaidBaseValue="" id="5ePLcyoSgkFr4J6vxvbV-105">
+          <mxCell edge="1" parent="5ePLcyoSgkFr4J6vxvbV-1" source="5ePLcyoSgkFr4J6vxvbV-8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeWidth=2;targetPerimeterSpacing=4;" target="5ePLcyoSgkFr4J6vxvbV-25">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="1229" y="5631"/>
+                <mxPoint x="1229" y="5651"/>
+                <mxPoint x="1513" y="5651"/>
+                <mxPoint x="1513" y="5242"/>
+                <mxPoint x="1513" y="4803"/>
+                <mxPoint x="1513" y="4102"/>
+                <mxPoint x="1513" y="3432"/>
+                <mxPoint x="852" y="3432"/>
+                <mxPoint x="852" y="3452"/>
+                <mxPoint x="852" y="4172"/>
+                <mxPoint x="825" y="4172"/>
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+      <mxCell id="covio-research-verify-template" value="4. Research / Verify 模板&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;Research：问题 / 产出 / 截止&lt;br&gt;Verify：目标 / 场景 / 证据&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;strokeWidth=3;fillColor=#1f1f1f;strokeColor=#64748b;fontColor=#ffffff;fontFamily=Recursive;fontSize=12;fontStyle=1;shadow=1;shadowColor=#000000;shadowOffsetX=3;shadowOffsetY=3;shadowBlur=0;shadowOpacity=5;html=1;" vertex="1" parent="5ePLcyoSgkFr4J6vxvbV-44"><mxGeometry x="720" y="300" width="240" height="180" as="geometry"/></mxCell><mxCell id="edge-template-research-verify" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="5ePLcyoSgkFr4J6vxvbV-46" target="covio-research-verify-template" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;strokeWidth=2;exitX=1;exitY=0.6;entryX=0;entryY=0.5;html=1;" value="Research / Verify"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="715" y="221"/><mxPoint x="715" y="390"/></Array></mxGeometry></mxCell><mxCell id="edge-research-verify-check" edge="1" parent="5ePLcyoSgkFr4J6vxvbV-44" source="covio-research-verify-template" target="5ePLcyoSgkFr4J6vxvbV-50" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;jumpStyle=arc;jumpSize=12;strokeColor=#000000;strokeWidth=2;exitX=0.5;exitY=1;entryX=1;entryY=0.5;html=1;"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="840" y="720"/><mxPoint x="840" y="854"/></Array></mxGeometry></mxCell></root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
