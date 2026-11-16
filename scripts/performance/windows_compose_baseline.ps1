@@ -121,6 +121,7 @@ for ($run = 1; $run -le $Runs; $run++) {
         frameBudgetMs = [double]$metric.frame_budget_ms
         frameP95BudgetRatio = [double]$metric.frame_p95_budget_ratio
         frameP95WithinRefreshBudget = [bool]$metric.frame_p95_within_refresh_budget
+        frameSampleTimeouts = [int]$metric.frame_sample_timeouts
         heapUsedBytes = [int64]$metric.heap_used_bytes
         heapCommittedBytes = [int64]$metric.heap_committed_bytes
         nonHeapUsedBytes = [int64]$metric.non_heap_used_bytes
@@ -152,6 +153,7 @@ $summary = [ordered]@{
         frameBudgetMs = Get-Median @($rows.frameBudgetMs)
         frameP95BudgetRatio = Get-Median @($rows.frameP95BudgetRatio)
         frameP95WithinRefreshBudget = @($rows | Where-Object { -not $_.frameP95WithinRefreshBudget }).Count -eq 0
+        frameSampleTimeouts = Get-Median @($rows.frameSampleTimeouts)
         heapUsedBytes = Get-Median @($rows.heapUsedBytes)
         heapCommittedBytes = Get-Median @($rows.heapCommittedBytes)
         nonHeapUsedBytes = Get-Median @($rows.nonHeapUsedBytes)
@@ -184,6 +186,7 @@ $lines = @(
     "| Frame budget | $([Math]::Round($summary.medians.frameBudgetMs, 2)) ms |",
     "| Frame p95 / budget | $([Math]::Round($summary.medians.frameP95BudgetRatio * 100, 1))% |",
     "| Frame p95 within refresh budget | $($summary.medians.frameP95WithinRefreshBudget) |",
+    "| Frame sample timeouts | $([int64]$summary.medians.frameSampleTimeouts) |",
     "| Heap used | $([int64]$summary.medians.heapUsedBytes) B |",
     "| Working set sample | $([int64]$summary.medians.sampledWorkingSetBytes) B |",
     "| Portable ZIP | $($summary.package.portableZipBytes) B |",

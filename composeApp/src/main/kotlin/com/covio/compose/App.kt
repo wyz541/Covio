@@ -325,17 +325,22 @@ fun CovioApp(
         if (baselineResult != null) {
             val frameTimesMs = mutableListOf<Double>()
             var observedFrames = 0
+            var frameTimeouts = 0
+            var previousFrameNanos: Long? = null
             repeat(120) {
-                val started = System.nanoTime()
                 val observed = withTimeoutOrNull(50L) {
-                    withFrameNanos { }
+                    withFrameNanos { frameNanos ->
+                        previousFrameNanos?.let { previous ->
+                            frameTimesMs += (frameNanos - previous) / 1_000_000.0
+                        }
+                        previousFrameNanos = frameNanos
+                    }
                     true
                 } ?: false
                 if (observed) {
                     observedFrames++
-                    frameTimesMs += (System.nanoTime() - started) / 1_000_000.0
                 } else {
-                    frameTimesMs += 16.67
+                    frameTimeouts++
                 }
             }
             writePerformanceBaseline(
@@ -345,6 +350,7 @@ fun CovioApp(
                 firstReadyFrameDelayMs = firstReadyFrameDelayMs,
                 frameTimesMs = frameTimesMs,
                 observedFrames = observedFrames,
+                frameTimeouts = frameTimeouts,
             )
             onBaselineFinished?.invoke()
         }
@@ -983,6 +989,7 @@ private fun writePerformanceBaseline(
     firstReadyFrameDelayMs: Double,
     frameTimesMs: List<Double>,
     observedFrames: Int,
+    frameTimeouts: Int,
 ) {
     val runtime = ManagementFactory.getRuntimeMXBean()
     val memory = ManagementFactory.getMemoryMXBean()
@@ -1011,6 +1018,7 @@ private fun writePerformanceBaseline(
         put("os_version", System.getProperty("os.version"))
         put("frame_sample_count", frameTimesMs.size)
         put("frame_samples_observed", observedFrames)
+        put("frame_sample_timeouts", frameTimeouts)
         put("frame_average_ms", frameTimesMs.average().takeIf { !it.isNaN() } ?: 0.0)
         put("frame_p95_ms", frameP95Ms)
         put("frame_max_ms", sorted.lastOrNull() ?: 0.0)
