@@ -90,7 +90,7 @@ ios-package.json
 Windows job 运行 `scripts/package-windows-compose.sh`。
 MSI 由 `jpackage --type msi` 生成。
 Windows job 同时构建同版本的 egui Inno Setup 回滚安装器。
-`compose-package.json` schema `2` 记录 `defaultHost: compose`、`rollbackHost: egui`、`clientVersion`、`buildNumber`、渠道、Git commit、制品 SHA-256 和大小。
+`compose-package.json` schema `2` 记录 `renderer: software`、`defaultHost: compose`、`rollbackHost: egui`、`clientVersion`、`buildNumber`、渠道、Git commit、制品 SHA-256 和大小。
 schema `1` 继续作为无回滚字段的历史格式读取。
 
 iOS job 运行 `scripts/package-ios-swift.sh`。

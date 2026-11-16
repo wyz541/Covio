@@ -196,6 +196,7 @@ payload = {
     "releaseId": sys.argv[13],
     "runtime": "jlink",
     "packager": "jpackage",
+    "renderer": "software",
     "defaultHost": "compose",
     "rollbackHost": "egui",
     "artifacts": {

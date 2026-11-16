@@ -321,6 +321,7 @@ class ReleaseManifestTests(unittest.TestCase):
             windows["schemaVersion"] = release.WINDOWS_LEGACY_SCHEMA_VERSION
             windows.pop("defaultHost")
             windows.pop("rollbackHost")
+            windows.pop("renderer")
             del windows["artifacts"]["rollback"]
 
             record = release.validate_platform_package(windows, "windows", spec, root)
@@ -484,6 +485,7 @@ class ReleaseManifestTests(unittest.TestCase):
                     **identity,
                     "runtime": "jlink",
                     "packager": "jpackage",
+                    "renderer": "software",
                     "defaultHost": "compose",
                     "rollbackHost": "egui",
                     "artifacts": {

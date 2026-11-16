@@ -489,6 +489,7 @@ bash scripts/package-windows-compose.sh
 The egui package script builds `covio-windows.exe`, a current-user Inno Setup rollback installer, and rollback metadata.
 The Compose package script reads its product and client versions from `release/release-manifest.json`.
 The Compose package script builds a `jlink` runtime, a `jpackage` app image, a portable ZIP, and an MSI.
+The Windows package uses the Skiko software renderer to avoid periodic frame drops on software-only virtual displays.
 The Compose package also copies the hash-checked egui rollback installer from `COVIO_WINDOWS_ROLLBACK_DIR`.
 The installer writes under `%LOCALAPPDATA%\Programs\Covio`.
 It does not require elevation.

@@ -583,6 +583,8 @@ def validate_platform_package(
         if unknown_artifacts:
             raise ManifestError(f"artifact windows artifacts contain unknown keys: {unknown_artifacts}")
         if schema_version == WINDOWS_PLATFORM_SCHEMA_VERSION:
+            if record.get("renderer") != "software":
+                raise ManifestError("artifact windows renderer must be software")
             if record.get("defaultHost") != "compose":
                 raise ManifestError("artifact windows defaultHost must be compose")
             if record.get("rollbackHost") != "egui":

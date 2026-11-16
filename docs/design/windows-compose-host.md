@@ -85,7 +85,8 @@ Windows 2025 x64 托管 runner 已验证以下结果。
 - Compose、JNI、Kotlin round-trip 和无障碍合同有自动化测试。
 - 亮色、深色和配对页面截图由 Windows CI 生成。
 - 打包脚本生成 `jlink` runtime、`jpackage` app image、便携 ZIP、MSI 和 egui 回滚安装器。
-- `compose-package.json` schema `2` 记录 `defaultHost: compose`、`rollbackHost: egui`、制品大小和 SHA-256。
+- Compose host 使用 Skiko software renderer。Direct3D 在 hosted runner 上产生周期性双帧预算，software renderer 消除该抖动。
+- `compose-package.json` schema `2` 记录 `renderer: software`、`defaultHost: compose`、`rollbackHost: egui`、制品大小和 SHA-256。
 - 安装器测试启动已安装的 Compose host，加载 JNI，再用 egui 回滚 host 读取同一数据目录。
 
 仍未完成以下验收。
