@@ -68,6 +68,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.awt.Robot
 import java.awt.Window
+import java.awt.GraphicsEnvironment
 import java.io.File
 import java.lang.management.ManagementFactory
 import javax.imageio.ImageIO
@@ -986,6 +987,15 @@ private fun writePerformanceBaseline(
     val runtime = ManagementFactory.getRuntimeMXBean()
     val memory = ManagementFactory.getMemoryMXBean()
     val os = ManagementFactory.getOperatingSystemMXBean()
+    val sorted = frameTimesMs.sorted()
+    val frameP95Ms = sorted.getOrNull(((sorted.size - 1) * 0.95).toInt()) ?: 0.0
+    val refreshRateHz = runCatching {
+        GraphicsEnvironment.getLocalGraphicsEnvironment()
+            .defaultScreenDevice
+            .displayMode
+            .refreshRate
+    }.getOrDefault(0)
+    val frameBudgetMs = if (refreshRateHz > 0) 1_000.0 / refreshRateHz else 16.67
     val payload = kotlinx.serialization.json.buildJsonObject {
         put("schema_version", 1)
         put("cold_start_ms", startupReadyMs)
@@ -1002,9 +1012,12 @@ private fun writePerformanceBaseline(
         put("frame_sample_count", frameTimesMs.size)
         put("frame_samples_observed", observedFrames)
         put("frame_average_ms", frameTimesMs.average().takeIf { !it.isNaN() } ?: 0.0)
-        val sorted = frameTimesMs.sorted()
-        put("frame_p95_ms", sorted.getOrNull(((sorted.size - 1) * 0.95).toInt()) ?: 0.0)
+        put("frame_p95_ms", frameP95Ms)
         put("frame_max_ms", sorted.lastOrNull() ?: 0.0)
+        put("display_refresh_hz", refreshRateHz)
+        put("frame_budget_ms", frameBudgetMs)
+        put("frame_p95_budget_ratio", frameP95Ms / frameBudgetMs)
+        put("frame_p95_within_refresh_budget", frameP95Ms <= frameBudgetMs * 1.10)
     }
     path.parentFile?.mkdirs()
     path.writeText(payload.toString(), Charsets.UTF_8)

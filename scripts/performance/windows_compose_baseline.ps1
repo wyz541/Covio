@@ -117,6 +117,10 @@ for ($run = 1; $run -le $Runs; $run++) {
         frameAverageMs = [double]$metric.frame_average_ms
         frameP95Ms = [double]$metric.frame_p95_ms
         frameMaxMs = [double]$metric.frame_max_ms
+        displayRefreshHz = [double]$metric.display_refresh_hz
+        frameBudgetMs = [double]$metric.frame_budget_ms
+        frameP95BudgetRatio = [double]$metric.frame_p95_budget_ratio
+        frameP95WithinRefreshBudget = [bool]$metric.frame_p95_within_refresh_budget
         heapUsedBytes = [int64]$metric.heap_used_bytes
         heapCommittedBytes = [int64]$metric.heap_committed_bytes
         nonHeapUsedBytes = [int64]$metric.non_heap_used_bytes
@@ -144,6 +148,10 @@ $summary = [ordered]@{
         frameAverageMs = Get-Median @($rows.frameAverageMs)
         frameP95Ms = Get-Median @($rows.frameP95Ms)
         frameMaxMs = Get-Median @($rows.frameMaxMs)
+        displayRefreshHz = Get-Median @($rows.displayRefreshHz)
+        frameBudgetMs = Get-Median @($rows.frameBudgetMs)
+        frameP95BudgetRatio = Get-Median @($rows.frameP95BudgetRatio)
+        frameP95WithinRefreshBudget = @($rows | Where-Object { -not $_.frameP95WithinRefreshBudget }).Count -eq 0
         heapUsedBytes = Get-Median @($rows.heapUsedBytes)
         heapCommittedBytes = Get-Median @($rows.heapCommittedBytes)
         nonHeapUsedBytes = Get-Median @($rows.nonHeapUsedBytes)
@@ -172,6 +180,10 @@ $lines = @(
     "| First ready frame | $([Math]::Round($summary.medians.firstReadyFrameDelayMs, 1)) ms |",
     "| Frame average | $([Math]::Round($summary.medians.frameAverageMs, 2)) ms |",
     "| Frame p95 | $([Math]::Round($summary.medians.frameP95Ms, 2)) ms |",
+    "| Display refresh | $([Math]::Round($summary.medians.displayRefreshHz, 0)) Hz |",
+    "| Frame budget | $([Math]::Round($summary.medians.frameBudgetMs, 2)) ms |",
+    "| Frame p95 / budget | $([Math]::Round($summary.medians.frameP95BudgetRatio * 100, 1))% |",
+    "| Frame p95 within refresh budget | $($summary.medians.frameP95WithinRefreshBudget) |",
     "| Heap used | $([int64]$summary.medians.heapUsedBytes) B |",
     "| Working set sample | $([int64]$summary.medians.sampledWorkingSetBytes) B |",
     "| Portable ZIP | $($summary.package.portableZipBytes) B |",
