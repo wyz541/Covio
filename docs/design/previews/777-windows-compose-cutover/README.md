@@ -1,9 +1,9 @@
 # Windows Compose cutover evidence
 
-- 日期：2026-11-15
+- 日期：2026-11-16
 - Issue：[#777](https://github.com/wyz541/Covio/issues/777)
-- Commit：`ae0b1d5052095a5e66e36f080d7b72cf82baef30`
-- CI：[run 43723067184](https://github.com/wyz541/Covio/actions/runs/43723067184)
+- Commit：`a4e19e4`
+- CI：[run 43797271111](https://github.com/wyz541/Covio/actions/runs/43797271111)
 - 环境：GitHub 托管 Windows Server 2025 x64 runner
 
 ## 截图
@@ -21,10 +21,12 @@
 
 | 指标 | Compose 中位数 | 研究门槛 | 结果 |
 | --- | ---: | ---: | --- |
-| Cold start | `4366 ms` | `3000 ms P95` | 未通过 |
-| Frame average | `20.06 ms` | 记录项 | 记录 |
-| Frame P95 | `32.37 ms` | `16.7 ms` | 未通过 |
-| Working set | `284590080 B` | `250 MiB` | 未通过 |
-| Portable ZIP | `87960308 B` | `200 MiB` | 通过 |
+| Cold start | `2610 ms` | `3000 ms P95` | 通过 |
+| Frame average | `18.26 ms` | 记录项 | 记录 |
+| Frame P95 | `31.67 ms` | `15.62 ms` | 未通过 |
+| Working set | `194695168 B` | `250 MiB` | 通过 |
+| Portable ZIP | `87966852 B` | `200 MiB` | 通过 |
 
-该基线来自 hosted runner。物理 Windows 11 设备证据和正式阈值批准仍未完成。
+Hosted runner 的报告刷新率为 `64 Hz`，对应帧预算 `15.62 ms`。
+Cold start 和 working set 已通过研究门槛；frame P95 仍未通过。
+物理 Windows 11 设备证据、键盘与焦点评审和正式阈值批准仍未完成。
