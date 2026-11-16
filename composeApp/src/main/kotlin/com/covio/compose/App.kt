@@ -299,8 +299,19 @@ fun CovioApp(
     onBaselineFinished: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
+    val processStartEpochMs = remember { processStartEpochMs() }
     LaunchedEffect(Unit) {
+        val initializeStartedNanos = System.nanoTime()
         withContext(Dispatchers.IO) { controller.initialize() }
+        val initializeDurationMs = (System.nanoTime() - initializeStartedNanos) / 1_000_000.0
+        var startupReadyMs = 0.0
+        var firstReadyFrameDelayMs = 0.0
+        if (baselineResult != null) {
+            val readyFrameStartedNanos = System.nanoTime()
+            withTimeoutOrNull(5_000L) { withFrameNanos { } }
+            firstReadyFrameDelayMs = (System.nanoTime() - readyFrameStartedNanos) / 1_000_000.0
+            startupReadyMs = (System.currentTimeMillis() - processStartEpochMs).coerceAtLeast(0).toDouble()
+        }
         if (screenshot != null) {
             controller.selectScreen(screenshot.screen)
             if (screenshot.screen == Screen.Pair) {
@@ -326,7 +337,14 @@ fun CovioApp(
                     frameTimesMs += 16.67
                 }
             }
-            writePerformanceBaseline(baselineResult, frameTimesMs, observedFrames)
+            writePerformanceBaseline(
+                path = baselineResult,
+                startupReadyMs = startupReadyMs,
+                initializeDurationMs = initializeDurationMs,
+                firstReadyFrameDelayMs = firstReadyFrameDelayMs,
+                frameTimesMs = frameTimesMs,
+                observedFrames = observedFrames,
+            )
             onBaselineFinished?.invoke()
         }
     }
@@ -953,16 +971,26 @@ private fun JsonObject.stringOrNull(key: String): String? =
 private fun shortId(value: String): String =
     if (value.length <= 18) value else "${value.take(8)}…${value.takeLast(8)}"
 
-private fun writePerformanceBaseline(path: File, frameTimesMs: List<Double>, observedFrames: Int) {
-    val processStartMs = java.lang.ProcessHandle.current().info().startInstant().orElse(null)
-        ?.toEpochMilli()
-    val coldStartMs = processStartMs?.let { (System.currentTimeMillis() - it).coerceAtLeast(0) } ?: 0
+private fun processStartEpochMs(): Long =
+    ProcessHandle.current().info().startInstant().orElse(null)?.toEpochMilli()
+        ?: ManagementFactory.getRuntimeMXBean().startTime
+
+private fun writePerformanceBaseline(
+    path: File,
+    startupReadyMs: Double,
+    initializeDurationMs: Double,
+    firstReadyFrameDelayMs: Double,
+    frameTimesMs: List<Double>,
+    observedFrames: Int,
+) {
     val runtime = ManagementFactory.getRuntimeMXBean()
     val memory = ManagementFactory.getMemoryMXBean()
     val os = ManagementFactory.getOperatingSystemMXBean()
     val payload = kotlinx.serialization.json.buildJsonObject {
         put("schema_version", 1)
-        put("cold_start_ms", coldStartMs)
+        put("cold_start_ms", startupReadyMs)
+        put("initialize_ms", initializeDurationMs)
+        put("first_ready_frame_delay_ms", firstReadyFrameDelayMs)
         put("jvm_uptime_ms", runtime.uptime)
         put("heap_used_bytes", memory.heapMemoryUsage.used)
         put("heap_committed_bytes", memory.heapMemoryUsage.committed)

@@ -112,6 +112,8 @@ for ($run = 1; $run -le $Runs; $run++) {
     $rows += [pscustomobject]@{
         run = $run
         coldStartMs = [double]$metric.cold_start_ms
+        initializeMs = [double]$metric.initialize_ms
+        firstReadyFrameDelayMs = [double]$metric.first_ready_frame_delay_ms
         frameAverageMs = [double]$metric.frame_average_ms
         frameP95Ms = [double]$metric.frame_p95_ms
         frameMaxMs = [double]$metric.frame_max_ms
@@ -137,6 +139,8 @@ $summary = [ordered]@{
     runs = $rows
     medians = [ordered]@{
         coldStartMs = Get-Median @($rows.coldStartMs)
+        initializeMs = Get-Median @($rows.initializeMs)
+        firstReadyFrameDelayMs = Get-Median @($rows.firstReadyFrameDelayMs)
         frameAverageMs = Get-Median @($rows.frameAverageMs)
         frameP95Ms = Get-Median @($rows.frameP95Ms)
         frameMaxMs = Get-Median @($rows.frameMaxMs)
@@ -164,6 +168,8 @@ $lines = @(
     "| Metric | Median |",
     "| --- | ---: |",
     "| Cold start | $([Math]::Round($summary.medians.coldStartMs, 1)) ms |",
+    "| Initialization | $([Math]::Round($summary.medians.initializeMs, 1)) ms |",
+    "| First ready frame | $([Math]::Round($summary.medians.firstReadyFrameDelayMs, 1)) ms |",
     "| Frame average | $([Math]::Round($summary.medians.frameAverageMs, 2)) ms |",
     "| Frame p95 | $([Math]::Round($summary.medians.frameP95Ms, 2)) ms |",
     "| Heap used | $([int64]$summary.medians.heapUsedBytes) B |",

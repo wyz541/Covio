@@ -64,6 +64,10 @@ cp "$JAR" "$OUTPUT_DIR/input/composeApp-jvm-executable.jar"
   --main-jar composeApp-jvm-executable.jar \
   --main-class org.springframework.boot.loader.launch.JarLauncher \
   --java-options --enable-native-access=ALL-UNNAMED \
+  --java-options -XX:+UseSerialGC \
+  --java-options -XX:ActiveProcessorCount=2 \
+  --java-options -Xms16m \
+  --java-options -Xmx128m \
   --runtime-image "$OUTPUT_DIR/runtime" \
   --icon "$ROOT/assets/windows/Covio.ico" \
   --dest "$OUTPUT_DIR/app-image"
@@ -140,6 +144,10 @@ if [[ "${COVIO_COMPOSE_REQUIRE_MSI:-0}" == "1" ]]; then
     --main-jar composeApp-jvm-executable.jar \
     --main-class org.springframework.boot.loader.launch.JarLauncher \
     --java-options --enable-native-access=ALL-UNNAMED \
+    --java-options -XX:+UseSerialGC \
+    --java-options -XX:ActiveProcessorCount=2 \
+    --java-options -Xms16m \
+    --java-options -Xmx128m \
     --runtime-image "$OUTPUT_DIR/runtime" \
     --icon "$ROOT/assets/windows/Covio.ico" \
     --win-per-user-install \
