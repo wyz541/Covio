@@ -64,6 +64,7 @@ cp "$JAR" "$OUTPUT_DIR/input/composeApp-jvm-executable.jar"
   --main-jar composeApp-jvm-executable.jar \
   --main-class org.springframework.boot.loader.launch.JarLauncher \
   --java-options --enable-native-access=ALL-UNNAMED \
+  --java-options -Dskiko.renderApi=SOFTWARE \
   --java-options -XX:+UseSerialGC \
   --java-options -XX:ActiveProcessorCount=2 \
   --java-options -Xms16m \
@@ -144,6 +145,7 @@ if [[ "${COVIO_COMPOSE_REQUIRE_MSI:-0}" == "1" ]]; then
     --main-jar composeApp-jvm-executable.jar \
     --main-class org.springframework.boot.loader.launch.JarLauncher \
     --java-options --enable-native-access=ALL-UNNAMED \
+    --java-options -Dskiko.renderApi=SOFTWARE \
     --java-options -XX:+UseSerialGC \
     --java-options -XX:ActiveProcessorCount=2 \
     --java-options -Xms16m \
