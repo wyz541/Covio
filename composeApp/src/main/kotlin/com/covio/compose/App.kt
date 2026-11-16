@@ -60,6 +60,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -341,7 +342,7 @@ fun CovioApp(
             var observedFrames = 0
             var frameTimeouts = 0
             var previousFrameNanos: Long? = null
-            repeat(120) {
+            repeat(600) {
                 val observed = withTimeoutOrNull(50L) {
                     withFrameNanos { frameNanos ->
                         previousFrameNanos?.let { previous ->
@@ -1045,6 +1046,7 @@ private fun writePerformanceBaseline(
         put("frame_average_ms", frameTimesMs.average().takeIf { !it.isNaN() } ?: 0.0)
         put("frame_p95_ms", frameP95Ms)
         put("frame_max_ms", sorted.lastOrNull() ?: 0.0)
+        put("frame_times_ms", JsonArray(frameTimesMs.map { JsonPrimitive(it) }))
         put("display_refresh_hz", refreshRateHz)
         put("frame_budget_ms", frameBudgetMs)
         put("frame_p95_budget_ratio", frameP95Ms / frameBudgetMs)
