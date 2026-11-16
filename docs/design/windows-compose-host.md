@@ -1,14 +1,14 @@
 # Windows Compose host
 
-- 状态：opt-in prototype validated on hosted Windows; physical acceptance pending
+- 状态：Compose default cutover candidate; hosted and physical acceptance pending
 - 日期：2026-11-11
 - 决策：[ADR-0035](../adr/adr-0035-cross-platform-product-scope.md)
 - 依赖：[Compose 与 Rust bridge](../research/compose-rust-bridge/solution.md)
 
 ## 1. 结论
 
-Windows 保留 egui 默认产物。
-Compose host 作为独立 opt-in 路径构建和验收。
+Windows Compose host 是默认产品 UI。
+egui host 保留为可安装回滚路径。
 Compose 只负责 UI 和平台 adapter。Rust core 继续拥有配对、传输、能力、持久化和错误语义。
 
 ```mermaid
@@ -29,7 +29,7 @@ flowchart LR
 | Compose app | `composeApp/` | 页面、输入、主题、测试和平台请求 |
 | JNI bridge | `rust/crates/covio-jni/` | session、JNI 入口、事件队列、panic containment |
 | Capability model | `rust/crates/covio-platform/src/capabilities.rs` | 能力状态和 adapter 边界 |
-| Windows package | `scripts/package-windows-compose.sh` | 从发布清单读取版本，并生成 `jlink` runtime 和 `jpackage` app image |
+| Windows package | `scripts/package-windows-compose.sh` | 生成 Compose 默认包，并纳入同版本的 egui 回滚包 |
 
 ## 3. JNI 行为
 
@@ -68,6 +68,7 @@ Compose 先调用 `capability.request`。Rust 检查 host adapter 报告并返�
 ## 6. 验证命令
 
 ```sh
+COVIO_WINDOWS_OUTPUT_DIR=build/windows-rollback bash scripts/package-windows.sh
 bash scripts/test-windows-compose.sh
 bash scripts/package-windows-compose.sh
 pwsh -NoProfile -File scripts/performance/windows_compose_baseline.ps1 \
@@ -81,13 +82,18 @@ Windows Compose host 从 `release/release-manifest.json` 读取 `clientVersion`�
 生成物为 `composeApp/src/main/kotlin/com/covio/release/GeneratedReleaseIdentity.kt`。
 Windows 2025 x64 托管 runner 已验证以下结果。
 
-- Compose、JNI、Kotlin round-trip 和无障碍合同通过。
-- 亮色、深色和配对页面截图已生成。
-- `jlink` runtime、`jpackage` app image、便携 ZIP 和 MSI 已生成。
-- 包内 headless smoke 和五次性能基线运行通过。
+- Compose、JNI、Kotlin round-trip 和无障碍合同有自动化测试。
+- Compose semantics 测试检查 control label、`44dp` minimum target 和 Tab focus traversal。
+- Devices、Pair、Send、Receive 四个页面的亮色和深色截图由 Windows CI 生成。
+- Windows 11 截图由 `ImageComposeScene` offscreen render 生成。截图不依赖 screen capture 或 foreground window。
+- 打包脚本生成 `jlink` runtime、`jpackage` app image、便携 ZIP、MSI 和 egui 回滚安装器。
+- Compose host 使用 Skiko software renderer。Direct3D 在 hosted runner 上产生周期性双帧预算，software renderer 消除该抖动。
+- `compose-package.json` schema `2` 记录 `renderer: software`、`defaultHost: compose`、`rollbackHost: egui`、制品大小和 SHA-256。
+- 安装器测试启动已安装的 Compose host，加载 JNI，再用 egui 回滚 host 读取同一数据目录。
 
 仍未完成以下验收。
 
 - 真实 Windows 11 设备之间的 iroh 传输需要网络、relay 和 discovery 证据。
 - `share_sheet`、通知激活和完整 tray 行为尚未接入。
-- 未通过功能和视觉评审前，默认 UI 继续为 egui。
+- 视觉、无障碍、性能和真机证据完成前，切换 PR 保持 draft。
+- egui 回滚包至少保留一个内部版本周期。

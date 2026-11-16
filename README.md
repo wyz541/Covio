@@ -53,7 +53,7 @@ Android follows after the first release.
 | Platform | Status | UI | Rust boundary |
 | --- | --- | --- | --- |
 | macOS | current | SwiftUI + AppKit | C ABI; UniFFI optional |
-| Windows | egui baseline + Compose opt-in prototype | Compose Multiplatform | JNI |
+| Windows | Compose default + egui rollback | Compose Multiplatform | JNI |
 | iOS | first release target | SwiftUI | C ABI; UniFFI optional |
 | Android | later target | Compose Multiplatform | JNI |
 
@@ -65,9 +65,9 @@ Windows and Android share Compose UI and interaction semantics.
 macOS and iOS keep Apple-native SwiftUI behavior.
 Apple design is the visual authority for the shared design contract.
 
-The current Windows product host still uses egui.
-The Compose host is an opt-in prototype under `composeApp/`.
-The Compose host must pass functional, visual, packaging, and performance acceptance before cutover.
+The Compose host is the default Windows product host.
+The egui host remains available as an installable rollback package.
+The cutover remains a draft until the PR records functional, visual, accessibility, performance, and real-device evidence.
 See [Windows Compose host](docs/design/windows-compose-host.md).
 
 - Product and platform decision: [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md)
@@ -415,10 +415,10 @@ Build one side only:
 ```sh
 bash scripts/build-macos-swift.sh     # build the Rust-core macOS host
 bash scripts/test-macos-swift.sh      # run the host XCTest suite
-bash scripts/package-windows.sh       # build the egui Windows installer on Windows
+bash scripts/package-windows.sh       # build the egui fallback installer on Windows
 bash scripts/test-windows-rust.sh     # run the egui host and capability checks
 bash scripts/test-windows-compose.sh  # run the Compose host, JNI, and screenshots
-bash scripts/package-windows-compose.sh # build the opt-in jlink/jpackage ZIP and MSI
+bash scripts/package-windows-compose.sh # build the default jlink/jpackage ZIP and MSI
 ```
 
 The macOS build scripts keep DerivedData in `~/Library/Caches/Covio/DerivedData`.
@@ -470,9 +470,9 @@ The macOS host is SwiftUI and links the Rust core through the C ABI.
 The external Agent token uses the Rust Keychain adapter through the same C ABI.
 The macOS build does not link or embed a Kotlin framework. Open `macosApp/Covio.xcodeproj` to work on the host.
 The KMP shared module remains removed.
-The opt-in Windows Compose host calls the Rust core through JNI.
+The default Windows Compose host calls the Rust core through JNI.
 UniFFI remains an isolated experiment.
-The current egui host remains the runnable Windows baseline until the Compose cutover.
+The egui host remains the rollback path and reads the same `%LOCALAPPDATA%\Covio` data root.
 See [ADR-0035](docs/adr/adr-0035-cross-platform-product-scope.md), [ADR-0030](docs/adr/adr-0030-rust-core-platform-native-ui.md), and [ADR-0034](docs/adr/adr-0034-remove-kmp-shared-module.md).
 
 ### Windows package
@@ -481,25 +481,27 @@ Run these commands on Windows 11:
 
 ```sh
 bash scripts/test-windows-rust.sh
-bash scripts/package-windows.sh
+COVIO_WINDOWS_OUTPUT_DIR=build/windows-rollback bash scripts/package-windows.sh
 bash scripts/test-windows-compose.sh
 bash scripts/package-windows-compose.sh
 ```
 
-The egui package script builds `covio-windows.exe` and a current-user Inno Setup installer.
+The egui package script builds `covio-windows.exe`, a current-user Inno Setup rollback installer, and rollback metadata.
 The Compose package script reads its product and client versions from `release/release-manifest.json`.
-The Compose package script builds a `jlink` runtime and `jpackage` app image, portable ZIP, and MSI.
+The Compose package script builds a `jlink` runtime, a `jpackage` app image, a portable ZIP, and an MSI.
+The Windows package uses the Skiko software renderer to avoid periodic frame drops on software-only virtual displays.
+The Compose package also copies the hash-checked egui rollback installer from `COVIO_WINDOWS_ROLLBACK_DIR`.
 The installer writes under `%LOCALAPPDATA%\Programs\Covio`.
 It does not require elevation.
 It registers the `com.wyz.covio` AppUserModelID for Start Menu shortcuts.
 The Rust host stores durable state under `%LOCALAPPDATA%\Covio`.
 Secrets use Windows Credential Manager.
 
-CI installs a previous build, upgrades to the current build, checks crash recovery, rolls back to the previous build, and uninstalls.
+CI tests egui upgrade and rollback behavior.
+CI also installs the Compose MSI, starts the installed Compose host with JNI, removes it, and starts the egui rollback host with the same data directory.
 The KMP shared module remains removed.
-The opt-in Compose host is limited to `composeApp/` and contains no shared business module.
+The Compose host is limited to `composeApp/` and contains no shared business module.
 CI rejects JNA and Kotlin business-domain paths.
-The egui host remains the default Windows product until Compose acceptance completes.
 
 The project signs ad-hoc by default.
 Ad-hoc signing has no Team ID, so macOS identifies the app by its cdhash.
@@ -647,8 +649,8 @@ Set `COVIO_IOS_TEAM_ID` before the release command.
 The verification step fails when a platform artifact is missing or its commit differs.
 
 CI runs the Windows package job for installer or release inputs, release branches, and manual runs.
-The job uploads the native installer package and the Windows Compose ZIP, MSI, package metadata, boundary scan, baseline, and screenshots.
-The unified internal Release uses the Compose ZIP and MSI from the successful CI run at the release commit.
+The job uploads the native egui installer package and the Windows Compose ZIP, MSI, rollback installer, package metadata, boundary scan, baseline, and screenshots.
+The unified internal Release uses the Compose ZIP, MSI, and egui rollback installer from the successful CI run at the release commit.
 Build the macOS package locally with `bash scripts/create-release.sh`. Verify the DMG, PKG, app zip, update zip, and boundary scan before publishing.
 Hosted artifacts prove build and installer behavior. Physical Windows and macOS acceptance remains #613.
 

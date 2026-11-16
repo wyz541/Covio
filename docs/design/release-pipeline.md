@@ -81,6 +81,7 @@ release-operation.json
 ```text
 Covio-<clientVersion>-windows-x64-portable.zip
 Covio-<clientVersion>-windows-x64.msi
+Covio-<clientVersion>-windows-x64-rollback-setup.exe
 compose-package.json
 Covio-<clientVersion>-ios-arm64.ipa
 ios-package.json
@@ -88,7 +89,9 @@ ios-package.json
 
 Windows job 运行 `scripts/package-windows-compose.sh`。
 MSI 由 `jpackage --type msi` 生成。
-`compose-package.json` 记录 `clientVersion`、`buildNumber`、渠道、Git commit、制品 SHA-256 和大小。
+Windows job 同时构建同版本的 egui Inno Setup 回滚安装器。
+`compose-package.json` schema `2` 记录 `renderer: software`、`defaultHost: compose`、`rollbackHost: egui`、`clientVersion`、`buildNumber`、渠道、Git commit、制品 SHA-256 和大小。
+schema `1` 继续作为无回滚字段的历史格式读取。
 
 iOS job 运行 `scripts/package-ios-swift.sh`。
 脚本使用 `COVIO_IOS_TEAM_ID` 选择 Apple 签名身份。
@@ -107,7 +110,7 @@ macOS job 运行 `scripts/package-macos-swift.sh`。
 `CovioUpdate-<clientVersion>.zip` 只包含根级 `Covio.app`。
 Manifest 和签名信封由当前 Release 的同一组 app、helper 和 updater 生成。
 `release-notes.generated.md` 从同一份证据生成。
-`checksums.txt` 包含 macOS、Windows 和 iOS 的全部发布资产与平台元数据。
+`checksums.txt` 包含 macOS、Windows、egui 回滚包和 iOS 的全部发布资产与平台元数据。
 发布离线包时，`checksums.txt` 还包含 `Covio-Offline-<clientVersion>.dmg`。
 `release-manifest.json` 记录默认包、可选离线包和模型 revision。
 统一内测发布还记录 `requiredPlatforms`、Windows 制品和 iOS 制品。

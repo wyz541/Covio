@@ -56,6 +56,8 @@ BUNDLE_SCHEMA_VERSION = 2
 DEFAULT_DMG_MAX_BYTES = 50_000_000
 UNIFIED_RELEASE_PLATFORMS = ("macos", "windows", "ios")
 PLATFORM_SCHEMA_VERSION = 1
+WINDOWS_PLATFORM_SCHEMA_VERSION = 2
+WINDOWS_LEGACY_SCHEMA_VERSION = 1
 ARTIFACT_REQUIRED = (
     "schemaVersion",
     "releaseId",
@@ -529,7 +531,16 @@ def validate_platform_package(
 ) -> dict[str, Any]:
     if not isinstance(record, dict):
         raise ManifestError(f"artifact {platform} package must be an object")
-    if record.get("schemaVersion") != PLATFORM_SCHEMA_VERSION:
+    schema_version = record.get("schemaVersion")
+    if not isinstance(schema_version, int) or isinstance(schema_version, bool):
+        raise ManifestError(f"artifact {platform} package schemaVersion must be an integer")
+    if platform == "windows":
+        if schema_version not in {WINDOWS_LEGACY_SCHEMA_VERSION, WINDOWS_PLATFORM_SCHEMA_VERSION}:
+            raise ManifestError(
+                "artifact windows package schemaVersion must be 1 or "
+                f"{WINDOWS_PLATFORM_SCHEMA_VERSION}"
+            )
+    elif schema_version != PLATFORM_SCHEMA_VERSION:
         raise ManifestError(f"artifact {platform} package schemaVersion must be {PLATFORM_SCHEMA_VERSION}")
     if record.get("platform") != platform:
         raise ManifestError(f"artifact {platform} package has the wrong platform")
@@ -563,15 +574,31 @@ def validate_platform_package(
         artifacts = record.get("artifacts")
         if not isinstance(artifacts, dict):
             raise ManifestError("artifact windows artifacts must be an object")
-        for kind in ("portable", "msi"):
+        artifact_kinds = {
+            "portable",
+            "msi",
+            *(("rollback",) if schema_version == WINDOWS_PLATFORM_SCHEMA_VERSION else ()),
+        }
+        unknown_artifacts = sorted(set(artifacts) - artifact_kinds)
+        if unknown_artifacts:
+            raise ManifestError(f"artifact windows artifacts contain unknown keys: {unknown_artifacts}")
+        if schema_version == WINDOWS_PLATFORM_SCHEMA_VERSION:
+            if record.get("renderer") != "software":
+                raise ManifestError("artifact windows renderer must be software")
+            if record.get("defaultHost") != "compose":
+                raise ManifestError("artifact windows defaultHost must be compose")
+            if record.get("rollbackHost") != "egui":
+                raise ManifestError("artifact windows rollbackHost must be egui")
+        for kind in sorted(artifact_kinds):
             artifact = artifacts.get(kind)
             if not isinstance(artifact, dict) or not isinstance(artifact.get("name"), str):
                 raise ManifestError(f"artifact windows {kind} must be an object with a name")
-            expected_name = (
-                f"Covio-{spec.client_version}-windows-x64-portable.zip"
-                if kind == "portable"
-                else f"Covio-{spec.client_version}-windows-x64.msi"
-            )
+            expected_names = {
+                "portable": f"Covio-{spec.client_version}-windows-x64-portable.zip",
+                "msi": f"Covio-{spec.client_version}-windows-x64.msi",
+                "rollback": f"Covio-{spec.client_version}-windows-x64-rollback-setup.exe",
+            }
+            expected_name = expected_names[kind]
             if artifact["name"] != expected_name:
                 raise ManifestError(f"artifact windows {kind} file must be named {expected_name}")
             _platform_file_record(artifact, platform, artifact["name"], base_directory)
@@ -633,8 +660,18 @@ def platform_asset_names(manifest: dict[str, Any]) -> tuple[str, ...]:
         raise ManifestError("artifact iOS record has no artifact")
     if not isinstance(windows_artifacts, dict):
         raise ManifestError("artifact Windows record has no artifacts")
+    windows_schema = windows.get("schemaVersion")
+    if windows_schema == WINDOWS_LEGACY_SCHEMA_VERSION:
+        artifact_kinds = ("portable", "msi")
+    elif windows_schema == WINDOWS_PLATFORM_SCHEMA_VERSION:
+        artifact_kinds = ("portable", "msi", "rollback")
+    else:
+        raise ManifestError(
+            "artifact Windows record schemaVersion must be 1 or "
+            f"{WINDOWS_PLATFORM_SCHEMA_VERSION}"
+        )
     names = ["ios-package.json", ios_artifact["name"], "compose-package.json"]
-    for kind in ("portable", "msi"):
+    for kind in artifact_kinds:
         record = windows_artifacts.get(kind)
         if not isinstance(record, dict) or not isinstance(record.get("name"), str):
             raise ManifestError(f"artifact Windows record has no {kind} artifact")

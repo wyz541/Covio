@@ -3,11 +3,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUTPUT_DIR="${COVIO_COMPOSE_OUTPUT_DIR:-$ROOT/build/windows-compose-package}"
+ROLLBACK_DIR="${COVIO_WINDOWS_ROLLBACK_DIR:-$ROOT/build/windows-rollback}"
 PRODUCT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value productVersion)"
 CLIENT_VERSION="$(python3 -I "$ROOT/scripts/release_manifest.py" value clientVersion)"
 BUILD_NUMBER="$(python3 -I "$ROOT/scripts/release_manifest.py" value buildNumber)"
 CHANNEL="$(python3 -I "$ROOT/scripts/release_manifest.py" value channel)"
 APP_VERSION="${COVIO_COMPOSE_VERSION:-$PRODUCT_VERSION}"
+UPGRADE_UUID="${COVIO_WINDOWS_UPGRADE_UUID:-4179b13d-8555-586c-9b57-ca8556bfb42e}"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 RELEASE_ID="$(python3 -I "$ROOT/scripts/release_manifest.py" release-id --commit "$COMMIT")"
 NATIVE_DIR="$ROOT/composeApp/src/main/resources/native/windows-x64"
@@ -62,6 +64,11 @@ cp "$JAR" "$OUTPUT_DIR/input/composeApp-jvm-executable.jar"
   --main-jar composeApp-jvm-executable.jar \
   --main-class org.springframework.boot.loader.launch.JarLauncher \
   --java-options --enable-native-access=ALL-UNNAMED \
+  --java-options -Dskiko.renderApi=SOFTWARE \
+  --java-options -XX:+UseSerialGC \
+  --java-options -XX:ActiveProcessorCount=2 \
+  --java-options -Xms16m \
+  --java-options -Xmx128m \
   --runtime-image "$OUTPUT_DIR/runtime" \
   --icon "$ROOT/assets/windows/Covio.ico" \
   --dest "$OUTPUT_DIR/app-image"
@@ -89,6 +96,45 @@ if [[ ! -s "$PORTABLE_ZIP" ]]; then
 fi
 
 MSI=""
+ROLLBACK_METADATA="$ROLLBACK_DIR/windows-package.json"
+if [[ ! -f "$ROLLBACK_METADATA" ]]; then
+  printf 'Missing egui rollback package metadata: %s\n' "$ROLLBACK_METADATA" >&2
+  exit 1
+fi
+ROLLBACK_SOURCE="$(python3 -I - "$ROLLBACK_METADATA" "$PRODUCT_VERSION" "$CLIENT_VERSION" "$BUILD_NUMBER" "$CHANNEL" "$COMMIT" "$RELEASE_ID" <<'PYROLLBACK'
+import json
+import pathlib
+import sys
+
+metadata = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+expected = {
+    "productVersion": sys.argv[2],
+    "clientVersion": sys.argv[3],
+    "buildNumber": int(sys.argv[4]),
+    "channel": sys.argv[5],
+    "gitCommit": sys.argv[6],
+    "releaseId": sys.argv[7],
+}
+for key, value in expected.items():
+    if metadata.get(key) != value:
+        raise SystemExit(f"rollback metadata {key} differs from the Compose package")
+name = metadata.get("artifact")
+if (
+    not isinstance(name, str)
+    or pathlib.Path(name).name != name
+    or not name.endswith(".exe")
+):
+    raise SystemExit("rollback metadata has no setup executable")
+print(name)
+PYROLLBACK
+)"
+if [[ ! -f "$ROLLBACK_DIR/$ROLLBACK_SOURCE" ]]; then
+  printf 'Missing egui rollback installer: %s\n' "$ROLLBACK_DIR/$ROLLBACK_SOURCE" >&2
+  exit 1
+fi
+ROLLBACK="$OUTPUT_DIR/Covio-$CLIENT_VERSION-windows-x64-rollback-setup.exe"
+cp "$ROLLBACK_DIR/$ROLLBACK_SOURCE" "$ROLLBACK"
+
 if [[ "${COVIO_COMPOSE_REQUIRE_MSI:-0}" == "1" ]]; then
   "$JAVA_HOME/bin/jpackage" \
     --type msi \
@@ -99,8 +145,15 @@ if [[ "${COVIO_COMPOSE_REQUIRE_MSI:-0}" == "1" ]]; then
     --main-jar composeApp-jvm-executable.jar \
     --main-class org.springframework.boot.loader.launch.JarLauncher \
     --java-options --enable-native-access=ALL-UNNAMED \
+    --java-options -Dskiko.renderApi=SOFTWARE \
+    --java-options -XX:+UseSerialGC \
+    --java-options -XX:ActiveProcessorCount=2 \
+    --java-options -Xms16m \
+    --java-options -Xmx128m \
     --runtime-image "$OUTPUT_DIR/runtime" \
     --icon "$ROOT/assets/windows/Covio.ico" \
+    --win-per-user-install \
+    --win-upgrade-uuid "$UPGRADE_UUID" \
     --win-menu \
     --win-shortcut \
     --dest "$OUTPUT_DIR"
@@ -121,7 +174,9 @@ if [[ -n "$MSI" ]]; then
   MSG_SHA="$(sha256sum "$MSI" | awk '{print $1}')"
   printf '%s  %s\n' "$MSG_SHA" "$(basename "$MSI")" >"$MSI.sha256"
 fi
-python3 -I - "$OUTPUT_DIR/compose-package.json" "$PORTABLE_ZIP" "$SHA256" "$MSI" "$MSG_SHA" "$PRODUCT_VERSION" "$CLIENT_VERSION" "$BUILD_NUMBER" "$CHANNEL" "$COMMIT" "$RELEASE_ID" <<'PY'
+ROLLBACK_SHA="$(sha256sum "$ROLLBACK" | awk '{print $1}')"
+printf '%s  %s\n' "$ROLLBACK_SHA" "$(basename "$ROLLBACK")" >"$ROLLBACK.sha256"
+python3 -I - "$OUTPUT_DIR/compose-package.json" "$PORTABLE_ZIP" "$SHA256" "$MSI" "$MSG_SHA" "$ROLLBACK" "$ROLLBACK_SHA" "$PRODUCT_VERSION" "$CLIENT_VERSION" "$BUILD_NUMBER" "$CHANNEL" "$COMMIT" "$RELEASE_ID" <<'PY'
 import json
 import pathlib
 import sys
@@ -129,17 +184,21 @@ import sys
 path = pathlib.Path(sys.argv[1])
 portable = pathlib.Path(sys.argv[2])
 msi = pathlib.Path(sys.argv[4]) if sys.argv[4] else None
+rollback = pathlib.Path(sys.argv[6])
 payload = {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "platform": "windows",
-    "productVersion": sys.argv[6],
-    "clientVersion": sys.argv[7],
-    "buildNumber": int(sys.argv[8]),
-    "channel": sys.argv[9],
-    "gitCommit": sys.argv[10],
-    "releaseId": sys.argv[11],
+    "productVersion": sys.argv[8],
+    "clientVersion": sys.argv[9],
+    "buildNumber": int(sys.argv[10]),
+    "channel": sys.argv[11],
+    "gitCommit": sys.argv[12],
+    "releaseId": sys.argv[13],
     "runtime": "jlink",
     "packager": "jpackage",
+    "renderer": "software",
+    "defaultHost": "compose",
+    "rollbackHost": "egui",
     "artifacts": {
         "portable": {
             "name": portable.name,
@@ -151,6 +210,11 @@ payload = {
             "size": msi.stat().st_size,
             "sha256": sys.argv[5],
         },
+        "rollback": {
+            "name": rollback.name,
+            "size": rollback.stat().st_size,
+            "sha256": sys.argv[7],
+        },
     },
 }
 path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -158,3 +222,4 @@ PY
 
 printf 'Compose portable ZIP: %s\n' "$PORTABLE_ZIP"
 if [[ -n "$MSI" ]]; then printf 'Compose MSI: %s\n' "$MSI"; fi
+printf 'egui rollback installer: %s\n' "$ROLLBACK"

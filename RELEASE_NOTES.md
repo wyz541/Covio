@@ -24,6 +24,7 @@ iOS 使用 SwiftUI。
 本版同时提供 macOS、Windows 和 iOS 制品。
 macOS 包含默认瘦身 DMG、事务安装 PKG 和 App ZIP。
 Windows 包含 Compose 便携 ZIP 和 MSI。
+Windows 默认切换候选还包含同版本的 egui 回滚安装器。
 iOS 包含已签名的 arm64 IPA。
 三个平台使用同一个 `clientVersion`、`buildNumber` 和 Git commit。
 默认包不包含模型权重。
@@ -41,6 +42,7 @@ iOS 包含已签名的 arm64 IPA。
 - macOS 文件页增加 Devices 栏。用户可以配对设备、发送文件、启动接收并查看设备信息。
 - iOS 宿主提供 Pair、Send、Receive 和 Devices 页面。
 - Windows Compose host 从 `release/release-manifest.json` 读取版本。Devices 页面显示同一 `clientVersion`。
+- Windows 默认包记录 `defaultHost: compose` 和 `rollbackHost: egui`。统一 Release 校验 ZIP、MSI、回滚安装器和 `compose-package.json`。
 - 配对使用二维码和两端确认码。设备身份保存在 Keychain 或 Credential Manager 支持的凭据仓库。
 - 单文件传输提供中断、暂停、恢复、取消、校验和续传状态。
 - 目录传输处理冲突、损坏清单、原子提交和路径安全。
@@ -72,6 +74,11 @@ iOS 包含已签名的 arm64 IPA。
 2. 解压 ZIP 后运行 `Covio.exe`，或打开 MSI。
 3. 启动 Covio。
 4. 打开 Devices，确认版本为 `0.6.0-internal.36`。
+
+Windows Compose 默认切换候选包含以下回滚流程：
+
+1. 如果 Compose host 不可用，安装同版本的 `Covio-<clientVersion>-windows-x64-rollback-setup.exe`。
+2. 启动 egui 回滚 host，并确认它读取同一个 `%LOCALAPPDATA%\Covio` 数据目录。
 
 ### iOS
 

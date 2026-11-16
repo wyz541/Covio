@@ -95,7 +95,7 @@ metadata = json.loads((source / "compose-package.json").read_text(encoding="utf-
 artifacts = metadata.get("artifacts")
 if not isinstance(artifacts, dict):
     raise SystemExit("compose-package.json has no artifacts object")
-for kind in ("portable", "msi"):
+for kind in ("portable", "msi", "rollback"):
     record = artifacts.get(kind)
     if not isinstance(record, dict) or not isinstance(record.get("name"), str):
         raise SystemExit(f"compose-package.json has no {kind} artifact")

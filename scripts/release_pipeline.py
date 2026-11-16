@@ -1000,6 +1000,22 @@ def promotion_errors(channel: str, release_info: dict[str, Any], evidence: dict[
     for name in expected_asset_names(version):
         if name not in assets:
             errors.append(f"release evidence is missing {name}")
+    platforms = evidence.get("platforms")
+    required_platforms = evidence.get("requiredPlatforms")
+    if platforms is not None or required_platforms is not None:
+        try:
+            platform_names = release.platform_asset_names(
+                {
+                    "requiredPlatforms": required_platforms,
+                    "platforms": platforms,
+                }
+            )
+        except release.ManifestError as error:
+            errors.append(str(error))
+        else:
+            for name in platform_names:
+                if name not in assets:
+                    errors.append(f"release evidence is missing {name}")
     installers = evidence.get("installers", {})
     if not isinstance(installers, dict):
         errors.append("release evidence installers must be an object")

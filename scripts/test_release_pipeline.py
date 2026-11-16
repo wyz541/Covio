@@ -238,8 +238,10 @@ class ReleasePipelineTests(unittest.TestCase):
             self.assertIn("compose-package.json", names)
             self.assertIn("Covio-1.2.3-internal.4-windows-x64-portable.zip", names)
             self.assertIn("Covio-1.2.3-internal.4-windows-x64.msi", names)
+            self.assertIn("Covio-1.2.3-internal.4-windows-x64-rollback-setup.exe", names)
             checksums = pipeline.write_checksums(root, "1.2.3-internal.4").read_text(encoding="utf-8")
             self.assertIn("Covio-1.2.3-internal.4-ios-arm64.ipa", checksums)
+            self.assertIn("Covio-1.2.3-internal.4-windows-x64-rollback-setup.exe", checksums)
             pipeline.verify_checksums(root, "1.2.3-internal.4")
 
     def test_model_metadata_mismatch_is_rejected(self):
@@ -368,15 +370,25 @@ class ReleasePipelineTests(unittest.TestCase):
             ios_name = "Covio-1.2.3-internal.4-ios-arm64.ipa"
             portable_name = "Covio-1.2.3-internal.4-windows-x64-portable.zip"
             msi_name = "Covio-1.2.3-internal.4-windows-x64.msi"
-            for name in ("ios-package.json", ios_name, "compose-package.json", portable_name, msi_name):
+            rollback_name = "Covio-1.2.3-internal.4-windows-x64-rollback-setup.exe"
+            for name in (
+                "ios-package.json",
+                ios_name,
+                "compose-package.json",
+                portable_name,
+                msi_name,
+                rollback_name,
+            ):
                 (root / name).write_bytes(name.encode("utf-8"))
             manifest["requiredPlatforms"] = ["macos", "windows", "ios"]
             manifest["platforms"] = {
                 "ios": {"artifact": {"name": ios_name}},
                 "windows": {
+                    "schemaVersion": pipeline.release.WINDOWS_PLATFORM_SCHEMA_VERSION,
                     "artifacts": {
                         "portable": {"name": portable_name},
                         "msi": {"name": msi_name},
+                        "rollback": {"name": rollback_name},
                     }
                 },
             }

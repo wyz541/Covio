@@ -8,7 +8,7 @@ set -euo pipefail
 #   1. 发布身份与脚本检查。
 #   2. Rust core 与 bridge 的 fmt、Clippy 和测试。
 #   3. Windows host、installer 和 capability smoke。
-#   4. Windows Compose host、JNI round-trip、截图和 opt-in package。
+#   4. Windows Compose host、JNI round-trip、截图和默认 package。
 #   5. macOS 与 Windows artifact boundary checker。
 #   6. KMP shared module 已删除，Compose host 路径保留。
 #   7. 合同常量有没有漂移。

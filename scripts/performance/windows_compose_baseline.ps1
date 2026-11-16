@@ -31,6 +31,31 @@ function Get-Median([object[]]$Values) {
     return ([double]$items[$middle - 1] + [double]$items[$middle]) / 2.0
 }
 
+function Get-ProcessTreeWorkingSetBytes {
+    param([int]$RootId)
+    $processes = @(Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId)
+    $ids = [System.Collections.Generic.HashSet[int]]::new()
+    [void]$ids.Add($RootId)
+    $parents = @($RootId)
+    while ($parents.Count -gt 0) {
+        $children = @($processes | Where-Object { $_.ParentProcessId -in $parents })
+        $parents = @()
+        foreach ($child in $children) {
+            if ($ids.Add([int]$child.ProcessId)) {
+                $parents += [int]$child.ProcessId
+            }
+        }
+    }
+    $total = 0L
+    foreach ($id in $ids) {
+        $item = Get-Process -Id $id -ErrorAction SilentlyContinue
+        if ($null -ne $item) {
+            $total += [int64]$item.WorkingSet64
+        }
+    }
+    return $total
+}
+
 $rows = @()
 for ($run = 1; $run -le $Runs; $run++) {
     $dataDir = Join-Path $runRoot "data-$run"
@@ -47,16 +72,22 @@ for ($run = 1; $run -le $Runs; $run++) {
             "--data-dir", $dataDir,
             "--theme", "light",
             "--screen", "devices"
-        )
+    )
     $peakWorkingSet = 0L
     $cpuStart = 0.0
+    $lastMemorySample = [DateTime]::MinValue
     while (-not $process.HasExited) {
         try {
             $process.Refresh()
-            $peakWorkingSet = [Math]::Max($peakWorkingSet, [int64]$process.WorkingSet64)
             $cpuStart = [Math]::Max($cpuStart, [double]$process.CPU)
         } catch {}
-        if (([DateTime]::UtcNow - $startedUtc).TotalSeconds -gt 45) {
+        $elapsed = ([DateTime]::UtcNow - $startedUtc).TotalSeconds
+        if (($elapsed -ge 0.25) -and (([DateTime]::UtcNow - $lastMemorySample).TotalMilliseconds -ge 250)) {
+            $workingSet = Get-ProcessTreeWorkingSetBytes -RootId $process.Id
+            $peakWorkingSet = [Math]::Max($peakWorkingSet, $workingSet)
+            $lastMemorySample = [DateTime]::UtcNow
+        }
+        if ($elapsed -gt 45) {
             & taskkill.exe /PID $process.Id /T /F | Out-Null
             $stdout = if (Test-Path -LiteralPath $stdoutPath) {
                 (Get-Content -LiteralPath $stdoutPath -Raw)
@@ -81,9 +112,19 @@ for ($run = 1; $run -le $Runs; $run++) {
     $rows += [pscustomobject]@{
         run = $run
         coldStartMs = [double]$metric.cold_start_ms
+        initializeMs = [double]$metric.initialize_ms
+        firstReadyFrameDelayMs = [double]$metric.first_ready_frame_delay_ms
         frameAverageMs = [double]$metric.frame_average_ms
         frameP95Ms = [double]$metric.frame_p95_ms
         frameMaxMs = [double]$metric.frame_max_ms
+        displayRefreshHz = [double]$metric.display_refresh_hz
+        frameBudgetMs = [double]$metric.frame_budget_ms
+        frameP95BudgetRatio = [double]$metric.frame_p95_budget_ratio
+        frameP95WithinRefreshBudget = [bool]$metric.frame_p95_within_refresh_budget
+        frameSampleTimeouts = [int]$metric.frame_sample_timeouts
+        frameWarmupSamples = [int]$metric.frame_warmup_samples
+        gcCount = [int64]$metric.gc_count
+        gcTimeMs = [int64]$metric.gc_time_ms
         heapUsedBytes = [int64]$metric.heap_used_bytes
         heapCommittedBytes = [int64]$metric.heap_committed_bytes
         nonHeapUsedBytes = [int64]$metric.non_heap_used_bytes
@@ -106,9 +147,19 @@ $summary = [ordered]@{
     runs = $rows
     medians = [ordered]@{
         coldStartMs = Get-Median @($rows.coldStartMs)
+        initializeMs = Get-Median @($rows.initializeMs)
+        firstReadyFrameDelayMs = Get-Median @($rows.firstReadyFrameDelayMs)
         frameAverageMs = Get-Median @($rows.frameAverageMs)
         frameP95Ms = Get-Median @($rows.frameP95Ms)
         frameMaxMs = Get-Median @($rows.frameMaxMs)
+        displayRefreshHz = Get-Median @($rows.displayRefreshHz)
+        frameBudgetMs = Get-Median @($rows.frameBudgetMs)
+        frameP95BudgetRatio = Get-Median @($rows.frameP95BudgetRatio)
+        frameP95WithinRefreshBudget = @($rows | Where-Object { -not $_.frameP95WithinRefreshBudget }).Count -eq 0
+        frameSampleTimeouts = Get-Median @($rows.frameSampleTimeouts)
+        frameWarmupSamples = Get-Median @($rows.frameWarmupSamples)
+        gcCount = Get-Median @($rows.gcCount)
+        gcTimeMs = Get-Median @($rows.gcTimeMs)
         heapUsedBytes = Get-Median @($rows.heapUsedBytes)
         heapCommittedBytes = Get-Median @($rows.heapCommittedBytes)
         nonHeapUsedBytes = Get-Median @($rows.nonHeapUsedBytes)
@@ -133,8 +184,18 @@ $lines = @(
     "| Metric | Median |",
     "| --- | ---: |",
     "| Cold start | $([Math]::Round($summary.medians.coldStartMs, 1)) ms |",
+    "| Initialization | $([Math]::Round($summary.medians.initializeMs, 1)) ms |",
+    "| First ready frame | $([Math]::Round($summary.medians.firstReadyFrameDelayMs, 1)) ms |",
     "| Frame average | $([Math]::Round($summary.medians.frameAverageMs, 2)) ms |",
     "| Frame p95 | $([Math]::Round($summary.medians.frameP95Ms, 2)) ms |",
+    "| Display refresh | $([Math]::Round($summary.medians.displayRefreshHz, 0)) Hz |",
+    "| Frame budget | $([Math]::Round($summary.medians.frameBudgetMs, 2)) ms |",
+    "| Frame p95 / budget | $([Math]::Round($summary.medians.frameP95BudgetRatio * 100, 1))% |",
+    "| Frame p95 within refresh budget | $($summary.medians.frameP95WithinRefreshBudget) |",
+    "| Frame sample timeouts | $([int64]$summary.medians.frameSampleTimeouts) |",
+    "| Frame warm-up samples | $([int64]$summary.medians.frameWarmupSamples) |",
+    "| GC count during sample | $([int64]$summary.medians.gcCount) |",
+    "| GC time during sample | $([int64]$summary.medians.gcTimeMs) ms |",
     "| Heap used | $([int64]$summary.medians.heapUsedBytes) B |",
     "| Working set sample | $([int64]$summary.medians.sampledWorkingSetBytes) B |",
     "| Portable ZIP | $($summary.package.portableZipBytes) B |",
