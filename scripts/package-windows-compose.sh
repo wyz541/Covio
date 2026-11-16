@@ -66,7 +66,6 @@ cp "$JAR" "$OUTPUT_DIR/input/composeApp-jvm-executable.jar"
   --java-options --enable-native-access=ALL-UNNAMED \
   --java-options -XX:+UseSerialGC \
   --java-options -XX:ActiveProcessorCount=2 \
-  --java-options -XX:TieredStopAtLevel=1 \
   --java-options -Xms16m \
   --java-options -Xmx128m \
   --runtime-image "$OUTPUT_DIR/runtime" \
@@ -147,7 +146,6 @@ if [[ "${COVIO_COMPOSE_REQUIRE_MSI:-0}" == "1" ]]; then
     --java-options --enable-native-access=ALL-UNNAMED \
     --java-options -XX:+UseSerialGC \
     --java-options -XX:ActiveProcessorCount=2 \
-    --java-options -XX:TieredStopAtLevel=1 \
     --java-options -Xms16m \
     --java-options -Xmx128m \
     --runtime-image "$OUTPUT_DIR/runtime" \
