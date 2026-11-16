@@ -53,24 +53,16 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
   }
 
   for theme in light dark; do
-    screenshot="$(to_windows_path "$screenshot_dir/devices-$theme.png")"
-    data_path="$(to_windows_path "$data_dir")"
-    COVIO_JNI_LIBRARY="$JNI_LIBRARY_ENV" ./kotlin run --no-compose-hot-reload \
-      --jvm-args=--enable-native-access=ALL-UNNAMED -- \
-      --screenshot "$screenshot" --theme "$theme" --screen devices --data-dir "$data_path"
-    test -s "$screenshot_dir/devices-$theme.png"
-    test "$(stat -c%s "$screenshot_dir/devices-$theme.png")" -gt 20000
-  done
-
-  for theme in light dark; do
-    pairing_screenshot="$(to_windows_path "$screenshot_dir/pairing-$theme.png")"
-    pairing_data="$(to_windows_path "$data_dir/pairing-$theme")"
-    mkdir -p "$data_dir/pairing-$theme"
-    COVIO_JNI_LIBRARY="$JNI_LIBRARY_ENV" ./kotlin run --no-compose-hot-reload \
-      --jvm-args=--enable-native-access=ALL-UNNAMED -- \
-      --screenshot "$pairing_screenshot" --theme "$theme" --screen pair --data-dir "$pairing_data"
-    test -s "$screenshot_dir/pairing-$theme.png"
-    test "$(stat -c%s "$screenshot_dir/pairing-$theme.png")" -gt 20000
+    for screen in devices pair send receive; do
+      screenshot="$(to_windows_path "$screenshot_dir/$screen-$theme.png")"
+      data_path="$(to_windows_path "$data_dir/$screen-$theme")"
+      mkdir -p "$data_dir/$screen-$theme"
+      COVIO_JNI_LIBRARY="$JNI_LIBRARY_ENV" ./kotlin run --no-compose-hot-reload \
+        --jvm-args=--enable-native-access=ALL-UNNAMED -- \
+        --screenshot "$screenshot" --theme "$theme" --screen "$screen" --data-dir "$data_path"
+      test -s "$screenshot_dir/$screen-$theme.png"
+      test "$(stat -c%s "$screenshot_dir/$screen-$theme.png")" -gt 20000
+    done
   done
 fi
 

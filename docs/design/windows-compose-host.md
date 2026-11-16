@@ -83,7 +83,9 @@ Windows Compose host 从 `release/release-manifest.json` 读取 `clientVersion`�
 Windows 2025 x64 托管 runner 已验证以下结果。
 
 - Compose、JNI、Kotlin round-trip 和无障碍合同有自动化测试。
-- 亮色、深色和配对页面截图由 Windows CI 生成。
+- Compose semantics 测试检查 control label、`44dp` minimum target 和 Tab focus traversal。
+- Devices、Pair、Send、Receive 四个页面的亮色和深色截图由 Windows CI 生成。
+- Windows 11 截图由 `ImageComposeScene` offscreen render 生成。截图不依赖 screen capture 或 foreground window。
 - 打包脚本生成 `jlink` runtime、`jpackage` app image、便携 ZIP、MSI 和 egui 回滚安装器。
 - Compose host 使用 Skiko software renderer。Direct3D 在 hosted runner 上产生周期性双帧预算，software renderer 消除该抖动。
 - `compose-package.json` schema `2` 记录 `renderer: software`、`defaultHost: compose`、`rollbackHost: egui`、制品大小和 SHA-256。

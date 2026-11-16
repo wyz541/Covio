@@ -5,6 +5,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.ImageComposeScene
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
@@ -13,24 +17,24 @@ import androidx.compose.ui.window.rememberWindowState
 import com.covio.release.GeneratedReleaseIdentity
 import com.wyz.covio.bridge.CovioClient
 import com.wyz.covio.bridge.CovioSessionConfig
-import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import org.jetbrains.skia.EncodedImageFormat
 import java.awt.Dimension
+import java.io.File
 
 fun main(args: Array<String>) {
     if (args.contains("--headless-smoke")) {
         runHeadlessSmoke(args)
         return
     }
-    application {
     val options = LaunchOptions.parse(args)
-    val config = CovioSessionConfig(
-        dataRoot = options.dataRoot.absolutePath,
-        displayName = System.getenv("COMPUTERNAME") ?: "Windows device",
-        systemName = System.getProperty("os.name") ?: "Windows",
-        systemVersion = System.getProperty("os.version") ?: "unknown",
-        appVersion = GeneratedReleaseIdentity.clientVersion,
-        hostAdapters = listOf("file_picker", "notification", "background_task", "app_lifecycle"),
-    )
+    if (options.screenshot != null) {
+        renderScreenshot(options)
+        return
+    }
+    application {
+    val config = sessionConfig(options)
     val client = remember { CovioClient(config) }
     val adapters = remember { PlatformAdapters(client) }
     val controller = remember { AppController(client, adapters) }
@@ -63,9 +67,7 @@ fun main(args: Array<String>) {
         CovioApp(
             controller = controller,
             darkTheme = darkTheme,
-            screenshot = options.screenshot,
             baselineResult = options.baselineResult,
-            onScreenshotCaptured = ::exitApplication,
             onBaselineFinished = ::exitApplication,
         )
     }
@@ -139,16 +141,69 @@ private data class LaunchOptions(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
+private fun renderScreenshot(options: LaunchOptions) {
+    val screenshot = options.screenshot ?: return
+    val client = CovioClient(sessionConfig(options))
+    val adapters = PlatformAdapters(client)
+    try {
+        val controller = AppController(client, adapters)
+        runBlocking {
+            controller.initialize()
+            controller.selectScreen(screenshot.screen)
+            if (screenshot.screen == Screen.Pair) {
+                controller.startPairing()
+            }
+        }
+        val scene = ImageComposeScene(
+            width = 1180,
+            height = 820,
+            density = Density(1f),
+            layoutDirection = LayoutDirection.Ltr,
+            coroutineContext = Dispatchers.Unconfined,
+        ) {
+            CovioApp(
+                controller = controller,
+                darkTheme = screenshot.theme == "dark",
+                initializeOnLaunch = false,
+                pollEvents = false,
+            )
+        }
+        try {
+            val image = scene.render()
+            try {
+                val data = image.encodeToData(EncodedImageFormat.PNG)
+                    ?: error("Skia could not encode the screenshot")
+                try {
+                    screenshot.path.parentFile?.mkdirs()
+                    screenshot.path.writeBytes(data.bytes)
+                } finally {
+                    data.close()
+                }
+            } finally {
+                image.close()
+            }
+        } finally {
+            scene.close()
+        }
+    } finally {
+        adapters.close()
+        client.close()
+    }
+}
+
+private fun sessionConfig(options: LaunchOptions): CovioSessionConfig = CovioSessionConfig(
+    dataRoot = options.dataRoot.absolutePath,
+    displayName = System.getenv("COMPUTERNAME") ?: "Windows device",
+    systemName = System.getProperty("os.name") ?: "Windows",
+    systemVersion = System.getProperty("os.version") ?: "unknown",
+    appVersion = GeneratedReleaseIdentity.clientVersion,
+    hostAdapters = listOf("file_picker", "notification", "background_task", "app_lifecycle"),
+)
+
 private fun runHeadlessSmoke(args: Array<String>) {
     val options = LaunchOptions.parse(args.filterNot { it == "--headless-smoke" }.toTypedArray())
-    val config = CovioSessionConfig(
-        dataRoot = options.dataRoot.absolutePath,
-        displayName = System.getenv("COMPUTERNAME") ?: "Windows device",
-        systemName = System.getProperty("os.name") ?: "Windows",
-        systemVersion = System.getProperty("os.version") ?: "unknown",
-        appVersion = GeneratedReleaseIdentity.clientVersion,
-        hostAdapters = listOf("file_picker", "notification", "background_task", "app_lifecycle"),
-    )
+    val config = sessionConfig(options)
     CovioClient(config).use { client ->
         val snapshot = client.request("app.snapshot")
         check(snapshot["device"] != null)

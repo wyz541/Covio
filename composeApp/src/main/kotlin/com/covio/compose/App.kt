@@ -40,7 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,12 +70,9 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import java.awt.Robot
-import java.awt.Window
 import java.awt.GraphicsEnvironment
 import java.io.File
 import java.lang.management.ManagementFactory
-import javax.imageio.ImageIO
 
 enum class Screen(val label: String, val subtitle: String) {
     Devices("Devices", "This device and trusted peers"),
@@ -295,17 +295,20 @@ enum class PairingMode {
 fun CovioApp(
     controller: AppController,
     darkTheme: Boolean,
-    screenshot: ScreenshotSpec? = null,
     baselineResult: File? = null,
-    onScreenshotCaptured: (() -> Unit)? = null,
     onBaselineFinished: (() -> Unit)? = null,
+    initializeOnLaunch: Boolean = true,
+    pollEvents: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     val processStartEpochMs = remember { processStartEpochMs() }
     LaunchedEffect(Unit) {
-        val initializeStartedNanos = System.nanoTime()
-        withContext(Dispatchers.IO) { controller.initialize() }
-        val initializeDurationMs = (System.nanoTime() - initializeStartedNanos) / 1_000_000.0
+        var initializeDurationMs = 0.0
+        if (initializeOnLaunch) {
+            val initializeStartedNanos = System.nanoTime()
+            withContext(Dispatchers.IO) { controller.initialize() }
+            initializeDurationMs = (System.nanoTime() - initializeStartedNanos) / 1_000_000.0
+        }
         var startupReadyMs = 0.0
         var firstReadyFrameDelayMs = 0.0
         if (baselineResult != null) {
@@ -313,15 +316,6 @@ fun CovioApp(
             withTimeoutOrNull(5_000L) { withFrameNanos { } }
             firstReadyFrameDelayMs = (System.nanoTime() - readyFrameStartedNanos) / 1_000_000.0
             startupReadyMs = (System.currentTimeMillis() - processStartEpochMs).coerceAtLeast(0).toDouble()
-        }
-        if (screenshot != null) {
-            controller.selectScreen(screenshot.screen)
-            if (screenshot.screen == Screen.Pair) {
-                withContext(Dispatchers.IO) { controller.startPairing() }
-            }
-            delay(3_000)
-            captureWindow(screenshot.path)
-            onScreenshotCaptured?.invoke()
         }
         if (baselineResult != null) {
             var warmupFrames = 0
@@ -373,10 +367,12 @@ fun CovioApp(
             onBaselineFinished?.invoke()
         }
     }
-    LaunchedEffect(controller) {
-        while (true) {
-            val event = controller.pollEvent()
-            if (event != null) controller.handleEvent(event)
+    if (pollEvents) {
+        LaunchedEffect(controller) {
+            while (true) {
+                val event = controller.pollEvent()
+                if (event != null) controller.handleEvent(event)
+            }
         }
     }
     CovioTheme(dark = darkTheme) {
@@ -437,7 +433,11 @@ private fun Sidebar(selected: Screen, onSelect: (Screen) -> Unit) {
                     .background(if (active) colors.primary.copy(alpha = 0.14f) else Color.Transparent)
                     .clickable { onSelect(item) }
                     .padding(horizontal = 12.dp)
-                    .semantics { contentDescription = "${item.label} tab" },
+                    .semantics {
+                        contentDescription = "${item.label} tab"
+                        role = Role.Tab
+                        this.selected = active
+                    },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -630,6 +630,7 @@ private fun PairScreen(controller: AppController, scope: kotlinx.coroutines.Coro
                             label = { Text("QR payload") },
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
+                            maxLines = 2,
                         )
                     }
                     OutlinedTextField(
@@ -638,6 +639,7 @@ private fun PairScreen(controller: AppController, scope: kotlinx.coroutines.Coro
                         label = { Text("Pairing response") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
+                        maxLines = 2,
                     )
                     ActionButton(
                         "Accept response",
@@ -656,6 +658,7 @@ private fun PairScreen(controller: AppController, scope: kotlinx.coroutines.Coro
                         label = { Text("QR payload from other device") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
+                        maxLines = 4,
                     )
                     ActionButton(
                         "Read QR offer",
@@ -701,6 +704,7 @@ private fun PairScreen(controller: AppController, scope: kotlinx.coroutines.Coro
                         label = { Text("Response to return to the other device") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 3,
+                        maxLines = 4,
                     )
                 }
                 ActionButton("Cancel pairing", "Cancel the current pairing session") {
@@ -809,7 +813,11 @@ private fun DeviceChoice(
             .background(if (selected) colors.primary.copy(alpha = 0.12f) else colors.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(12.dp)
-            .semantics { contentDescription = "Select device $name" },
+            .semantics {
+                contentDescription = "Select device $name"
+                role = Role.RadioButton
+                this.selected = selected
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -866,12 +874,12 @@ private fun QrCode(payload: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(250.dp)
+            .height(200.dp)
             .padding(8.dp)
             .semantics { contentDescription = "Pairing QR code" },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(Modifier.size(230.dp)) {
+        Canvas(Modifier.size(184.dp)) {
             val cell = size.minDimension / matrix.width
             for (x in 0 until matrix.width) {
                 for (y in 0 until matrix.height) {
@@ -903,7 +911,11 @@ private fun ModeButton(label: String, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .semantics { contentDescription = "$label mode" },
+            .semantics {
+                contentDescription = "$label mode"
+                role = Role.Tab
+                this.selected = selected
+            },
         color = if (selected) colors.primary.copy(alpha = 0.16f) else colors.surfaceVariant,
         shape = RoundedCornerShape(8.dp),
     ) {
@@ -1054,16 +1066,4 @@ private fun writePerformanceBaseline(
     }
     path.parentFile?.mkdirs()
     path.writeText(payload.toString(), Charsets.UTF_8)
-}
-
-private fun captureWindow(path: File) {
-    runCatching {
-        val window = Window.getWindows().firstOrNull { it.isShowing } ?: return
-        window.isAlwaysOnTop = true
-        window.toFront()
-        window.requestFocus()
-        Thread.sleep(750)
-        path.parentFile?.mkdirs()
-        ImageIO.write(Robot().createScreenCapture(window.bounds), "png", path)
-    }
 }
